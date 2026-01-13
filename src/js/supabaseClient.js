@@ -1,6 +1,3 @@
-
-// Supabase Client Initialization
-// Supabase Client Initialization
 // Supabase Client Initialization
 const SUPABASE_URL = (window.env && window.env.SUPABASE_URL) || 'https://gvxwuwtfqbxgzsjrdkpf.supabase.co';
 const SUPABASE_KEY = (window.env && window.env.SUPABASE_KEY) || 'sb_publishable_U2lIeDzAr6kMdqXpHolDtw_ndHOuVXV';
