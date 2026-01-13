@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results - CBT Exam</title>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .result-header {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: var(--background-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            border: 4px solid var(--primary-color);
+        }
+
+        /* ... skipping status colors ... */
+
+        .result-item {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        /* ... skipping border colors ... */
+
+        .opt-row {
+            display: flex;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        .opt-row.selected {
+            background-color: var(--inner-bg);
+            font-weight: bold;
+        }
+
+        .opt-row.correct-answer {
+            background-color: rgba(46, 204, 113, 0.2);
+        }
+
+        .opt-row.wrong-answer {
+            background-color: rgba(231, 76, 60, 0.2);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .status-badge.correct {
+            background-color: var(--success-color);
+        }
+
+        .status-badge.incorrect {
+            background-color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="main-header">
+            <div class="logo">
+                <h1>Exam Results</h1>
+            </div>
+            <div class="user-menu">
+                <button onclick="window.history.back()" class="btn">Back</button>
+            </div>
+        </header>
+
+        <main class="main-content" style="display: block; max-width: 800px; margin: 0 auto;">
+
+            <div id="loading" class="loader" style="margin: 50px auto;"></div>
+
+            <div id="result-content" style="display: none;">
+                <div class="result-header">
+                    <h2 id="exam-title" style="margin-bottom: 5px;">Exam Title</h2>
+                    <p id="student-name" style="color: var(--light-text); margin-bottom: 20px;">Student Name</p>
+
+                    <div class="score-circle" id="score-circle">
+                        0%
+                    </div>
+                    <div>
+                        <span id="pass-status" style="font-size: 1.2rem; font-weight: bold;">PASSED</span>
+                        <p id="points-summary" style="margin-top: 5px;">0 / 0 Points</p>
+                    </div>
+                </div>
+
+                <h3>Question Breakdown</h3>
+                <div id="questions-list">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabaseClient.js"></script>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/dataService.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/results.js"></script>
+</body>
+
+</html>

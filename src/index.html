@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBT Exam Software</title>
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Header is hidden on login page usually, but keeping for branding -->
+        <header class="main-header">
+            <div class="logo">
+                <h1>CBT Exam Core</h1>
+            </div>
+        </header>
+
+        <main id="main-content" class="main-content">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <h2>Welcome Back</h2>
+                        <p>Sign in to your account</p>
+                    </div>
+
+                    <div id="login-error" class="error-message"></div>
+
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="username">Student ID / Username</label>
+                            <input type="text" id="username" class="form-control"
+                                placeholder="Student ID (e.g. JAMES123) or Username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" class="form-control" placeholder="Enter your password"
+                                required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                    </form>
+
+                    <div class="auth-footer">
+                        <p>Don't have an account? <a href="pages/register.html">Sign Up</a></p>
+                        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                            <small>Demo Credentials:</small><br>
+                            <small>Teacher: admin / password</small><br>
+                            <small>Student: student / password</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="main-footer">
+            <p>&copy; 2026 CBT Exam Software</p>
+        </footer>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabaseClient.js"></script>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/dataService.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker Registered!', reg))
+                    .catch(err => console.log('Service Worker registration failed: ', err));
+            });
+        }
+    </script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

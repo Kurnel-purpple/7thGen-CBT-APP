@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - CBT Exam</title>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .mobile-text {
+            display: none;
+        }
+
+        .desktop-text {
+            display: inline;
+        }
+
+        @media (max-width: 600px) {
+            .mobile-text {
+                display: inline;
+            }
+
+            .desktop-text {
+                display: none;
+            }
+        }
+
+        /* Updated Dashboard Styles */
+        .dashboard-grid {
+            display: flex;
+            /* Changed from grid to flex */
+            flex-wrap: wrap;
+            justify-content: center;
+            /* Center the cards */
+            gap: 20px;
+        }
+
+        .stat-card {
+            flex: 0 1 auto;
+            /* Don't grow to fill */
+            width: 250px;
+            /* Fixed smaller width */
+            background: transparent;
+            /* Remove BG */
+            background-color: transparent !important;
+            /* Force override */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+            /* Subtle border */
+        }
+
+        /* Dark Mode Modal Support */
+        [data-theme="dark"] .modal-content {
+            background-color: #2d3436;
+            border-color: #444;
+            color: #eee;
+        }
+
+        [data-theme="dark"] .close-btn {
+            color: #aaa;
+        }
+
+        [data-theme="dark"] .stat-card {
+            border-color: #444;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] textarea,
+        [data-theme="dark"] input {
+            background-color: #2d3436;
+            border-color: #555;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="main-header">
+            <div class="logo">
+                <h1><span class="desktop-text">Teacher Dashboard</span><span class="mobile-text">TD</span></h1>
+            </div>
+            <div class="user-menu desktop-only">
+                <span id="user-name">Teacher</span>
+                <button onclick="auth.logout()" class="btn"
+                    style="color: var(--accent-color); margin-left: 10px; border: 1px solid #eee;">Logout</button>
+            </div>
+            <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
+        </header>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="mobile-menu">
+            <div class="mobile-menu-content">
+                <div class="mobile-user-row">
+                    <div class="mobile-user-info">
+                        <span id="mobile-user-name">Teacher</span>
+                    </div>
+                    <button id="mobile-theme-toggle" class="btn"
+                        style="background: transparent; font-size: 1.2rem;">🌓</button>
+                </div>
+                <div class="mobile-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="mobile-total-exams">0</div>
+                        <div class="stat-label">Total Exams</div>
+                    </div>
+                    <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModalFromMobile()">
+                        <div class="stat-number" id="mobile-results-pending-count">-</div>
+                        <div class="stat-label">Results Pending / Flags</div>
+                    </div>
+                </div>
+
+
+
+                <button class="btn btn-primary"
+                    style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
+                    onclick="prepareDevice()">💾 Prepare Device for Offline</button>
+
+                <!-- No Subject Filter for Teacher yet, just Logout -->
+                <button onclick="auth.logout()" class="btn btn-outline"
+                    style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">Logout</button>
+            </div>
+        </div>
+
+        <main class="main-content" style="display: block;">
+            <!-- Prepare Device Button (Desktop Only) -->
+            <div class="section-header desktop-only">
+                <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
+                    onclick="prepareDevice()">💾
+                    Prepare Device for Offline</button>
+                <div style="display: flex; gap: 10px;">
+                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
+                </div>
+            </div>
+
+            <!-- Stats Row (Desktop Only) -->
+            <div class="dashboard-grid desktop-only">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-exams">0</div>
+                    <div class="stat-label">Total Exams</div>
+                </div>
+                <!-- Future stats -->
+                <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModal()">
+                    <div class="stat-number" id="results-pending-count">-</div>
+                    <div class="stat-label">Results Pending / Flags</div>
+                </div>
+            </div>
+
+            <!-- My Exams Section Header -->
+            <div class="section-header">
+                <h3 class="section-title">My Exams</h3>
+                <!-- Mobile: Show Create button here -->
+                <div class="mobile-only">
+                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
+                </div>
+            </div>
+
+            <!-- Exams Grid -->
+            <div id="exams-grid" class="exam-grid">
+                <!-- Javascript will populate this -->
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p>No exams found. Create your first exam to get started.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Extensions Modal -->
+    <div id="extensions-modal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content"
+            style="background: var(--card-bg); padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <h3>Manage Time Extensions</h3>
+            <p id="ext-exam-title" style="margin-bottom: 15px; color: var(--light-text);"></p>
+
+            <div class="form-group">
+                <label>Select Student</label>
+                <select id="ext-student-select" class="form-control">
+                    <option value="">Loading students...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Extra Time Multiplier</label>
+                <select id="ext-multiplier" class="form-control">
+                    <option value="1.25">25% Extra Time</option>
+                    <option value="1.5">50% Extra Time</option>
+                    <option value="2.0">100% Extra Time (Double)</option>
+                </select>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeExtensionsModal()">Close</button>
+                <button class="btn btn-primary" onclick="saveExtension()">Grant Extension</button>
+            </div>
+
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+
+            <h4>Current Extensions</h4>
+            <div id="ext-list" style="margin-top: 10px;">
+                <!-- List items -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Flag Review Modal -->
+    <div id="flag-review-modal" class="modal">
+        <div class="modal-content"
+            style="max-width: 800px; height: 100vh; display: flex; flex-direction: column; resize: both; overflow: auto; margin: 0; max-height: none; border-radius: 0;">
+            <div class="modal-header">
+                <h3>Review Flagged Questions</h3>
+                <span class="close-btn" onclick="closeFlagReviewModal()">&times;</span>
+            </div>
+            <div id="flag-review-body" style="overflow-y: auto; flex: 1; padding-right: 10px;">
+                <!-- Content injected by JS -->
+                <p>Loading flags...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeFlagReviewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Question Modal (Mini) -->
+    <div id="edit-question-modal" class="modal" style="z-index: 2200;">
+        <div class="modal-content"
+            style="max-width: 600px; height: 100vh; display: flex; flex-direction: column; resize: both; overflow: auto; margin: 0; max-height: none; border-radius: 0;">
+            <div style="padding: 20px; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                <h3>Edit Question & Options</h3>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">Update the question text and answer
+                    options below.</p>
+
+                <div style="flex: 1; overflow-y: auto; padding-right: 10px;">
+                    <div class="form-group">
+                        <label>Question Text</label>
+                        <textarea id="edit-q-text" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <label style="margin-top: 10px; display: block;">Answer Options</label>
+                    <div id="edit-q-options-container"
+                        style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                        <!-- Options injected by JS -->
+                    </div>
+                </div>
+
+                <input type="hidden" id="edit-q-exam-id">
+                <input type="hidden" id="edit-q-index">
+
+                <div class="model-footer"
+                    style="padding-top: 15px; text-align: right; border-top: 1px solid #eee; margin-top: auto;">
+                    <button class="btn btn-outline"
+                        onclick="document.getElementById('edit-question-modal').style.display='none'">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveQuestionEdit()">Save & Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Message Modal -->
+    <div id="message-modal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;">
+        <div class="modal-content"
+            style="background: var(--card-bg); padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="msg-title" style="margin: 0; font-size: 1.2rem;">Title</h3>
+                <span style="cursor: pointer; font-size: 1.5rem; line-height: 1;"
+                    onclick="closeMessageModal()">&times;</span>
+            </div>
+            <div id="msg-body" style="margin-bottom: 25px; line-height: 1.5; color: var(--text-color);">
+                Message body...
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="msg-cancel-btn" class="btn btn-outline" onclick="closeMessageModal()">Close</button>
+                <button id="msg-confirm-btn" class="btn btn-primary" style="display: none;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabaseClient.js"></script>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/dataService.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        // Global Flag Helper
+        window.countActiveFlags = function (flagsObj) {
+            if (!flagsObj) return 0;
+            return Object.values(flagsObj).filter(v => {
+                // Strict check for boolean true or string "true", handling objects safely
+                if (typeof v === 'object') return false; // Objects (like resolved status) are not active flags
+                return v === true || String(v).toLowerCase() === 'true';
+            }).length;
+        };
+
+        // Connection Monitoring
+        function setupConnectionMonitoring() {
+            const updateStatus = () => {
+                const isOnline = navigator.onLine;
+                let el = document.getElementById('connection-status');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'connection-status';
+                    el.style.position = 'fixed';
+                    el.style.top = '10px';
+                    el.style.right = '120px';
+                    el.style.zIndex = '2000';
+                    el.style.padding = '5px 10px';
+                    el.style.borderRadius = '20px';
+                    el.style.fontSize = '0.8rem';
+                    el.style.fontWeight = 'bold';
+                    document.body.appendChild(el);
+                }
+
+                if (isOnline) {
+                    el.textContent = '🟢 Online';
+                    el.style.backgroundColor = '#d4edda';
+                    el.style.color = '#155724';
+                    el.style.border = '1px solid #c3e6cb';
+                    setTimeout(() => { if (el) el.style.opacity = '0'; }, 5000);
+                    el.style.opacity = '1';
+                } else {
+                    el.textContent = '🔴 Offline';
+                    el.style.backgroundColor = '#f8d7da';
+                    el.style.color = '#721c24';
+                    el.style.border = '1px solid #f5c6cb';
+                    el.style.opacity = '1';
+                }
+            };
+
+            window.addEventListener('online', () => {
+                updateStatus();
+                syncResults();
+            });
+            window.addEventListener('offline', updateStatus);
+
+            updateStatus();
+            if (navigator.onLine) setTimeout(syncResults, 2000);
+        }
+
+        async function syncResults() {
+            const { synced, pending } = await dataService.syncPendingResults();
+            if (synced > 0) {
+                const el = document.getElementById('connection-status');
+                if (el) {
+                    el.textContent = `Syncing... (${synced} sent)`;
+                    el.style.backgroundColor = '#ffeeba';
+                    el.style.color = '#856404';
+                    el.style.opacity = '1';
+                    setTimeout(() => {
+                        el.textContent = '🟢 Synced';
+                        el.style.backgroundColor = '#d4edda';
+                        el.style.color = '#155724';
+                        // Refresh data?
+                        location.reload();
+                    }, 1500);
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupConnectionMonitoring();
+            // Auth Check
+            const user = dataService.getCurrentUser();
+            if (!user || user.role !== 'teacher') {
+                window.location.href = '../index.html';
+                return;
+            }
+            document.getElementById('user-name').textContent = user.name;
+
+            // Mobile Menu
+            const mName = document.getElementById('mobile-user-name');
+            if (mName) mName.textContent = user.name;
+
+            const btn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+            if (btn) btn.onclick = () => {
+                menu.classList.toggle('show');
+                btn.textContent = menu.classList.contains('show') ? '✕' : '☰';
+            };
+
+            // Mobile Theme Toggle
+            const mThemeBtn = document.getElementById('mobile-theme-toggle');
+            if (mThemeBtn) {
+                const currentTheme = localStorage.getItem('theme') || 'light';
+                mThemeBtn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
+                mThemeBtn.onclick = () => {
+                    const curr = document.documentElement.getAttribute('data-theme');
+                    const next = curr === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', next);
+                    localStorage.setItem('theme', next);
+                    mThemeBtn.innerHTML = next === 'dark' ? '☀️' : '🌙';
+
+                    // Update desktop toggle if it exists (Utils.js created it)
+                    const dToggle = document.getElementById('theme-toggle');
+                    if (dToggle) dToggle.innerHTML = next === 'dark' ? '☀️' : '🌙';
+                };
+            }
+
+            // Load Data
+            try {
+                // Fetch Exams and Results (for stats) in parallel
+                // We use getResults to aggregate flags.
+                const [exams, allResults] = await Promise.all([
+                    dataService.getExams({ teacherId: user.id }),
+                    dataService.getResults() // Get all results
+                ]);
+
+                // Calculate Flag Counts per Exam
+                const examStats = {};
+                allResults.forEach(r => {
+                    if (!examStats[r.examId]) examStats[r.examId] = { flags: 0 };
+
+                    if (r.flags) {
+                        // Count only ACTIVE flags (true or "true")
+                        // Exclude resolved flags (objects with status='resolved')
+                        examStats[r.examId].flags += window.countActiveFlags(r.flags);
+                    }
+                });
+
+                // Update Stats
+                const count = exams.length;
+                document.getElementById('total-exams').textContent = count;
+                const mStats = document.getElementById('mobile-total-exams');
+                if (mStats) mStats.textContent = count;
+
+                // Calculate Pending Results (Global Red Count - Total Flagged Submissions / Students)
+                // Filter for any ACTIVE flags
+                const pendingCount = allResults.filter(r => window.countActiveFlags(r.flags) > 0).length;
+
+                const pEl = document.getElementById('results-pending-count');
+                if (pEl) pEl.textContent = pendingCount;
+
+                const mpEl = document.getElementById('mobile-results-pending-count');
+                if (mpEl) mpEl.textContent = pendingCount;
+
+                // Render Grid
+                const grid = document.getElementById('exams-grid');
+                if (exams.length > 0) {
+                    grid.innerHTML = exams.map(exam => {
+                        const flagsCount = (examStats[exam.id] && examStats[exam.id].flags) || 0;
+
+                        // Calculate Participant Breakdown
+                        const examResults = allResults.filter(r => r.examId === exam.id);
+                        // Clean green/red split based on active flags
+                        const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
+                        const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
+
+                        // Red is Active Flags
+                        const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
+
+                        return `
+                        <div class="exam-card">
+                            <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
+                                <span class="exam-subject">${exam.subject || 'General'}</span>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
+                                    <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
+                                    <span title="Flagged" style="font-size: 0.9rem;">🔴 ${redCount}</span>
+                                </div>
+                            </div>
+                            <div class="exam-card-body">
+                                <h4 class="exam-title">${exam.title}</h4>
+                                <div class="exam-meta">
+                                    <span>⏱ ${exam.duration}m</span>
+                                    <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
+                                    <span>🏫 ${exam.targetClass || 'All Classes'}</span>
+                                </div>
+                            </div>
+                            <div class="exam-card-footer">
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">Edit</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">Extensions</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">Results</button>
+                            </div>
+                        </div>
+                    `}).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load exams', err);
+            }
+        });
+
+        // --- Extensions Logic ---
+        let currentExamExtensionsId = null;
+
+        window.openExtensionsModal = async (examId) => {
+            currentExamExtensionsId = examId;
+            const exam = await dataService.getExamById(examId);
+            if (!exam) return;
+
+            document.getElementById('extensions-modal').style.display = 'flex';
+            document.getElementById('ext-exam-title').textContent = `Exam: ${exam.title}`;
+
+            // Load Students
+            const select = document.getElementById('ext-student-select');
+            select.innerHTML = '<option value="">Loading...</option>';
+
+            try {
+                // Get all students
+                // In a real app we might filter by the exam's class
+                const students = await dataService.getUsers('student');
+
+                // Filter by class if exam has class
+                let filtered = students;
+                if (exam.targetClass && exam.targetClass !== 'All Classes' && exam.targetClass !== 'All') {
+                    filtered = students.filter(s => s.classLevel === exam.targetClass || !s.classLevel);
+                }
+
+                let opts = `<option value="GLOBAL" style="font-weight:bold;">-- ALL STUDENTS --</option>`;
+                opts += filtered.map(s => `<option value="${s.id}">${s.name} (${s.username})</option>`).join('');
+                select.innerHTML = opts;
+
+                renderExtensionsList(exam);
+            } catch (e) {
+                console.error(e);
+                select.innerHTML = '<option value="">Error loading students</option>';
+            }
+        };
+
+        window.closeExtensionsModal = () => {
+            document.getElementById('extensions-modal').style.display = 'none';
+            currentExamExtensionsId = null;
+        }
+
+        window.saveExtension = async () => {
+            if (!currentExamExtensionsId) return;
+            const studentId = document.getElementById('ext-student-select').value;
+            const multiplier = parseFloat(document.getElementById('ext-multiplier').value);
+
+            if (!studentId) return alert('Select a student or All Students');
+
+            try {
+                const exam = await dataService.getExamById(currentExamExtensionsId);
+
+                if (studentId === 'GLOBAL') {
+                    // Global Extension
+                    const globalExtension = {
+                        multiplier: multiplier,
+                        grantedAt: new Date().toISOString()
+                    };
+                    await dataService.updateExam(currentExamExtensionsId, { globalExtension });
+                } else {
+                    // Specific Extension
+                    const extensions = exam.extensions || {};
+                    extensions[studentId] = {
+                        multiplier: multiplier,
+                        grantedAt: new Date().toISOString()
+                    };
+                    await dataService.updateExam(currentExamExtensionsId, { extensions });
+                }
+
+                // Refresh list
+                const updatedExam = await dataService.getExamById(currentExamExtensionsId);
+                renderExtensionsList(updatedExam);
+                alert('Extension saved.');
+            } catch (e) {
+                alert('Failed to save: ' + e.message);
+            }
+        };
+
+        async function removeExtension(studentId) {
+            if (!currentExamExtensionsId) return;
+            if (!confirm('Remove this extension?')) return;
+
+            try {
+                const exam = await dataService.getExamById(currentExamExtensionsId);
+
+                if (studentId === 'GLOBAL') {
+                    await dataService.updateExam(currentExamExtensionsId, { globalExtension: null });
+                } else {
+                    const extensions = exam.extensions || {};
+                    delete extensions[studentId];
+                    await dataService.updateExam(currentExamExtensionsId, { extensions });
+                }
+
+                const updatedExam = await dataService.getExamById(currentExamExtensionsId);
+                renderExtensionsList(updatedExam);
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Expose removeExtension to window for onclick
+        window.removeExtension = removeExtension;
+
+        // Offline Prep Logic
+        let messageModalCallback = null;
+
+        function showMessageModal({ title, body, showConfirm = false, confirmText = 'Confirm', onConfirm = null }) {
+            const modal = document.getElementById('message-modal');
+            const titleEl = document.getElementById('msg-title');
+            const bodyEl = document.getElementById('msg-body');
+            const cancelBtn = document.getElementById('msg-cancel-btn');
+            const confirmBtn = document.getElementById('msg-confirm-btn');
+
+            titleEl.textContent = title;
+            bodyEl.innerHTML = body.replace(/\n/g, '<br>');
+
+            if (showConfirm) {
+                confirmBtn.style.display = 'block';
+                confirmBtn.textContent = confirmText;
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.onclick = closeMessageModal;
+                cancelBtn.style.display = 'block';
+
+                messageModalCallback = onConfirm;
+                confirmBtn.onclick = () => {
+                    if (messageModalCallback) messageModalCallback();
+                };
+            } else {
+                confirmBtn.style.display = 'none';
+                cancelBtn.textContent = 'Close';
+                cancelBtn.onclick = closeMessageModal;
+                cancelBtn.style.display = 'block';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        window.closeMessageModal = () => {
+            document.getElementById('message-modal').style.display = 'none';
+            messageModalCallback = null;
+        }
+
+        window.prepareDevice = async () => {
+            showMessageModal({
+                title: 'Prepare Offline Data',
+                body: 'This will download all Student references and Active Exams to this computer for offline use.\n\nEnsure you are ONLINE.\n\nProceed?',
+                showConfirm: true,
+                confirmText: 'Download & Prepare',
+                onConfirm: async () => {
+                    // Loading State
+                    document.getElementById('msg-title').textContent = 'Downloading...';
+                    document.getElementById('msg-body').textContent = 'Please wait while we cache the data.';
+                    document.getElementById('msg-confirm-btn').style.display = 'none';
+                    document.getElementById('msg-cancel-btn').style.display = 'none';
+
+                    try {
+                        const user = dataService.getCurrentUser();
+                        const stats = await dataService.prepareOfflineData(user.id);
+                        // Success
+                        showMessageModal({
+                            title: 'Device Ready',
+                            body: `Device Prepared Successfully!\n\nDownloaded:\n- ${stats.students} Students\n- ${stats.exams} Exams\n\nYou can now take this device offline.\nStudents can log in using their IDs.`
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        showMessageModal({
+                            title: 'Preparation Failed',
+                            body: 'Error: ' + err.message
+                        });
+                    }
+                }
+            });
+        };
+
+        function renderExtensionsList(exam) {
+            const list = document.getElementById('ext-list');
+            const ext = exam.extensions || {};
+            const studentIds = Object.keys(ext);
+            const globalExt = exam.globalExtension;
+
+            if (studentIds.length === 0 && !globalExt) {
+                list.innerHTML = '<p style="font-size: 0.9rem; color: var(--light-text);">No extensions granted.</p>';
+                return;
+            }
+
+            const selectOptions = Array.from(document.getElementById('ext-student-select').options);
+            let html = '';
+
+            // Render Global First
+            if (globalExt) {
+                const extra = Math.round((globalExt.multiplier - 1) * 100);
+                html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; background-color: rgba(46, 204, 113, 0.1);">
+                    <div>
+                        <div style="font-weight: 700;">ALL STUDENTS</div>
+                        <div style="font-size: 0.8rem; color: var(--success-color);">+${extra}% Time</div>
+                    </div>
+                    <button class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); padding: 2px 6px; font-size: 0.8rem;" onclick="removeExtension('GLOBAL')">Remove</button>
+                </div>
+                `;
+            }
+
+            html += studentIds.map(sid => {
+                const data = ext[sid];
+                // Find name from current filtering or just show ID
+                const opt = selectOptions.find(o => o.value === sid);
+                const name = opt ? opt.text : sid;
+                const extra = Math.round((data.multiplier - 1) * 100);
+
+                return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
+                    <div>
+                        <div style="font-weight: 500;">${name}</div>
+                        <div style="font-size: 0.8rem; color: var(--success-color);">+${extra}% Time</div>
+                    </div>
+                    <button class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); padding: 2px 6px; font-size: 0.8rem;" onclick="removeExtension('${sid}')">Remove</button>
+                </div>
+                `;
+            }).join('');
+
+            list.innerHTML = html;
+        }
+
+        // --- Flag Review Features ---
+        let currentFlaggedResults = [];
+        let cachedExams = [];
+        let cachedResults = [];
+
+        window.openFlagReviewModal = async () => {
+            await loadAndRenderFlags();
+            document.getElementById('flag-review-modal').style.display = 'flex';
+        };
+
+        // Helper function for mobile - closes menu before opening modal
+        window.openFlagReviewModalFromMobile = async () => {
+            const menu = document.getElementById('mobile-menu');
+            const btn = document.getElementById('mobile-menu-btn');
+
+            // Close mobile menu
+            if (menu && menu.classList.contains('show')) {
+                menu.classList.remove('show');
+                if (btn) btn.textContent = '☰';
+            }
+
+            // Open modal
+            await openFlagReviewModal();
+        };
+
+        // Split load logic for reuse
+        async function loadAndRenderFlags() {
+            const body = document.getElementById('flag-review-body');
+            // Only show loading if empty cache, otherwise implicit update
+            if (cachedResults.length === 0) body.innerHTML = '<p>Loading flagged submissions...</p>';
+
+            try {
+                // Fetch fresh data
+                const user = dataService.getCurrentUser();
+                const [exams, allResults] = await Promise.all([
+                    dataService.getExams({ teacherId: user.id }),
+                    dataService.getResults()
+                ]);
+
+                cachedExams = exams;
+                cachedResults = allResults;
+
+                processAndRenderUi();
+
+            } catch (e) {
+                console.error(e);
+
+                // If offline and we have cached data, use it
+                if (!navigator.onLine && cachedExams.length > 0 && cachedResults.length > 0) {
+                    console.warn('Offline: Using cached data for flag review');
+                    processAndRenderUi();
+
+                    // Show offline indicator in modal
+                    const modalHeader = document.querySelector('#flag-review-modal .modal-header h3');
+                    if (modalHeader && !modalHeader.textContent.includes('🔴')) {
+                        modalHeader.textContent = '🔴 Review Flagged Questions (Offline Mode)';
+                    }
+                } else if (!navigator.onLine) {
+                    body.innerHTML = `<div class="empty-state"><p>❌ You are offline and no cached data is available.</p><p>Please connect to the internet to view flagged questions.</p></div>`;
+                } else {
+                    body.innerHTML = `<p style="color:red">Error loading flags: ${e.message}</p>`;
+                }
+            }
+        }
+
+        function processAndRenderUi() {
+            // 1. Update Dashboard Stats (Exam Cards and Pending Counts)
+            updateDashboardStats(cachedExams, cachedResults);
+
+            // 2. Build Flagged List
+            currentFlaggedResults = [];
+
+            for (const res of cachedResults) {
+                const flagsObj = res.flags || {};
+                const activeFlagKeys = Object.entries(flagsObj)
+                    // Use robust check matching helper
+                    .filter(([k, v]) => {
+                        if (k.startsWith('_')) return false;
+                        if (typeof v === 'object') return false;
+                        return v === true || String(v).toLowerCase() === 'true';
+                    })
+                    .map(([k, v]) => k);
+
+                if (activeFlagKeys.length > 0) {
+                    const exam = cachedExams.find(e => e.id === res.examId);
+                    if (exam) {
+                        currentFlaggedResults.push({
+                            result: res,
+                            exam: exam,
+                            flaggedQuestionIds: activeFlagKeys
+                        });
+                    }
+                }
+            }
+
+            // 3. Render Modal List
+            renderFlagReviewList();
+        }
+
+        // Helper to update main dashboard counters without full reload
+        function updateDashboardStats(exams, allResults) {
+            // Count distinct STUDENTS with active flags (not total flags)
+            const pendingCount = allResults.filter(r => window.countActiveFlags(r.flags) > 0).length;
+
+            // Update desktop Results Pending counter
+            const pEl = document.getElementById('results-pending-count');
+            if (pEl) pEl.textContent = pendingCount;
+
+            // Update mobile Results Pending counter (Task 3)
+            const mpEl = document.getElementById('mobile-results-pending-count');
+            if (mpEl) mpEl.textContent = pendingCount;
+
+            // Also update totals per exam if we want to be thorough, but rebuilding grid is heavy.
+            // We can just rebuild the grid since we have exams and results.
+            const grid = document.getElementById('exams-grid');
+            if (exams.length > 0 && grid) {
+                // Calculate stats again...
+                const examStats = {};
+                allResults.forEach(r => {
+                    if (!examStats[r.examId]) examStats[r.examId] = { flags: 0 };
+                    if (r.flags) {
+                        const count = Object.values(r.flags).filter(v => v === true || v === 'true').length;
+                        examStats[r.examId].flags += count;
+                    }
+                });
+
+                // Re-render
+                // ... Duplicating the map logic or extracting it would be better.
+                // For minimal complexity increase, let's just trigger the 'DOMContentLoaded' logic?
+                // No, we can't easily. Let's just update the Global Pending count first as requested.
+                // User "number on flag card reduces by 1". That is the Global Pending Card.
+                // User also said "total number of flags in the exam card reduces by 1".
+                // So we DO need to update the grid.
+
+                // Let's refactor the grid render into a function 'renderDashboardGrid(exams, allResults)' 
+                // But we are inside replacement content. I will just duplicate the map logic strictly for now to be safe.
+                grid.innerHTML = exams.map(exam => {
+                    const examResults = allResults.filter(r => r.examId === exam.id);
+                    const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
+                    const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
+                    const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
+
+                    return `
+                        <div class="exam-card">
+                            <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
+                                <span class="exam-subject">${exam.subject || 'General'}</span>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
+                                    <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
+                                    <span title="Flagged" style="font-size: 0.9rem;">🔴 ${redCount}</span>
+                                </div>
+                            </div>
+                            <div class="exam-card-body">
+                                <h4 class="exam-title">${exam.title}</h4>
+                                <div class="exam-meta">
+                                    <span>⏱ ${exam.duration}m</span>
+                                    <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
+                                    <span>🏫 ${exam.targetClass || 'All Classes'}</span>
+                                </div>
+                            </div>
+                            <div class="exam-card-footer">
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">Edit</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">Extensions</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">Results</button>
+                            </div>
+                        </div>
+                    `}).join('');
+            }
+        }
+
+        window.closeFlagReviewModal = () => {
+            document.getElementById('flag-review-modal').style.display = 'none';
+        }
+
+        function renderFlagReviewList() {
+            const body = document.getElementById('flag-review-body');
+
+            // Task 4: Filter out any entries that have no active flags remaining
+            const activeGroups = currentFlaggedResults.filter(entry => entry.flaggedQuestionIds.length > 0);
+
+            if (activeGroups.length === 0) {
+                body.innerHTML = '<div class="empty-state"><p>No pending flagged questions.</p></div>';
+                return;
+            }
+
+            let html = '';
+
+            activeGroups.forEach(({ result, exam, flaggedQuestionIds }) => {
+                html += `
+                <div class="flag-group">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px;">
+                        <div>
+                            <strong>${result.studentName}</strong> <span style="opacity: 0.7;">- ${exam.title}</span>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline" style="font-size:0.8rem; padding: 2px 6px;" onclick="window.openExtensionsModal('${exam.id}')">Grant Extension</button>
+                        </div>
+                    </div>
+                `;
+
+                flaggedQuestionIds.forEach(qId => {
+                    // Find question by ID
+                    const qIndex = exam.questions.findIndex(q => q.id == qId);
+                    const question = (qIndex >= 0) ? exam.questions[qIndex] : null;
+                    const qText = question ? question.text : 'Question not found (ID ' + qId + ')';
+                    const displayIndex = (qIndex >= 0) ? qIndex + 1 : '?';
+
+                    html += `
+                    <div class="flag-item">
+                        <div class="flag-header" style="font-weight: bold; margin-bottom: 5px; color: #cc0000;">Flagged Question #${displayIndex}</div>
+                        <div style="margin-bottom: 8px; font-style: italic;">"${qText}"</div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="openEditQuestion('${exam.id}', ${qIndex})">✏️ Edit Question</button>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; background-color: #2ecc71; border-color: #2ecc71;" onclick="resolveFlag('${result.id}', '${qId}')">✔ Resolve</button>
+                        </div>
+                    </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            body.innerHTML = html;
+        }
+
+        window.openEditQuestion = async (examId, qIndex) => {
+            try {
+                const exam = await dataService.getExamById(examId);
+                if (!exam || !exam.questions[qIndex]) return;
+
+                const q = exam.questions[qIndex];
+                document.getElementById('edit-q-text').value = q.text;
+                document.getElementById('edit-q-exam-id').value = examId;
+                document.getElementById('edit-q-index').value = qIndex;
+
+                // Render Options
+                const container = document.getElementById('edit-q-options-container');
+                container.innerHTML = '';
+
+                if (q.options && Array.isArray(q.options)) {
+                    q.options.forEach((opt, i) => {
+                        // Handle Object vs String options
+                        const val = (typeof opt === 'object' && opt !== null) ? (opt.text || '') : opt;
+
+                        container.innerHTML += `
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <span style="font-weight: bold; width: 20px;">${String.fromCharCode(65 + i)}.</span>
+                            <input type="text" class="form-control edit-option-input" value="${val}" data-index="${i}" style="flex: 1;">
+                        </div>
+                       `;
+                    });
+                }
+
+                document.getElementById('edit-question-modal').style.display = 'flex';
+            } catch (e) {
+                alert('Error loading question: ' + e.message);
+            }
+        }
+
+        window.saveQuestionEdit = async () => {
+            const examId = document.getElementById('edit-q-exam-id').value;
+            const qIndex = parseInt(document.getElementById('edit-q-index').value);
+            const newText = document.getElementById('edit-q-text').value;
+
+            // Gather Options
+            const optionInputs = document.querySelectorAll('.edit-option-input');
+            const newOptions = Array.from(optionInputs).map(input => input.value.trim()); // Strings
+
+            if (!newText.trim()) return alert('Question text cannot be empty');
+            if (newOptions.some(o => !o)) return alert('All options must be filled');
+
+            try {
+                const exam = await dataService.getExamById(examId);
+                const originalQ = exam.questions[qIndex];
+
+                // Update Text
+                originalQ.text = newText;
+
+                // Update Options - Preserve Object Structure if needed
+                if (originalQ.options && originalQ.options.length > 0 && typeof originalQ.options[0] === 'object') {
+                    originalQ.options = originalQ.options.map((oldOpt, i) => {
+                        if (typeof oldOpt === 'object') {
+                            return { ...oldOpt, text: newOptions[i] || '' };
+                        }
+                        return { text: newOptions[i] || '' };
+                    });
+                } else {
+                    originalQ.options = newOptions;
+                }
+
+                // Update Exam
+                await dataService.updateExam(examId, { questions: exam.questions });
+
+                alert('Question and options updated successfully.');
+                document.getElementById('edit-question-modal').style.display = 'none';
+
+                // Reload list to show updated text
+                openFlagReviewModal();
+            } catch (e) {
+                alert('Failed to update: ' + e.message);
+            }
+        }
+
+        window.resolveFlag = async (resultId, flagKey) => {
+            // Check if online first
+            if (!navigator.onLine) {
+                alert('❌ You are offline. Cannot resolve flags without an internet connection.\n\nPlease connect to the internet and try again.');
+                return;
+            }
+
+            if (!confirm('Mark this flag as resolved? Student will have 30 minutes to review.')) return;
+
+            try {
+                // --- INSTANT UI UPDATE (Local Patch FIRST) ---
+                // Find result in cache and update it immediately
+                const cachedRes = cachedResults.find(r => r.id === resultId);
+                if (!cachedRes) {
+                    throw new Error('Result not found in cache');
+                }
+
+                console.log('Original flags:', JSON.stringify(cachedRes.flags));
+
+                // Create updated flags object
+                const updatedFlags = { ...(cachedRes.flags || {}) };
+
+                // Update flag to resolved state with deadline (30 minutes from now)
+                const deadline = new Date(Date.now() + 30 * 60000).toISOString();
+                updatedFlags[flagKey] = {
+                    status: 'resolved',
+                    deadline: deadline
+                };
+
+                console.log('Updated flags to save:', JSON.stringify(updatedFlags));
+
+                // Update cache immediately
+                cachedRes.flags = updatedFlags;
+
+                // Trigger immediate re-render with updated local data
+                // This removes the resolved question from the modal instantly
+                processAndRenderUi();
+
+                // Now update the database using dataService method
+                console.log('Updating database for result ID:', resultId);
+
+                const updatedResult = await dataService.updateResult(resultId, {
+                    flags: updatedFlags
+                });
+
+                console.log('Database update successful:', updatedResult);
+
+                // Verify the update
+                if (updatedResult && updatedResult.flags && updatedResult.flags[flagKey]) {
+                    const dbFlag = updatedResult.flags[flagKey];
+                    if (typeof dbFlag === 'object' && dbFlag.status === 'resolved') {
+                        console.log('✅ Flag successfully persisted as resolved in database');
+                    } else {
+                        console.warn('⚠️ Flag in database does not match expected resolved state:', dbFlag);
+                    }
+                } else {
+                    console.warn('⚠️ Flag key not found in database after update');
+                }
+
+            } catch (e) {
+                console.error('Failed to resolve flag:', e);
+
+                // Check if error is due to network issues
+                if (!navigator.onLine || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+                    alert('❌ Lost internet connection. The flag was not resolved.\n\nPlease check your connection and try again.');
+                } else {
+                    alert('Failed to resolve flag: ' + e.message);
+                }
+
+                // On error, reload to restore correct state
+                loadAndRenderFlags().catch(console.error);
+            }
+        }
+    </script>
+</body>
+
+</html>

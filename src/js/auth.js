@@ -1,0 +1,80 @@
+/**
+ * Authentication Controller
+ */
+
+const auth = {
+    init: () => {
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', auth.handleLogin);
+        }
+    },
+
+    handleLogin: async (e) => {
+        e.preventDefault();
+
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const errorDiv = document.getElementById('login-error');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        if (!username || !password) {
+            auth.showError('Please enter both User ID/Username and password.');
+            return;
+        }
+
+        // Loading state
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = 'Signing in...';
+        submitBtn.disabled = true;
+        errorDiv.style.display = 'none';
+
+        try {
+            const user = await dataService.login(username, password);
+            console.log('Login successful:', user);
+
+            if (user.role === 'student') {
+                window.location.href = 'pages/student-dashboard.html';
+            } else if (user.role === 'teacher') {
+                window.location.href = 'pages/teacher-dashboard.html';
+            } else {
+                auth.showError('Unknown user role.');
+            }
+        } catch (err) {
+            console.error(err);
+            auth.showError(err.message || 'Login failed. Please check your credentials.');
+            submitBtn.textContent = originalBtnText;
+            submitBtn.disabled = false;
+        }
+    },
+
+    showError: (msg) => {
+        const errorDiv = document.getElementById('login-error');
+        if (errorDiv) {
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        } else {
+            alert(msg);
+        }
+    },
+
+    logout: async () => {
+        await dataService.logout();
+        // Check if we are in a subdirectory (pages/) or root
+        if (window.location.pathname.includes('/pages/')) {
+            window.location.href = '../index.html';
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+};
+
+// Auto-init if in browser
+if (typeof window !== 'undefined') {
+    window.auth = auth;
+    // Wait for DOM
+    document.addEventListener('DOMContentLoaded', auth.init);
+}

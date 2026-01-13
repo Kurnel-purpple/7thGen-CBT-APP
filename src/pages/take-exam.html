@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam In Progress - CBT Exam</title>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/exam.css">
+</head>
+
+<body>
+    <div class="exam-container">
+        <!-- Sidebar -->
+        <aside class="exam-sidebar">
+            <div class="sidebar-header">
+                <div class="student-info" id="student-name">Student Name</div>
+                <div class="exam-info" id="exam-subject">Subject</div>
+            </div>
+
+            <div class="palette-container">
+                <p style="margin-bottom: 10px; font-size: 0.8rem; color: #666;">Question Palette:</p>
+                <div class="question-grid" id="question-palette">
+                    <!-- Dynamic Buttons -->
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div
+                    style="display: flex; justify-content: space-around; font-size: 0.75rem; color: #666; margin-bottom: 10px;">
+                    <div><span
+                            style="width:10px; height:10px; background:var(--primary-color); display:inline-block; border-radius:50%;"></span>
+                        Current</div>
+                    <div><span
+                            style="width:10px; height:10px; background:var(--primary-color); opacity:0.7; display:inline-block; border-radius:50%;"></span>
+                        Answered</div>
+                    <div><span
+                            style="width:10px; height:10px; border:1px solid #ccc; display:inline-block; border-radius:50%;"></span>
+                        Unseen</div>
+                </div>
+                <!-- Submit Button moved to bottom right usually, but can be here too. Let's keep Submit in main footer -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="exam-main">
+            <header class="exam-header">
+                <h2 id="exam-title">Exam Title</h2>
+                <div class="timer-display" id="timer">00:00:00</div>
+            </header>
+
+            <div class="question-area" id="question-area">
+                <div class="question-card">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="color: var(--primary-color); font-weight: bold;">Question <span
+                                id="q-current-num">1</span> / <span id="q-total-num">10</span></span>
+                        <label style="cursor: pointer; display: flex; align-items: center; font-size: 0.9rem;">
+                            <input type="checkbox" id="flag-checkbox" style="margin-right: 5px;"> Flag for review
+                        </label>
+                    </div>
+
+                    <div class="q-text-display" id="q-text">
+                        Loading question...
+                    </div>
+
+                    <div class="options-list" id="q-options">
+                        <!-- Options go here -->
+                    </div>
+                </div>
+            </div>
+
+            <footer class="exam-footer">
+                <button class="btn" id="prev-btn">Previous</button>
+                <button class="btn btn-primary" id="submit-btn" style="background: var(--success-color);">Submit
+                    Exam</button>
+                <button class="btn btn-primary" id="next-btn">Next</button>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Submit Modal -->
+    <div class="modal" id="submit-modal">
+        <div class="modal-content">
+            <h3>Submit Exam?</h3>
+            <p>Are you sure you want to finish?</p>
+            <div class="modal-summary">
+                <p>Answered: <strong id="summary-answered">0</strong></p>
+                <p>Unanswered: <strong id="summary-unanswered" style="color: var(--accent-color);">0</strong></p>
+                <p>Flagged: <strong id="summary-flagged">0</strong></p>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <button class="btn btn-outline"
+                    onclick="document.getElementById('submit-modal').style.display='none'">Return to Exam</button>
+                <button class="btn btn-primary" style="background: var(--success-color);"
+                    onclick="takeExam.confirmSubmit()">Yes, Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabaseClient.js"></script>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/dataService.js"></script>
+    <script src="../js/timer.js"></script>
+    <script src="../js/takeExam.js"></script>
+</body>
+
+</html>

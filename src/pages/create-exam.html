@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Exam - CBT Exam</title>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .mobile-text {
+            display: none;
+        }
+
+        .desktop-text {
+            display: inline;
+        }
+
+        .mobile-user-name {
+            display: none;
+            width: 100%;
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .mobile-text {
+                display: inline;
+                font-size: 1.5rem;
+            }
+
+            .desktop-text {
+                display: none;
+            }
+
+            /* Hide Title on Mobile */
+            .main-header .logo h1 {
+                display: none;
+            }
+
+            /* Header Layout */
+            .main-header {
+                flex-wrap: wrap;
+                /* Allow wrapping for user name */
+                padding: 10px 15px;
+            }
+
+            .user-menu {
+                width: 100%;
+                display: flex;
+                justify-content: space-between !important;
+                /* Space between Back and Theme */
+                align-items: center;
+                flex-direction: row !important;
+                /* Force row for buttons */
+            }
+
+            /* Theme toggle is injected as first child usually. 
+               We want Back Button (left) and Theme (right). 
+               If Utils injects Theme at start: [Theme] [Back]. 
+               We might need CSS order or rely on Utils injection. 
+               Utils injects: userMenu.insertBefore(toggleBtn, userMenu.firstChild).
+               So DOM: toggle, back, user-name.
+               We want: Back (left), Toggle (right).
+               So we should use `order` CSS property.
+            */
+
+            #theme-toggle {
+                order: 2;
+            }
+
+            .btn-back-dashboard {
+                order: 1;
+            }
+
+            #user-desktop-name {
+                display: none;
+            }
+
+            /* Hide desktop name in menu */
+
+            .mobile-user-name {
+                display: block;
+                order: 3;
+            }
+
+            /* Questions Header */
+            .section-header-questions {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .section-header-questions .actions {
+                width: 100%;
+                display: flex;
+                gap: 10px;
+            }
+
+            .section-header-questions .actions .btn {
+                flex: 1;
+                text-align: center;
+                margin-right: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="main-header">
+            <div class="logo">
+                <h1>Create New Exam</h1>
+            </div>
+            <div class="user-menu">
+                <!-- User name for Desktop -->
+                <span id="user-desktop-name" style="margin-right: 15px; font-weight:bold;">Teacher</span>
+
+                <a href="teacher-dashboard.html" class="btn btn-outline btn-back-dashboard">
+                    <span class="desktop-text">Back to Dashboard</span>
+                    <span class="mobile-text">&larr;</span>
+                </a>
+            </div>
+            <!-- Mobile User Name (breaks to new line due to flex-wrap) -->
+            <div class="mobile-user-name" id="user-mobile-name">Teacher</div>
+        </header>
+
+        <main class="main-content" style="display: block;">
+            <form id="create-exam-form">
+                <!-- Step 1: Metadata -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <h3>Exam Details</h3>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-title">Exam Title</label>
+                                <input type="text" id="exam-title" class="form-control" required
+                                    placeholder="e.g. Mid-Term Mathematics">
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-subject">Subject</label>
+                                <select id="exam-subject" class="form-control" required>
+                                    <option value="">Select Subject</option>
+                                    <option value="Mathematics">Mathematics</option>
+                                    <option value="English">English</option>
+                                    <option value="Science">Science</option>
+                                    <option value="History">History</option>
+                                    <option value="General Knowledge">General Knowledge</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-target-class">Target Class</label>
+                                <select id="exam-target-class" class="form-control" required>
+                                    <option value="All">All Classes</option>
+                                    <option value="JSS1">JSS 1</option>
+                                    <option value="JSS2">JSS 2</option>
+                                    <option value="JSS3">JSS 3</option>
+                                    <option value="SS1">SS 1</option>
+                                    <option value="SS2">SS 2</option>
+                                    <option value="SS3">SS 3</option>
+                                    <option value="SS4">SS 3</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <!-- spacer -->
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-duration">Duration (Minutes)</label>
+                                <input type="number" id="exam-duration" class="form-control" min="5" value="30"
+                                    required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-pass-score">Passing Score (%)</label>
+                                <input type="number" id="exam-pass-score" class="form-control" min="0" max="100"
+                                    value="50" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="exam-instructions">Instructions</label>
+                        <textarea id="exam-instructions" class="form-control" rows="3"
+                            placeholder="Enter instructions for students..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 2: Questions -->
+                <div class="form-section">
+                    <div class="section-header section-header-questions">
+                        <h3>Questions</h3>
+                        <div class="actions">
+                            <button type="button" id="bulk-import-btn" class="btn btn-secondary"
+                                style="margin-right: 10px;" onclick="examManager.openImportModal()">Bulk
+                                Import</button>
+                            <button type="button" id="add-question-btn" class="btn btn-primary">+ Add Question</button>
+                        </div>
+                    </div>
+
+                    <div class="empty-state" id="no-questions-msg" style="padding: 20px 0;">
+                        <p>No questions added yet.</p>
+                    </div>
+                    <div id="questions-container">
+                        <!-- Dynamic Questions will appear here -->
+                    </div>
+                </div>
+
+                <!-- Step 3: Global Actions -->
+                <div class="form-section" style="text-align: right; background: transparent; border: none; padding: 0;">
+                    <button type="button" class="btn" onclick="window.history.back()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save & Publish Exam</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Bulk Import Modal -->
+    <div id="import-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Bulk Import Questions</h3>
+                <span class="close-btn" onclick="examManager.closeImportModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light-text);">
+                    Paste your questions below. Separate questions with a blank line.<br>
+                    Format:<br>
+                    1. Question text...<br>
+                    (a) Option A<br>
+                    (b) Option B...
+                </p>
+                <textarea id="import-text" class="form-control" rows="15"
+                    placeholder="Paste questions here..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="examManager.closeImportModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="examManager.processBulkImport()">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <template id="question-template">
+        <div class="question-item" data-id="{id}">
+            <div class="question-header">
+                <div>
+                    <strong>Question <span class="q-number">{n}</span></strong>
+                </div>
+                <button type="button" class="btn" style="color: var(--accent-color); padding: 2px 8px;"
+                    onclick="examManager.removeQuestion('{id}')">Remove</button>
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control q-text" placeholder="Enter question text" required>
+            </div>
+            <div class="form-group">
+                <label>Question Type</label>
+                <select class="form-control q-type" onchange="examManager.changeQuestionType('{id}', this.value)">
+                    <option value="mcq">Multiple Choice</option>
+                    <option value="true_false">True / False</option>
+                    <option value="fill_blank">Fill in the Blank</option>
+                    <option value="match">Matching Pairs</option>
+                    <option value="image_mcq">Image Question</option>
+                </select>
+            </div>
+            <div class="q-options-container">
+                <!-- Options injected here -->
+            </div>
+            <div class="form-group" style="margin-top: 10px;">
+                <label>Points</label>
+                <input type="number" class="form-control q-points" value="1" min="1" style="width: 80px;">
+            </div>
+        </div>
+    </template>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabaseClient.js"></script>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/dataService.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        // Set user name
+        const user = dataService.getCurrentUser();
+        if (user) {
+            const desktop = document.getElementById('user-desktop-name');
+            const mobile = document.getElementById('user-mobile-name');
+            if (desktop) desktop.innerText = user.name;
+            if (mobile) mobile.innerText = user.name;
+        } else {
+            // Redirect if no user? Or let it be for now
+            if (window.location.protocol !== 'file:') window.location.href = '../index.html';
+        }
+    </script>
+    <script src="../js/examManager.js"></script>
+</body>
+
+</html>

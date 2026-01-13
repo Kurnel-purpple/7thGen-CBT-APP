@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - CBT Exam</title>
+    <!-- CSS -->
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/auth.css">
+    <style>
+        /* Specific overrides for registration page */
+        .auth-card {
+            max-width: 500px;
+            /* Overrides default 400px for wider form */
+        }
+
+        .role-switch {
+            display: flex;
+            background: #f0f2f5;
+            padding: 5px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .role-option {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            color: var(--light-text);
+            transition: all 0.2s;
+        }
+
+        .role-option.active {
+            background: white;
+            color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo">
+                <h1>CBT Exam Core</h1>
+            </div>
+        </header>
+
+        <main id="main-content" class="main-content">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <h2>Create Account</h2>
+                        <p>Register to start using the CBT platform</p>
+                    </div>
+
+                    <!-- Role Selection -->
+                    <div class="role-switch">
+                        <div class="role-option active" data-role="student" onclick="toggleRole('student')">Student
+                        </div>
+                        <div class="role-option" data-role="teacher" onclick="toggleRole('teacher')">Teacher</div>
+                    </div>
+
+                    <form id="register-form">
+                        <input type="hidden" id="role" name="role" value="student">
+
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="fullname" class="form-control" placeholder="e.g. John Doe" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label id="userid-label">Student ID</label>
+                            <input type="text" id="userid" class="form-control" placeholder="e.g. JAMES123" required>
+                            <small style="color: #666; font-size: 0.85rem;" id="userid-hint">This will be your unique
+                                login ID.</small>
+                        </div>
+
+                        <div class="form-group" id="class-group">
+                            <label>Class / Grade</label>
+                            <select id="class-level" class="form-control">
+                                <option value="">Select Class...</option>
+                                <option value="JSS1">JSS 1</option>
+                                <option value="JSS2">JSS 2</option>
+                                <option value="JSS3">JSS 3</option>
+                                <option value="SS1">SS 1</option>
+                                <option value="SS2">SS 2</option>
+                                <option value="SS3">SS 3</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="password" class="form-control" placeholder="Create a password"
+                                required>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div id="register-error" class="error-message" style="display: none;"></div>
+
+                        <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
+                    </form>
+
+                    <div class="auth-footer">
+                        <p>Already have an account? <a href="../index.html">Sign In</a></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="main-footer">
+            <p>&copy; 2026 CBT Exam Software</p>
+        </footer>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabaseClient.js"></script>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/dataService.js"></script>
+    <script>
+        function toggleRole(role) {
+            // UI Update
+            document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
+            document.querySelector(`[data-role="${role}"]`).classList.add('active');
+
+            // Form Logic
+            document.getElementById('role').value = role;
+            const userLabel = document.getElementById('userid-label');
+            const userHint = document.getElementById('userid-hint');
+            const userInput = document.getElementById('userid');
+            const classGroup = document.getElementById('class-group');
+
+            if (role === 'student') {
+                userLabel.textContent = 'Student ID';
+                userHint.textContent = 'This will be your unique login ID (e.g. JAMES123).';
+                userInput.placeholder = 'e.g. JAMES123';
+                classGroup.classList.remove('hidden');
+                document.getElementById('class-level').required = true;
+            } else {
+                userLabel.textContent = 'Username';
+                userHint.textContent = 'Choose a unique username for your teacher account.';
+                userInput.placeholder = 'e.g. jdoe_teacher';
+                classGroup.classList.add('hidden');
+                document.getElementById('class-level').required = false;
+            }
+        }
+
+        // Handle Registration
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const role = document.getElementById('role').value;
+            const name = document.getElementById('fullname').value.trim();
+            const username = document.getElementById('userid').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const classLevel = document.getElementById('class-level').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const errorDiv = document.getElementById('register-error');
+
+            if (role === 'student' && !classLevel) {
+                alert('Please select a class.');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating Account...';
+            errorDiv.style.display = 'none';
+
+            try {
+                const userData = {
+                    name,
+                    username,
+                    password,
+                    role,
+                    ...(role === 'student' && { classLevel: classLevel })
+                };
+
+                await dataService.registerUser(userData);
+                alert('Account created successfully! Please login.');
+                window.location.href = '../index.html';
+
+            } catch (err) {
+                console.error(err);
+                errorDiv.textContent = err.message || 'Registration failed.';
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign Up';
+            }
+        });
+    </script>
+</body>
+
+</html>

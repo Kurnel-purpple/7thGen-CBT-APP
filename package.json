@@ -1,0 +1,22 @@
+{
+  "name": "cbt-exam-app",
+  "version": "1.0.0",
+  "description": "CBT Exam Software",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "nodemon --exec electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "nodemon": "^3.1.11"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}
