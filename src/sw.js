@@ -1,21 +1,21 @@
 const CACHE_NAME = 'cbt-exam-v1';
 const ASSETS = [
-    '/src/index.html',
-    '/src/pages/student-dashboard.html',
-    '/src/pages/teacher-dashboard.html',
-    '/src/pages/create-exam.html',
-    '/src/pages/take-exam.html',
-    '/src/pages/results.html',
-    '/src/pages/register.html',
-    '/src/css/main.css',
-    '/src/css/auth.css',
-    '/src/css/dashboard.css',
-    '/src/css/exam.css',
-    '/src/js/utils.js',
-    '/src/js/dataService.js',
-    '/src/js/auth.js',
-    '/src/js/studentDashboard.js',
-    '/src/manifest.json'
+    '/index.html', // removed /src
+    '/pages/student-dashboard.html',
+    '/pages/teacher-dashboard.html',
+    '/pages/create-exam.html',
+    '/pages/take-exam.html',
+    '/pages/results.html',
+    '/pages/register.html',
+    '/css/main.css',
+    '/css/auth.css',
+    '/css/dashboard.css',
+    '/css/exam.css',
+    '/js/utils.js',
+    '/js/dataService.js',
+    '/js/auth.js',
+    '/js/studentDashboard.js',
+    '/manifest.json'
 ];
 
 // Install Event
