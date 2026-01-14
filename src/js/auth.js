@@ -26,6 +26,12 @@ const auth = {
             return;
         }
 
+        // Check if dataService is ready
+        if (!window.dataService) {
+            auth.showError('Application is still loading. Please wait a moment and try again.');
+            return;
+        }
+
         // Loading state
         const originalBtnText = submitBtn.textContent;
         submitBtn.textContent = 'Signing in...';
@@ -44,7 +50,7 @@ const auth = {
                 auth.showError('Unknown user role.');
             }
         } catch (err) {
-            console.error(err);
+            console.error('Login error:', err);
             auth.showError(err.message || 'Login failed. Please check your credentials.');
             submitBtn.textContent = originalBtnText;
             submitBtn.disabled = false;

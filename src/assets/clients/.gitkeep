@@ -1,0 +1,17 @@
+# Client Assets
+
+This directory contains client-specific assets (logos, favicons).
+
+## Note
+Client asset folders are gitignored for privacy.
+Each deployment should include the appropriate client assets.
+
+## Structure
+```
+clients/
+├── client-name/
+│   ├── logo.png
+│   └── favicon.png
+```
+
+See README.md for asset guidelines.

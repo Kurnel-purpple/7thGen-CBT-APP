@@ -288,6 +288,13 @@
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/supabaseClient.js"></script>
+    <!-- Configuration System -->
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        // Initialize configuration before other scripts
+        await initConfig();
+    </script>
+
 
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>

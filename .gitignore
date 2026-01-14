@@ -2,3 +2,12 @@ node_modules
 .env
 dist
 .DS_Store
+
+# Client Configuration Files (keep private)
+src/config/clients/*.js
+!src/config/clients/.gitkeep
+
+# Client Assets (logos, favicons - keep private)
+src/assets/clients/*/
+!src/assets/clients/README.md
+!src/assets/clients/.gitkeep

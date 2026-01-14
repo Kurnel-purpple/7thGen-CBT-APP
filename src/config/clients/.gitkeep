@@ -1,0 +1,10 @@
+# Client Configuration Files
+
+This directory contains client-specific configuration files.
+
+## Note
+Client configuration files are gitignored for privacy.
+Each deployment environment should have its own client configs.
+
+## Creating a New Client
+Run: `node generate-client-config.js`

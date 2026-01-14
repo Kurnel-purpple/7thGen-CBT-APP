@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Switcher - CBT Configuration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .current-client {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+
+        .current-client strong {
+            color: #667eea;
+        }
+
+        .client-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .client-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .client-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .client-card.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .client-card h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .client-card p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .color-preview {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .info-box {
+            background: #fff9e6;
+            border-left: 4px solid #ffa62b;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎨 Client Configuration Switcher</h1>
+        <p class="subtitle">Select a client configuration to preview the app with different branding</p>
+
+        <div class="current-client">
+            <strong>Current:</strong> <span id="current-client-name">Loading...</span>
+        </div>
+
+        <div class="client-grid">
+            <div class="client-card" data-client="default">
+                <h3>🔷 Default (CBT Exam Core)</h3>
+                <p>Original blue theme with standard branding</p>
+                <div class="color-preview">
+                    <div class="color-dot" style="background: #4a90e2;"></div>
+                    <div class="color-dot" style="background: #2c3e50;"></div>
+                    <div class="color-dot" style="background: #e74c3c;"></div>
+                </div>
+            </div>
+
+            <div class="client-card" data-client="client-a">
+                <h3>🌿 Greenwood Academy</h3>
+                <p>Fresh green theme for nature-inspired branding</p>
+                <div class="color-preview">
+                    <div class="color-dot" style="background: #2ecc71;"></div>
+                    <div class="color-dot" style="background: #16a085;"></div>
+                    <div class="color-dot" style="background: #f39c12;"></div>
+                </div>
+            </div>
+
+            <div class="client-card" data-client="client-b">
+                <h3>🌅 Sunrise International</h3>
+                <p>Warm orange/yellow sunrise theme</p>
+                <div class="color-preview">
+                    <div class="color-dot" style="background: #ff6b35;"></div>
+                    <div class="color-dot" style="background: #004e89;"></div>
+                    <div class="color-dot" style="background: #ffa62b;"></div>
+                </div>
+            </div>
+
+            <div class="client-card" data-client="seatos">
+                <h3>🌅 SEATOS SCHOOLS</h3>
+                <p>Navy blue, wheat and skyblue theme</p>
+                <div class="color-preview">
+                    <div class="color-dot" style="background: #0a0908;"></div>
+                    <div class="color-dot" style="background: #fca311;"></div>
+                    <div class="color-dot" style="background: #3175cfff;"></div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" onclick="applyClient()">Apply Configuration</button>
+
+        <div class="info-box">
+            💡 <strong>Tip:</strong> You can also switch clients by adding <code>?client=client-a</code> to any page URL
+        </div>
+    </div>
+
+    <script type="module">
+        let selectedClient = 'default';
+
+        // Get current client from localStorage
+        const currentClient = localStorage.getItem('clientId') || 'default';
+        document.getElementById('current-client-name').textContent = getClientDisplayName(currentClient);
+
+        // Highlight current client
+        document.querySelector(`[data-client="${currentClient}"]`)?.classList.add('active');
+
+        // Handle client card clicks
+        document.querySelectorAll('.client-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.client-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                selectedClient = card.dataset.client;
+            });
+        });
+
+        // Set initial selection
+        selectedClient = currentClient;
+
+        window.applyClient = function () {
+            localStorage.setItem('clientId', selectedClient);
+            alert(`✅ Configuration set to: ${getClientDisplayName(selectedClient)}\n\nReloading app...`);
+            window.location.href = '../index.html';
+        };
+
+        function getClientDisplayName(clientId) {
+            const names = {
+                'default': 'CBT Exam Core (Default)',
+                'client-a': 'Greenwood Academy',
+                'client-b': 'Sunrise International'
+            };
+            return names[clientId] || clientId;
+        }
+    </script>
+</body>
+
+</html>

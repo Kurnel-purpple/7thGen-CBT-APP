@@ -475,4 +475,18 @@ const examManager = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', examManager.init);
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    examManager.init();
+
+    // Attach event listeners
+    const addQuestionBtn = document.getElementById('add-question-btn');
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', examManager.addQuestion);
+    }
+
+    const form = document.getElementById('create-exam-form');
+    if (form) {
+        form.addEventListener('submit', examManager.saveExam);
+    }
+});

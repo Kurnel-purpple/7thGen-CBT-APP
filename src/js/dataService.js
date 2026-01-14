@@ -93,6 +93,7 @@ class DataService {
         const email = this._generateEmail(identifier);
 
         try {
+            // Step 1: Sign in with password
             const { data, error } = await sb.auth.signInWithPassword({
                 email: email,
                 password: password
@@ -100,15 +101,30 @@ class DataService {
 
             if (error) throw error;
 
-            // Fetch Profile to get Role
+            if (!data.user) {
+                throw new Error('Login failed: No user data returned');
+            }
+
+            // Step 2: Fetch Profile to get Role
+            // Add a small delay to ensure session is fully established
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const { data: profile, error: profileError } = await sb
                 .from('profiles')
                 .select('*')
                 .eq('id', data.user.id)
                 .single();
 
-            if (profileError || !profile) {
-                console.error(profileError);
+            if (profileError) {
+                console.error('Profile fetch error:', profileError);
+                // More specific error message
+                if (profileError.code === 'PGRST116') {
+                    throw new Error('Profile not found. Your account may not be fully set up. Please contact support.');
+                }
+                throw new Error(`Profile error: ${profileError.message}`);
+            }
+
+            if (!profile) {
                 throw new Error('Profile not found. Please contact support.');
             }
 
@@ -181,8 +197,15 @@ class DataService {
         } catch (err) {
             console.warn('Supabase signOut error:', err);
         } finally {
+            // Clear all cached user data
             localStorage.removeItem('cbt_user_meta');
-            this.client = null; // Force client refresh if needed, though not strictly necessary
+
+            // Clear any cached sessions
+            localStorage.removeItem('cbt_exam_cache');
+            localStorage.removeItem('cbt_pending_submissions');
+
+            // DO NOT set this.client = null - this breaks subsequent logins!
+            // The Supabase client should persist across sessions
         }
     }
 

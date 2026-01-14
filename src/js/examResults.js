@@ -72,6 +72,7 @@ const examResults = {
 
             examResults.renderStats();
             examResults.renderTable();
+            examResults.renderCards(); // Add card rendering for mobile
 
         } catch (err) {
             console.error(err);
@@ -117,6 +118,43 @@ const examResults = {
                     <button class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="location.href='results.html?id=${r.id}'">View Detail</button>
                 </td>
             </tr>
+        `).join('');
+    },
+
+    renderCards: () => {
+        const cardsContainer = document.getElementById('results-cards');
+
+        if (examResults.results.length === 0) {
+            cardsContainer.innerHTML = '<p style="text-align: center; padding: 30px;">No submissions yet.</p>';
+            return;
+        }
+
+        cardsContainer.innerHTML = examResults.results.map(r => `
+            <div class="result-card">
+                <div class="result-card-header">
+                    <div class="result-card-student">${r.studentName}</div>
+                    <span class="score-pill ${r.passed ? 'pass' : 'fail'}">
+                        ${r.passed ? 'PASS' : 'FAIL'}
+                    </span>
+                </div>
+                <div class="result-card-body">
+                    <div class="result-card-row">
+                        <span class="result-card-label">Date</span>
+                        <span class="result-card-value">${Utils.formatDate(r.submittedAt)}</span>
+                    </div>
+                    <div class="result-card-row">
+                        <span class="result-card-label">Score</span>
+                        <span class="result-card-value" style="font-weight: bold;">${r.score}%</span>
+                    </div>
+                    <div class="result-card-row">
+                        <span class="result-card-label">Points</span>
+                        <span class="result-card-value">${r.points} / ${r.totalPoints}</span>
+                    </div>
+                </div>
+                <div class="result-card-actions">
+                    <button class="btn btn-primary" style="flex: 1; padding: 8px;" onclick="location.href='results.html?id=${r.id}'">View Details</button>
+                </div>
+            </div>
         `).join('');
     },
 

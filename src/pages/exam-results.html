@@ -53,6 +53,74 @@
             background: rgba(231, 76, 60, 0.2);
             color: var(--accent-color);
         }
+
+        /* Mobile Card View */
+        .results-cards-container {
+            display: none;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-card-student {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        .result-card-body {
+            display: grid;
+            gap: 10px;
+        }
+
+        .result-card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-card-label {
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+
+        .result-card-value {
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        .result-card-actions {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Responsive: Show cards on mobile, table on desktop */
+        @media (max-width: 768px) {
+            .results-table-container {
+                display: none;
+            }
+
+            .results-cards-container {
+                display: block;
+            }
+        }
     </style>
 </head>
 
@@ -92,7 +160,8 @@
                 </div>
             </div>
 
-            <div style="overflow-x: auto;">
+            <!-- Desktop: Table View -->
+            <div class="results-table-container" style="overflow-x: auto;">
                 <table class="results-table">
                     <thead>
                         <tr>
@@ -112,12 +181,25 @@
                 </table>
             </div>
 
+            <!-- Mobile: Card View -->
+            <div class="results-cards-container" id="results-cards">
+                <!-- Dynamic cards will be inserted here -->
+                <p style="text-align: center; padding: 20px;">Loading...</p>
+            </div>
+
         </main>
     </div>
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/supabaseClient.js"></script>
+    <!-- Configuration System -->
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        // Initialize configuration before other scripts
+        await initConfig();
+    </script>
+
 
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>

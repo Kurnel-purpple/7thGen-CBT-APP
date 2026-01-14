@@ -85,6 +85,28 @@ body {
     z-index: 10;
 }
 
+/* Logo styling - ensure horizontal layout */
+.logo {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-shrink: 0;
+}
+
+.logo img,
+.logo-image {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.logo h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    white-space: nowrap;
+}
+
 .main-content {
     flex: 1;
     padding: var(--spacing-lg);
