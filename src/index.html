@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="seatos">
     <title>CBT Exam Software</title>
     <!-- CSS -->
     <link rel="stylesheet" href="css/main.css">
@@ -46,7 +47,7 @@
 
                     <div class="auth-footer">
                         <p>Don't have an account? <a href="pages/register.html">Sign Up</a></p>
-                        
+
                     </div>
                 </div>
             </div>
@@ -60,6 +61,13 @@
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabaseClient.js"></script>
+
+    <!-- Configuration System -->
+    <script type="module">
+        import { initConfig } from './config/index.js';
+        // Initialize configuration before other scripts
+        await initConfig();
+    </script>
 
     <!-- Scripts -->
     <script src="js/utils.js"></script>
