@@ -152,10 +152,22 @@ class ThemeApplier {
     applyBranding() {
         const { client } = this.config;
 
-        // Update all text elements with app name
-        const logoElements = document.querySelectorAll('.logo h1, .logo-text, [data-brand="app-name"]');
+        // Update app name elements (but NOT user-name which is the h1 in dashboards)
+        const logoElements = document.querySelectorAll('.logo-text, [data-brand="app-name"]');
         logoElements.forEach(el => {
             el.textContent = client.name;
+        });
+
+        // Update subtitle elements specifically (for new header design)
+        const subtitleElements = document.querySelectorAll('#app-subtitle .desktop-text, #app-subtitle');
+        subtitleElements.forEach(el => {
+            // Only update if it doesn't have children (is a text node container)
+            if (el.children.length === 0 || el.id === 'app-subtitle') {
+                const textNode = el.querySelector('.desktop-text') || el;
+                if (textNode && !textNode.querySelector('.desktop-text')) {
+                    textNode.textContent = client.name;
+                }
+            }
         });
 
         // Resolve logo and favicon paths
@@ -169,13 +181,10 @@ class ThemeApplier {
             img.alt = `${client.name} Logo`;
         });
 
-        // Find all logo containers and ensure they have proper layout
+        // Find all logo containers and add logo image if needed
         const logoContainers = document.querySelectorAll('.logo');
         logoContainers.forEach(logoContainer => {
-            // Add flexbox layout for horizontal alignment
-            logoContainer.style.display = 'flex';
-            logoContainer.style.alignItems = 'center';
-            logoContainer.style.gap = '12px';
+            // Don't override inline styles - CSS handles layout now
 
             // Check if logo image already exists
             let logoImg = logoContainer.querySelector('img');

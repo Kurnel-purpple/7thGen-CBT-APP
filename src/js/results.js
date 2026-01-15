@@ -96,7 +96,8 @@ const resultsController = {
 
         // Score UI
         const circle = document.getElementById('score-circle');
-        circle.textContent = percentage + '%';
+        circle.textContent = `${calculatedPoints}/${totalPossible}`;
+        circle.style.fontSize = '2rem'; // Adjust for longer text
         if (isPassed) {
             circle.classList.remove('fail'); // Ensure no conflict
             circle.classList.add('pass');
@@ -168,12 +169,12 @@ const resultsController = {
 
             return `
             <div class="result-item ${isCorrect ? 'correct' : 'incorrect'}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1;">
                         <strong>Q${i + 1}. ${q.text}</strong>
                         ${isFlagged ? '<span title="Flagged by student" style="font-size:1.2rem;">🚩</span>' : ''}
                     </div>
-                    <span class="status-badge ${isCorrect ? 'correct' : 'incorrect'}">
+                    <span class="status-badge ${isCorrect ? 'correct' : 'incorrect'}" style="flex-shrink:0;">
                         ${isCorrect ? `+${q.points || 1} pts` : '0 pts'}
                     </span>
                 </div>

@@ -412,15 +412,15 @@ const takeExam = {
         const percentage = Math.round((score / totalPoints) * 100);
 
         // Handle Result Flags
-        let finalFlags = takeExam.flagged;
+        let finalFlags = { ...takeExam.flagged };
         if (takeExam.mode === 'resolve') {
-            // Remove resolved status or clear flag completely for keys that were resolved
+            // Update status to 'accepted' instead of deleting, so we keep history
             const resolvedIds = takeExam.resolvedFlags.map(f => f[0]);
-            const newFlags = { ...takeExam.flagged };
             resolvedIds.forEach(id => {
-                delete newFlags[id]; // Cleared!
+                if (finalFlags[id]) {
+                    finalFlags[id] = { ...finalFlags[id], status: 'accepted' };
+                }
             });
-            finalFlags = newFlags;
         }
 
         const resultData = {
@@ -438,18 +438,20 @@ const takeExam = {
 
         try {
             if (takeExam.mode === 'resolve') {
+                console.log('📡 Updating result flags:', finalFlags);
                 // UPDATE existing result using dataService
                 await dataService.updateResult(takeExam.resultId, {
                     answers: takeExam.answers,
                     score: percentage,
+                    points: score,
                     totalPoints: totalPoints,
                     flags: finalFlags
                 });
-                alert(`Answers Updated!\nNew Score: ${percentage}%`);
+                alert(`Answers Updated!\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
             } else {
                 await dataService.saveResult(resultData);
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
-                alert(`Exam Submitted!\nScore: ${percentage}%`);
+                alert(`Exam Submitted!\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
             }
             window.location.href = 'student-dashboard.html';
         } catch (err) {

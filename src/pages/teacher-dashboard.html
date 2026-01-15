@@ -80,12 +80,20 @@
     <div class="app-container">
         <header class="main-header">
             <div class="logo">
-                <h1><span class="desktop-text">Teacher Dashboard</span><span class="mobile-text">TD</span></h1>
+                <!-- Logo image will be injected here by themeApplier if available -->
+                <div class="logo-text-group">
+                    <h1 id="user-name"
+                        style="font-family: 'Futura', 'Century Gothic', 'Arial Rounded MT Bold', sans-serif; font-size: 1.5rem; margin: 0; font-weight: 700;">
+                        Teacher</h1>
+                    <p id="app-subtitle" style="font-size: 0.75rem; margin: 0; opacity: 0.7; font-weight: 400;"><span
+                            class="desktop-text">Teacher Dashboard</span><span class="mobile-text">TD</span></p>
+                </div>
             </div>
-            <div class="user-menu desktop-only">
-                <span id="user-name">Teacher</span>
+            <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
+                <!-- Dark mode toggle will be injected here by utils.js -->
                 <button onclick="auth.logout()" class="btn"
-                    style="color: var(--accent-color); margin-left: 10px; border: 1px solid #eee; background: transparent; ">Logout</button>
+                    style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
+                    Logout</button>
             </div>
             <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
         </header>
@@ -119,7 +127,8 @@
 
                 <!-- No Subject Filter for Teacher yet, just Logout -->
                 <button onclick="auth.logout()" class="btn btn-outline"
-                    style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">Logout</button>
+                    style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">🚪
+                    Logout</button>
             </div>
         </div>
 
@@ -379,6 +388,17 @@
             }
             document.getElementById('user-name').textContent = user.name;
 
+            // Set app subtitle from config (if available)
+            const appSubtitle = document.getElementById('app-subtitle');
+            if (appSubtitle && window.configLoader) {
+                const config = window.configLoader.getConfig();
+                if (config && config.client) {
+                    // Update both desktop and mobile text
+                    const desktopText = appSubtitle.querySelector('.desktop-text');
+                    if (desktopText) desktopText.textContent = config.client.name;
+                }
+            }
+
             // Mobile Menu
             const mName = document.getElementById('mobile-user-name');
             if (mName) mName.textContent = user.name;
@@ -479,9 +499,9 @@
                                 </div>
                             </div>
                             <div class="exam-card-footer">
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">Edit</button>
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">Extensions</button>
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">Results</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
                             </div>
                         </div>
                     `}).join('');
@@ -875,9 +895,9 @@
                                 </div>
                             </div>
                             <div class="exam-card-footer">
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">Edit</button>
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">Extensions</button>
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">Results</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>
+                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
                             </div>
                         </div>
                     `}).join('');

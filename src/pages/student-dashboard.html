@@ -65,12 +65,20 @@
     <div class="app-container">
         <header class="main-header">
             <div class="logo">
-                <h1>Student Portal</h1>
+                <!-- Logo image will be injected here by themeApplier if available -->
+                <div class="logo-text-group">
+                    <h1 id="user-name"
+                        style="font-family: 'Futura', 'Century Gothic', 'Arial Rounded MT Bold', sans-serif; font-size: 1.5rem; margin: 0; font-weight: 700;">
+                        Student</h1>
+                    <p id="app-subtitle" style="font-size: 0.75rem; margin: 0; opacity: 0.7; font-weight: 400;">Student
+                        Portal</p>
+                </div>
             </div>
-            <div class="user-menu desktop-only">
-                <span id="user-name">Student</span>
+            <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
+                <!-- Dark mode toggle will be injected here by utils.js -->
                 <button onclick="auth.logout()" class="btn"
-                    style="color: var(--accent-color); margin-left: 10px; border: 1px solid #eee; background: transparent;">Logout</button>
+                    style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
+                    Logout</button>
             </div>
             <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
         </header>
@@ -92,7 +100,8 @@
                     </select>
                 </div>
                 <button onclick="auth.logout()" class="btn btn-outline"
-                    style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">Logout</button>
+                    style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">🚪
+                    Logout</button>
             </div>
         </div>
 
@@ -100,11 +109,11 @@
 
             <div class="tabs">
                 <div class="tab-group">
-                    <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">Available Exams
+                    <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">📝 Available Exams
                         <span class="badge" id="available-count">0</span></button>
-                    <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">Resolved Flags
+                    <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">✅ Resolved Flags
                         <span class="badge" id="resolved-count">0</span></button>
-                    <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">Completed History <span
+                    <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">📚 Completed History <span
                             class="badge" id="history-count">0</span></button>
                 </div>
                 <div class="desktop-filter">

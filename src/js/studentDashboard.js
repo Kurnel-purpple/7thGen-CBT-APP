@@ -15,7 +15,16 @@ const studentDashboard = {
             return;
         }
         studentDashboard.user = user;
-        document.getElementById('user-name').textContent = `${user.name} (${user.classLevel || 'No Class'})`;
+        document.getElementById('user-name').textContent = user.name;
+
+        // Set app subtitle from config (if available)
+        const appSubtitle = document.getElementById('app-subtitle');
+        if (appSubtitle && window.configLoader) {
+            const config = window.configLoader.getConfig();
+            if (config && config.client) {
+                appSubtitle.textContent = config.client.name;
+            }
+        }
 
         // Mobile Name & Menu
         const mName = document.getElementById('mobile-user-name');
@@ -223,30 +232,42 @@ const studentDashboard = {
         // --- 1. Find Action Items (Unresolved Flags with active deadline) ---
         const actionItems = studentDashboard.results.filter(r => {
             if (!r.flags) return false;
+            const flagEntries = Object.entries(r.flags).filter(([k, v]) => !k.startsWith('_'));
+
             // Check if any flag is resolved and active
-            return Object.values(r.flags).some(f =>
+            const hasActive = flagEntries.some(([k, f]) =>
                 f && typeof f === 'object' && f.status === 'resolved' && new Date(f.deadline) > now
             );
+
+            if (hasActive) {
+                console.log(`🚩 Action Required found in result ${r.id} for exam ${r.examId}`, r.flags);
+            }
+            return hasActive;
         });
 
         // --- 2. Find Resolved Flags (All flags addressed, no active deadlines) ---
         const resolvedItems = studentDashboard.results.filter(r => {
             if (!r.flags) return false;
             const flagEntries = Object.entries(r.flags);
-            if (flagEntries.length === 0) return false;
+            // Ignore internal status flags like _status or _started_at
+            const userFlags = flagEntries.filter(([k, v]) => !k.startsWith('_'));
+            if (userFlags.length === 0) return false;
 
-            // Check if all flags are either:
-            // - Resolved with expired deadline (addressed)
-            // - Not in resolved status (cleared/removed)
-            const hasAnyResolvedExpired = flagEntries.some(([k, v]) =>
-                v && typeof v === 'object' && v.status === 'resolved' && new Date(v.deadline) <= now
+            // Check if there are any addressed flags (Accepted or Expired)
+            const hasAnyAddressed = userFlags.some(([k, v]) =>
+                v && typeof v === 'object' && (v.status === 'accepted' || (v.status === 'resolved' && new Date(v.deadline) <= now))
             );
 
-            const hasNoActiveFlags = !flagEntries.some(([k, v]) =>
+            // Check if there are NO active/pending flags
+            const hasNoActiveFlags = !userFlags.some(([k, v]) =>
                 v && typeof v === 'object' && v.status === 'resolved' && new Date(v.deadline) > now
             );
 
-            return hasAnyResolvedExpired && hasNoActiveFlags;
+            const isResolved = hasAnyAddressed && hasNoActiveFlags;
+            if (isResolved) {
+                console.log(`✅ Resolved item found: result ${r.id} (Exam: ${r.examId})`, r.flags);
+            }
+            return isResolved;
         });
 
         // --- Render Action Required Section ---
@@ -255,8 +276,11 @@ const studentDashboard = {
             html += actionItems.map(result => {
                 const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
                 const deadlines = Object.values(result.flags)
-                    .filter(f => f && f.status === 'resolved')
+                    .filter(f => f && f.status === 'resolved' && !f._status)
                     .map(f => new Date(f.deadline));
+
+                if (deadlines.length === 0) return ''; // Should not happen given filter
+
                 const minDeadline = new Date(Math.min(...deadlines));
                 const timeLeft = Math.round((minDeadline - now) / 60000);
 
@@ -286,20 +310,42 @@ const studentDashboard = {
         const takenExamIds = new Set(studentDashboard.results.map(r => String(r.examId)));
         const userClass = studentDashboard.user.classLevel;
 
+
+
         const available = studentDashboard.exams.filter(e => {
-            if (takenExamIds.has(String(e.id))) return false;
-            if (e.status === 'draft') return false;
+
+
+            if (takenExamIds.has(String(e.id))) {
+
+                return false;
+            }
+            if (e.status === 'draft') {
+
+                return false;
+            }
 
             const filter = studentDashboard.currentFilter || 'All';
-            if (filter !== 'All' && e.subject !== filter) return false;
+            if (filter !== 'All' && e.subject !== filter) {
+                console.log(`  ❌ Subject filter mismatch`);
+                return false;
+            }
 
             const targetClass = (e.targetClass || 'All').trim();
             const uClass = (userClass || '').trim();
 
+
+
             if (targetClass !== 'All') {
-                if (!uClass) return false;
-                if (targetClass !== uClass) return false;
+                if (!uClass) {
+
+                    return false;
+                }
+                if (targetClass !== uClass) {
+
+                    return false;
+                }
             }
+
             return true;
         });
 
@@ -346,20 +392,21 @@ const studentDashboard = {
         const resolvedItems = studentDashboard.results.filter(r => {
             if (!r.flags) return false;
             const flagEntries = Object.entries(r.flags);
-            if (flagEntries.length === 0) return false;
+            // Ignore internal status flags
+            const userFlags = flagEntries.filter(([k, v]) => !k.startsWith('_'));
+            if (userFlags.length === 0) return false;
 
-            // Check if all flags are either:
-            // - Resolved with expired deadline (addressed)
-            // - Not in resolved status (cleared/removed)
-            const hasAnyResolvedExpired = flagEntries.some(([k, v]) =>
-                v && typeof v === 'object' && v.status === 'resolved' && new Date(v.deadline) <= now
+            // Check if there are any addressed flags (Accepted or Expired)
+            const hasAnyAddressed = userFlags.some(([k, v]) =>
+                v && typeof v === 'object' && (v.status === 'accepted' || (v.status === 'resolved' && new Date(v.deadline) <= now))
             );
 
-            const hasNoActiveFlags = !flagEntries.some(([k, v]) =>
+            // Check if there are NO active/pending flags
+            const hasNoActiveFlags = !userFlags.some(([k, v]) =>
                 v && typeof v === 'object' && v.status === 'resolved' && new Date(v.deadline) > now
             );
 
-            return hasAnyResolvedExpired && hasNoActiveFlags;
+            return hasAnyAddressed && hasNoActiveFlags;
         });
 
         // Update Badge
@@ -377,11 +424,15 @@ const studentDashboard = {
         grid.innerHTML = resolvedItems.map(result => {
             const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
 
+            // Calculate points if not stored (for backward compatibility)
+            const totalPoints = result.totalPoints || 100;
+            const points = result.points !== undefined ? result.points : Math.round((result.score / 100) * totalPoints);
+
             return `
             <div class="exam-card" style="border: 2px solid #28a745; opacity: 0.9;">
                 <div class="exam-card-header" style="background-color: #d4edda;">
                      <span class="exam-subject" style="color: #28a745;">Resolved</span>
-                     <span class="exam-subject" style="background: #28a745; color: white;">Score: ${result.score}%</span>
+                     <span class="exam-subject" style="background: #28a745; color: white;">Score: ${points}/${totalPoints}</span>
                 </div>
                 <div class="exam-card-body">
                     <h4 class="exam-title">${exam.title}</h4>
@@ -390,7 +441,7 @@ const studentDashboard = {
                     </p>
                 </div>
                 <div class="exam-card-footer">
-                    <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%; background-color: #28a745; color: white; border-color: #28a745;">View Details</button>
+                    <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%; background-color: #28a745; color: white; border-color: #28a745;">👁️ View Details</button>
                 </div>
             </div>
             `;
@@ -416,6 +467,10 @@ const studentDashboard = {
             const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
             const isPass = result.score >= (result.passScore || 50); // Fallback
 
+            // Calculate points if not stored (for backward compatibility)
+            const totalPoints = result.totalPoints || 100;
+            const points = result.points !== undefined ? result.points : Math.round((result.score / 100) * totalPoints);
+
             return `
             <div class="exam-card" style="opacity: 0.8;">
                 <div class="exam-card-header">
@@ -427,12 +482,12 @@ const studentDashboard = {
                 <div class="exam-card-body">
                     <h4 class="exam-title">${exam.title}</h4>
                     <div class="exam-meta">
-                        <span>Score: ${result.score}%</span>
+                        <span>Score: ${points}/${totalPoints} Points</span>
                         <span>${Utils.formatDate(result.submittedAt)}</span>
                     </div>
                 </div>
                 <div class="exam-card-footer">
-                    <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%;">View Details</button>
+                    <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%;">👁️ View Details</button>
                 </div>
             </div>
             `;

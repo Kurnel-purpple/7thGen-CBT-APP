@@ -377,40 +377,22 @@ class DataService {
         };
 
         try {
-            // Check if we should UPDATE existing session or INSERT new
-            // Since we created a session on start, we should probably UPDATE it to avoid duplicates?
-            // BUT, saveResult currently uses INSERT. 
-            // If we use INSERT, we might get duplicate key error if valid constraint exists, 
-            // or just multiple rows (one in-progress, one completed). 
-            // Better to try UPDATE if exists, else INSERT.
+            // Use INSERT instead of UPSERT since we don't have a unique constraint
+            // First, try to delete any existing in-progress session for this exam/student
+            await sb
+                .from('results')
+                .delete()
+                .eq('exam_id', resultData.examId)
+                .eq('student_id', resultData.studentId);
 
-            // Logic: UPSERT based on exam_id + student_id? 
-            // Supabase upsert requires a primary key or unique constraint.
-            // Let's try upserting on match.
+            // Now insert the final result
             const { data, error } = await sb
                 .from('results')
-                .upsert(dbPayload, { onConflict: 'exam_id, student_id' }) // Assuming unique constraint exists
+                .insert([dbPayload])
                 .select()
                 .single();
 
-            // Fallback if upsert fails (no unique constraint): 
-            // We can't easily fix. We will stick to INSERT for now if no constraint, 
-            // but then we have duplicate 'in-progress' rows.
-            // Given the error previously was column missing, let's fix that first.
-            // Using simple INSERT which worked before (but likely creates dupes if we had session logic).
-            // To clean up, we can delete previous 'in-progress' for this user/exam?
-            // Efficient way: DELETE where student_id, exam_id, score=0? 
-            // Let's simplify: UPSERT is best if configured. If not, we just INSERT. 
-            // The error was "started_at" column missing.
-            // I will revert to INSERT but without the bad columns.
-
-            if (error) {
-                // Try standard INSERT if upsert failed due to constraint syntax or logic
-                // But wait, if we used INSERT before, let's stick to it.
-                // We need to CLEANUP the 'in-progress' row if we INSERT a new one.
-                // Actually, let's just use INSERT for now to fix the crash.
-                throw error;
-            }
+            if (error) throw error;
             return this._mapResult(data);
         } catch (err) {
             if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
@@ -500,6 +482,7 @@ class DataService {
         const dbUpdates = {};
         if (updates.flags !== undefined) dbUpdates.flags = updates.flags;
         if (updates.score !== undefined) dbUpdates.score = updates.score;
+        if (updates.points !== undefined) dbUpdates.points = updates.points;
         if (updates.totalPoints !== undefined) dbUpdates.total_points = updates.totalPoints;
         if (updates.answers !== undefined) dbUpdates.answers = updates.answers;
 
