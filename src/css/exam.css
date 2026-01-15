@@ -214,7 +214,7 @@
 
 .option-label.selected {
     border-color: var(--primary-color);
-    background: rgba(74, 144, 226, 0.1);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
     /* transparent primary */
 }
 

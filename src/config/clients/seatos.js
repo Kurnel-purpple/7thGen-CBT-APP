@@ -8,58 +8,58 @@ export const clientConfig = {
     client: {
         name: "SEATOS SCHOOLS",
         shortName: "SEATOS",
-        logo: "assets/clients/seatos/logo.png",
+        logo: "assets/clients/seatos/drop.png",
         favicon: "assets/clients/seatos/favicon.png"
     },
 
     // Branding & Theme
     branding: {
-        // Primary Colors - SEATOS Blue Theme
-        primaryColor: "#1e88e5",
-        primaryHover: "#1565c0",
+        // Primary Colors - SEATOS Navy & Skyblue Theme
+        primaryColor: "#4a90c8",        // Darker skyblue - primary actions (sign in button)
+        primaryHover: "#3a7ab0",        // Even darker skyblue on hover
 
         // Secondary Colors
-        secondaryColor: "#0d47a1",
-        accentColor: "#42a5f5",
+        secondaryColor: "#001524",      // Dark navy - headers, important text
+        accentColor: "#dc143c",         // Crimson red - accents, alerts
 
         // Status Colors
-        successColor: "#4caf50",
-        warningColor: "#ff9800",
-        errorColor: "#f44336",
+        successColor: "#4caf50",        // Green
+        warningColor: "#ff9800",        // Orange
+        errorColor: "#dc143c",          // Red (matching accent)
 
         // Text Colors
-        textColor: "#212121",
-        lightText: "#757575",
+        textColor: "#001524",           // Dark navy for main text
+        lightText: "#445566",           // Muted navy for secondary text
 
         // Background Colors
-        backgroundColor: "#f5f7fa",
-        cardBackground: "#ffffff",
-        borderColor: "#e0e0e0",
-        innerBackground: "#fafafa",
+        backgroundColor: "#faf8f5",     // Very light cream - main background (subtle)
+        cardBackground: "#ffffff",      // White cards for contrast
+        borderColor: "#e8e4df",         // Light warm gray for borders
+        innerBackground: "#f5f2ed",     // Slightly darker cream for inner areas
 
         // Dark Mode Colors
         darkMode: {
-            backgroundColor: "#0a1929",
-            cardBackground: "#1e2a38",
-            innerBackground: "#132030",
-            textColor: "#e3f2fd",
-            lightText: "#90caf9",
-            borderColor: "#2d3e50",
-            primaryColor: "#42a5f5",
-            secondaryColor: "#90caf9"
+            backgroundColor: "#0a0a0a",     // Very dark gray - main background (subtle, not pure black)
+            cardBackground: "#0f1419",      // Slightly lighter dark - cards (subtle contrast)
+            innerBackground: "#141a20",     // Even lighter dark for inner areas
+            textColor: "#e8dcc8",           // Soft wheat - main text (easier on eyes)
+            lightText: "#a89b87",           // Muted wheat for secondary text
+            borderColor: "#1f2830",         // Subtle dark border
+            primaryColor: "#4a90c8",        // Darker skyblue - keep consistent with light mode
+            secondaryColor: "#e8dcc8"       // Soft wheat for secondary elements
         },
 
         // Neumorphism Shadows
         neumorphism: {
             light: {
-                background: "#f5f7fa",
-                shadowLight: "#ffffff",
-                shadowDark: "#d1d9e6"
+                background: "#faf8f5",      // Cream background
+                shadowLight: "#ffffff",     // White highlight
+                shadowDark: "#e8e4df"       // Light warm gray shadow
             },
             dark: {
-                background: "#1e2a38",
-                shadowLight: "#2d3e50",
-                shadowDark: "#0a1929"
+                background: "#0f1419",      // Card background
+                shadowLight: "#1a2128",     // Slightly lighter shadow
+                shadowDark: "#050608"       // Very dark shadow
             }
         }
     },
@@ -82,7 +82,7 @@ export const clientConfig = {
 
     // Footer Information
     footer: {
-        text: "© 2026 SEATOS Schools - Excellence in Education",
+        text: "© 2026 corneliusajayi123@gmail.com",
         showYear: true
     },
 
