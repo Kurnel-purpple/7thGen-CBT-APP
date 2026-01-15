@@ -18,73 +18,114 @@
             display: inline;
         }
 
-        .mobile-user-name {
+        .mobile-user-row {
             display: none;
             width: 100%;
-            text-align: center;
+            justify-content: space-between;
+            align-items: center;
             margin-top: 10px;
-            font-weight: bold;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .mobile-user-name {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 0.95rem;
+        }
+
+        /* Cancel Button Styling */
+        .btn-cancel {
+            color: #c62828 !important;
+            border: 1px solid #ef5350 !important;
+            background-color: transparent;
+        }
+
+        .btn-cancel:hover {
+            background-color: rgba(239, 83, 80, 0.1) !important;
         }
 
         @media (max-width: 600px) {
             .mobile-text {
                 display: inline;
-                font-size: 1.5rem;
             }
 
             .desktop-text {
                 display: none;
             }
 
-            /* Hide Title on Mobile */
-            .main-header .logo h1 {
-                display: none;
-            }
-
-            /* Header Layout */
+            /* Mobile Header Layout - Two Rows */
+            /* Mobile Header Layout - Two Rows as Blocks */
             .main-header {
-                flex-wrap: wrap;
-                /* Allow wrapping for user name */
-                padding: 10px 15px;
+                display: block !important;
+                padding: 12px 15px;
+                height: auto;
             }
 
-            .user-menu {
-                width: 100%;
+            /* First Row Container */
+            .header-top-row {
                 display: flex;
-                justify-content: space-between !important;
-                /* Space between Back and Theme */
+                justify-content: space-between;
                 align-items: center;
-                flex-direction: row !important;
-                /* Force row for buttons */
+                width: 100%;
+                margin-bottom: 10px;
             }
 
-            /* Theme toggle is injected as first child usually. 
-               We want Back Button (left) and Theme (right). 
-               If Utils injects Theme at start: [Theme] [Back]. 
-               We might need CSS order or rely on Utils injection. 
-               Utils injects: userMenu.insertBefore(toggleBtn, userMenu.firstChild).
-               So DOM: toggle, back, user-name.
-               We want: Back (left), Toggle (right).
-               So we should use `order` CSS property.
-            */
-
-            #theme-toggle {
-                order: 2;
+            /* Logo Group (Left Side) */
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 0;
+                /* Reset margins since we use header-top-row now */
             }
 
-            .btn-back-dashboard {
-                order: 1;
+            .logo h1 {
+                font-size: 1.1rem;
+                margin: 0;
+            }
+
+            /* Back button (Right Side) */
+            .btn-back-dashboard.mobile-only {
+                padding: 6px !important;
+                /* Square-ish shape for icon */
+                width: 36px;
+                height: 36px;
+                min-width: auto !important;
+                background: transparent !important;
+                border: 1px solid var(--border-color) !important;
+                color: var(--text-color) !important;
+                border-radius: 8px;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                margin-left: 10px;
+            }
+
+            .btn-back-dashboard.mobile-only svg {
+                width: 20px;
+                height: 20px;
+                stroke: currentColor;
+            }
+
+            .btn-back-dashboard.mobile-only:hover {
+                background: var(--inner-bg) !important;
+                border-color: var(--primary-color) !important;
+                color: var(--primary-color) !important;
+            }
+
+            /* Hide desktop user menu */
+            .user-menu.desktop-only {
+                display: none !important;
+            }
+
+            /* Second Row: Teacher Name (left) + Dark Mode (right) */
+            .mobile-user-row {
+                display: flex !important;
             }
 
             #user-desktop-name {
                 display: none;
-            }
-
-            /* Hide desktop name in menu */
-
-            .mobile-user-name {
-                display: block;
-                order: 3;
             }
 
             /* Questions Header */
@@ -105,6 +146,29 @@
                 text-align: center;
                 margin-right: 0 !important;
             }
+
+            /* Footer Actions Mobile */
+            .form-actions {
+                display: flex !important;
+                flex-direction: row !important;
+                /* Side by side */
+                justify-content: space-between;
+                gap: 10%;
+                /* 10% gap as requested */
+                margin-top: 20px;
+            }
+
+            .form-actions .btn {
+                flex: 1;
+                /* Stretch to fill available width */
+                min-width: 0;
+                /* Prevent overflow */
+                padding: 12px;
+                font-size: 1rem;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
         }
     </style>
 </head>
@@ -112,20 +176,38 @@
 <body>
     <div class="app-container">
         <header class="main-header">
-            <div class="logo">
-                <h1>Create New Exam</h1>
-            </div>
-            <div class="user-menu">
-                <!-- User name for Desktop -->
-                <span id="user-desktop-name" style="margin-right: 15px; font-weight:bold;">Teacher</span>
+            <!-- First Row Main Header -->
+            <div class="header-top-row">
+                <!-- Left: Logo & Title Group -->
+                <div class="logo">
+                    <!-- Logo Image will be injected here by themeApplier -->
+                    <h1 class="logo-text">Create New Exam</h1>
+                </div>
 
-                <a href="teacher-dashboard.html" class="btn btn-outline btn-back-dashboard">
-                    <span class="desktop-text">← Back to Dashboard</span>
-                    <span class="mobile-text">&larr;</span>
+                <!-- Right: Back Button -->
+                <a href="teacher-dashboard.html" class="btn btn-outline btn-back-dashboard mobile-only"
+                    aria-label="Back to Dashboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
                 </a>
             </div>
-            <!-- Mobile User Name (breaks to new line due to flex-wrap) -->
-            <div class="mobile-user-name" id="user-mobile-name">Teacher</div>
+
+            <!-- Desktop user menu -->
+            <div class="user-menu desktop-only">
+                <span id="user-desktop-name" style="margin-right: 15px; font-weight:bold;">Teacher</span>
+                <a href="teacher-dashboard.html" class="btn btn-outline btn-back-dashboard">
+                    <span class="desktop-text">← Back to Dashboard</span>
+                </a>
+            </div>
+
+            <!-- Second Row: Teacher name (left) + Dark mode toggle (right) -->
+            <div class="mobile-user-row">
+                <span class="mobile-user-name" id="user-mobile-name">Teacher</span>
+                <!-- Dark mode toggle will be injected here by utils.js -->
+            </div>
         </header>
 
         <main class="main-content" style="display: block;">
@@ -220,9 +302,10 @@
                 </div>
 
                 <!-- Step 3: Global Actions -->
-                <div class="form-section" style="text-align: right; background: transparent; border: none; padding: 0;">
-                    <button type="button" class="btn" onclick="window.history.back()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save & Publish Exam</button>
+                <div class="form-section form-actions"
+                    style="text-align: right; background: transparent; border: none; padding: 0;">
+                    <button type="button" class="btn btn-cancel" onclick="window.history.back()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Publish Exam</button>
                 </div>
             </form>
         </main>

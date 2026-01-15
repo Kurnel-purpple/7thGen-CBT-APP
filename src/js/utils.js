@@ -87,7 +87,13 @@ const Utils = {
             // BUT if there is already a "right" element (like user-menu), we might want to put it next to it.
 
             const userMenu = header.querySelector('.user-menu');
-            if (userMenu) {
+            const mobileUserRow = header.querySelector('.mobile-user-row');
+
+            if (mobileUserRow) {
+                // For pages with mobile-user-row (like create-exam), append to mobile row
+                mobileUserRow.appendChild(toggleBtn);
+                toggleBtn.style.marginLeft = '0';
+            } else if (userMenu) {
                 // Insert before the logout button in user menu? Or just prepend/append to user menu? 
                 // Let's prepend to user menu so it's [Theme] [Name] [Logout]
                 userMenu.insertBefore(toggleBtn, userMenu.firstChild);
