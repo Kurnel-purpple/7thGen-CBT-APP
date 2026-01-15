@@ -35,10 +35,13 @@ class ThemeApplier {
      * Get client ID from various sources
      */
     getClientId() {
+        console.log('🔍 Detecting client ID...');
+
         // 1. Check URL parameter (?client=client-a)
         const urlParams = new URLSearchParams(window.location.search);
         const urlClient = urlParams.get('client');
         if (urlClient) {
+            console.log(`✅ Client ID from URL: ${urlClient}`);
             localStorage.setItem('clientId', urlClient);
             return urlClient;
         }
@@ -46,16 +49,21 @@ class ThemeApplier {
         // 2. Check localStorage
         const storedClient = localStorage.getItem('clientId');
         if (storedClient) {
+            console.log(`✅ Client ID from localStorage: ${storedClient}`);
             return storedClient;
         }
 
         // 3. Check meta tag
         const metaClient = document.querySelector('meta[name="client-id"]');
         if (metaClient) {
-            return metaClient.content;
+            const clientId = metaClient.content;
+            console.log(`✅ Client ID from meta tag: ${clientId}`);
+            localStorage.setItem('clientId', clientId); // Store for future use
+            return clientId;
         }
 
         // 4. Default
+        console.log('⚠️ No client ID found, using default');
         return 'default';
     }
 

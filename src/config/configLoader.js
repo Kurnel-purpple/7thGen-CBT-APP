@@ -17,21 +17,37 @@ class ConfigLoader {
      * @returns {Promise<Object>} - Loaded configuration
      */
     async loadConfig(clientId = 'default') {
+        console.log(`🔧 Loading configuration for: ${clientId}`);
+
         try {
             if (clientId === 'default') {
                 this.config = defaultConfig;
                 this.currentClient = 'default';
+                console.log(`✅ Default configuration loaded`);
             } else {
                 // Dynamically import client configuration
+                console.log(`📦 Attempting to import: ./clients/${clientId}.js`);
                 const clientModule = await import(`./clients/${clientId}.js`);
+
+                if (!clientModule.clientConfig) {
+                    throw new Error(`Client module for '${clientId}' does not export 'clientConfig'`);
+                }
+
                 this.config = this.mergeConfigs(defaultConfig, clientModule.clientConfig);
                 this.currentClient = clientId;
+                console.log(`✅ Client configuration merged successfully`);
             }
 
             console.log(`✅ Configuration loaded for: ${this.config.client.name}`);
+            console.log(`   Primary Color: ${this.config.branding.primaryColor}`);
+            console.log(`   Logo: ${this.config.client.logo}`);
             return this.config;
         } catch (error) {
-            console.warn(`⚠️ Failed to load config for '${clientId}', falling back to default`, error);
+            console.error(`❌ Failed to load config for '${clientId}':`, error);
+            console.error(`   Error message: ${error.message}`);
+            console.error(`   Stack trace:`, error.stack);
+            console.warn(`⚠️ Falling back to default configuration`);
+
             this.config = defaultConfig;
             this.currentClient = 'default';
             return this.config;
