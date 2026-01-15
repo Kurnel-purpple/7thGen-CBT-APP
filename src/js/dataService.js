@@ -319,6 +319,8 @@ class DataService {
         if (updates.instructions) dbUpdates.instructions = updates.instructions;
         if (updates.questions) dbUpdates.questions = updates.questions;
         if (updates.status) dbUpdates.status = updates.status;
+        if (updates.extensions !== undefined) dbUpdates.extensions = updates.extensions;
+        if (updates.globalExtension !== undefined) dbUpdates.global_extension = updates.globalExtension;
         dbUpdates.updated_at = new Date().toISOString();
 
         const { data, error } = await sb
@@ -357,7 +359,9 @@ class DataService {
             status: dbExam.status,
             createdBy: dbExam.created_by,
             createdAt: dbExam.created_at,
-            updatedAt: dbExam.updated_at
+            updatedAt: dbExam.updated_at,
+            extensions: dbExam.extensions || {},
+            globalExtension: dbExam.global_extension || null
         };
     }
 

@@ -58,6 +58,23 @@
             background: var(--light-text);
             opacity: 0.7;
         }
+
+        /* Responsive tab labels */
+        @media (max-width: 768px) {
+            .tab-text {
+                display: none;
+            }
+
+            .tab-btn {
+                padding: 10px 8px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .tab-icon {
+                margin-right: 6px;
+            }
+        }
     </style>
 </head>
 
@@ -109,12 +126,21 @@
 
             <div class="tabs">
                 <div class="tab-group">
-                    <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">📝 Available Exams
-                        <span class="badge" id="available-count">0</span></button>
-                    <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">✅ Resolved Flags
-                        <span class="badge" id="resolved-count">0</span></button>
-                    <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">📚 Completed History <span
-                            class="badge" id="history-count">0</span></button>
+                    <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">
+                        <span class="tab-icon">📝</span>
+                        <span class="tab-text">Available Exams</span>
+                        <span class="badge" id="available-count">0</span>
+                    </button>
+                    <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">
+                        <span class="tab-icon">✅</span>
+                        <span class="tab-text">Resolved Flags</span>
+                        <span class="badge" id="resolved-count">0</span>
+                    </button>
+                    <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">
+                        <span class="tab-icon">📚</span>
+                        <span class="tab-text">Completed History</span>
+                        <span class="badge" id="history-count">0</span>
+                    </button>
                 </div>
                 <div class="desktop-filter">
                     <select id="desktop-subject-filter" class="form-control"

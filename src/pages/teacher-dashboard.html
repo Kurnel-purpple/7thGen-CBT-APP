@@ -73,6 +73,15 @@
             border-color: #555;
             color: #fff;
         }
+
+        /* Subtle button shadows in dark mode */
+        [data-theme="dark"] .btn {
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), -2px -2px 4px rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .btn:active {
+            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.4), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
+        }
     </style>
 </head>
 
@@ -178,10 +187,15 @@
 
     <!-- Extensions Modal -->
     <div id="extensions-modal" class="modal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 3000;">
         <div class="modal-content"
-            style="background: var(--card-bg); padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto;">
-            <h3>Manage Time Extensions</h3>
+            style="background: var(--card-bg); padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; z-index: 3001;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <h3 style="margin: 0;">Manage Time Extensions</h3>
+                <span class="close-btn" onclick="closeExtensionsModal()"
+                    style="cursor: pointer; font-size: 1.5rem; color: var(--light-text);">&times;</span>
+            </div>
             <p id="ext-exam-title" style="margin-bottom: 15px; color: var(--light-text);"></p>
 
             <div class="form-group">
@@ -192,16 +206,11 @@
             </div>
 
             <div class="form-group">
-                <label>Extra Time Multiplier</label>
-                <select id="ext-multiplier" class="form-control">
-                    <option value="1.25">25% Extra Time</option>
-                    <option value="1.5">50% Extra Time</option>
-                    <option value="2.0">100% Extra Time (Double)</option>
-                </select>
+                <label>Extra Time (Minutes)</label>
+                <input type="number" id="ext-minutes" class="form-control" placeholder="e.g. 15" min="1">
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-outline" onclick="closeExtensionsModal()">Close</button>
                 <button class="btn btn-primary" onclick="saveExtension()">Grant Extension</button>
             </div>
 
@@ -522,43 +531,65 @@
             document.getElementById('extensions-modal').style.display = 'flex';
             document.getElementById('ext-exam-title').textContent = `Exam: ${exam.title}`;
 
-            // Load Students
+            // Load Participants (Students who started or submitted)
             const select = document.getElementById('ext-student-select');
-            select.innerHTML = '<option value="">Loading...</option>';
+            select.innerHTML = '<option value="">Loading students...</option>';
 
             try {
-                // Get all students
-                // In a real app we might filter by the exam's class
-                const students = await dataService.getUsers('student');
+                // Get all results for this exam
+                const results = await dataService.getResults({ examId: examId });
 
-                // Filter by class if exam has class
-                let filtered = students;
-                if (exam.targetClass && exam.targetClass !== 'All Classes' && exam.targetClass !== 'All') {
-                    filtered = students.filter(s => s.classLevel === exam.targetClass || !s.classLevel);
-                }
+                // Map results to student data with flag count
+                const participants = results.map(r => ({
+                    id: r.studentId,
+                    name: r.studentName,
+                    flagCount: window.countActiveFlags(r.flags),
+                    status: r.status
+                }));
+
+                // Sort: Flagged first, then alphabetical
+                participants.sort((a, b) => {
+                    if (b.flagCount !== a.flagCount) return b.flagCount - a.flagCount;
+                    return a.name.localeCompare(b.name);
+                });
 
                 let opts = `<option value="GLOBAL" style="font-weight:bold;">-- ALL STUDENTS --</option>`;
-                opts += filtered.map(s => `<option value="${s.id}">${s.name} (${s.username})</option>`).join('');
+
+                if (participants.length === 0) {
+                    opts += `<option value="" disabled>No students have started this exam yet</option>`;
+                } else {
+                    opts += participants.map(p => {
+                        const flagIcon = p.flagCount > 0 ? '🚩 ' : '';
+                        const statusColor = p.status === 'in-progress' ? ' (In Progress)' : '';
+                        return `<option value="${p.id}">${flagIcon}${p.name}${statusColor}</option>`;
+                    }).join('');
+                }
+
                 select.innerHTML = opts;
 
-                renderExtensionsList(exam);
+                renderExtensionsList(exam, results);
             } catch (e) {
                 console.error(e);
-                select.innerHTML = '<option value="">Error loading students</option>';
+                select.innerHTML = '<option value="">Error loading participants</option>';
             }
         };
 
         window.closeExtensionsModal = () => {
             document.getElementById('extensions-modal').style.display = 'none';
             currentExamExtensionsId = null;
+            if (window.extensionsInterval) {
+                clearInterval(window.extensionsInterval);
+                window.extensionsInterval = null;
+            }
         }
 
         window.saveExtension = async () => {
             if (!currentExamExtensionsId) return;
             const studentId = document.getElementById('ext-student-select').value;
-            const multiplier = parseFloat(document.getElementById('ext-multiplier').value);
+            const minutes = parseInt(document.getElementById('ext-minutes').value);
 
             if (!studentId) return alert('Select a student or All Students');
+            if (isNaN(minutes) || minutes <= 0) return alert('Enter a valid number of minutes');
 
             try {
                 const exam = await dataService.getExamById(currentExamExtensionsId);
@@ -566,7 +597,7 @@
                 if (studentId === 'GLOBAL') {
                     // Global Extension
                     const globalExtension = {
-                        multiplier: multiplier,
+                        addedMinutes: minutes,
                         grantedAt: new Date().toISOString()
                     };
                     await dataService.updateExam(currentExamExtensionsId, { globalExtension });
@@ -574,7 +605,7 @@
                     // Specific Extension
                     const extensions = exam.extensions || {};
                     extensions[studentId] = {
-                        multiplier: multiplier,
+                        addedMinutes: minutes,
                         grantedAt: new Date().toISOString()
                     };
                     await dataService.updateExam(currentExamExtensionsId, { extensions });
@@ -582,8 +613,20 @@
 
                 // Refresh list
                 const updatedExam = await dataService.getExamById(currentExamExtensionsId);
-                renderExtensionsList(updatedExam);
-                alert('Extension saved.');
+                const results = await dataService.getResults({ examId: currentExamExtensionsId });
+                renderExtensionsList(updatedExam, results);
+                document.getElementById('ext-minutes').value = '';
+
+                // Show success message without alert to avoid blocking the UI
+                const successMsg = document.createElement('div');
+                successMsg.textContent = '✓ Extension saved successfully';
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--success-color); color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; animation: fadeIn 0.3s;';
+                document.body.appendChild(successMsg);
+                setTimeout(() => {
+                    successMsg.style.opacity = '0';
+                    successMsg.style.transition = 'opacity 0.3s';
+                    setTimeout(() => successMsg.remove(), 300);
+                }, 2000);
             } catch (e) {
                 alert('Failed to save: ' + e.message);
             }
@@ -605,7 +648,8 @@
                 }
 
                 const updatedExam = await dataService.getExamById(currentExamExtensionsId);
-                renderExtensionsList(updatedExam);
+                const results = await dataService.getResults({ examId: currentExamExtensionsId });
+                renderExtensionsList(updatedExam, results);
             } catch (e) {
                 alert('Error: ' + e.message);
             }
@@ -685,11 +729,15 @@
             });
         };
 
-        function renderExtensionsList(exam) {
+        window.extensionsInterval = null;
+
+        function renderExtensionsList(exam, results = []) {
             const list = document.getElementById('ext-list');
             const ext = exam.extensions || {};
             const studentIds = Object.keys(ext);
             const globalExt = exam.globalExtension;
+
+            if (window.extensionsInterval) clearInterval(window.extensionsInterval);
 
             if (studentIds.length === 0 && !globalExt) {
                 list.innerHTML = '<p style="font-size: 0.9rem; color: var(--light-text);">No extensions granted.</p>';
@@ -697,41 +745,63 @@
             }
 
             const selectOptions = Array.from(document.getElementById('ext-student-select').options);
-            let html = '';
 
-            // Render Global First
-            if (globalExt) {
-                const extra = Math.round((globalExt.multiplier - 1) * 100);
-                html += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; background-color: rgba(46, 204, 113, 0.1);">
-                    <div>
-                        <div style="font-weight: 700;">ALL STUDENTS</div>
-                        <div style="font-size: 0.8rem; color: var(--success-color);">+${extra}% Time</div>
+            const updateTimers = () => {
+                const now = new Date();
+                let html = '';
+
+                // Render Global First
+                if (globalExt) {
+                    const mins = globalExt.addedMinutes || Math.round((globalExt.multiplier - 1) * exam.duration);
+                    html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); background-color: rgba(46, 204, 113, 0.1); border-radius: 4px; margin-bottom: 8px;">
+                        <div>
+                            <div style="font-weight: 700;">ALL STUDENTS</div>
+                            <div style="font-size: 0.8rem; color: var(--success-color);">+${mins} Minutes Extra</div>
+                        </div>
+                        <button class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); padding: 4px 8px; font-size: 0.8rem;" onclick="removeExtension('GLOBAL')">Remove</button>
                     </div>
-                    <button class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); padding: 2px 6px; font-size: 0.8rem;" onclick="removeExtension('GLOBAL')">Remove</button>
-                </div>
-                `;
-            }
+                    `;
+                }
 
-            html += studentIds.map(sid => {
-                const data = ext[sid];
-                // Find name from current filtering or just show ID
-                const opt = selectOptions.find(o => o.value === sid);
-                const name = opt ? opt.text : sid;
-                const extra = Math.round((data.multiplier - 1) * 100);
+                html += studentIds.map(sid => {
+                    const data = ext[sid];
+                    const opt = selectOptions.find(o => o.value === sid);
+                    const name = opt ? opt.text.replace('🚩 ', '').split(' (')[0] : sid;
+                    const extraMins = data.addedMinutes || Math.round((data.multiplier - 1) * exam.duration);
+                    const grantedAt = new Date(data.grantedAt);
 
-                return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
-                    <div>
-                        <div style="font-weight: 500;">${name}</div>
-                        <div style="font-size: 0.8rem; color: var(--success-color);">+${extra}% Time</div>
+                    // Calculate countdown from granted time
+                    const extensionEndTime = new Date(grantedAt.getTime() + extraMins * 60000);
+                    const diff = extensionEndTime - now;
+
+                    let countdownHtml = '';
+                    if (diff > 0) {
+                        const totalSeconds = Math.floor(diff / 1000);
+                        const m = Math.floor(totalSeconds / 60);
+                        const s = totalSeconds % 60;
+                        const timeStr = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                        countdownHtml = `<span style="font-family: monospace; font-weight: bold; color: var(--primary-color); background: rgba(74, 144, 226, 0.1); padding: 2px 6px; border-radius: 4px; margin-left: 8px;" title="Extension Time Remaining">⏳ ${timeStr}</span>`;
+                    } else {
+                        countdownHtml = `<span style="color: var(--accent-color); font-size: 0.8rem; margin-left: 8px;">⌛ Expired</span>`;
+                    }
+
+                    return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; display: flex; align-items: center;">${name} ${countdownHtml}</div>
+                            <div style="font-size: 0.8rem; color: var(--success-color);">+${extraMins} Minutes Extra</div>
+                        </div>
+                        <button class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); padding: 4px 8px; font-size: 0.8rem;" onclick="removeExtension('${sid}')">Remove</button>
                     </div>
-                    <button class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); padding: 2px 6px; font-size: 0.8rem;" onclick="removeExtension('${sid}')">Remove</button>
-                </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
 
-            list.innerHTML = html;
+                list.innerHTML = html;
+            };
+
+            updateTimers();
+            window.extensionsInterval = setInterval(updateTimers, 1000);
         }
 
         // --- Flag Review Features ---
@@ -923,7 +993,7 @@
 
             activeGroups.forEach(({ result, exam, flaggedQuestionIds }) => {
                 html += `
-                <div class="flag-group">
+                <div class="flag-group" style="margin-bottom: 30px;">
                     <div style="display:flex; justify-content:space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px;">
                         <div>
                             <strong>${result.studentName}</strong> <span style="opacity: 0.7;">- ${exam.title}</span>

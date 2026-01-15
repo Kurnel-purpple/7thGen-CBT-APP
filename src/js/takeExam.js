@@ -125,15 +125,15 @@ const takeExam = {
             // Timer till deadline
             const now = Date.now();
             const remainMs = takeExam.resolvedDeadline - now;
-            const durationSec = Math.floor(remainMs / 1000);
+            const durationMin = remainMs / (1000 * 60);
 
-            if (durationSec <= 0) {
+            if (durationMin <= 0) {
                 alert('Review time expired.');
                 window.location.href = 'student-dashboard.html';
                 return;
             }
 
-            takeExam.timer = new Timer(durationSec, (timeStr, remaining) => {
+            takeExam.timer = new Timer(durationMin, (timeStr, remaining) => {
                 const el = document.getElementById('timer');
                 el.textContent = '⏱ ' + timeStr;
                 el.style.color = 'red';
@@ -146,24 +146,29 @@ const takeExam = {
         }
 
         let duration = takeExam.exam.duration;
+        let extraMinutes = 0;
 
-        // Check for extension
-        let multiplier = 1;
-
-        if (takeExam.exam.globalExtension && takeExam.exam.globalExtension.multiplier) {
-            multiplier = Math.max(multiplier, takeExam.exam.globalExtension.multiplier);
-        }
-
-        if (takeExam.exam.extensions && takeExam.exam.extensions[takeExam.user.id]) {
-            const ext = takeExam.exam.extensions[takeExam.user.id];
-            if (ext.multiplier) {
-                multiplier = Math.max(multiplier, ext.multiplier);
+        // Check for global extension
+        if (takeExam.exam.globalExtension) {
+            const ext = takeExam.exam.globalExtension;
+            if (ext.addedMinutes) {
+                extraMinutes = Math.max(extraMinutes, ext.addedMinutes);
+            } else if (ext.multiplier) {
+                extraMinutes = Math.max(extraMinutes, Math.round(duration * (ext.multiplier - 1)));
             }
         }
 
-        if (multiplier > 1) {
-            duration = Math.round(duration * multiplier);
+        // Check for individual extension
+        if (takeExam.exam.extensions && takeExam.exam.extensions[takeExam.user.id]) {
+            const ext = takeExam.exam.extensions[takeExam.user.id];
+            if (ext.addedMinutes) {
+                extraMinutes = Math.max(extraMinutes, ext.addedMinutes);
+            } else if (ext.multiplier) {
+                extraMinutes = Math.max(extraMinutes, Math.round(duration * (ext.multiplier - 1)));
+            }
         }
+
+        duration += extraMinutes;
 
         takeExam.timer = new Timer(duration, (timeStr, remaining) => {
             const el = document.getElementById('timer');
