@@ -83,6 +83,35 @@
         [data-theme="dark"] .btn:active {
             box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.4), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
         }
+
+        [data-theme="dark"] .btn:active {
+            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.4), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
+        }
+
+        /* Mobile Logout Button */
+        .btn-logout-mobile {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            background: transparent;
+            border: 1px solid #ccc;
+            /* Default border */
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        [data-theme="dark"] .btn-logout-mobile {
+            border-color: #555;
+        }
+
+        .btn-logout-mobile:hover {
+            background: var(--inner-bg);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
     </style>
 </head>
 
@@ -112,9 +141,9 @@
         <div id="mobile-menu" class="mobile-menu">
             <div class="mobile-menu-content">
                 <div class="mobile-user-row">
-                    <div class="mobile-user-info">
-                        <span id="mobile-user-name">Teacher</span>
-                    </div>
+                    <button onclick="auth.logout()" class="btn-logout-mobile">
+                        <span>🚪 Logout</span>
+                    </button>
                     <button id="mobile-theme-toggle" class="btn"
                         style="background: transparent; font-size: 1.2rem;">🌓</button>
                 </div>
@@ -129,21 +158,13 @@
                     </div>
                 </div>
 
-
-
                 <button class="btn btn-primary"
                     style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
                     onclick="prepareDevice()">💾 Prepare Device for Offline</button>
-
-                <!-- No Subject Filter for Teacher yet, just Logout -->
-                <button onclick="auth.logout()" class="btn btn-outline"
-                    style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">🚪
-                    Logout</button>
             </div>
         </div>
 
         <main class="main-content" style="display: block;">
-            <!-- Prepare Device Button (Desktop Only) -->
             <div class="section-header desktop-only">
                 <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
                     onclick="prepareDevice()">💾

@@ -45,6 +45,26 @@
             background-color: rgba(239, 83, 80, 0.1) !important;
         }
 
+        /* Mobile Logout Button */
+        .btn-logout-mobile {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-logout-mobile:hover {
+            background: var(--inner-bg);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
         @media (max-width: 600px) {
             .mobile-text {
                 display: inline;
@@ -205,7 +225,9 @@
 
             <!-- Second Row: Teacher name (left) + Dark mode toggle (right) -->
             <div class="mobile-user-row">
-                <span class="mobile-user-name" id="user-mobile-name">Teacher</span>
+                <button onclick="auth.logout()" class="btn-logout-mobile">
+                    <span>🚪 Logout</span>
+                </button>
                 <!-- Dark mode toggle will be injected here by utils.js -->
             </div>
         </header>

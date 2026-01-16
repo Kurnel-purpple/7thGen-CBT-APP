@@ -1,4 +1,4 @@
-# Mobile Header Layout - FINAL REVISION ✅
+# Mobile Header Layout - FINAL v3 ✅
 
 ## Visual Layout
 
@@ -13,7 +13,7 @@
 │                                                        │
 │  Row 2 (Bottom Block):                                 │
 │  ┌─────────────────────────────┐    ┌───────────────┐  │
-│  │ Teacher Name                │    │ 🌙 [Mode]     │  │
+│  │ [🚪 Logout]                 │    │ 🌙 [Mode]     │  │
 │  └─────────────────────────────┘    └───────────────┘  │
 └────────────────────────────────────────────────────────┘
 ```
@@ -21,22 +21,28 @@
 ## Implementation Details
 
 ### Row 1: `.header-top-row`
-- Container uses `display: flex` + `justify-content: space-between`.
-- Ensures max separation between the grouped logo (left) and back button (right).
-
-### Logo Group: `.logo`
-- Maintains the `.logo` class name so `themeApplier.js` can find it.
-- `themeApplier.js` injects the client logo `<img ...>` as the first child.
-- Uses `display: flex` to align the injected image and the `<h1>` text horizontally.
-
-### Back Button
-- Now uses a clean SVG arrow (Feather Icons style).
-- Styling updated for a more "button-like" feel (square/rounded).
-- Hover effects added.
+- **Left**: `.logo` group (Image + Title).
+- **Right**: `.btn-back-dashboard` (SVG Icon).
 
 ### Row 2: `.mobile-user-row`
-- Standard flex container separating name (left) and dark mode (right).
-- Logic for injecting dark mode toggle remains in `utils.js`.
+- **Left**: Logout Button (`.btn-logout-mobile`). 
+  - Replaced the static Teacher Name.
+  - Styled as a button with border and hover effects.
+  - Invokes `auth.logout()`.
+- **Right**: Dark Mode Toggle (Injected by `utils.js`).
+
+## Styles
+```css
+.btn-logout-mobile {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+```
 
 ---
-**Status**: ✅ FIXED & REFINED
+**Status**: ✅ LOGOUT BUTTON ADDED
