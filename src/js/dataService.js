@@ -200,13 +200,26 @@ class DataService {
             // Clear all cached user data
             localStorage.removeItem('cbt_user_meta');
 
-            // Clear any cached sessions
+            // Clear any cached sessions (but maybe keep pending submissions?)
+            // For full logout, we clear cache.
             localStorage.removeItem('cbt_exam_cache');
             localStorage.removeItem('cbt_pending_submissions');
-
-            // DO NOT set this.client = null - this breaks subsequent logins!
-            // The Supabase client should persist across sessions
         }
+    }
+
+    /**
+     * Clears authentication session but preserves pending data.
+     * Use this before login to ensure clean state.
+     */
+    async clearAuthSession() {
+        const sb = this._getSupabase();
+        try {
+            await sb.auth.signOut();
+        } catch (err) {
+            // Ignore error if already signed out
+        }
+        localStorage.removeItem('cbt_user_meta');
+        // Do NOT clear pending submissions
     }
 
     async getUsers(role) {
