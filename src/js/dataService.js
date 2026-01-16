@@ -513,7 +513,6 @@ class DataService {
         const dbUpdates = {};
         if (updates.flags !== undefined) dbUpdates.flags = updates.flags;
         if (updates.score !== undefined) dbUpdates.score = updates.score;
-        if (updates.points !== undefined) dbUpdates.points = updates.points;
         if (updates.totalPoints !== undefined) dbUpdates.total_points = updates.totalPoints;
         if (updates.answers !== undefined) dbUpdates.answers = updates.answers;
 
