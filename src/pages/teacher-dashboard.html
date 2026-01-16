@@ -283,6 +283,9 @@
                         style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
                         <!-- Options injected by JS -->
                     </div>
+                    <button type="button" class="btn btn-secondary" onclick="addEditOption()" style="margin-top: 10px;">
+                        + Add Option
+                    </button>
                 </div>
 
                 <input type="hidden" id="edit-q-exam-id">
@@ -1074,6 +1077,7 @@
                         <div style="display: flex; gap: 5px; align-items: center;">
                             <span style="font-weight: bold; width: 20px;">${String.fromCharCode(65 + i)}.</span>
                             <input type="text" class="form-control edit-option-input" value="${val}" data-index="${i}" style="flex: 1;">
+                            <button type="button" class="btn btn-outline" onclick="removeEditOption(${i})" style="padding: 5px 10px; min-width: auto;">✕</button>
                         </div>
                        `;
                     });
@@ -1083,6 +1087,52 @@
             } catch (e) {
                 alert('Error loading question: ' + e.message);
             }
+        }
+
+        window.addEditOption = () => {
+            const container = document.getElementById('edit-q-options-container');
+            const currentCount = container.querySelectorAll('.edit-option-input').length;
+
+            if (currentCount >= 10) {
+                alert('Maximum 10 options allowed');
+                return;
+            }
+
+            const newIndex = currentCount;
+            const optionHtml = `
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <span style="font-weight: bold; width: 20px;">${String.fromCharCode(65 + newIndex)}.</span>
+                    <input type="text" class="form-control edit-option-input" value="" data-index="${newIndex}" style="flex: 1;" placeholder="Enter option text">
+                    <button type="button" class="btn btn-outline" onclick="removeEditOption(${newIndex})" style="padding: 5px 10px; min-width: auto;">✕</button>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', optionHtml);
+        }
+
+        window.removeEditOption = (index) => {
+            const container = document.getElementById('edit-q-options-container');
+            const options = container.querySelectorAll('div[style*="display: flex"]');
+
+            if (options.length <= 2) {
+                alert('Minimum 2 options required');
+                return;
+            }
+
+            // Remove the option
+            options[index].remove();
+
+            // Re-index remaining options
+            const remainingOptions = container.querySelectorAll('div[style*="display: flex"]');
+            remainingOptions.forEach((optDiv, i) => {
+                const label = optDiv.querySelector('span');
+                const input = optDiv.querySelector('input');
+                const deleteBtn = optDiv.querySelector('button');
+
+                label.textContent = String.fromCharCode(65 + i) + '.';
+                input.setAttribute('data-index', i);
+                deleteBtn.setAttribute('onclick', `removeEditOption(${i})`);
+            });
         }
 
         window.saveQuestionEdit = async () => {
