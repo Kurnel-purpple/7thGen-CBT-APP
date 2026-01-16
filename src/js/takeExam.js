@@ -386,33 +386,98 @@ const takeExam = {
         let score = 0;
         let totalPoints = 0;
 
-        takeExam.exam.questions.forEach(q => {
-            const points = q.points || 1;
-            totalPoints += points;
-            const answer = takeExam.answers[q.id];
+        if (takeExam.mode === 'resolve') {
+            // In resolve mode, only grade the flagged questions
+            // and update the existing score
+            const results = await dataService.getResults({ studentId: takeExam.user.id });
+            const existingResult = results.find(r => r.id === takeExam.resultId);
 
-            if (q.type === 'fill_blank') {
-                if (answer && q.correctAnswer &&
-                    answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
-                    score += points;
-                }
-            } else if (q.type === 'match') {
-                if (answer) {
-                    let allCorrect = true;
-                    q.pairs.forEach((pair, idx) => {
-                        if (answer[idx] !== pair.right) allCorrect = false;
-                    });
-                    if (allCorrect) score += points;
-                }
-            } else {
-                if (answer) {
+            if (!existingResult) {
+                alert('Error: Could not find existing result');
+                return;
+            }
+
+            // Start with existing score
+            score = existingResult.score || 0;
+            totalPoints = existingResult.totalPoints || 100;
+
+            // Calculate points for flagged questions only
+            const flaggedQuestions = takeExam.subsetQuestions;
+            let flaggedOldScore = 0;
+            let flaggedNewScore = 0;
+
+            flaggedQuestions.forEach(q => {
+                const points = q.points || 1;
+                const newAnswer = takeExam.answers[q.id];
+                const oldAnswer = existingResult.answers[q.id];
+
+                // Calculate old score for this question
+                if (q.type === 'fill_blank') {
+                    if (oldAnswer && q.correctAnswer &&
+                        oldAnswer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                        flaggedOldScore += points;
+                    }
+                    if (newAnswer && q.correctAnswer &&
+                        newAnswer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                        flaggedNewScore += points;
+                    }
+                } else if (q.type === 'match') {
+                    if (oldAnswer) {
+                        let allCorrect = true;
+                        q.pairs.forEach((pair, idx) => {
+                            if (oldAnswer[idx] !== pair.right) allCorrect = false;
+                        });
+                        if (allCorrect) flaggedOldScore += points;
+                    }
+                    if (newAnswer) {
+                        let allCorrect = true;
+                        q.pairs.forEach((pair, idx) => {
+                            if (newAnswer[idx] !== pair.right) allCorrect = false;
+                        });
+                        if (allCorrect) flaggedNewScore += points;
+                    }
+                } else {
                     const correctOpt = q.options.find(o => o.isCorrect);
-                    if (correctOpt && correctOpt.id === answer) {
-                        score += points;
+                    if (correctOpt) {
+                        if (correctOpt.id === oldAnswer) flaggedOldScore += points;
+                        if (correctOpt.id === newAnswer) flaggedNewScore += points;
                     }
                 }
-            }
-        });
+            });
+
+            // Update total score: remove old flagged scores, add new flagged scores
+            score = score - flaggedOldScore + flaggedNewScore;
+
+        } else {
+            // Normal mode: grade all questions
+            takeExam.exam.questions.forEach(q => {
+                const points = q.points || 1;
+                totalPoints += points;
+                const answer = takeExam.answers[q.id];
+
+                if (q.type === 'fill_blank') {
+                    if (answer && q.correctAnswer &&
+                        answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                        score += points;
+                    }
+                } else if (q.type === 'match') {
+                    if (answer) {
+                        let allCorrect = true;
+                        q.pairs.forEach((pair, idx) => {
+                            if (answer[idx] !== pair.right) allCorrect = false;
+                        });
+                        if (allCorrect) score += points;
+                    }
+                } else {
+                    if (answer) {
+                        const correctOpt = q.options.find(o => o.isCorrect);
+                        if (correctOpt && correctOpt.id === answer) {
+                            score += points;
+                        }
+                    }
+                }
+            });
+        }
 
         const percentage = Math.round((score / totalPoints) * 100);
 
@@ -434,7 +499,6 @@ const takeExam = {
             studentName: takeExam.user.name,
             answers: takeExam.answers,
             score: percentage,
-            points: score,
             totalPoints: totalPoints,
             passScore: takeExam.exam.passScore,
             passed: percentage >= takeExam.exam.passScore,
@@ -444,11 +508,11 @@ const takeExam = {
         try {
             if (takeExam.mode === 'resolve') {
                 console.log('📡 Updating result flags:', finalFlags);
+                console.log('📊 Updated score:', score, '/', totalPoints, '(', percentage, '%)');
                 // UPDATE existing result using dataService
                 await dataService.updateResult(takeExam.resultId, {
                     answers: takeExam.answers,
                     score: percentage,
-                    points: score,
                     totalPoints: totalPoints,
                     flags: finalFlags
                 });
