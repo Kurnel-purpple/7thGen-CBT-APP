@@ -106,26 +106,53 @@ class DataService {
             }
 
             // Step 2: Fetch Profile to get Role
-            // Add a small delay to ensure session is fully established
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Add delay and retry logic to handle session establishment on mobile
+            let profile = null;
+            let profileError = null;
+            let retries = 3;
 
-            const { data: profile, error: profileError } = await sb
-                .from('profiles')
-                .select('*')
-                .eq('id', data.user.id)
-                .single();
+            while (retries > 0 && !profile) {
+                // Wait longer on mobile networks
+                await new Promise(resolve => setTimeout(resolve, 300));
 
-            if (profileError) {
-                console.error('Profile fetch error:', profileError);
+                try {
+                    const result = await sb
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    profile = result.data;
+                    profileError = result.error;
+
+                    if (profile) break; // Success!
+
+                } catch (err) {
+                    // Catch AbortError or network errors
+                    console.warn(`Profile fetch attempt ${4 - retries} failed:`, err);
+                    profileError = err;
+                }
+
+                retries--;
+                if (!profile && retries > 0) {
+                    console.log(`Retrying profile fetch... (${retries} attempts left)`);
+                }
+            }
+
+            if (profileError && !profile) {
+                console.error('Profile fetch error after retries:', profileError);
                 // More specific error message
                 if (profileError.code === 'PGRST116') {
                     throw new Error('Profile not found. Your account may not be fully set up. Please contact support.');
                 }
-                throw new Error(`Profile error: ${profileError.message}`);
+                if (profileError.name === 'AbortError' || (profileError.message && profileError.message.includes('abort'))) {
+                    throw new Error('Connection interrupted. Please check your network and try again.');
+                }
+                throw new Error(`Profile error: ${profileError.message || 'Unknown error'}`);
             }
 
             if (!profile) {
-                throw new Error('Profile not found. Please contact support.');
+                throw new Error('Profile not found after multiple attempts. Please contact support.');
             }
 
             const userObj = {
@@ -200,26 +227,13 @@ class DataService {
             // Clear all cached user data
             localStorage.removeItem('cbt_user_meta');
 
-            // Clear any cached sessions (but maybe keep pending submissions?)
-            // For full logout, we clear cache.
+            // Clear any cached sessions
             localStorage.removeItem('cbt_exam_cache');
             localStorage.removeItem('cbt_pending_submissions');
-        }
-    }
 
-    /**
-     * Clears authentication session but preserves pending data.
-     * Use this before login to ensure clean state.
-     */
-    async clearAuthSession() {
-        const sb = this._getSupabase();
-        try {
-            await sb.auth.signOut();
-        } catch (err) {
-            // Ignore error if already signed out
+            // DO NOT set this.client = null - this breaks subsequent logins!
+            // The Supabase client should persist across sessions
         }
-        localStorage.removeItem('cbt_user_meta');
-        // Do NOT clear pending submissions
     }
 
     async getUsers(role) {

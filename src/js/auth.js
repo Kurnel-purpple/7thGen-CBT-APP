@@ -42,9 +42,6 @@ const auth = {
         errorDiv.style.display = 'none';
 
         try {
-            // Ensure clean state before login to prevent conflicts
-            await dataService.clearAuthSession();
-
             const user = await dataService.login(username, password);
             console.log('Login successful:', user);
 
