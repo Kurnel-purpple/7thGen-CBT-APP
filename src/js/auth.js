@@ -18,6 +18,9 @@ const auth = {
         const errorDiv = document.getElementById('login-error');
         const submitBtn = e.target.querySelector('button[type="submit"]');
 
+        // Prevent double submission (e.g. from autofill + click)
+        if (submitBtn.disabled) return;
+
         const username = usernameInput.value.trim();
         const password = passwordInput.value.trim();
 
@@ -48,10 +51,19 @@ const auth = {
                 window.location.href = 'pages/teacher-dashboard.html';
             } else {
                 auth.showError('Unknown user role.');
+                submitBtn.textContent = originalBtnText;
+                submitBtn.disabled = false;
             }
         } catch (err) {
             console.error('Login error:', err);
-            auth.showError(err.message || 'Login failed. Please check your credentials.');
+
+            // Handle AbortError specifically (often caused by password managers or network cancellation)
+            if (err.name === 'AbortError' || (err.message && err.message.includes('AbortError'))) {
+                auth.showError('Login interrupted. Please tap Login again.');
+            } else {
+                auth.showError(err.message || 'Login failed. Please check your credentials.');
+            }
+
             submitBtn.textContent = originalBtnText;
             submitBtn.disabled = false;
         }
