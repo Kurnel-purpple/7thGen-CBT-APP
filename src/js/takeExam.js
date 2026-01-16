@@ -397,9 +397,12 @@ const takeExam = {
                 return;
             }
 
-            // Start with existing score
-            score = existingResult.score || 0;
-            totalPoints = existingResult.totalPoints || 100;
+            // Get existing data
+            const existingPercentage = parseInt(existingResult.score) || 0;
+            totalPoints = parseInt(existingResult.totalPoints) || 100;
+
+            // Convert existing percentage to points
+            const existingPoints = Math.round((existingPercentage / 100) * totalPoints);
 
             // Calculate points for flagged questions only
             const flaggedQuestions = takeExam.subsetQuestions;
@@ -407,7 +410,7 @@ const takeExam = {
             let flaggedNewScore = 0;
 
             flaggedQuestions.forEach(q => {
-                const points = q.points || 1;
+                const points = parseInt(q.points) || 1;
                 const newAnswer = takeExam.answers[q.id];
                 const oldAnswer = existingResult.answers[q.id];
 
@@ -446,7 +449,16 @@ const takeExam = {
             });
 
             // Update total score: remove old flagged scores, add new flagged scores
-            score = score - flaggedOldScore + flaggedNewScore;
+            score = existingPoints - flaggedOldScore + flaggedNewScore;
+
+            console.log('🔢 Score Calculation:', {
+                existingPercentage,
+                existingPoints,
+                flaggedOldScore,
+                flaggedNewScore,
+                newTotalPoints: score,
+                totalPoints
+            });
 
         } else {
             // Normal mode: grade all questions
@@ -482,15 +494,18 @@ const takeExam = {
         const percentage = Math.round((score / totalPoints) * 100);
 
         // Handle Result Flags
-        let finalFlags = { ...takeExam.flagged };
+        let finalFlags = JSON.parse(JSON.stringify(takeExam.flagged)); // Deep clone
         if (takeExam.mode === 'resolve') {
             // Update status to 'accepted' instead of deleting, so we keep history
             const resolvedIds = takeExam.resolvedFlags.map(f => f[0]);
+            console.log('🏁 Marking flags as accepted:', resolvedIds);
             resolvedIds.forEach(id => {
-                if (finalFlags[id]) {
-                    finalFlags[id] = { ...finalFlags[id], status: 'accepted' };
+                if (finalFlags[id] && typeof finalFlags[id] === 'object') {
+                    finalFlags[id].status = 'accepted';
+                    console.log(`  ✅ Flag ${id} updated to 'accepted':`, finalFlags[id]);
                 }
             });
+            console.log('📋 Final flags object:', finalFlags);
         }
 
         const resultData = {
