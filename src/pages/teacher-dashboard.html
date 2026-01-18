@@ -204,6 +204,20 @@
                     <p>No exams found. Create your first exam to get started.</p>
                 </div>
             </div>
+
+            <!-- Archived Exams Section -->
+            <div id="archived-section" style="margin-top: 30px; display: none;">
+                <div class="section-header" style="cursor: pointer;" onclick="toggleArchivedSection()">
+                    <h3 class="section-title">
+                        <span id="archive-toggle-icon">▶</span>
+                        Archived Exams
+                        <span id="archived-count" style="font-size: 0.9rem; color: var(--light-text);">(0)</span>
+                    </h3>
+                </div>
+                <div id="archived-grid" class="exam-grid" style="display: none;">
+                    <!-- Archived exams will be populated here -->
+                </div>
+            </div>
         </main>
     </div>
 
@@ -483,11 +497,8 @@
                     }
                 });
 
-                // Update Stats
-                const count = exams.length;
-                document.getElementById('total-exams').textContent = count;
-                const mStats = document.getElementById('mobile-total-exams');
-                if (mStats) mStats.textContent = count;
+                // Update Stats - Initial count before filtering
+                // (Will be updated below with active exams only)
 
                 // Calculate Pending Results (Global Red Count - Total Flagged Submissions / Students)
                 // Filter for any ACTIVE flags
@@ -501,49 +512,139 @@
 
                 // Render Grid
                 const grid = document.getElementById('exams-grid');
-                if (exams.length > 0) {
-                    grid.innerHTML = exams.map(exam => {
-                        const flagsCount = (examStats[exam.id] && examStats[exam.id].flags) || 0;
+                const archivedGrid = document.getElementById('archived-grid');
+                const archivedSection = document.getElementById('archived-section');
+                const archivedCountEl = document.getElementById('archived-count');
 
-                        // Calculate Participant Breakdown
-                        const examResults = allResults.filter(r => r.examId === exam.id);
-                        // Clean green/red split based on active flags
-                        const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
-                        const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
+                // Separate active and archived exams
+                const activeExams = exams.filter(e => e.status !== 'archived');
+                const archivedExams = exams.filter(e => e.status === 'archived');
 
-                        // Red is Active Flags
-                        const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
+                // Update total exams count (only active)
+                document.getElementById('total-exams').textContent = activeExams.length;
+                const mobileStats = document.getElementById('mobile-total-exams');
+                if (mobileStats) mobileStats.textContent = activeExams.length;
 
-                        return `
-                        <div class="exam-card">
-                            <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
-                                <span class="exam-subject">${exam.subject || 'General'}</span>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
-                                    <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
-                                    <span title="Flagged" style="font-size: 0.9rem;">🔴 ${redCount}</span>
-                                </div>
+                // Helper function to render exam card
+                const renderExamCard = (exam, isArchived = false) => {
+                    const flagsCount = (examStats[exam.id] && examStats[exam.id].flags) || 0;
+                    const examResults = allResults.filter(r => r.examId === exam.id);
+                    const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
+                    const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
+                    const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
+
+                    // Format scheduled date if exists
+                    let scheduleInfo = '';
+                    if (exam.scheduledDate) {
+                        const schedDate = new Date(exam.scheduledDate);
+                        const now = new Date();
+                        const isPast = schedDate < now;
+                        const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                        scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.85rem;">📅 ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
+                    }
+
+                    const scrambleIndicator = exam.scrambleQuestions
+                        ? '<span title="Questions scrambled" style="font-size: 0.85rem;">🔀</span>'
+                        : '';
+
+                    return `
+                    <div class="exam-card" ${isArchived ? 'style="opacity: 0.7;"' : ''}>
+                        <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
+                            <span class="exam-subject">${exam.subject || 'General'}</span>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                ${scrambleIndicator}
+                                <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
+                                <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
+                                <span title="Flagged" style="font-size: 0.9rem;">🔴 ${redCount}</span>
                             </div>
-                            <div class="exam-card-body">
-                                <h4 class="exam-title">${exam.title}</h4>
-                                <div class="exam-meta">
+                        </div>
+                        <div class="exam-card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                <h4 class="exam-title" style="margin: 0;">${exam.title}</h4>
+                                ${scheduleInfo}
+                            </div>
+                            <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                                     <span>⏱ ${exam.duration}m</span>
                                     <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
                                     <span>🏫 ${exam.targetClass || 'All Classes'}</span>
                                 </div>
-                            </div>
-                            <div class="exam-card-footer">
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>
-                                <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
+                                ${isArchived
+                            ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}')">📤 Restore</button>`
+                            : `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--light-text); background: transparent; border: 1px solid #e0e0e0;" onclick="window.archiveExam('${exam.id}')">📥 Archive</button>`
+                        }
                             </div>
                         </div>
-                    `}).join('');
+                        <div class="exam-card-footer">
+                            <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
+                            ${!isArchived ? `<button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>` : ''}
+                            <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
+                        </div>
+                    </div>
+                    `;
+                };
+
+                // Render active exams
+                if (activeExams.length > 0) {
+                    grid.innerHTML = activeExams.map(exam => renderExamCard(exam, false)).join('');
+                } else {
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <p>No active exams. Create your first exam to get started.</p>
+                        </div>`;
                 }
+
+                // Render archived exams
+                if (archivedExams.length > 0) {
+                    archivedSection.style.display = 'block';
+                    archivedCountEl.textContent = `(${archivedExams.length})`;
+                    archivedGrid.innerHTML = archivedExams.map(exam => renderExamCard(exam, true)).join('');
+                } else {
+                    archivedSection.style.display = 'none';
+                }
+
             } catch (err) {
                 console.error('Failed to load exams', err);
             }
         });
+
+        // --- Archive Logic ---
+        window.archiveExam = async (examId) => {
+            if (!confirm('Archive this exam? It will be hidden from students and moved to the Archived section.')) return;
+
+            try {
+                await dataService.updateExam(examId, { status: 'archived' });
+                // Refresh the page to update the UI
+                location.reload();
+            } catch (err) {
+                alert('Failed to archive exam: ' + err.message);
+            }
+        };
+
+        window.unarchiveExam = async (examId) => {
+            if (!confirm('Restore this exam? It will become visible to students again.')) return;
+
+            try {
+                await dataService.updateExam(examId, { status: 'active' });
+                // Refresh the page to update the UI
+                location.reload();
+            } catch (err) {
+                alert('Failed to restore exam: ' + err.message);
+            }
+        };
+
+        window.toggleArchivedSection = () => {
+            const grid = document.getElementById('archived-grid');
+            const icon = document.getElementById('archive-toggle-icon');
+            if (grid.style.display === 'none') {
+                grid.style.display = 'grid';
+                icon.textContent = '▼';
+            } else {
+                grid.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        };
 
         // --- Extensions Logic ---
         let currentExamExtensionsId = null;

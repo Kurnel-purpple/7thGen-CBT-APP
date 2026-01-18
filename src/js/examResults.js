@@ -35,7 +35,7 @@ const examResults = {
                 let totalPossible = 0;
 
                 exam.questions.forEach(q => {
-                    const qPoints = q.points || 1;
+                    const qPoints = parseFloat(q.points) || 0.5;
                     totalPossible += qPoints;
                     const answer = r.answers[q.id];
 

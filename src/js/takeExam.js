@@ -10,6 +10,41 @@ const takeExam = {
     flagged: {}, // { questionId: boolean }
     timer: null,
 
+    // Seeded random shuffle for consistent scrambling per student
+    scrambleArray: (array, seed) => {
+        // Simple hash function to convert string seed to number
+        const hashSeed = (str) => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash);
+        };
+
+        // Seeded random number generator (Mulberry32)
+        const seededRandom = (seed) => {
+            return () => {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        };
+
+        const random = seededRandom(hashSeed(String(seed)));
+        const shuffled = [...array];
+
+        // Fisher-Yates shuffle with seeded random
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        return shuffled;
+    },
+
     init: async () => {
         // Auth Check
         const user = dataService.getCurrentUser();
@@ -36,6 +71,21 @@ const takeExam = {
             const exam = await dataService.getExamById(examId);
             if (!exam) throw new Error('Exam not found');
             takeExam.exam = exam;
+
+            // Check if exam is accessible (not archived, scheduled time passed)
+            if (exam.status === 'archived') {
+                alert('This exam has been archived and is no longer available.');
+                window.location.href = 'student-dashboard.html';
+                return;
+            }
+
+            if (exam.scheduledDate && new Date(exam.scheduledDate) > new Date()) {
+                const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const scheduledStr = new Date(exam.scheduledDate).toLocaleDateString('en-US', options);
+                alert(`This exam is not yet available. It will be accessible on ${scheduledStr}.`);
+                window.location.href = 'student-dashboard.html';
+                return;
+            }
 
             if (takeExam.mode === 'resolve') {
                 if (!takeExam.resultId) throw new Error('No Result ID for Resolution Mode');
@@ -76,6 +126,15 @@ const takeExam = {
                 document.getElementById('exam-title').textContent = `Review: ${exam.title}`;
             } else {
                 takeExam.loadProgress(); // Restore auto-saves
+
+                // Apply question scrambling if enabled
+                if (exam.scrambleQuestions) {
+                    console.log('🔀 Scrambling questions for student:', user.id);
+                    takeExam.exam.questions = takeExam.scrambleArray(
+                        [...takeExam.exam.questions],
+                        user.id
+                    );
+                }
             }
 
             takeExam.renderHeader();
@@ -410,7 +469,7 @@ const takeExam = {
             let flaggedNewScore = 0;
 
             flaggedQuestions.forEach(q => {
-                const points = parseInt(q.points) || 1;
+                const points = parseFloat(q.points) || 0.5;
                 const newAnswer = takeExam.answers[q.id];
                 const oldAnswer = existingResult.answers[q.id];
 
@@ -463,7 +522,7 @@ const takeExam = {
         } else {
             // Normal mode: grade all questions
             takeExam.exam.questions.forEach(q => {
-                const points = q.points || 1;
+                const points = parseFloat(q.points) || 0.5;
                 totalPoints += points;
                 const answer = takeExam.answers[q.id];
 
@@ -524,14 +583,25 @@ const takeExam = {
             if (takeExam.mode === 'resolve') {
                 console.log('📡 Updating result flags:', finalFlags);
                 console.log('📊 Updated score:', score, '/', totalPoints, '(', percentage, '%)');
+
+                // Calculate if passed based on updated score
+                const passScore = takeExam.exam.passScore || 50;
+                const passed = percentage >= passScore;
+
                 // UPDATE existing result using dataService
                 await dataService.updateResult(takeExam.resultId, {
                     answers: takeExam.answers,
                     score: percentage,
                     totalPoints: totalPoints,
+                    passScore: passScore,
+                    passed: passed,
                     flags: finalFlags
                 });
-                alert(`Answers Updated!\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
+
+                console.log('✅ Result updated successfully');
+                console.log('📋 Updated flags:', finalFlags);
+
+                alert(`Answers Updated!\nScore: ${score}/${totalPoints} Points (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);
             } else {
                 await dataService.saveResult(resultData);
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);

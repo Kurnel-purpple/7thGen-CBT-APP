@@ -189,6 +189,15 @@
                 justify-content: center;
                 align-items: center;
             }
+
+            /* Scheduling Options - Stack vertically on mobile */
+            .scheduling-options-row {
+                flex-direction: column !important;
+            }
+
+            .scheduling-options-row .form-col {
+                width: 100% !important;
+            }
         }
     </style>
 </head>
@@ -301,6 +310,32 @@
                         <textarea id="exam-instructions" class="form-control" rows="3"
                             placeholder="Enter instructions for students..."></textarea>
                     </div>
+
+                    <!-- Scheduling and Options -->
+                    <div class="form-row scheduling-options-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-scheduled-date">Scheduled Date & Time</label>
+                                <input type="datetime-local" id="exam-scheduled-date" class="form-control"
+                                    title="Leave empty to make exam immediately available">
+                                <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px;">
+                                    Leave empty for immediate availability
+                                </p>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label style="margin-bottom: 10px; display: block;">Question Options</label>
+                                <label style="display: flex; align-items: center; cursor: pointer; gap: 10px;">
+                                    <input type="checkbox" id="exam-scramble" style="width: 18px; height: 18px;">
+                                    <span>Scramble question order</span>
+                                </label>
+                                <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px;">
+                                    Each student gets questions in random order
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Step 2: Questions -->
@@ -348,7 +383,15 @@
                     (a) Option A<br>
                     (b) Option B...
                 </p>
-                <textarea id="import-text" class="form-control" rows="15"
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="import-points" style="font-weight: 600;">Points per Question</label>
+                    <input type="number" id="import-points" class="form-control" value="0.5" min="0.5" step="0.5"
+                        style="width: 100px;">
+                    <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px;">
+                        All imported questions will have this point value
+                    </p>
+                </div>
+                <textarea id="import-text" class="form-control" rows="12"
                     placeholder="Paste questions here..."></textarea>
             </div>
             <div class="modal-footer">
@@ -385,7 +428,8 @@
             </div>
             <div class="form-group" style="margin-top: 10px;">
                 <label>Points</label>
-                <input type="number" class="form-control q-points" value="1" min="1" style="width: 80px;">
+                <input type="number" class="form-control q-points" value="0.5" min="0.5" step="0.5"
+                    style="width: 80px;">
             </div>
         </div>
     </template>

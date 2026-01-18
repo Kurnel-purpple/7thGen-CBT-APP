@@ -321,7 +321,9 @@ class DataService {
             instructions: examData.instructions,
             questions: examData.questions, // JSONB
             status: examData.status || 'draft',
-            created_by: examData.createdBy // Should match auth.uid()
+            created_by: examData.createdBy, // Should match auth.uid()
+            scheduled_date: examData.scheduledDate || null,
+            scramble_questions: examData.scrambleQuestions || false
         };
 
         const { data, error } = await sb
@@ -348,6 +350,8 @@ class DataService {
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.extensions !== undefined) dbUpdates.extensions = updates.extensions;
         if (updates.globalExtension !== undefined) dbUpdates.global_extension = updates.globalExtension;
+        if (updates.scheduledDate !== undefined) dbUpdates.scheduled_date = updates.scheduledDate;
+        if (updates.scrambleQuestions !== undefined) dbUpdates.scramble_questions = updates.scrambleQuestions;
         dbUpdates.updated_at = new Date().toISOString();
 
         const { data, error } = await sb
@@ -388,7 +392,9 @@ class DataService {
             createdAt: dbExam.created_at,
             updatedAt: dbExam.updated_at,
             extensions: dbExam.extensions || {},
-            globalExtension: dbExam.global_extension || null
+            globalExtension: dbExam.global_extension || null,
+            scheduledDate: dbExam.scheduled_date || null,
+            scrambleQuestions: dbExam.scramble_questions || false
         };
     }
 
@@ -408,13 +414,18 @@ class DataService {
         };
 
         try {
-            // Use INSERT instead of UPSERT since we don't have a unique constraint
-            // First, try to delete any existing in-progress session for this exam/student
-            await sb
+            // First, delete any existing in-progress or previous session for this exam/student
+            // IMPORTANT: Await the delete operation to ensure it completes before inserting
+            const { error: deleteError } = await sb
                 .from('results')
                 .delete()
                 .eq('exam_id', resultData.examId)
                 .eq('student_id', resultData.studentId);
+
+            // Log delete errors but don't throw (entry might not exist)
+            if (deleteError) {
+                console.warn('Delete operation warning:', deleteError);
+            }
 
             // Now insert the final result
             const { data, error } = await sb
@@ -499,6 +510,8 @@ class DataService {
             studentId: dbResult.student_id,
             score: dbResult.score,
             totalPoints: dbResult.total_points,
+            passScore: dbResult.pass_score,
+            passed: dbResult.passed,
             answers: dbResult.answers,
             submittedAt: dbResult.submitted_at,
             studentName: dbResult.profiles ? dbResult.profiles.full_name : 'Unknown',
@@ -515,6 +528,8 @@ class DataService {
         if (updates.score !== undefined) dbUpdates.score = updates.score;
         if (updates.totalPoints !== undefined) dbUpdates.total_points = updates.totalPoints;
         if (updates.answers !== undefined) dbUpdates.answers = updates.answers;
+        if (updates.passScore !== undefined) dbUpdates.pass_score = updates.passScore;
+        if (updates.passed !== undefined) dbUpdates.passed = updates.passed;
 
         const { data, error } = await sb
             .from('results')

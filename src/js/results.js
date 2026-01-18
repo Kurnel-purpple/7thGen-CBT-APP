@@ -52,51 +52,67 @@ const resultsController = {
         document.getElementById('exam-title').textContent = title;
         document.getElementById('student-name').textContent = result.studentName || 'Student'; // Fallback if name not joined
 
-        // 1. Recalculate Points and Status
-        // We do this client-side to avoid schema changes for now.
-        let calculatedPoints = 0;
+        // 1. Use stored score and totalPoints if available (for updated results)
+        // Otherwise recalculate for backward compatibility
+        let actualPoints = 0;
         let totalPossible = 0;
 
-        if (exam) {
-            exam.questions.forEach(q => {
-                const qPoints = q.points || 1;
-                totalPossible += qPoints;
+        // Prefer stored totalPoints (updated when flags are resolved)
+        if (result.totalPoints) {
+            totalPossible = result.totalPoints;
+            // Calculate actual points from percentage
+            actualPoints = Math.round((result.score / 100) * totalPossible);
+        } else {
+            // Fallback: Recalculate from exam questions (for old results)
+            if (exam) {
+                exam.questions.forEach(q => {
+                    const qPoints = parseFloat(q.points) || 0.5;
+                    totalPossible += qPoints;
 
-                const answer = result.answers[q.id];
+                    const answer = result.answers[q.id];
 
-                // Scoring Logic (Match takeExam.js)
-                if (q.type === 'fill_blank') {
-                    if (answer && q.correctAnswer && answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
-                        calculatedPoints += qPoints;
+                    // Scoring Logic (Match takeExam.js)
+                    if (q.type === 'fill_blank') {
+                        if (answer && q.correctAnswer && answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                            actualPoints += qPoints;
+                        }
+                    } else if (q.type === 'match') {
+                        if (answer) {
+                            let allCorrect = true;
+                            q.pairs.forEach((pair, idx) => {
+                                if (answer[idx] !== pair.right) allCorrect = false;
+                            });
+                            if (allCorrect) actualPoints += qPoints;
+                        }
+                    } else {
+                        // MCQ / TrueFalse
+                        const correctOpt = q.options.find(o => o.isCorrect);
+                        if (answer && correctOpt && correctOpt.id === answer) {
+                            actualPoints += qPoints;
+                        }
                     }
-                } else if (q.type === 'match') {
-                    if (answer) {
-                        let allCorrect = true;
-                        q.pairs.forEach((pair, idx) => {
-                            if (answer[idx] !== pair.right) allCorrect = false;
-                        });
-                        if (allCorrect) calculatedPoints += qPoints;
-                    }
-                } else {
-                    // MCQ / TrueFalse
-                    const correctOpt = q.options.find(o => o.isCorrect);
-                    if (answer && correctOpt && correctOpt.id === answer) {
-                        calculatedPoints += qPoints;
-                    }
-                }
-            });
+                });
+            }
         }
 
-        // Use saved score (percentage) or calculate? 
-        // Saved score is trusted for the record.
+        // Use saved score (percentage) - this is the source of truth
         const percentage = result.score;
-        // Determine Pass/Fail based on Exam Pass Score
-        const passScore = exam ? (exam.passScore || 50) : 50;
-        const isPassed = percentage >= passScore;
+
+        // Determine Pass/Fail - prefer stored values, fallback to calculation
+        let passScore, isPassed;
+        if (result.passScore !== undefined && result.passed !== undefined) {
+            // Use stored values (updated when flags are resolved)
+            passScore = result.passScore;
+            isPassed = result.passed;
+        } else {
+            // Fallback: Calculate from exam
+            passScore = exam ? (exam.passScore || 50) : 50;
+            isPassed = percentage >= passScore;
+        }
 
         // Score UI
         const circle = document.getElementById('score-circle');
-        circle.textContent = `${calculatedPoints}/${totalPossible}`;
+        circle.textContent = `${actualPoints}/${totalPossible}`;
         circle.style.fontSize = '2rem'; // Adjust for longer text
         if (isPassed) {
             circle.classList.remove('fail'); // Ensure no conflict
@@ -110,7 +126,7 @@ const resultsController = {
             document.getElementById('pass-status').style.color = 'var(--accent-color)';
         }
 
-        document.getElementById('points-summary').textContent = `${calculatedPoints} / ${totalPossible} Points`;
+        document.getElementById('points-summary').textContent = `${actualPoints} / ${totalPossible} Points`;
 
         // Questions Render
         const container = document.getElementById('questions-list');
@@ -175,7 +191,7 @@ const resultsController = {
                         ${isFlagged ? '<span title="Flagged by student" style="font-size:1.2rem;">🚩</span>' : ''}
                     </div>
                     <span class="status-badge ${isCorrect ? 'correct' : 'incorrect'}" style="flex-shrink:0;">
-                        ${isCorrect ? `+${q.points || 1} pts` : '0 pts'}
+                        ${isCorrect ? `+${parseFloat(q.points) || 0.5} pts` : '0 pts'}
                     </span>
                 </div>
                 <div>${optionsHtml}</div>

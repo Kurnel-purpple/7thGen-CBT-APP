@@ -319,7 +319,7 @@ const studentDashboard = {
 
                 return false;
             }
-            if (e.status === 'draft') {
+            if (e.status === 'draft' || e.status === 'archived') {
 
                 return false;
             }
@@ -361,25 +361,46 @@ const studentDashboard = {
             return;
         }
 
-        html += available.map(exam => `
-            <div class="exam-card">
+        html += available.map(exam => {
+            // Check if exam is scheduled for future
+            const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > now;
+            const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null;
+
+            let scheduleInfo = '';
+            let actionButton = '';
+
+            if (isScheduled) {
+                // Format scheduled date nicely
+                const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
+                scheduleInfo = `<span style="color: var(--accent-color);">📅 ${formattedDate}</span>`;
+                actionButton = `<button class="btn" style="width: 100%; background: var(--light-text); color: white; cursor: not-allowed;" disabled>🔒 Available ${formattedDate}</button>`;
+            } else {
+                actionButton = `<button class="btn btn-primary" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%;">Start Exam</button>`;
+            }
+
+            return `
+            <div class="exam-card" ${isScheduled ? 'style="opacity: 0.8;"' : ''}>
                 <div class="exam-card-header">
                     <span class="exam-subject">${exam.subject}</span>
                     <span class="exam-subject" style="background: var(--secondary-color); color: white;">${exam.targetClass || 'All'}</span>
-                    <span class="exam-subject" style="background: var(--success-color); color: white;">New</span>
+                    ${isScheduled
+                    ? '<span class="exam-subject" style="background: var(--accent-color); color: white;">Scheduled</span>'
+                    : '<span class="exam-subject" style="background: var(--success-color); color: white;">Available</span>'}
                 </div>
                 <div class="exam-card-body">
                     <h4 class="exam-title">${exam.title}</h4>
                     <div class="exam-meta">
                         <span>⏱ ${exam.duration} mins</span>
                         <span>📝 ${exam.questions ? exam.questions.length : 0} Qs</span>
+                        ${scheduleInfo}
                     </div>
                 </div>
                 <div class="exam-card-footer">
-                    <button class="btn btn-primary" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%;">Start Exam</button>
+                    ${actionButton}
                 </div>
             </div>
-        `).join('');
+        `}).join('');
 
         grid.innerHTML = html;
     },
@@ -451,11 +472,21 @@ const studentDashboard = {
     renderCompleted: () => {
         const grid = document.getElementById('completed-grid');
 
+        // Filter to only show completed results (exclude in-progress entries)
+        const completedResults = studentDashboard.results.filter(r => {
+            // Check if result has the _status flag set to 'completed'
+            // or if it doesn't have _status at all (legacy results)
+            if (r.flags && r.flags._status === 'in-progress') {
+                return false; // Exclude in-progress results
+            }
+            return true; // Include completed results
+        });
+
         // Update Badge
         const badge = document.getElementById('history-count');
-        if (badge) badge.textContent = studentDashboard.results.length;
+        if (badge) badge.textContent = completedResults.length;
 
-        if (studentDashboard.results.length === 0) {
+        if (completedResults.length === 0) {
             grid.innerHTML = `
                 <div class="empty-state">
                     <p>You haven't completed any exams yet.</p>
@@ -463,7 +494,7 @@ const studentDashboard = {
             return;
         }
 
-        grid.innerHTML = studentDashboard.results.map(result => {
+        grid.innerHTML = completedResults.map(result => {
             const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
             const isPass = result.score >= (result.passScore || 50); // Fallback
 

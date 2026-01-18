@@ -38,6 +38,19 @@ const examManager = {
             document.getElementById('exam-pass-score').value = exam.passScore;
             document.getElementById('exam-instructions').value = exam.instructions;
 
+            // New fields: Scheduling and Scrambling
+            const scheduledDateInput = document.getElementById('exam-scheduled-date');
+            if (scheduledDateInput && exam.scheduledDate) {
+                // Convert ISO date to datetime-local format
+                const date = new Date(exam.scheduledDate);
+                scheduledDateInput.value = date.toISOString().slice(0, 16);
+            }
+
+            const scrambleCheckbox = document.getElementById('exam-scramble');
+            if (scrambleCheckbox) {
+                scrambleCheckbox.checked = exam.scrambleQuestions || false;
+            }
+
             examManager.renderQuestions();
         } catch (err) {
             console.error(err);
@@ -55,7 +68,7 @@ const examManager = {
                 { id: Utils.generateId(), text: '', isCorrect: false },
                 { id: Utils.generateId(), text: '', isCorrect: false }
             ],
-            points: 1
+            points: 0.5
         });
         examManager.renderQuestions();
 
@@ -110,6 +123,9 @@ const examManager = {
     closeImportModal: () => {
         document.getElementById('import-modal').style.display = 'none';
         document.getElementById('import-text').value = '';
+        // Reset import points to default
+        const importPointsInput = document.getElementById('import-points');
+        if (importPointsInput) importPointsInput.value = '0.5';
     },
 
     processBulkImport: () => {
@@ -118,6 +134,10 @@ const examManager = {
             alert('Please paste some text.');
             return;
         }
+
+        // Get points value from import modal (default to 0.5)
+        const importPointsInput = document.getElementById('import-points');
+        const importPoints = importPointsInput ? parseFloat(importPointsInput.value) || 0.5 : 0.5;
 
         // Clean text and split into blocks
         // We handle both "Double Newline" blocks AND "Single Line" blocks if they look like questions
@@ -198,7 +218,7 @@ const examManager = {
                     type: 'mcq',
                     text: qText,
                     options: options,
-                    points: 1
+                    points: importPoints
                 });
                 addedCount++;
             }
@@ -249,7 +269,7 @@ const examManager = {
             typeSelect.value = q.type;
 
             qEl.querySelector('.q-points').value = q.points;
-            qEl.querySelector('.q-points').onchange = (e) => q.points = parseInt(e.target.value);
+            qEl.querySelector('.q-points').onchange = (e) => q.points = parseFloat(e.target.value) || 0.5;
 
             // Render Options based on Type
             const optsContainer = qEl.querySelector('.q-options-container');
@@ -403,6 +423,15 @@ const examManager = {
         const passScore = parseInt(document.getElementById('exam-pass-score').value);
         const instructions = document.getElementById('exam-instructions').value;
 
+        // New fields
+        const scheduledDateInput = document.getElementById('exam-scheduled-date');
+        const scheduledDate = scheduledDateInput && scheduledDateInput.value
+            ? new Date(scheduledDateInput.value).toISOString()
+            : null;
+
+        const scrambleCheckbox = document.getElementById('exam-scramble');
+        const scrambleQuestions = scrambleCheckbox ? scrambleCheckbox.checked : false;
+
         // Validate Questions
         let valid = true;
         examManager.questions.forEach((q, i) => {
@@ -455,10 +484,10 @@ const examManager = {
             instructions,
             questions: examManager.questions,
             createdBy: user.id,
-            // Preserve status if editing, else draft
-            // We need to fetch original status or just default. DataService createExam handles new props.
             updatedAt: new Date().toISOString(),
-            status: 'active'
+            status: 'active',
+            scheduledDate,
+            scrambleQuestions
         };
 
         try {

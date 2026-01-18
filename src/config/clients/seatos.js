@@ -8,7 +8,7 @@ export const clientConfig = {
     client: {
         name: "SEATOS SCHOOLS",
         shortName: "SEATOS",
-        logo: "assets/clients/seatos/drop.png",
+        logo: "assets/clients/seatos/seatos-logo.jpeg",
         favicon: "assets/clients/seatos/favicon.png"
     },
 
