@@ -509,7 +509,7 @@ class DataService {
             examId: dbResult.exam_id,
             studentId: dbResult.student_id,
             score: dbResult.score,
-            totalPoints: dbResult.total_points,
+            totalPoints: (dbResult.flags && dbResult.flags._real_total_points) ? parseFloat(dbResult.flags._real_total_points) : dbResult.total_points,
             passScore: dbResult.pass_score,
             passed: dbResult.passed,
             answers: dbResult.answers,

@@ -9,6 +9,7 @@ const studentDashboard = {
     currentFilter: 'All',
 
     init: async () => {
+        console.log('🚀 Student Dashboard v3.0 Loaded');
         const user = dataService.getCurrentUser();
         if (!user || user.role !== 'student') {
             window.location.href = '../index.html';

@@ -57,11 +57,14 @@ const resultsController = {
         let actualPoints = 0;
         let totalPossible = 0;
 
-        // Prefer stored totalPoints (updated when flags are resolved)
-        if (result.totalPoints) {
-            totalPossible = result.totalPoints;
-            // Calculate actual points from percentage
-            actualPoints = Math.round((result.score / 100) * totalPossible);
+        // Prefer metadata from flags for accurate decimals
+        if (result.flags && result.flags._real_total_points && result.flags._real_points_scored) {
+            totalPossible = parseFloat(result.flags._real_total_points);
+            actualPoints = parseFloat(result.flags._real_points_scored);
+        } else if (result.totalPoints) {
+            totalPossible = parseFloat(result.totalPoints);
+            // Calculate actual points from percentage (preserve decimals)
+            actualPoints = (result.score / 100) * totalPossible;
         } else {
             // Fallback: Recalculate from exam questions (for old results)
             if (exam) {
@@ -98,21 +101,14 @@ const resultsController = {
         // Use saved score (percentage) - this is the source of truth
         const percentage = result.score;
 
-        // Determine Pass/Fail - prefer stored values, fallback to calculation
-        let passScore, isPassed;
-        if (result.passScore !== undefined && result.passed !== undefined) {
-            // Use stored values (updated when flags are resolved)
-            passScore = result.passScore;
-            isPassed = result.passed;
-        } else {
-            // Fallback: Calculate from exam
-            passScore = exam ? (exam.passScore || 50) : 50;
-            isPassed = percentage >= passScore;
-        }
+        // Determine Pass/Fail - ALWAYS recalculate to ensure accuracy
+        // (Database 'passed' column might be stale if not updated during resolve mode)
+        const passScore = exam ? (exam.passScore || 50) : 50;
+        const isPassed = percentage >= passScore;
 
         // Score UI
         const circle = document.getElementById('score-circle');
-        circle.textContent = `${actualPoints}/${totalPossible}`;
+        circle.textContent = `${actualPoints.toFixed(1)}/${totalPossible.toFixed(1)}`;
         circle.style.fontSize = '2rem'; // Adjust for longer text
         if (isPassed) {
             circle.classList.remove('fail'); // Ensure no conflict
@@ -126,7 +122,7 @@ const resultsController = {
             document.getElementById('pass-status').style.color = 'var(--accent-color)';
         }
 
-        document.getElementById('points-summary').textContent = `${actualPoints} / ${totalPossible} Points`;
+        document.getElementById('points-summary').textContent = `${actualPoints.toFixed(1)} / ${totalPossible.toFixed(1)} Points`;
 
         // Questions Render
         const container = document.getElementById('questions-list');

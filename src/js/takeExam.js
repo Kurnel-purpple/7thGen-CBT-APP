@@ -46,6 +46,7 @@ const takeExam = {
     },
 
     init: async () => {
+        console.log('🚀 Exam Controller v3.1 Loaded');
         // Auth Check
         const user = dataService.getCurrentUser();
         if (!user || user.role !== 'student') {
@@ -457,11 +458,11 @@ const takeExam = {
             }
 
             // Get existing data
-            const existingPercentage = parseInt(existingResult.score) || 0;
-            totalPoints = parseInt(existingResult.totalPoints) || 100;
+            const existingPercentage = parseFloat(existingResult.score) || 0;
+            totalPoints = parseFloat(existingResult.totalPoints) || 100;
 
             // Convert existing percentage to points
-            const existingPoints = Math.round((existingPercentage / 100) * totalPoints);
+            const existingPoints = (existingPercentage / 100) * totalPoints;
 
             // Calculate points for flagged questions only
             const flaggedQuestions = takeExam.subsetQuestions;
@@ -508,7 +509,7 @@ const takeExam = {
             });
 
             // Update total score: remove old flagged scores, add new flagged scores
-            score = existingPoints - flaggedOldScore + flaggedNewScore;
+            score = Number(existingPoints) - Number(flaggedOldScore) + Number(flaggedNewScore);
 
             console.log('🔢 Score Calculation:', {
                 existingPercentage,
@@ -567,13 +568,17 @@ const takeExam = {
             console.log('📋 Final flags object:', finalFlags);
         }
 
+        // Store decimals in flags metadata (DB total_points column is Integer)
+        finalFlags._real_total_points = totalPoints;
+        finalFlags._real_points_scored = score;
+
         const resultData = {
             examId: takeExam.exam.id,
             studentId: takeExam.user.id,
             studentName: takeExam.user.name,
             answers: takeExam.answers,
             score: percentage,
-            totalPoints: totalPoints,
+            totalPoints: Math.round(totalPoints),
             passScore: takeExam.exam.passScore,
             passed: percentage >= takeExam.exam.passScore,
             flags: finalFlags
@@ -589,19 +594,42 @@ const takeExam = {
                 const passed = percentage >= passScore;
 
                 // UPDATE existing result using dataService
+                // Only sending fields that student is likely allowed to update
                 await dataService.updateResult(takeExam.resultId, {
                     answers: takeExam.answers,
                     score: percentage,
-                    totalPoints: totalPoints,
-                    passScore: passScore,
-                    passed: passed,
+                    // totalPoints, passScore, passed might be restricted by RLS
                     flags: finalFlags
                 });
 
-                console.log('✅ Result updated successfully');
-                console.log('📋 Updated flags:', finalFlags);
+                console.log('✅ Result updated successfully, Verifying persistence...');
 
-                alert(`Answers Updated!\nScore: ${score}/${totalPoints} Points (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);
+                // Double check persistence by refetching
+                const verifyResults = await dataService.getResults({ studentId: takeExam.user.id });
+                const verifiedResult = verifyResults.find(r => r.id === takeExam.resultId);
+
+                let allAccepted = true;
+                if (verifiedResult && verifiedResult.flags) {
+                    const resolvedIds = takeExam.resolvedFlags.map(f => f[0]);
+                    resolvedIds.forEach(id => {
+                        const flag = verifiedResult.flags[id];
+                        if (!flag || flag.status !== 'accepted') {
+                            console.error(`❌ PERSISTENCE CHECK FAILED: Flag ${id} is still '${flag ? flag.status : 'missing'}' in DB!`);
+                            allAccepted = false;
+                        } else {
+                            console.log(`  ✅ Verified flag ${id} is accepted in DB.`);
+                        }
+                    });
+                } else {
+                    console.error('❌ Could not refetch result for verification.');
+                    allAccepted = false;
+                }
+
+                if (!allAccepted) {
+                    alert('CRITICAL WARNING:\nYour answers were submitted, but the "Flag Status" did not update in the database.\n\nThis means the exam will stay in "Action Required".\n\nPlease screenshot this and tell your teacher.');
+                } else {
+                    alert(`Answers Updated!\nScore: ${score}/${totalPoints} Points (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);
+                }
             } else {
                 await dataService.saveResult(resultData);
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
