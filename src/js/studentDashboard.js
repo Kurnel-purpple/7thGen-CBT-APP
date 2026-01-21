@@ -384,7 +384,7 @@ const studentDashboard = {
             <div class="exam-card" ${isScheduled ? 'style="opacity: 0.8;"' : ''}>
                 <div class="exam-card-header">
                     <span class="exam-subject">${exam.subject}</span>
-                    <span class="exam-subject" style="background: var(--secondary-color); color: white;">${exam.targetClass || 'All'}</span>
+                    <span class="exam-subject exam-class-badge">${exam.targetClass || 'All'}</span>
                     ${isScheduled
                     ? '<span class="exam-subject" style="background: var(--accent-color); color: white;">Scheduled</span>'
                     : '<span class="exam-subject" style="background: var(--success-color); color: white;">Available</span>'}
@@ -527,7 +527,47 @@ const studentDashboard = {
     },
 
     startExam: (examId) => {
-        window.location.href = `take-exam.html?id=${examId}`;
+        // Find the exam data
+        const exam = studentDashboard.exams.find(e => e.id === examId);
+        if (!exam) {
+            alert('Exam not found');
+            return;
+        }
+
+        // Store exam ID for later use
+        studentDashboard.pendingExamId = examId;
+
+        // Populate modal with exam data
+        document.getElementById('modal-exam-title').textContent = exam.title;
+        document.getElementById('modal-exam-duration').textContent = `${exam.duration} minutes`;
+        document.getElementById('modal-exam-questions').textContent = exam.questions ? exam.questions.length : 0;
+        document.getElementById('modal-exam-subject').textContent = exam.subject || 'General';
+        document.getElementById('modal-exam-pass-score').textContent = `${exam.passScore || 50}%`;
+
+        // Show custom instructions if available
+        const customInstructionsDiv = document.getElementById('modal-custom-instructions');
+        const instructionsText = document.getElementById('modal-instructions-text');
+
+        if (exam.instructions && exam.instructions.trim()) {
+            instructionsText.textContent = exam.instructions;
+            customInstructionsDiv.style.display = 'block';
+        } else {
+            customInstructionsDiv.style.display = 'none';
+        }
+
+        // Show the modal
+        document.getElementById('exam-instructions-modal').style.display = 'flex';
+    },
+
+    closeInstructionsModal: () => {
+        document.getElementById('exam-instructions-modal').style.display = 'none';
+        studentDashboard.pendingExamId = null;
+    },
+
+    confirmStartExam: () => {
+        if (studentDashboard.pendingExamId) {
+            window.location.href = `take-exam.html?id=${studentDashboard.pendingExamId}`;
+        }
     },
 
     reviewExam: (examId, resultId) => {

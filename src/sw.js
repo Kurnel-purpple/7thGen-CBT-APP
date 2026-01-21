@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-exam-v5';
+const CACHE_NAME = 'cbt-exam-v11';
 const ASSETS = [
     './index.html',
     './pages/student-dashboard.html',

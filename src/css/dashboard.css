@@ -80,6 +80,17 @@
     color: var(--light-text);
 }
 
+/* Class badge with dark mode support */
+.exam-class-badge {
+    background: var(--secondary-color);
+    color: white;
+}
+
+[data-theme="dark"] .exam-class-badge {
+    color: #1a1a2e;
+    /* Dark navy/black for better contrast in dark mode */
+}
+
 .exam-status {
     width: 8px;
     height: 8px;

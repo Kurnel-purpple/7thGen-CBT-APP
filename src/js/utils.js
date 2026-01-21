@@ -103,6 +103,47 @@ const Utils = {
                 header.appendChild(toggleBtn);
             }
         }
+    },
+
+    /**
+     * Make logo clickable - navigates to appropriate dashboard based on user role
+     */
+    makeLogoClickable: () => {
+        const logo = document.querySelector('.logo');
+        if (!logo) return;
+
+        // Get current user from localStorage
+        const user = dataService?.getCurrentUser();
+        if (!user) return;
+
+        // Determine dashboard URL based on user role
+        const dashboardUrl = user.role === 'teacher'
+            ? 'teacher-dashboard.html'
+            : 'student-dashboard.html';
+
+        // Make logo clickable
+        logo.style.cursor = 'pointer';
+        logo.style.transition = 'opacity 0.2s ease';
+
+        // Add hover effect
+        logo.addEventListener('mouseenter', () => {
+            logo.style.opacity = '0.8';
+        });
+
+        logo.addEventListener('mouseleave', () => {
+            logo.style.opacity = '1';
+        });
+
+        // Add click handler
+        logo.addEventListener('click', () => {
+            // Check if we're in a pages subdirectory
+            const isInPagesDir = window.location.pathname.includes('/pages/');
+            const targetUrl = isInPagesDir ? dashboardUrl : `pages/${dashboardUrl}`;
+            window.location.href = targetUrl;
+        });
+
+        // Add title attribute for accessibility
+        logo.setAttribute('title', `Go to ${user.role === 'teacher' ? 'Teacher' : 'Student'} Dashboard`);
     }
 };
 
@@ -115,7 +156,13 @@ if (typeof module !== 'undefined' && module.exports) {
 // Always attach to window if we are in a browser-like environment (including Electron renderer)
 window.Utils = Utils;
 window.Utils = Utils;
-document.addEventListener('DOMContentLoaded', Utils.initTheme);
+document.addEventListener('DOMContentLoaded', () => {
+    Utils.initTheme();
+    // Wait a bit for dataService to be available
+    setTimeout(() => {
+        Utils.makeLogoClickable();
+    }, 100);
+});
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {

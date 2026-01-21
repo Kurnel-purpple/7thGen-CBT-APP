@@ -9,6 +9,8 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
+    <!-- Font Awesome for high-quality icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         .result-header {
             background: var(--card-bg);
@@ -84,6 +86,86 @@
         .status-badge.incorrect {
             background-color: var(--accent-color);
         }
+
+        /* Desktop button - full button with text */
+        .btn-back-desktop {
+            display: inline-block;
+        }
+
+        /* Mobile icon - clean icon without button styling */
+        .btn-back-mobile {
+            display: none;
+        }
+
+        /* Mobile view adjustments */
+        @media (max-width: 768px) {
+            .main-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px 20px;
+            }
+
+            .logo {
+                flex: 1;
+                display: flex;
+                align-items: center;
+            }
+
+            .logo h1 {
+                font-size: 1.2rem;
+                margin: 0;
+            }
+
+            .user-menu {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+
+            /* Hide desktop button on mobile */
+            .btn-back-desktop {
+                display: none;
+            }
+
+            /* Show clean icon on mobile */
+            .btn-back-mobile {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: var(--card-bg);
+                color: var(--text-color);
+                font-size: 1.3rem;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                border: none;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .btn-back-mobile:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
+
+            .btn-back-mobile:active {
+                transform: scale(0.95);
+            }
+
+            /* Dark mode support for mobile icon */
+            [data-theme="dark"] .btn-back-mobile {
+                background: #1a1a1a;
+                color: #ffffff;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+
+            [data-theme="dark"] .btn-back-mobile:hover {
+                background: #000000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            }
+        }
     </style>
 </head>
 
@@ -94,7 +176,12 @@
                 <h1>Exam Results</h1>
             </div>
             <div class="user-menu">
-                <button onclick="window.history.back()" class="btn">← Back</button>
+                <!-- Desktop: Full button with text -->
+                <button onclick="window.history.back()" class="btn btn-back-desktop">← Back</button>
+                <!-- Mobile: Clean icon only -->
+                <button onclick="window.history.back()" class="btn-back-mobile" aria-label="Go back">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
             </div>
         </header>
 
