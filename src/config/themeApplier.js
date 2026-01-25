@@ -32,12 +32,32 @@ class ThemeApplier {
     }
 
     /**
+     * Domain-to-client mapping for automatic detection
+     */
+    domainClientMap = {
+        'seatoscbt.com': 'seatos',
+        'www.seatoscbt.com': 'seatos',
+        'seatos-cbt-app.netlify.app': 'default',
+        // Add more domain mappings here as needed
+    };
+
+    /**
      * Get client ID from various sources
+     * Priority: 1. Domain, 2. URL param, 3. localStorage, 4. Meta tag, 5. Default
      */
     getClientId() {
         console.log('🔍 Detecting client ID...');
 
-        // 1. Check URL parameter (?client=client-a)
+        // 1. Check domain mapping (HIGHEST PRIORITY)
+        const hostname = window.location.hostname.toLowerCase();
+        const domainClient = this.domainClientMap[hostname];
+        if (domainClient) {
+            console.log(`✅ Client ID from domain (${hostname}): ${domainClient}`);
+            localStorage.setItem('clientId', domainClient); // Update localStorage to match
+            return domainClient;
+        }
+
+        // 2. Check URL parameter (?client=client-a)
         const urlParams = new URLSearchParams(window.location.search);
         const urlClient = urlParams.get('client');
         if (urlClient) {
@@ -46,14 +66,14 @@ class ThemeApplier {
             return urlClient;
         }
 
-        // 2. Check localStorage
+        // 3. Check localStorage
         const storedClient = localStorage.getItem('clientId');
         if (storedClient) {
             console.log(`✅ Client ID from localStorage: ${storedClient}`);
             return storedClient;
         }
 
-        // 3. Check meta tag
+        // 4. Check meta tag
         const metaClient = document.querySelector('meta[name="client-id"]');
         if (metaClient) {
             const clientId = metaClient.content;
@@ -62,7 +82,7 @@ class ThemeApplier {
             return clientId;
         }
 
-        // 4. Default
+        // 5. Default
         console.log('⚠️ No client ID found, using default');
         return 'default';
     }
