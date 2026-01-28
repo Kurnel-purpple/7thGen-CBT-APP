@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="client-id" content="default">
+    <meta name="client-id" content="seatos">
     <title>CBT Exam Software</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/auth.css">
@@ -36,10 +36,15 @@
                             <input type="text" id="username" class="form-control"
                                 placeholder="Student ID (e.g. JMS123) or Username" required autocomplete="off">
                         </div>
-                        <div class="form-group">
+<div class="form-group">
                             <label for="password">Password</label>
-                            <input type="password" id="password" class="form-control" placeholder="Enter your password"
-                                required autocomplete="new-password">
+                            <div class="password-input-container">
+                                <input type="password" id="password" class="form-control" placeholder="Enter your password"
+                                    required autocomplete="new-password">
+                                <button type="button" class="password-toggle-btn" onclick="togglePassword('password', this)">
+                                    <span class="eye-icon">👁️</span>
+                                </button>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary btn-block">🔐 Sign In</button>
                     </form>
@@ -68,10 +73,18 @@
         await initConfig();
     </script>
 
-    <!-- Scripts -->
+<!-- Scripts -->
     <script src="js/utils.js"></script>
     <script src="js/dataService.js"></script>
     <script src="js/auth.js"></script>
+    <script>
+        // Global function for password toggle
+        function togglePassword(inputId, button) {
+            if (window.auth && window.auth.togglePassword) {
+                window.auth.togglePassword(inputId, button);
+            }
+        }
+    </script>
     <script>
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {

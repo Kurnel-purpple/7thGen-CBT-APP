@@ -36,6 +36,13 @@ const examResults = {
 
                 exam.questions.forEach(q => {
                     const qPoints = parseFloat(q.points) || 0.5;
+
+                    // Skip theory questions - they require manual grading
+                    if (q.type === 'theory') {
+                        // Don't add to totalPossible since theory questions have 0 points
+                        return;
+                    }
+
                     totalPossible += qPoints;
                     const answer = r.answers[q.id];
 
@@ -52,9 +59,12 @@ const examResults = {
                             if (allCorrect) calculatedPoints += qPoints;
                         }
                     } else {
-                        const correctOpt = q.options.find(o => o.isCorrect);
-                        if (answer && correctOpt && correctOpt.id === answer) {
-                            calculatedPoints += qPoints;
+                        // MCQ, True/False, Image MCQ - check if options exist
+                        if (q.options) {
+                            const correctOpt = q.options.find(o => o.isCorrect);
+                            if (answer && correctOpt && correctOpt.id === answer) {
+                                calculatedPoints += qPoints;
+                            }
                         }
                     }
                 });

@@ -100,10 +100,15 @@
                             </select>
                         </div>
 
-                        <div class="form-group">
+<div class="form-group">
                             <label>Password</label>
-                            <input type="password" id="password" class="form-control" placeholder="Create a password"
-                                required>
+                            <div class="password-input-container">
+                                <input type="password" id="password" class="form-control" placeholder="Create a password"
+                                    required>
+                                <button type="button" class="password-toggle-btn" onclick="togglePassword('password', this)">
+                                    <span class="eye-icon">👁️</span>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Error Message -->
@@ -137,6 +142,7 @@
 
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
+    <script src="../js/auth.js"></script>
     <script>
         function toggleRole(role) {
             // UI Update
@@ -162,6 +168,13 @@
                 userInput.placeholder = 'e.g. jdoe_teacher';
                 classGroup.classList.add('hidden');
                 document.getElementById('class-level').required = false;
+            }
+        }
+
+// Global function for password toggle
+        function togglePassword(inputId, button) {
+            if (window.auth && window.auth.togglePassword) {
+                window.auth.togglePassword(inputId, button);
             }
         }
 

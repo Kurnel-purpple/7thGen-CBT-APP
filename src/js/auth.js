@@ -87,6 +87,21 @@ const auth = {
         } else {
             window.location.href = 'index.html';
         }
+    },
+
+    togglePassword: (inputId, button) => {
+        const passwordInput = document.getElementById(inputId);
+        const eyeIcon = button.querySelector('.eye-icon');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.textContent = '👁️‍🗨️';
+            button.setAttribute('aria-label', 'Hide password');
+        } else {
+            passwordInput.type = 'password';
+            eyeIcon.textContent = '👁️';
+            button.setAttribute('aria-label', 'Show password');
+        }
     }
 };
 

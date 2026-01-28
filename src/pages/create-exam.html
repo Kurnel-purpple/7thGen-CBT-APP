@@ -334,9 +334,17 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="exam-instructions">Instructions</label>
+                        <label for="exam-instructions">General Instructions</label>
                         <textarea id="exam-instructions" class="form-control" rows="3"
-                            placeholder="Enter instructions for students..."></textarea>
+                            placeholder="Enter general instructions for students..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="exam-theory-instructions">Theory Section Instructions (Optional)</label>
+                        <textarea id="exam-theory-instructions" class="form-control" rows="3"
+                            placeholder="Enter specific instructions for theory questions (e.g., 'Answer in detail', 'Minimum 200 words', etc.)"></textarea>
+                        <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px;">
+                            These instructions will be displayed at the beginning of the theory section
+                        </p>
                     </div>
 
                     <!-- Scheduling and Options -->
@@ -412,11 +420,11 @@
                     (b) Option B...
                 </p>
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label for="import-points" style="font-weight: 600;">Points per Question</label>
-                    <input type="number" id="import-points" class="form-control" value="0.5" min="0.5" step="0.5"
+                    <label for="import-points" style="font-weight: 600;">Points per Question (Objective Only)</label>
+                    <input type="number" id="import-points" class="form-control" value="0.5" min="0" step="0.5"
                         style="width: 100px;">
                     <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px;">
-                        All imported questions will have this point value
+                        Applies to objective questions only. Theory questions will automatically get 0 points.
                     </p>
                 </div>
                 <textarea id="import-text" class="form-control" rows="12"
@@ -449,6 +457,7 @@
                     <option value="fill_blank">Fill in the Blank</option>
                     <option value="match">Matching Pairs</option>
                     <option value="image_mcq">Image Question</option>
+                    <option value="theory">Theory (Essay)</option>
                 </select>
             </div>
             <div class="q-options-container">
@@ -456,8 +465,7 @@
             </div>
             <div class="form-group" style="margin-top: 10px;">
                 <label>Points</label>
-                <input type="number" class="form-control q-points" value="0.5" min="0.5" step="0.5"
-                    style="width: 80px;">
+                <input type="number" class="form-control q-points" value="0.5" min="0" step="0.5" style="width: 80px;">
             </div>
         </div>
     </template>
