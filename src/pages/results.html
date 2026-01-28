@@ -87,6 +87,10 @@
             background-color: var(--accent-color);
         }
 
+        .status-badge.theory {
+            background-color: #9b59b6;
+        }
+
         /* Desktop button - full button with text */
         .btn-back-desktop {
             display: inline-block;
@@ -206,6 +210,18 @@
                 <h3>Question Breakdown</h3>
                 <div id="questions-list">
                     <!-- Dynamic -->
+                </div>
+
+                <!-- Theory Grading Save Button (only visible for teachers) -->
+                <div id="theory-grading-actions"
+                    style="display:none; margin-top:30px; padding:20px; background:var(--card-bg); border-radius:8px; text-align:center;">
+                    <button onclick="resultsController.saveTheoryScores()" class="btn btn-primary"
+                        style="padding:12px 30px; font-size:1rem;">
+                        💾 Save Theory Grades
+                    </button>
+                    <p style="margin-top:10px; font-size:0.85rem; color:var(--light-text);">
+                        This will update the student's total score including theory question points
+                    </p>
                 </div>
             </div>
 

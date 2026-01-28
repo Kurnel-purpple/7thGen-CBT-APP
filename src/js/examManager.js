@@ -51,6 +51,12 @@ const examManager = {
                 scrambleCheckbox.checked = exam.scrambleQuestions || false;
             }
 
+            // Theory section instructions
+            const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
+            if (theoryInstructionsInput && exam.theoryInstructions) {
+                theoryInstructionsInput.value = exam.theoryInstructions;
+            }
+
             examManager.renderQuestions();
         } catch (err) {
             console.error(err);
@@ -104,6 +110,14 @@ const examManager = {
             } else if (newType === 'match') {
                 q.pairs = [{ left: '', right: '' }, { left: '', right: '' }];
                 delete q.options;
+            } else if (newType === 'theory') {
+                // Theory questions don't have options or correct answers
+                // They require manual grading
+                // Set points to 0 so they don't affect automatic scoring
+                delete q.options;
+                delete q.correctAnswer;
+                delete q.pairs;
+                q.points = 0;
             } else {
                 // mcq or image_mcq
                 q.options = [
@@ -212,15 +226,29 @@ const examManager = {
                 qText = qLines.join(' ');
             }
 
-            if (qText && options.length > 0) {
-                examManager.questions.push({
-                    id: Utils.generateId(),
-                    type: 'mcq',
-                    text: qText,
-                    options: options,
-                    points: importPoints
-                });
-                addedCount++;
+            // Create question based on whether options were found
+            if (qText) {
+                if (options.length > 0) {
+                    // Objective question (MCQ) - has options
+                    examManager.questions.push({
+                        id: Utils.generateId(),
+                        type: 'mcq',
+                        text: qText,
+                        options: options,
+                        points: importPoints
+                    });
+                    addedCount++;
+                } else {
+                    // Theory question - no options detected
+                    // Set to 0 points since they require manual grading
+                    examManager.questions.push({
+                        id: Utils.generateId(),
+                        type: 'theory',
+                        text: qText,
+                        points: 0
+                    });
+                    addedCount++;
+                }
             }
         });
 
@@ -229,7 +257,7 @@ const examManager = {
             examManager.closeImportModal();
             alert(`Successfully imported ${addedCount} questions.`);
         } else {
-            alert('Could not detect any valid questions. Please check the format.\nSupported:\n1. Multiline: \nQuestion\n(a) Opt1\n(b) Opt2\n\n2. Inline:\nQuestion... (A) Opt1 (B) Opt2');
+            alert('Could not detect any valid questions. Please check the format.\n\nSupported formats:\n1. Objective Questions (with options):\n   Question text\n   (a) Option 1\n   (b) Option 2\n\n2. Theory Questions (without options):\n   Question text only\n\n3. Inline format:\n   Question... (A) Opt1 (B) Opt2');
         }
     },
 
@@ -246,13 +274,34 @@ const examManager = {
 
         if (noQuestionsMsg) noQuestionsMsg.style.display = 'none';
 
-        if (noQuestionsMsg) noQuestionsMsg.style.display = 'none';
+        // Separate objective and theory questions
+        const objectiveQuestions = examManager.questions.filter(q => q.type !== 'theory');
+        const theoryQuestions = examManager.questions.filter(q => q.type === 'theory');
+
+        // Combine them with objective questions first, then theory questions
+        const sortedQuestions = [...objectiveQuestions, ...theoryQuestions];
 
         // Re-render all (inefficient but simple for MVP)
         // In a real app we would use a VDOM framework like React/Vue
         container.innerHTML = '';
 
-        examManager.questions.forEach((q, index) => {
+        // Add section header for objective questions if there are theory questions
+        if (objectiveQuestions.length > 0 && theoryQuestions.length > 0) {
+            const objectiveHeader = document.createElement('div');
+            objectiveHeader.style.cssText = 'margin: 20px 0 15px 0; padding: 10px; background: var(--inner-bg); border-left: 4px solid var(--primary-color); border-radius: 4px;';
+            objectiveHeader.innerHTML = '<h3 style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">Section A: Objective Questions</h3>';
+            container.appendChild(objectiveHeader);
+        }
+
+        sortedQuestions.forEach((q, index) => {
+            // Add theory section header before first theory question
+            if (index === objectiveQuestions.length && theoryQuestions.length > 0) {
+                const theoryHeader = document.createElement('div');
+                theoryHeader.style.cssText = 'margin: 30px 0 15px 0; padding: 10px; background: var(--inner-bg); border-left: 4px solid var(--accent-color); border-radius: 4px;';
+                theoryHeader.innerHTML = '<h3 style="margin: 0; font-size: 1.1rem; color: var(--accent-color);">Section B: Theory Questions</h3>';
+                container.appendChild(theoryHeader);
+            }
+
             let html = template
                 .replace(/{id}/g, q.id)
                 .replace(/{n}/g, index + 1);
@@ -269,7 +318,10 @@ const examManager = {
             typeSelect.value = q.type;
 
             qEl.querySelector('.q-points').value = q.points;
-            qEl.querySelector('.q-points').onchange = (e) => q.points = parseFloat(e.target.value) || 0.5;
+            qEl.querySelector('.q-points').onchange = (e) => {
+                const val = parseFloat(e.target.value);
+                q.points = isNaN(val) ? 0 : val;
+            };
 
             // Render Options based on Type
             const optsContainer = qEl.querySelector('.q-options-container');
@@ -401,6 +453,18 @@ const examManager = {
                     examManager.renderQuestions();
                 };
                 optsContainer.appendChild(addPairBtn);
+            } else if (q.type === 'theory') {
+                // Theory questions don't need options
+                // Just show a note that students will write their answers
+                const theoryDiv = document.createElement('div');
+                theoryDiv.innerHTML = `
+                    <div class="form-group">
+                        <p style="color: var(--light-text); font-size: 0.9rem; font-style: italic;">
+                            📝 Students will provide a written answer for this question. This question requires manual grading.
+                        </p>
+                    </div>
+                `;
+                optsContainer.appendChild(theoryDiv);
             }
 
             container.appendChild(qEl);
@@ -431,6 +495,10 @@ const examManager = {
 
         const scrambleCheckbox = document.getElementById('exam-scramble');
         const scrambleQuestions = scrambleCheckbox ? scrambleCheckbox.checked : false;
+
+        // Theory section instructions
+        const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
+        const theoryInstructions = theoryInstructionsInput ? theoryInstructionsInput.value : '';
 
         // Validate Questions
         let valid = true;
@@ -468,6 +536,9 @@ const examManager = {
                     valid = false;
                     return;
                 }
+            } else if (q.type === 'theory') {
+                // Theory questions only need text, no validation for options/answers
+                // They will be manually graded
             }
         });
 
@@ -482,6 +553,7 @@ const examManager = {
             duration,
             passScore,
             instructions,
+            theoryInstructions,
             questions: examManager.questions,
             createdBy: user.id,
             updatedAt: new Date().toISOString(),

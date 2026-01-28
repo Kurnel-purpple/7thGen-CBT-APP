@@ -129,12 +129,19 @@ const takeExam = {
                 takeExam.loadProgress(); // Restore auto-saves
 
                 // Apply question scrambling if enabled
+                // Only scramble objective questions, keep theory questions at the end
                 if (exam.scrambleQuestions) {
                     console.log('🔀 Scrambling questions for student:', user.id);
-                    takeExam.exam.questions = takeExam.scrambleArray(
-                        [...takeExam.exam.questions],
+                    const objectiveQuestions = exam.questions.filter(q => q.type !== 'theory');
+                    const theoryQuestions = exam.questions.filter(q => q.type === 'theory');
+
+                    const scrambledObjective = takeExam.scrambleArray(
+                        [...objectiveQuestions],
                         user.id
                     );
+
+                    // Combine scrambled objective questions with theory questions at the end
+                    takeExam.exam.questions = [...scrambledObjective, ...theoryQuestions];
                 }
             }
 
@@ -170,14 +177,41 @@ const takeExam = {
         const grid = document.getElementById('question-palette');
         const questions = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
 
-        grid.innerHTML = questions.map((q, i) => {
-            // Find original index if needed, but here i is loop index
-            // If resolve mode, i is 0, 1... of subset.
-            return `
-            <button class="palette-btn" id="palette-btn-${i}" onclick="takeExam.scrollToQuestion(${i})">
-                ${i + 1}
-            </button>
-        `}).join('');
+        // Separate objective and theory questions
+        const objectiveQuestions = questions.filter(q => q.type !== 'theory');
+        const theoryQuestions = questions.filter(q => q.type === 'theory');
+        const sortedQuestions = [...objectiveQuestions, ...theoryQuestions];
+
+        let html = '';
+
+        // Add objective questions section
+        if (objectiveQuestions.length > 0) {
+            html += sortedQuestions.slice(0, objectiveQuestions.length).map((q, i) => {
+                return `
+                <button class="palette-btn" id="palette-btn-${i}" onclick="takeExam.scrollToQuestion(${i})">
+                    ${i + 1}
+                </button>
+            `;
+            }).join('');
+        }
+
+        // Add theory questions section with visual separator
+        if (theoryQuestions.length > 0) {
+            if (objectiveQuestions.length > 0) {
+                html += `<div style="grid-column: 1 / -1; height: 1px; background: var(--border-color); margin: 10px 0;"></div>`;
+                html += `<div style="grid-column: 1 / -1; font-size: 0.75rem; color: var(--light-text); margin-bottom: 5px; font-weight: 600;">THEORY</div>`;
+            }
+            html += sortedQuestions.slice(objectiveQuestions.length).map((q, i) => {
+                const actualIndex = objectiveQuestions.length + i;
+                return `
+                <button class="palette-btn palette-btn-theory" id="palette-btn-${actualIndex}" onclick="takeExam.scrollToQuestion(${actualIndex})" style="background: var(--accent-color); opacity: 0.3;">
+                    ${actualIndex + 1}
+                </button>
+            `;
+            }).join('');
+        }
+
+        grid.innerHTML = html;
     },
 
     startTimer: () => {
@@ -247,7 +281,38 @@ const takeExam = {
         const container = document.getElementById('question-area');
         const questions = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
 
-        container.innerHTML = questions.map((q, index) => {
+        // Separate objective and theory questions
+        const objectiveQuestions = questions.filter(q => q.type !== 'theory');
+        const theoryQuestions = questions.filter(q => q.type === 'theory');
+        const sortedQuestions = [...objectiveQuestions, ...theoryQuestions];
+
+        let htmlContent = '';
+
+        // Add section header for objective questions if there are theory questions
+        if (objectiveQuestions.length > 0 && theoryQuestions.length > 0) {
+            htmlContent += `
+                <div style="margin: 0 0 20px 0; padding: 15px; background: var(--inner-bg); border-left: 4px solid var(--primary-color); border-radius: 4px;">
+                    <h3 style="margin: 0; font-size: 1.2rem; color: var(--primary-color);">Section A: Objective Questions</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: var(--light-text);">Choose the correct answer for each question</p>
+                </div>
+            `;
+        }
+
+        htmlContent += sortedQuestions.map((q, index) => {
+            // Add theory section header before first theory question
+            let sectionHeader = '';
+            if (index === objectiveQuestions.length && theoryQuestions.length > 0) {
+                // Get theory instructions from exam data
+                const theoryInstructions = takeExam.exam.theoryInstructions || 'Provide detailed written answers';
+
+                sectionHeader = `
+                    <div style="margin: 40px 0 20px 0; padding: 15px; background: var(--inner-bg); border-left: 4px solid var(--accent-color); border-radius: 4px;">
+                        <h3 style="margin: 0; font-size: 1.2rem; color: var(--accent-color);">Section B: Theory Questions</h3>
+                        <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: var(--light-text);">${theoryInstructions}</p>
+                    </div>
+                `;
+            }
+
             const isFlagged = takeExam.flagged[q.id];
 
             // Build options HTML based on Type
@@ -308,12 +373,23 @@ const takeExam = {
                     </div>
                     `;
                 }).join('');
+            } else if (q.type === 'theory') {
+                const val = takeExam.answers[q.id] || '';
+                optionsHtml = `
+                    <div class="form-group">
+                        <textarea class="form-control" rows="8" placeholder="Write your answer here..." oninput="takeExam.selectAnswer('${q.id}', this.value)" style="resize: vertical; min-height: 150px;">${val}</textarea>
+                        <p style="margin-top: 8px; font-size: 0.85rem; color: var(--light-text); font-style: italic;">
+                            💡 Tip: Provide a detailed and well-structured answer
+                        </p>
+                    </div>
+                `;
             }
 
             return `
+            ${sectionHeader}
             <div class="question-card" id="q-card-${index}" style="margin-bottom: 30px; ${takeExam.mode === 'resolve' ? 'border: 2px solid var(--accent-color);' : ''}">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                    <span style="color: var(--primary-color); font-weight: bold;">Question ${index + 1} / ${questions.length}</span>
+                    <span style="color: var(--primary-color); font-weight: bold;">Question ${index + 1} / ${sortedQuestions.length}</span>
                     ${takeExam.mode === 'resolve' ? '<span style="color:red; font-weight:bold;">ACTION REQUIRED</span>' :
                     `<label style="cursor: pointer; display: flex; align-items: center; font-size: 0.9rem;">
                         <input type="checkbox" onchange="takeExam.toggleFlag('${q.id}', ${index}, this.checked)" ${isFlagged ? 'checked' : ''} style="margin-right: 5px;"> Flag for review
@@ -330,6 +406,8 @@ const takeExam = {
             </div>
             `;
         }).join('');
+
+        container.innerHTML = htmlContent;
 
         document.getElementById('prev-btn').style.display = 'none';
         document.getElementById('next-btn').style.display = 'none';
@@ -470,6 +548,11 @@ const takeExam = {
             let flaggedNewScore = 0;
 
             flaggedQuestions.forEach(q => {
+                // Skip theory questions - they require manual grading
+                if (q.type === 'theory') {
+                    return;
+                }
+
                 const points = parseFloat(q.points) || 0.5;
                 const newAnswer = takeExam.answers[q.id];
                 const oldAnswer = existingResult.answers[q.id];
@@ -524,6 +607,14 @@ const takeExam = {
             // Normal mode: grade all questions
             takeExam.exam.questions.forEach(q => {
                 const points = parseFloat(q.points) || 0.5;
+
+                // Skip theory questions - they require manual grading
+                if (q.type === 'theory') {
+                    // Don't add to totalPoints or score for auto-grading
+                    // Teacher will grade these manually
+                    return;
+                }
+
                 totalPoints += points;
                 const answer = takeExam.answers[q.id];
 

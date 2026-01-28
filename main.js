@@ -13,10 +13,23 @@ const statePath = path.join(userDataPath, 'window-state.json');
 function loadWindowState() {
     try {
         if (fs.existsSync(statePath)) {
-            return JSON.parse(fs.readFileSync(statePath, 'utf8'));
+            const data = fs.readFileSync(statePath, 'utf8');
+            // Check if file is not empty
+            if (data && data.trim().length > 0) {
+                return JSON.parse(data);
+            }
         }
     } catch (e) {
         console.error('Failed to load window state', e);
+        // Delete corrupted state file
+        try {
+            if (fs.existsSync(statePath)) {
+                fs.unlinkSync(statePath);
+                console.log('Deleted corrupted window state file');
+            }
+        } catch (deleteError) {
+            console.error('Failed to delete corrupted state file', deleteError);
+        }
     }
     return { width: 1200, height: 800 };
 }
