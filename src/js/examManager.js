@@ -32,7 +32,26 @@ const examManager = {
 
             // Populate Form
             document.getElementById('exam-title').value = exam.title;
-            document.getElementById('exam-subject').value = exam.subject;
+
+            // Handle school level and subject (cascading dropdown)
+            const schoolLevelSelect = document.getElementById('exam-school-level');
+            const subjectSelect = document.getElementById('exam-subject');
+
+            if (schoolLevelSelect && exam.schoolLevel) {
+                schoolLevelSelect.value = exam.schoolLevel;
+                // Trigger change event to populate subjects
+                schoolLevelSelect.dispatchEvent(new Event('change'));
+                // Wait a bit for the subjects to populate, then set the subject
+                setTimeout(() => {
+                    if (subjectSelect) {
+                        subjectSelect.value = exam.subject;
+                    }
+                }, 50);
+            } else if (subjectSelect) {
+                // Fallback for old exams without schoolLevel
+                subjectSelect.value = exam.subject;
+            }
+
             document.getElementById('exam-target-class').value = exam.targetClass || 'All';
             document.getElementById('exam-duration').value = exam.duration;
             document.getElementById('exam-pass-score').value = exam.passScore;
@@ -481,6 +500,7 @@ const examManager = {
         }
 
         const title = document.getElementById('exam-title').value;
+        const schoolLevel = document.getElementById('exam-school-level').value;
         const subject = document.getElementById('exam-subject').value;
         const targetClass = document.getElementById('exam-target-class').value;
         const duration = parseInt(document.getElementById('exam-duration').value);
@@ -548,6 +568,7 @@ const examManager = {
         const examData = {
             id: examManager.currentExamId || undefined, // undefined lets createExam gen new ID
             title,
+            schoolLevel,
             subject,
             targetClass,
             duration,

@@ -257,44 +257,30 @@
                             </div>
                         </div>
                         <div class="form-col">
+                            <!-- spacer -->
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="exam-school-level">School Level</label>
+                                <select id="exam-school-level" class="form-control" required>
+                                    <option value="">Select School Level</option>
+                                    <option value="secondary">Secondary School</option>
+                                    <option value="primary">Primary School</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-col">
                             <div class="form-group">
                                 <label for="exam-subject">Subject</label>
-                                <select id="exam-subject" class="form-control" required>
-                                    <option value="">Select Subject</option>
-                                    <option value="Maths">Maths</option>
-                                    <option value="English (grammar)">English (grammar)</option>
-                                    <option value="English (comprehension)">English (comprehension)</option>
-                                    <option value="English (composition)">English (composition)</option>
-                                    <option value="Civic education">Civic education</option>
-                                    <option value="Literature">Literature</option>
-                                    <option value="Physics">Physics</option>
-                                    <option value="Chemistry">Chemistry</option>
-                                    <option value="Economics">Economics</option>
-                                    <option value="Biology">Biology</option>
-                                    <option value="Further Mathematics">Further Mathematics</option>
-                                    <option value="Yoruba">Yoruba</option>
-                                    <option value="CRS/IRS">CRS/IRS</option>
-                                    <option value="Agric Science">Agric Science</option>
-                                    <option value="Food and Nutrition">Food and Nutrition</option>
-                                    <option value="Geography">Geography</option>
-                                    <option value="Government">Government</option>
-                                    <option value="Data Processing">Data Processing</option>
-                                    <option value="Commerce">Commerce</option>
-                                    <option value="Marketing">Marketing</option>
-                                    <option value="Financial Accounting">Financial Accounting</option>
-                                    <option value="Basic Science">Basic Science</option>
-                                    <option value="Basic Technology">Basic Technology</option>
-                                    <option value="Home Economics">Home Economics</option>
-                                    <option value="Business Studies">Business Studies</option>
-                                    <option value="French">French</option>
-                                    <option value="Culture and Creative Arts">Culture and Creative Arts</option>
-                                    <option value="History">History</option>
-                                    <option value="Social Studies">Social Studies</option>
-                                    <option value="Music">Music</option>
-                                    <option value="Speech">Speech</option>
-                                    <option value="ICT">ICT</option>
-                                    <option value="PHE">PHE</option>
+                                <select id="exam-subject" class="form-control" required disabled>
+                                    <option value="">Select school level first</option>
                                 </select>
+                                <p id="subject-hint"
+                                    style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px; display: none;">
+                                    Please select a school level to see available subjects
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -496,6 +482,106 @@
             // Redirect if no user? Or let it be for now
             if (window.location.protocol !== 'file:') window.location.href = '../index.html';
         }
+    </script>
+    <script>
+        // Cascading dropdown logic for School Level -> Subject
+        const subjectsByLevel = {
+            secondary: [
+                'Maths',
+                'English (grammar)',
+                'English (comprehension)',
+                'English (composition)',
+                'Civic education',
+                'Literature',
+                'Physics',
+                'Chemistry',
+                'Economics',
+                'Biology',
+                'Further Mathematics',
+                'Yoruba',
+                'CRS/IRS',
+                'Agric Science',
+                'Food and Nutrition',
+                'Geography',
+                'Government',
+                'Data Processing',
+                'Commerce',
+                'Marketing',
+                'Financial Accounting',
+                'Basic Science',
+                'Basic Technology',
+                'Home Economics',
+                'Business Studies',
+                'French',
+                'Culture and Creative Arts',
+                'History',
+                'Social Studies',
+                'Music',
+                'Speech',
+                'ICT',
+                'PHE'
+            ],
+            primary: [
+                'Mathematics',
+                'English Studies',
+                'Home Economics',
+                'Basic Science',
+                'Agricultural Science',
+                'National Value',
+                'Verbal Reasoning',
+                'Quantitative Reasoning',
+                'C.R.S',
+                'P.H.E',
+                'Computer Studies',
+                'History',
+                'French',
+                'Speech'
+            ]
+        };
+
+        // Handle school level change
+        document.addEventListener('DOMContentLoaded', () => {
+            const schoolLevelSelect = document.getElementById('exam-school-level');
+            const subjectSelect = document.getElementById('exam-subject');
+            const subjectHint = document.getElementById('subject-hint');
+
+            if (schoolLevelSelect && subjectSelect) {
+                schoolLevelSelect.addEventListener('change', function () {
+                    const selectedLevel = this.value;
+
+                    // Clear current options
+                    subjectSelect.innerHTML = '';
+
+                    if (selectedLevel && subjectsByLevel[selectedLevel]) {
+                        // Enable the subject dropdown
+                        subjectSelect.disabled = false;
+                        subjectHint.style.display = 'none';
+
+                        // Add default option
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = 'Select Subject';
+                        subjectSelect.appendChild(defaultOption);
+
+                        // Add subjects for the selected level
+                        subjectsByLevel[selectedLevel].forEach(subject => {
+                            const option = document.createElement('option');
+                            option.value = subject;
+                            option.textContent = subject;
+                            subjectSelect.appendChild(option);
+                        });
+                    } else {
+                        // Disable the subject dropdown if no level selected
+                        subjectSelect.disabled = true;
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = 'Select school level first';
+                        subjectSelect.appendChild(defaultOption);
+                        subjectHint.style.display = 'block';
+                    }
+                });
+            }
+        });
     </script>
     <script src="../js/examManager.js"></script>
 </body>
