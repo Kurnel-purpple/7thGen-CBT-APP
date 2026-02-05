@@ -5,8 +5,313 @@
 
 const examManager = {
     questions: [],
+    uploadedMedia: [], // Store uploaded images/diagrams
 
     currentExamId: null,
+
+    // ========== MEDIA MANAGEMENT ==========
+
+    openMediaModal: () => {
+        document.getElementById('media-modal').style.display = 'block';
+        examManager.renderMediaGallery();
+        examManager.initMediaUploadHandlers();
+    },
+
+    // Open media modal with a specific question pre-selected for quick assignment
+    openMediaModalForQuestion: (questionId) => {
+        examManager._pendingQuestionId = questionId; // Store the question ID
+        document.getElementById('media-modal').style.display = 'block';
+        examManager.renderMediaGallery();
+        examManager.initMediaUploadHandlers();
+    },
+
+    closeMediaModal: () => {
+        document.getElementById('media-modal').style.display = 'none';
+        // Clear pending question ID
+        examManager._pendingQuestionId = null;
+        // Re-render questions to show any newly attached media
+        examManager.renderQuestions();
+    },
+
+    // Auto-expand textarea based on content
+    autoExpand: (textarea) => {
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+    },
+
+    initMediaUploadHandlers: () => {
+        const uploadArea = document.getElementById('media-upload-area');
+        const fileInput = document.getElementById('media-file-input');
+
+        if (!uploadArea || !fileInput) return;
+
+        // Click to upload
+        uploadArea.onclick = () => fileInput.click();
+
+        // File input change
+        fileInput.onchange = (e) => {
+            examManager.handleMediaFiles(e.target.files);
+            fileInput.value = ''; // Reset so same file can be uploaded again
+        };
+
+        // Drag and drop
+        uploadArea.ondragover = (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--primary-color)';
+            uploadArea.style.background = 'rgba(99, 102, 241, 0.1)';
+        };
+
+        uploadArea.ondragleave = (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--border-color)';
+            uploadArea.style.background = 'var(--inner-bg)';
+        };
+
+        uploadArea.ondrop = (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--border-color)';
+            uploadArea.style.background = 'var(--inner-bg)';
+
+            if (e.dataTransfer.files.length > 0) {
+                examManager.handleMediaFiles(e.dataTransfer.files);
+            }
+        };
+
+        // Paste from clipboard (listen on modal)
+        const modal = document.getElementById('media-modal');
+        modal.onpaste = (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        examManager.handleMediaFiles([file]);
+                    }
+                }
+            }
+        };
+    },
+
+    handleMediaFiles: (files) => {
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) {
+                alert(`${file.name} is not an image file.`);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const mediaId = Utils.generateId();
+                const pendingQuestionId = examManager._pendingQuestionId || null;
+
+                const mediaItem = {
+                    id: mediaId,
+                    name: file.name,
+                    dataUrl: evt.target.result,
+                    assignedToQuestion: pendingQuestionId, // Auto-assign if question was selected
+                    uploadedAt: new Date().toISOString()
+                };
+                examManager.uploadedMedia.push(mediaItem);
+
+                // If auto-assigning, also add to question's attachedMedia array
+                if (pendingQuestionId) {
+                    const question = examManager.questions.find(q => q.id === pendingQuestionId);
+                    if (question) {
+                        if (!question.attachedMedia) question.attachedMedia = [];
+                        question.attachedMedia.push(mediaId);
+                    }
+                }
+
+                examManager.renderMediaGallery();
+            };
+            reader.readAsDataURL(file);
+        });
+    },
+
+    renderMediaGallery: () => {
+        const gallery = document.getElementById('media-gallery');
+        const container = document.getElementById('uploaded-media-container');
+        const noMediaMsg = document.getElementById('no-media-msg');
+        const countBadge = document.getElementById('media-count');
+        const statusSpan = document.getElementById('media-assignment-status');
+
+        if (!gallery) return;
+
+        // Show auto-assign notice if a question is pending
+        if (examManager._pendingQuestionId) {
+            const questionIndex = examManager.questions.findIndex(q => q.id === examManager._pendingQuestionId);
+            if (questionIndex >= 0) {
+                noMediaMsg.innerHTML = `
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
+                        <p style="margin: 0; font-weight: 600;">📷 Upload media for Question #${questionIndex + 1}</p>
+                        <p style="margin: 5px 0 0; font-size: 0.85rem; color: var(--light-text);">Media you upload will be automatically assigned to this question.</p>
+                    </div>
+                `;
+            }
+        } else {
+            noMediaMsg.innerHTML = '<p>No media uploaded yet. Upload some images to get started.</p>';
+        }
+
+        if (examManager.uploadedMedia.length === 0) {
+            container.style.display = 'none';
+            noMediaMsg.style.display = 'block';
+            return;
+        }
+
+        container.style.display = 'block';
+        noMediaMsg.style.display = 'none';
+        countBadge.textContent = examManager.uploadedMedia.length;
+
+        // Count assigned media
+        const assignedCount = examManager.uploadedMedia.filter(m => m.assignedToQuestion).length;
+        statusSpan.textContent = `${assignedCount} of ${examManager.uploadedMedia.length} media assigned to questions`;
+
+        gallery.innerHTML = '';
+
+        examManager.uploadedMedia.forEach(media => {
+            const mediaCard = document.createElement('div');
+            mediaCard.style.cssText = `
+                background: var(--card-bg);
+                border: 2px solid ${media.assignedToQuestion ? 'var(--primary-color)' : 'var(--border-color)'};
+                border-radius: 10px;
+                overflow: hidden;
+                position: relative;
+                transition: all 0.2s ease;
+            `;
+
+            // Build question options for dropdown
+            let questionOptions = '<option value="">-- Assign to Question --</option>';
+            examManager.questions.forEach((q, idx) => {
+                const selected = media.assignedToQuestion === q.id ? 'selected' : '';
+                const preview = q.text ? q.text.substring(0, 30) + (q.text.length > 30 ? '...' : '') : 'Untitled';
+                questionOptions += `<option value="${q.id}" ${selected}>Q${idx + 1}: ${preview}</option>`;
+            });
+
+            mediaCard.innerHTML = `
+                <div style="position: relative;">
+                    <img src="${media.dataUrl}" alt="${media.name}" style="width: 100%; height: 120px; object-fit: cover;">
+                    <button type="button" onclick="examManager.removeMedia('${media.id}')" 
+                        style="position: absolute; top: 5px; right: 5px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;">
+                        ×
+                    </button>
+                    ${media.assignedToQuestion ? `<span style="position: absolute; top: 5px; left: 5px; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">Assigned</span>` : ''}
+                </div>
+                <div style="padding: 10px;">
+                    <p style="font-size: 0.8rem; color: var(--light-text); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${media.name}">
+                        ${media.name}
+                    </p>
+                    <select onchange="examManager.assignMediaToQuestion('${media.id}', this.value)" 
+                        style="width: 100%; padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); font-size: 0.8rem;">
+                        ${questionOptions}
+                    </select>
+                </div>
+            `;
+
+            gallery.appendChild(mediaCard);
+        });
+    },
+
+    assignMediaToQuestion: (mediaId, questionId) => {
+        const media = examManager.uploadedMedia.find(m => m.id === mediaId);
+        if (media) {
+            // If previously assigned to another question, clear that assignment
+            if (media.assignedToQuestion) {
+                const prevQuestion = examManager.questions.find(q => q.id === media.assignedToQuestion);
+                if (prevQuestion && prevQuestion.attachedMedia) {
+                    prevQuestion.attachedMedia = prevQuestion.attachedMedia.filter(id => id !== mediaId);
+                }
+            }
+
+            // Assign to new question (or unassign if questionId is empty)
+            media.assignedToQuestion = questionId || null;
+
+            if (questionId) {
+                const question = examManager.questions.find(q => q.id === questionId);
+                if (question) {
+                    if (!question.attachedMedia) question.attachedMedia = [];
+                    if (!question.attachedMedia.includes(mediaId)) {
+                        question.attachedMedia.push(mediaId);
+                    }
+                }
+            }
+
+            examManager.renderMediaGallery();
+        }
+    },
+
+    removeMedia: (mediaId) => {
+        if (confirm('Remove this media?')) {
+            // Remove from any question it was attached to
+            const media = examManager.uploadedMedia.find(m => m.id === mediaId);
+            if (media && media.assignedToQuestion) {
+                const question = examManager.questions.find(q => q.id === media.assignedToQuestion);
+                if (question && question.attachedMedia) {
+                    question.attachedMedia = question.attachedMedia.filter(id => id !== mediaId);
+                }
+            }
+
+            examManager.uploadedMedia = examManager.uploadedMedia.filter(m => m.id !== mediaId);
+            examManager.renderMediaGallery();
+        }
+    },
+
+    getMediaForQuestion: (questionId) => {
+        return examManager.uploadedMedia.filter(m => m.assignedToQuestion === questionId);
+    },
+
+    previewMedia: (mediaId) => {
+        const media = examManager.uploadedMedia.find(m => m.id === mediaId);
+        if (!media) return;
+
+        // Create lightbox overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'media-lightbox';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+        `;
+        overlay.onclick = () => overlay.remove();
+
+        overlay.innerHTML = `
+            <div style="position: relative; max-width: 90%; max-height: 90%;">
+                <img src="${media.dataUrl}" alt="${media.name}" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+                <button onclick="this.parentElement.parentElement.remove(); event.stopPropagation();" 
+                    style="position: absolute; top: -15px; right: -15px; background: white; color: black; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">×</button>
+                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem;">${media.name}</p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+    },
+
+    unassignMedia: (mediaId, questionId) => {
+        const media = examManager.uploadedMedia.find(m => m.id === mediaId);
+        if (media) {
+            media.assignedToQuestion = null;
+
+            // Also remove from question's attachedMedia array
+            const question = examManager.questions.find(q => q.id === questionId);
+            if (question && question.attachedMedia) {
+                question.attachedMedia = question.attachedMedia.filter(id => id !== mediaId);
+            }
+
+            examManager.renderQuestions();
+        }
+    },
+
+    // ========== END MEDIA MANAGEMENT ==========
+
 
     init: async () => {
         const params = new URLSearchParams(window.location.search);
@@ -75,6 +380,23 @@ const examManager = {
             if (theoryInstructionsInput && exam.theoryInstructions) {
                 theoryInstructionsInput.value = exam.theoryInstructions;
             }
+
+            // Restore uploaded media from questions (for editing existing exams)
+            examManager.uploadedMedia = [];
+            examManager.questions.forEach(q => {
+                if (q.mediaAttachments && Array.isArray(q.mediaAttachments)) {
+                    q.mediaAttachments.forEach(media => {
+                        // Add to uploadedMedia array with assignment info
+                        examManager.uploadedMedia.push({
+                            id: media.id,
+                            name: media.name,
+                            dataUrl: media.dataUrl,
+                            assignedToQuestion: q.id,
+                            uploadedAt: new Date().toISOString()
+                        });
+                    });
+                }
+            });
 
             examManager.renderQuestions();
         } catch (err) {
@@ -330,8 +652,14 @@ const examManager = {
 
             // Set values
             const qEl = div.firstElementChild;
-            qEl.querySelector('.q-text').value = q.text;
-            qEl.querySelector('.q-text').oninput = (e) => q.text = e.target.value;
+            const qText = qEl.querySelector('.q-text');
+            qText.value = q.text;
+            qText.oninput = (e) => {
+                q.text = e.target.value;
+                examManager.autoExpand(e.target);
+            };
+            // Initial expand for loaded exams
+            setTimeout(() => examManager.autoExpand(qText), 0);
 
             const typeSelect = qEl.querySelector('.q-type');
             typeSelect.value = q.type;
@@ -341,6 +669,57 @@ const examManager = {
                 const val = parseFloat(e.target.value);
                 q.points = isNaN(val) ? 0 : val;
             };
+
+            // Render Attached Media (from Media Upload Modal)
+            const attachedMedia = examManager.getMediaForQuestion(q.id);
+            if (attachedMedia.length > 0) {
+                const mediaSection = document.createElement('div');
+                mediaSection.style.cssText = 'margin: 15px 0; padding: 15px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 10px; border: 1px solid var(--border-color);';
+
+                let mediaHtml = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                            📷 Attached Media <span style="background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">${attachedMedia.length}</span>
+                        </span>
+                        <button type="button" onclick="examManager.openMediaModalForQuestion('${q.id}')" class="btn" style="font-size: 0.8rem; padding: 4px 10px;">
+                            + Add More
+                        </button>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                `;
+
+                attachedMedia.forEach(media => {
+                    mediaHtml += `
+                        <div style="position: relative; border-radius: 8px; overflow: hidden; border: 2px solid var(--border-color); background: var(--card-bg);">
+                            <img src="${media.dataUrl}" alt="${media.name}" style="width: 150px; height: 100px; object-fit: cover; display: block; cursor: pointer;" 
+                                onclick="examManager.previewMedia('${media.id}')" title="Click to preview">
+                            <button type="button" onclick="examManager.unassignMedia('${media.id}', '${q.id}')" 
+                                style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;" 
+                                title="Remove from question">×</button>
+                        </div>
+                    `;
+                });
+
+                mediaHtml += `</div>`;
+                mediaSection.innerHTML = mediaHtml;
+
+                // Insert before question text container
+                const qTextEl = qEl.querySelector('.q-text').parentNode;
+                qTextEl.parentNode.insertBefore(mediaSection, qTextEl);
+            } else {
+                // No media attached - show "Add Media" button
+                const addMediaSection = document.createElement('div');
+                addMediaSection.style.cssText = 'margin: 10px 0;';
+                addMediaSection.innerHTML = `
+                    <button type="button" class="add-media-btn" onclick="examManager.openMediaModalForQuestion('${q.id}')">
+                        📷 Add Media (Image/Diagram)
+                    </button>
+                `;
+
+                // Insert before question text container
+                const qTextEl = qEl.querySelector('.q-text').parentNode;
+                qTextEl.parentNode.insertBefore(addMediaSection, qTextEl);
+            }
 
             // Render Options based on Type
             const optsContainer = qEl.querySelector('.q-options-container');
@@ -375,9 +754,9 @@ const examManager = {
                     const optDiv = document.createElement('div');
                     optDiv.className = 'answer-option';
                     optDiv.innerHTML = `
-                        <input type="radio" name="correct_${q.id}" ${opt.isCorrect ? 'checked' : ''}>
-                        <input type="text" class="form-control" value="${opt.text}" placeholder="Option ${optIndex + 1}">
-                        ${q.options.length > 2 ? '<button type="button" class="btn" style="color:red">x</button>' : ''}
+                        <input type="radio" name="correct_${q.id}" ${opt.isCorrect ? 'checked' : ''} title="Mark as correct">
+                        <textarea class="form-control auto-expand" placeholder="Option ${optIndex + 1}" rows="1">${opt.text}</textarea>
+                        ${q.options.length > 2 ? '<button type="button" class="btn" style="color:var(--accent-color); padding: 5px 10px; min-width: auto;" title="Remove option">✕</button>' : ''}
                     `;
 
                     const radio = optDiv.querySelector('input[type="radio"]');
@@ -386,8 +765,14 @@ const examManager = {
                         opt.isCorrect = true;
                     };
 
-                    const textParams = optDiv.querySelector('input[type="text"]');
-                    textParams.oninput = (e) => opt.text = e.target.value;
+                    const textarea = optDiv.querySelector('textarea');
+                    textarea.oninput = (e) => {
+                        opt.text = e.target.value;
+                        examManager.autoExpand(e.target);
+                    };
+
+                    // Initial expand
+                    setTimeout(() => examManager.autoExpand(textarea), 0);
 
                     if (q.options.length > 2) {
                         optDiv.querySelector('button').onclick = () => {
@@ -430,10 +815,15 @@ const examManager = {
                 fbDiv.innerHTML = `
                     <div class="form-group">
                         <label>Correct Answer (Word or Phrase)</label>
-                        <input type="text" class="form-control correct-ans" value="${q.correctAnswer || ''}" placeholder="e.g. Paris">
+                        <textarea class="form-control auto-expand" placeholder="e.g. Paris" rows="1">${q.correctAnswer || ''}</textarea>
                     </div>
                 `;
-                fbDiv.querySelector('.correct-ans').oninput = (e) => q.correctAnswer = e.target.value;
+                const textarea = fbDiv.querySelector('textarea');
+                textarea.oninput = (e) => {
+                    q.correctAnswer = e.target.value;
+                    examManager.autoExpand(e.target);
+                };
+                setTimeout(() => examManager.autoExpand(textarea), 0);
                 optsContainer.appendChild(fbDiv);
 
             } else if (q.type === 'match') {
@@ -444,18 +834,26 @@ const examManager = {
                 q.pairs = q.pairs || [];
                 q.pairs.forEach((pair, pIdx) => {
                     const pairDiv = document.createElement('div');
-                    pairDiv.style.display = 'flex';
-                    pairDiv.style.gap = '10px';
-                    pairDiv.style.marginBottom = '5px';
+                    pairDiv.className = 'answer-option';
+                    pairDiv.style.alignItems = 'center';
                     pairDiv.innerHTML = `
-                        <input type="text" class="form-control left-item" value="${pair.left}" placeholder="Item A">
-                        <span style="align-self:center;">=</span>
-                        <input type="text" class="form-control right-item" value="${pair.right}" placeholder="Match A">
-                        <button type="button" class="btn" style="color:red">x</button>
+                        <textarea class="form-control auto-expand left-item" placeholder="Left Item" rows="1" style="flex:1;">${pair.left}</textarea>
+                        <span style="font-weight: bold;">=</span>
+                        <textarea class="form-control auto-expand right-item" placeholder="Matching Right Item" rows="1" style="flex:1;">${pair.right}</textarea>
+                        <button type="button" class="btn" style="color:var(--accent-color); padding: 5px 10px; min-width: auto;">✕</button>
                     `;
 
-                    pairDiv.querySelector('.left-item').oninput = (e) => pair.left = e.target.value;
-                    pairDiv.querySelector('.right-item').oninput = (e) => pair.right = e.target.value;
+                    const leftArea = pairDiv.querySelector('.left-item');
+                    const rightArea = pairDiv.querySelector('.right-item');
+
+                    leftArea.oninput = (e) => {
+                        pair.left = e.target.value;
+                        examManager.autoExpand(e.target);
+                    };
+                    rightArea.oninput = (e) => {
+                        pair.right = e.target.value;
+                        examManager.autoExpand(e.target);
+                    };
                     pairDiv.querySelector('button').onclick = () => {
                         q.pairs = q.pairs.filter((_, idx) => idx !== pIdx);
                         examManager.renderQuestions();
@@ -492,6 +890,12 @@ const examManager = {
 
     saveExam: async (e) => {
         e.preventDefault();
+
+        // Prevent duplicate submissions
+        if (examManager._isPublishing) {
+            console.log('Already publishing, ignoring duplicate click');
+            return;
+        }
 
         // Validation
         if (examManager.questions.length === 0) {
@@ -564,6 +968,33 @@ const examManager = {
 
         if (!valid) return;
 
+        // Set publishing state AFTER validation passes
+        examManager._isPublishing = true;
+
+        // Disable submit button and show loading state
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.textContent : 'Publish Exam';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Publishing...';
+            submitBtn.style.opacity = '0.7';
+        }
+
+        // Process uploaded media - embed media data into questions for persistence
+        const questionsWithMedia = examManager.questions.map(q => {
+            const questionCopy = { ...q };
+            const attachedMedia = examManager.getMediaForQuestion(q.id);
+            if (attachedMedia.length > 0) {
+                // Embed the actual media data into the question for storage
+                questionCopy.mediaAttachments = attachedMedia.map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    dataUrl: m.dataUrl
+                }));
+            }
+            return questionCopy;
+        });
+
         const user = dataService.getCurrentUser();
         const examData = {
             id: examManager.currentExamId || undefined, // undefined lets createExam gen new ID
@@ -575,7 +1006,7 @@ const examManager = {
             passScore,
             instructions,
             theoryInstructions,
-            questions: examManager.questions,
+            questions: questionsWithMedia,
             createdBy: user.id,
             updatedAt: new Date().toISOString(),
             status: 'active',
@@ -592,6 +1023,13 @@ const examManager = {
             window.onbeforeunload = null; // Disable warning
             window.location.href = 'teacher-dashboard.html';
         } catch (err) {
+            // Re-enable button on error
+            examManager._isPublishing = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+                submitBtn.style.opacity = '1';
+            }
             alert('Failed to save exam: ' + err.message);
         }
     }

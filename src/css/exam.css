@@ -188,6 +188,10 @@
     font-size: 1.25rem;
     margin-bottom: 30px;
     line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
 }
 
 .options-list {
@@ -198,13 +202,24 @@
 
 .option-label {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    /* Changed from center to top-aligned for long text */
     padding: 15px 20px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
     color: var(--text-color);
+    min-height: 54px;
+    height: auto;
+    /* Allow growth */
+}
+
+.option-label span {
+    flex: 1;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.5;
 }
 
 .option-label:hover {

@@ -57,6 +57,60 @@ const resultsController = {
         }
     },
 
+    showMediaLightbox: (questionId, mediaIndex) => {
+        const exam = resultsController.currentExam;
+        if (!exam) return;
+
+        const question = exam.questions.find(q => q.id === questionId);
+        if (!question || !question.mediaAttachments || !question.mediaAttachments[mediaIndex]) {
+            return;
+        }
+
+        const media = question.mediaAttachments[mediaIndex];
+
+        // Create lightbox overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'results-media-lightbox';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+            padding: 20px;
+        `;
+        overlay.onclick = () => overlay.remove();
+
+        overlay.innerHTML = `
+            <div style="position: relative; max-width: 95%; max-height: 95%; display: flex; flex-direction: column; align-items: center;" onclick="event.stopPropagation();">
+                <img src="${media.dataUrl}" alt="${media.name || 'Question Image'}" 
+                    style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5); object-fit: contain;">
+                <button onclick="this.parentElement.parentElement.remove()" 
+                    style="position: absolute; top: -15px; right: -15px; background: white; color: black; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 22px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">×</button>
+                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
+                    ${media.name || 'Question Image'} • Click anywhere outside to close
+                </p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Also allow ESC key to close
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    },
+
     saveTheoryScores: async () => {
         const user = dataService.getCurrentUser();
         if (user.role !== 'teacher') {
@@ -317,6 +371,24 @@ const resultsController = {
 
             const isFlagged = result.flags && result.flags[q.id];
 
+            // Build media HTML if question has attachments
+            let mediaHtml = '';
+            if (q.mediaAttachments && q.mediaAttachments.length > 0) {
+                mediaHtml = `
+                    <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start;">
+                            ${q.mediaAttachments.map((media, mediaIdx) => `
+                                <div style="position: relative; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer;" 
+                                    onclick="resultsController.showMediaLightbox('${q.id}', ${mediaIdx})">
+                                    <img src="${media.dataUrl}" alt="${media.name || 'Question Image'}" 
+                                        style="max-width: 150px; max-height: 100px; display: block; object-fit: contain;">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
             <div class="result-item ${isCorrect === null ? 'theory' : (isCorrect ? 'correct' : 'incorrect')}">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:10px;">
@@ -329,6 +401,7 @@ const resultsController = {
                         ${isCorrect === null ? 'Manual Grading' : (isCorrect ? `+${parseFloat(q.points) || 0.5} pts` : '0 pts')}
                     </span>
                 </div>
+                ${mediaHtml}
                 <div>${optionsHtml}</div>
             </div>
             `;

@@ -112,6 +112,35 @@
             border-color: var(--accent-color);
             color: var(--accent-color);
         }
+
+        /* Flag item styling - ensure full question text visibility */
+        .flag-item {
+            background: var(--inner-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .flag-item div[style*="font-style"] {
+            word-break: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        /* Flag review body - ensure scrollable and visible */
+        #flag-review-body {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Edit question textarea */
+        #edit-q-text {
+            min-height: 120px;
+            resize: vertical;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 
@@ -129,6 +158,37 @@
                 </div>
             </div>
             <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
+                <!-- School ID Input -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label for="teacher-school-id" style="font-size: 0.85rem; color: var(--light-text);">School
+                        ID:</label>
+                    <input type="text" id="teacher-school-id" placeholder="Enter school ID"
+                        style="padding: 5px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px; width: 120px; background: var(--card-bg); color: var(--text-color);">
+                    <button onclick="saveTeacherSchoolId()" class="btn"
+                        style="padding: 5px 10px; font-size: 0.8rem; background: var(--accent-color); color: white; border: none;">Save</button>
+                </div>
+                <!-- Messages Notification Bell -->
+                <button id="messages-bell" onclick="openMessagesSection()"
+                    style="position: relative; background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px;"
+                    title="Messages from Admin">
+                    🔔
+                    <span id="messages-badge" style="
+                        display: none;
+                        position: absolute;
+                        top: 0;
+                        right: 0;
+                        background: #e74c3c;
+                        color: white;
+                        font-size: 0.7rem;
+                        font-weight: bold;
+                        min-width: 18px;
+                        height: 18px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">0</span>
+                </button>
                 <!-- Dark mode toggle will be injected here by utils.js -->
                 <button onclick="auth.logout()" class="btn"
                     style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
@@ -158,6 +218,41 @@
                     </div>
                 </div>
 
+                <!-- Mobile School ID Input -->
+                <div style="margin: 15px 0; padding: 10px; background: var(--inner-bg); border-radius: 8px;">
+                    <label
+                        style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 5px; display: block;">School
+                        ID</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="mobile-teacher-school-id" placeholder="Enter school ID"
+                            style="flex: 1; padding: 8px 10px; font-size: 0.9rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color);">
+                        <button onclick="saveTeacherSchoolId(true)" class="btn btn-primary"
+                            style="padding: 8px 15px; font-size: 0.85rem;">Save</button>
+                    </div>
+                    <small style="color: var(--light-text); font-size: 0.75rem; margin-top: 5px; display: block;">Get
+                        this from your admin</small>
+                </div>
+
+                <!-- Mobile Messages Button -->
+                <button class="btn"
+                    onclick="openMessagesSection(); document.getElementById('mobile-menu').classList.remove('show');"
+                    style="width: 100%; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    🔔 Messages from Admin
+                    <span id="mobile-messages-badge" style="
+                        display: none;
+                        background: #e74c3c;
+                        color: white;
+                        font-size: 0.75rem;
+                        font-weight: bold;
+                        min-width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">0</span>
+                </button>
+
                 <button class="btn btn-primary"
                     style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
                     onclick="prepareDevice()">💾 Prepare Device for Offline</button>
@@ -171,6 +266,23 @@
                     Prepare Device for Offline</button>
                 <div style="display: flex; gap: 10px;">
                     <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
+                </div>
+            </div>
+
+            <!-- Admin Messages Section -->
+            <div id="messages-section" style="display: none; margin-bottom: 20px;">
+                <div class="section-header" style="cursor: pointer;" onclick="toggleMessagesSection()">
+                    <h3 class="section-title" style="display: flex; align-items: center; gap: 10px;">
+                        📬 Messages from Admin
+                        <span id="unread-count"
+                            style="background: #e74c3c; color: white; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px;">0</span>
+                    </h3>
+                    <span id="messages-toggle-icon" style="font-size: 1.2rem;">▼</span>
+                </div>
+                <div id="messages-container"
+                    style="background: var(--card-bg); border-radius: 10px; padding: 15px; border: 1px solid var(--border-color);">
+                    <!-- Messages will be loaded here -->
+                    <p style="color: var(--light-text); text-align: center;">Loading messages...</p>
                 </div>
             </div>
 
@@ -287,17 +399,34 @@
                     options below.</p>
 
                 <div style="flex: 1; overflow-y: auto; padding-right: 10px;">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>Question Type</label>
+                        <select id="edit-q-type" class="form-control">
+                            <option value="mcq">Multiple Choice</option>
+                            <option value="true_false">True / False</option>
+                            <option value="fill_blank">Fill in the Blank</option>
+                            <option value="match">Matching Pairs</option>
+                            <option value="image_mcq">Image Question</option>
+                            <option value="theory">Theory (Essay)</option>
+                        </select>
+                    </div>
+
+                    <div id="edit-q-media-container" style="margin-bottom: 15px; display: none;">
+                        <!-- Media preview placeholder -->
+                    </div>
+
                     <div class="form-group">
                         <label>Question Text</label>
                         <textarea id="edit-q-text" class="form-control" rows="3"></textarea>
                     </div>
 
-                    <label style="margin-top: 10px; display: block;">Answer Options</label>
+                    <label style="margin-top: 10px; display: block; font-weight: bold;">Answer Options</label>
                     <div id="edit-q-options-container"
                         style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
                         <!-- Options injected by JS -->
                     </div>
-                    <button type="button" class="btn btn-secondary" onclick="addEditOption()" style="margin-top: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="addEditOption()"
+                        style="margin-top: 10px; padding: 6px 15px; font-size: 0.9rem;">
                         + Add Option
                     </button>
                 </div>
@@ -335,6 +464,36 @@
         </div>
     </div>
 
+    <!-- Secret Delete Exam Modal -->
+    <div id="delete-exam-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content" style="max-width: 450px; text-align: center;">
+            <div class="modal-header" style="border-bottom: none; justify-content: center;">
+                <h3 style="color: #e74c3c;">⚠️ Delete Exam Permanently</h3>
+            </div>
+            <div style="padding: 20px;">
+                <p style="margin-bottom: 15px; color: var(--light-text);">
+                    You are about to <strong style="color: #e74c3c;">permanently delete</strong> the exam:
+                </p>
+                <p id="delete-exam-title"
+                    style="font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: var(--text-color);"></p>
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light-text);">
+                    This action <strong>cannot be undone</strong>. All associated student results will also be lost.
+                </p>
+                <div class="form-group" style="margin-top: 20px; text-align: left;">
+                    <label style="font-size: 0.85rem; color: var(--light-text);">Type the exam title to confirm:</label>
+                    <input type="text" id="delete-confirm-input" class="form-control"
+                        placeholder="Type exam title here..." autocomplete="off">
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; padding: 10px 20px 20px;">
+                <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+                <button id="delete-confirm-btn" class="btn"
+                    style="background: #e74c3c; color: white; opacity: 0.5; cursor: not-allowed;" disabled
+                    onclick="confirmDeleteExam()">🗑️ Delete Forever</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -359,6 +518,231 @@
                 if (typeof v === 'object') return false; // Objects (like resolved status) are not active flags
                 return v === true || String(v).toLowerCase() === 'true';
             }).length;
+        };
+
+        // Save Teacher School ID
+        window.saveTeacherSchoolId = async function (isMobile = false) {
+            const inputId = isMobile ? 'mobile-teacher-school-id' : 'teacher-school-id';
+            const input = document.getElementById(inputId);
+            const schoolId = input ? input.value.trim() : '';
+
+            if (!schoolId) {
+                alert('Please enter a School ID');
+                return;
+            }
+
+            try {
+                const user = dataService.getCurrentUser();
+                if (!user) {
+                    alert('Not logged in');
+                    return;
+                }
+
+                // Update profile in database using dataService's Supabase client
+                try {
+                    // Access Supabase client through dataService
+                    if (dataService._getSupabase) {
+                        const sb = dataService._getSupabase();
+                        const { error } = await sb
+                            .from('profiles')
+                            .update({ school_version: schoolId })
+                            .eq('id', user.id);
+
+                        if (error) {
+                            console.warn('Failed to update profile in database:', error.message);
+                        }
+                    }
+                } catch (dbErr) {
+                    console.warn('Database update skipped:', dbErr.message);
+                }
+
+                // Update local storage (always do this)
+                user.schoolVersion = schoolId;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(user));
+
+                // Sync both inputs
+                const desktopInput = document.getElementById('teacher-school-id');
+                const mobileInput = document.getElementById('mobile-teacher-school-id');
+                if (desktopInput) desktopInput.value = schoolId;
+                if (mobileInput) mobileInput.value = schoolId;
+
+                // Show success feedback
+                const successMsg = document.createElement('div');
+                successMsg.textContent = '✓ School ID saved!';
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold;';
+                document.body.appendChild(successMsg);
+                setTimeout(() => {
+                    successMsg.style.opacity = '0';
+                    successMsg.style.transition = 'opacity 0.3s';
+                    setTimeout(() => successMsg.remove(), 300);
+                }, 2000);
+
+            } catch (err) {
+                console.error('Error saving school ID:', err);
+                alert('Failed to save: ' + err.message);
+            }
+        };
+
+        // Admin Messages Functions
+        let messagesExpanded = true;
+
+        async function loadAdminMessages(teacherId) {
+            const section = document.getElementById('messages-section');
+            const container = document.getElementById('messages-container');
+            const unreadBadge = document.getElementById('unread-count');
+            const bellBadge = document.getElementById('messages-badge');
+            const mobileBadge = document.getElementById('mobile-messages-badge');
+
+            // Hide section by default - only show if there are messages
+            section.style.display = 'none';
+
+            try {
+                // Fetch messages sent to this teacher
+                const messages = await dataService.getMessages({ toId: teacherId });
+                console.log('Loaded messages for teacher:', teacherId, messages);
+
+                if (messages && messages.length > 0) {
+                    // Show the section only if there are messages
+                    section.style.display = 'block';
+
+                    // Count unread
+                    const unreadCount = messages.filter(m => !m.read).length;
+
+                    // Update section badge
+                    unreadBadge.textContent = unreadCount;
+                    unreadBadge.style.display = unreadCount > 0 ? 'inline' : 'none';
+
+                    // Update navbar bell badge
+                    if (bellBadge) {
+                        bellBadge.textContent = unreadCount;
+                        bellBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+                    }
+                    // Update mobile badge
+                    if (mobileBadge) {
+                        mobileBadge.textContent = unreadCount;
+                        mobileBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+                    }
+
+                    // Render messages
+                    container.innerHTML = messages.map(msg => {
+                        const date = new Date(msg.created_at);
+                        const formattedDate = date.toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        });
+                        const isUnread = !msg.read;
+
+                        return `
+                            <div class="message-card" id="message-${msg.id}" style="
+                                background: ${isUnread ? 'var(--inner-bg)' : 'var(--card-bg)'}; 
+                                padding: 15px; 
+                                border-radius: 8px; 
+                                margin-bottom: 10px; 
+                                border-left: 4px solid ${isUnread ? '#e74c3c' : '#27ae60'};
+                                border: 1px solid var(--border-color);
+                            ">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 600; color: var(--text-color);">
+                                        ${isUnread ? '🔴 New' : '✅ Read'} - From: ${msg.from?.full_name || 'Admin'}
+                                    </span>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 0.85rem; color: var(--light-text);">${formattedDate}</span>
+                                        <button onclick="deleteMessage('${msg.id}')" 
+                                            style="background: transparent; border: none; cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 2px 5px;"
+                                            title="Delete message">🗑️</button>
+                                    </div>
+                                </div>
+                                <p style="margin: 0; color: var(--text-color); line-height: 1.5;">${msg.message}</p>
+                                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                    ${isUnread ? `<button onclick="markMessageRead('${msg.id}')" class="btn" style="font-size: 0.8rem; padding: 5px 10px; background: var(--primary-color); color: white; border: none; border-radius: 4px;">✓ Mark as Read</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    // No messages - keep section hidden and hide all badges
+                    section.style.display = 'none';
+                    unreadBadge.style.display = 'none';
+                    if (bellBadge) bellBadge.style.display = 'none';
+                    if (mobileBadge) mobileBadge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                // Show error state with details
+                unreadBadge.style.display = 'none';
+                if (bellBadge) bellBadge.style.display = 'none';
+                if (mobileBadge) mobileBadge.style.display = 'none';
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: var(--light-text);">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
+                        <p>Could not load messages</p>
+                        <small style="opacity: 0.7;">${error.message || 'Database not available'}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Function to open messages section when bell is clicked
+        window.openMessagesSection = function () {
+            const section = document.getElementById('messages-section');
+            const container = document.getElementById('messages-container');
+            const icon = document.getElementById('messages-toggle-icon');
+
+            // Ensure section is visible
+            section.style.display = 'block';
+
+            // Expand messages container
+            messagesExpanded = true;
+            container.style.display = 'block';
+            if (icon) icon.textContent = '▼';
+
+            // Scroll to messages section
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        window.toggleMessagesSection = function () {
+            const container = document.getElementById('messages-container');
+            const icon = document.getElementById('messages-toggle-icon');
+            messagesExpanded = !messagesExpanded;
+            container.style.display = messagesExpanded ? 'block' : 'none';
+            icon.textContent = messagesExpanded ? '▼' : '▶';
+        };
+
+        window.markMessageRead = async function (messageId) {
+            try {
+                await dataService.markMessageAsRead(messageId);
+                // Refresh messages
+                const user = dataService.getCurrentUser();
+                if (user) {
+                    await loadAdminMessages(user.id);
+                }
+            } catch (error) {
+                console.error('Error marking message as read:', error);
+            }
+        };
+
+        window.deleteMessage = async function (messageId) {
+            if (!confirm('Are you sure you want to delete this message?')) {
+                return;
+            }
+
+            try {
+                await dataService.deleteMessage(messageId);
+                // Remove from DOM immediately for snappy UI
+                const msgElement = document.getElementById(`message-${messageId}`);
+                if (msgElement) {
+                    msgElement.style.opacity = '0';
+                    msgElement.style.transition = 'opacity 0.3s';
+                    setTimeout(() => msgElement.remove(), 300);
+                }
+                // Refresh to update counters
+                const user = dataService.getCurrentUser();
+                if (user) {
+                    setTimeout(() => loadAdminMessages(user.id), 400);
+                }
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                alert('Failed to delete message: ' + error.message);
+            }
         };
 
         // Connection Monitoring
@@ -476,6 +860,31 @@
                 };
             }
 
+            // School ID Input Setup
+            const schoolIdInput = document.getElementById('teacher-school-id');
+            const mobileSchoolIdInput = document.getElementById('mobile-teacher-school-id');
+
+            // Pre-fill from user's saved school_version
+            if (user.schoolVersion) {
+                if (schoolIdInput) schoolIdInput.value = user.schoolVersion;
+                if (mobileSchoolIdInput) mobileSchoolIdInput.value = user.schoolVersion;
+            }
+
+            // Sync between desktop and mobile inputs
+            if (schoolIdInput) {
+                schoolIdInput.addEventListener('input', () => {
+                    if (mobileSchoolIdInput) mobileSchoolIdInput.value = schoolIdInput.value;
+                });
+            }
+            if (mobileSchoolIdInput) {
+                mobileSchoolIdInput.addEventListener('input', () => {
+                    if (schoolIdInput) schoolIdInput.value = mobileSchoolIdInput.value;
+                });
+            }
+
+            // Load Admin Messages
+            await loadAdminMessages(user.id);
+
             // Load Data
             try {
                 // Fetch Exams and Results (for stats) in parallel
@@ -548,10 +957,10 @@
                         : '';
 
                     return `
-                    <div class="exam-card" ${isArchived ? 'style="opacity: 0.7;"' : ''}>
-                        <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
+                    <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}" data-archived="${isArchived}" ${isArchived ? 'style="opacity: 0.7;"' : ''}>
+                        <div class="exam-card-header">
                             <span class="exam-subject">${exam.subject || 'General'}</span>
-                            <div style="display: flex; gap: 8px; align-items: center;">
+                            <div class="exam-card-icons">
                                 ${scrambleIndicator}
                                 <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
                                 <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
@@ -559,8 +968,8 @@
                             </div>
                         </div>
                         <div class="exam-card-body">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                                <h4 class="exam-title" style="margin: 0;">${exam.title}</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; overflow: hidden;">
+                                <h4 class="exam-title" style="margin: 0; flex: 1;">${exam.title}</h4>
                                 ${scheduleInfo}
                             </div>
                             <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
@@ -604,6 +1013,11 @@
                     archivedSection.style.display = 'none';
                 }
 
+                // Initialize secret delete handlers for all cards
+                if (window.initSecretDelete) {
+                    window.initSecretDelete();
+                }
+
             } catch (err) {
                 console.error('Failed to load exams', err);
             }
@@ -643,6 +1057,121 @@
             } else {
                 grid.style.display = 'none';
                 icon.textContent = '▶';
+            }
+        };
+
+        // --- Secret Delete Logic ---
+        let deleteExamId = null;
+        let deleteExamTitle = null;
+        let longPressTimer = null;
+        const LONG_PRESS_DURATION = 800; // ms
+
+        // Initialize secret delete event listeners after cards render
+        window.initSecretDelete = () => {
+            const cards = document.querySelectorAll('.exam-card[data-exam-id]');
+
+            cards.forEach(card => {
+                const examId = card.dataset.examId;
+                const examTitle = card.dataset.examTitle;
+
+                // Desktop: Double Click
+                card.addEventListener('dblclick', (e) => {
+                    // Prevent if clicking on a button
+                    if (e.target.closest('button') || e.target.closest('a')) return;
+                    e.preventDefault();
+                    openDeleteModal(examId, examTitle);
+                });
+
+                // Mobile: Long Press
+                card.addEventListener('touchstart', (e) => {
+                    // Prevent if touching a button
+                    if (e.target.closest('button') || e.target.closest('a')) return;
+
+                    longPressTimer = setTimeout(() => {
+                        // Vibrate if supported (mobile feedback)
+                        if (navigator.vibrate) navigator.vibrate(50);
+                        openDeleteModal(examId, examTitle);
+                    }, LONG_PRESS_DURATION);
+                }, { passive: true });
+
+                card.addEventListener('touchend', () => {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                });
+
+                card.addEventListener('touchmove', () => {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                });
+            });
+        };
+
+        window.openDeleteModal = (examId, examTitle) => {
+            deleteExamId = examId;
+            deleteExamTitle = examTitle;
+
+            document.getElementById('delete-exam-title').textContent = `"${examTitle}"`;
+            document.getElementById('delete-confirm-input').value = '';
+
+            const confirmBtn = document.getElementById('delete-confirm-btn');
+            confirmBtn.disabled = true;
+            confirmBtn.style.opacity = '0.5';
+            confirmBtn.style.cursor = 'not-allowed';
+
+            document.getElementById('delete-exam-modal').style.display = 'flex';
+
+            // Focus the input after a short delay
+            setTimeout(() => document.getElementById('delete-confirm-input').focus(), 100);
+        };
+
+        window.closeDeleteModal = () => {
+            document.getElementById('delete-exam-modal').style.display = 'none';
+            deleteExamId = null;
+            deleteExamTitle = null;
+        };
+
+        // Enable delete button when title matches
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('delete-confirm-input');
+            if (input) {
+                input.addEventListener('input', (e) => {
+                    const confirmBtn = document.getElementById('delete-confirm-btn');
+                    const matches = e.target.value.trim().toLowerCase() === deleteExamTitle?.toLowerCase();
+                    confirmBtn.disabled = !matches;
+                    confirmBtn.style.opacity = matches ? '1' : '0.5';
+                    confirmBtn.style.cursor = matches ? 'pointer' : 'not-allowed';
+                });
+            }
+        });
+
+        window.confirmDeleteExam = async () => {
+            if (!deleteExamId) return;
+
+            const confirmBtn = document.getElementById('delete-confirm-btn');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '⏳ Deleting...';
+
+            try {
+                await dataService.deleteExam(deleteExamId);
+                closeDeleteModal();
+
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.textContent = '✓ Exam deleted successfully';
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold;';
+                document.body.appendChild(successMsg);
+                setTimeout(() => {
+                    successMsg.remove();
+                    location.reload();
+                }, 1500);
+            } catch (err) {
+                alert('Failed to delete exam: ' + err.message);
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '🗑️ Delete Forever';
             }
         };
 
@@ -1202,9 +1731,22 @@
                 if (!exam || !exam.questions[qIndex]) return;
 
                 const q = exam.questions[qIndex];
-                document.getElementById('edit-q-text').value = q.text;
+                const qText = document.getElementById('edit-q-text');
+                qText.value = q.text;
+                qText.oninput = (e) => {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = (e.target.scrollHeight) + 'px';
+                };
+
+                document.getElementById('edit-q-type').value = q.type || 'mcq';
                 document.getElementById('edit-q-exam-id').value = examId;
                 document.getElementById('edit-q-index').value = qIndex;
+
+                // Initial expand
+                setTimeout(() => {
+                    qText.style.height = 'auto';
+                    qText.style.height = (qText.scrollHeight) + 'px';
+                }, 100);
 
                 // Render Options
                 const container = document.getElementById('edit-q-options-container');
@@ -1216,13 +1758,21 @@
                         const val = (typeof opt === 'object' && opt !== null) ? (opt.text || '') : opt;
 
                         container.innerHTML += `
-                        <div style="display: flex; gap: 5px; align-items: center;">
-                            <span style="font-weight: bold; width: 20px;">${String.fromCharCode(65 + i)}.</span>
-                            <input type="text" class="form-control edit-option-input" value="${val}" data-index="${i}" style="flex: 1;">
-                            <button type="button" class="btn btn-outline" onclick="removeEditOption(${i})" style="padding: 5px 10px; min-width: auto;">✕</button>
+                        <div class="answer-option" style="display: flex; gap: 5px; align-items: flex-start; margin-bottom: 8px; background: var(--card-bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                            <span style="font-weight: bold; width: 25px; margin-top: 8px;">${String.fromCharCode(65 + i)}.</span>
+                            <textarea class="form-control edit-option-input auto-expand" data-index="${i}" style="flex: 1; min-height: 40px; height: 40px; resize: none; overflow: hidden;" oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px'">${val}</textarea>
+                            <button type="button" class="btn btn-outline" onclick="removeEditOption(${i})" style="padding: 5px 10px; min-width: auto; margin-top: 5px;">✕</button>
                         </div>
                        `;
                     });
+
+                    // Trigger initial height adjustment
+                    setTimeout(() => {
+                        container.querySelectorAll('textarea').forEach(ta => {
+                            ta.style.height = 'auto';
+                            ta.style.height = ta.scrollHeight + 'px';
+                        });
+                    }, 100);
                 }
 
                 document.getElementById('edit-question-modal').style.display = 'flex';
@@ -1242,10 +1792,10 @@
 
             const newIndex = currentCount;
             const optionHtml = `
-                <div style="display: flex; gap: 5px; align-items: center;">
-                    <span style="font-weight: bold; width: 20px;">${String.fromCharCode(65 + newIndex)}.</span>
-                    <input type="text" class="form-control edit-option-input" value="" data-index="${newIndex}" style="flex: 1;" placeholder="Enter option text">
-                    <button type="button" class="btn btn-outline" onclick="removeEditOption(${newIndex})" style="padding: 5px 10px; min-width: auto;">✕</button>
+                <div class="answer-option" style="display: flex; gap: 5px; align-items: flex-start; margin-bottom: 8px; background: var(--card-bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                    <span style="font-weight: bold; width: 25px; margin-top: 8px;">${String.fromCharCode(65 + newIndex)}.</span>
+                    <textarea class="form-control edit-option-input auto-expand" data-index="${newIndex}" style="flex: 1; min-height: 40px; height: 40px; resize: none; overflow: hidden;" placeholder="Enter option text" oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px'"></textarea>
+                    <button type="button" class="btn btn-outline" onclick="removeEditOption(${newIndex})" style="padding: 5px 10px; min-width: auto; margin-top: 5px;">✕</button>
                 </div>
             `;
 
@@ -1281,6 +1831,7 @@
             const examId = document.getElementById('edit-q-exam-id').value;
             const qIndex = parseInt(document.getElementById('edit-q-index').value);
             const newText = document.getElementById('edit-q-text').value;
+            const newType = document.getElementById('edit-q-type').value;
 
             // Gather Options
             const optionInputs = document.querySelectorAll('.edit-option-input');
@@ -1293,8 +1844,9 @@
                 const exam = await dataService.getExamById(examId);
                 const originalQ = exam.questions[qIndex];
 
-                // Update Text
+                // Update Text & Type
                 originalQ.text = newText;
+                originalQ.type = newType;
 
                 // Update Options - Preserve Object Structure if needed
                 if (originalQ.options && originalQ.options.length > 0 && typeof originalQ.options[0] === 'object') {

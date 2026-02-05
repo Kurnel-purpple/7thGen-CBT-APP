@@ -49,6 +49,8 @@ const auth = {
                 window.location.href = 'pages/student-dashboard.html';
             } else if (user.role === 'teacher') {
                 window.location.href = 'pages/teacher-dashboard.html';
+            } else if (user.role === 'admin') {
+                window.location.href = 'pages/admin-dashboard.html';
             } else {
                 auth.showError('Unknown user role.');
                 submitBtn.textContent = originalBtnText;
@@ -92,7 +94,7 @@ const auth = {
     togglePassword: (inputId, button) => {
         const passwordInput = document.getElementById(inputId);
         const eyeIcon = button.querySelector('.eye-icon');
-        
+
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
             eyeIcon.textContent = '👁️‍🗨️';

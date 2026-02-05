@@ -75,6 +75,15 @@
                     <form id="register-form">
                         <input type="hidden" id="role" name="role" value="student">
 
+                        <!-- Admin School ID Field (Hidden by default) -->
+                        <div class="form-group hidden" id="admin-school-group">
+                            <label>School ID</label>
+                            <input type="text" id="school-version" class="form-control"
+                                placeholder="e.g. seatos, myschool">
+                            <small style="color: #666; font-size: 0.85rem;">Enter your school's unique
+                                identifier.</small>
+                        </div>
+
                         <div class="form-group">
                             <label>Full Name</label>
                             <input type="text" id="fullname" class="form-control" placeholder="e.g. John Doe" required>
@@ -100,12 +109,21 @@
                             </select>
                         </div>
 
-<div class="form-group">
+                        <!-- Teacher School ID Field (Hidden by default) -->
+                        <div class="form-group hidden" id="teacher-school-group">
+                            <label>School ID</label>
+                            <input type="text" id="teacher-school-id" class="form-control"
+                                placeholder="Enter school ID from your admin">
+                            <small style="color: #666; font-size: 0.85rem;">Your admin will provide this ID.</small>
+                        </div>
+
+                        <div class="form-group">
                             <label>Password</label>
                             <div class="password-input-container">
-                                <input type="password" id="password" class="form-control" placeholder="Create a password"
-                                    required>
-                                <button type="button" class="password-toggle-btn" onclick="togglePassword('password', this)">
+                                <input type="password" id="password" class="form-control"
+                                    placeholder="Create a password" required>
+                                <button type="button" class="password-toggle-btn"
+                                    onclick="togglePassword('password', this)">
                                     <span class="eye-icon">👁️</span>
                                 </button>
                             </div>
@@ -144,17 +162,63 @@
     <script src="../js/dataService.js"></script>
     <script src="../js/auth.js"></script>
     <script>
+        let teacherTapCount = 0;
+        let teacherTapTimer = null;
+        let isAdminMode = false;
+
         function toggleRole(role) {
+            // Triple-tap detection for admin mode
+            if (role === 'teacher') {
+                teacherTapCount++;
+
+                // Clear existing timer
+                if (teacherTapTimer) {
+                    clearTimeout(teacherTapTimer);
+                }
+
+                // Reset counter after 2 seconds of no taps
+                teacherTapTimer = setTimeout(() => {
+                    teacherTapCount = 0;
+                }, 2000);
+
+                // Activate admin mode on 3rd tap
+                if (teacherTapCount === 3 && !isAdminMode) {
+                    isAdminMode = true;
+                    document.getElementById('role').value = 'admin';
+                    document.getElementById('admin-school-group').classList.remove('hidden');
+                    document.getElementById('school-version').required = true;
+
+                    // Visual feedback
+                    const roleSwitch = document.querySelector('.role-switch');
+                    roleSwitch.style.border = '2px solid #dc143c';
+                    roleSwitch.style.boxShadow = '0 0 10px rgba(220, 20, 60, 0.3)';
+
+                    // Update label
+                    document.querySelector('[data-role="teacher"]').textContent = 'Admin';
+                    document.querySelector('[data-role="teacher"]').style.color = '#dc143c';
+
+                    alert('🔐 Admin Mode Activated!\nYou can now register as an administrator.');
+                    teacherTapCount = 0;
+                    return;
+                }
+            } else {
+                teacherTapCount = 0;
+            }
+
             // UI Update
             document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
             document.querySelector(`[data-role="${role}"]`).classList.add('active');
 
             // Form Logic
-            document.getElementById('role').value = role;
+            if (!isAdminMode) {
+                document.getElementById('role').value = role;
+            }
+
             const userLabel = document.getElementById('userid-label');
             const userHint = document.getElementById('userid-hint');
             const userInput = document.getElementById('userid');
             const classGroup = document.getElementById('class-group');
+            const teacherSchoolGroup = document.getElementById('teacher-school-group');
 
             if (role === 'student') {
                 userLabel.textContent = 'Student ID';
@@ -162,16 +226,30 @@
                 userInput.placeholder = 'e.g. JAMES123';
                 classGroup.classList.remove('hidden');
                 document.getElementById('class-level').required = true;
+
+                // Hide admin and teacher school fields
+                if (!isAdminMode) {
+                    document.getElementById('admin-school-group').classList.add('hidden');
+                    document.getElementById('school-version').required = false;
+                }
+                teacherSchoolGroup.classList.add('hidden');
             } else {
-                userLabel.textContent = 'Username/Email';
-                userHint.textContent = 'Choose a unique username for your teacher account.';
-                userInput.placeholder = 'e.g. jdoe_teacher';
+                userLabel.textContent = isAdminMode ? 'Admin Username' : 'Username/Email';
+                userHint.textContent = isAdminMode ? 'Choose a unique username for your admin account.' : 'Choose a unique username for your teacher account.';
+                userInput.placeholder = isAdminMode ? 'e.g. admin_seatos' : 'e.g. jdoe_teacher';
                 classGroup.classList.add('hidden');
                 document.getElementById('class-level').required = false;
+
+                // Show teacher school ID field for teachers (not admin)
+                if (!isAdminMode) {
+                    teacherSchoolGroup.classList.remove('hidden');
+                } else {
+                    teacherSchoolGroup.classList.add('hidden');
+                }
             }
         }
 
-// Global function for password toggle
+        // Global function for password toggle
         function togglePassword(inputId, button) {
             if (window.auth && window.auth.togglePassword) {
                 window.auth.togglePassword(inputId, button);
@@ -187,6 +265,8 @@
             const username = document.getElementById('userid').value.trim();
             const password = document.getElementById('password').value.trim();
             const classLevel = document.getElementById('class-level').value;
+            const adminSchoolVersion = document.getElementById('school-version').value.trim();
+            const teacherSchoolId = document.getElementById('teacher-school-id').value.trim();
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const errorDiv = document.getElementById('register-error');
 
@@ -195,17 +275,31 @@
                 return;
             }
 
+            if (role === 'admin' && !adminSchoolVersion) {
+                alert('Please specify the School ID.');
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Creating Account...';
             errorDiv.style.display = 'none';
 
             try {
+                // Determine school version based on role
+                let schoolVersion = null;
+                if (role === 'admin') {
+                    schoolVersion = adminSchoolVersion;
+                } else if (role === 'teacher' && teacherSchoolId) {
+                    schoolVersion = teacherSchoolId;
+                }
+
                 const userData = {
                     name,
                     username,
                     password,
                     role,
-                    ...(role === 'student' && { classLevel: classLevel })
+                    ...(role === 'student' && { classLevel: classLevel }),
+                    ...(schoolVersion && { schoolVersion: schoolVersion })
                 };
 
                 await dataService.registerUser(userData);

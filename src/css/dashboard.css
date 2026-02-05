@@ -55,6 +55,8 @@
     border: 1px solid var(--border-color);
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
+    container-type: inline-size;
+    /* Enable container queries */
 }
 
 .exam-card:hover {
@@ -66,8 +68,11 @@
     padding: var(--spacing-md);
     border-bottom: 1px solid var(--border-color);
     display: flex;
+    flex-wrap: wrap;
+    /* Allow icons to wrap below subject */
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    gap: 10px;
 }
 
 .exam-subject {
@@ -78,6 +83,34 @@
     padding: 2px 8px;
     border-radius: 4px;
     color: var(--light-text);
+    white-space: nowrap;
+    /* Single row */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.exam-card-icons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+    /* Push to right initially */
+}
+
+/* Center subject and icons when container is small (Subject interference) */
+@container (max-width: 320px) {
+    .exam-card-header {
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .exam-card-icons {
+        margin-left: 0;
+        justify-content: center;
+        width: 100%;
+    }
 }
 
 /* Class badge with dark mode support */
@@ -118,6 +151,12 @@
     font-size: 1.1rem;
     margin-bottom: var(--spacing-sm);
     color: var(--text-color);
+    white-space: nowrap;
+    /* Maintain single row */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
 }
 
 .exam-meta {
@@ -186,9 +225,37 @@
 
 .answer-option {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+    background: var(--card-bg);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.answer-option input[type="radio"],
+.answer-option input[type="checkbox"] {
+    margin-top: 12px;
+}
+
+.answer-option textarea.form-control {
+    flex: 1;
+    min-height: 40px;
+    height: 40px;
+    resize: none;
+    overflow: hidden;
+    line-height: 1.5;
+    padding: 8px 12px;
+}
+
+/* Auto-expanding textarea style */
+.auto-expand {
+    min-height: 43px;
+    height: auto;
+    overflow-y: hidden;
+    resize: none;
+    line-height: 1.5;
 }
 
 /* Modal Styles */
@@ -232,6 +299,76 @@
     margin-top: var(--spacing-md);
     border-top: 1px solid var(--border-color);
     padding-top: var(--spacing-sm);
+}
+
+/* Question text in modals - ensure full visibility */
+.modal-body .question-text,
+.modal-content .question-text,
+.flag-item,
+#flag-review-body,
+#edit-q-text,
+.q-text {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+}
+
+/* Ensure question display containers don't hide text */
+.question-item .form-group,
+.question-item .q-text {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+}
+
+/* Flag review modal question text */
+.flag-item {
+    background: var(--inner-bg);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--accent-color);
+}
+
+.flag-item div[style*="font-style: italic"] {
+    word-break: break-word;
+    line-height: 1.6;
+}
+
+/* Edit question modal textarea */
+#edit-q-text {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Question editor input */
+.question-item input.q-text,
+.question-item input.form-control.q-text {
+    height: auto;
+    min-height: 40px;
+    padding: 10px 12px;
+}
+
+/* Add Media button styling for questions */
+.add-media-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    background: transparent;
+    border: 1px dashed var(--primary-color);
+    color: var(--primary-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+}
+
+.add-media-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-style: solid;
 }
 
 .close-btn {

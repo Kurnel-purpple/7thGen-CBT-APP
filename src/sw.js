@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-exam-v11';
+const CACHE_NAME = 'cbt-exam-v12';
 const ASSETS = [
     './index.html',
     './pages/student-dashboard.html',
@@ -57,20 +57,10 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
-    // 1. API Requests: Network Only (Supabase)
+    // 1. IMPORTANT: Skip Supabase requests entirely - let browser handle them directly
+    // This prevents service worker from interfering with auth and API calls
     if (e.request.url.includes('supabase.co')) {
-        if (e.request.method === 'GET') {
-            // Force network and disallow cache to prevent stale data
-            try {
-                const newReq = new Request(e.request, { cache: 'no-store' });
-                e.respondWith(fetch(newReq));
-            } catch (err) {
-                // Fallback
-                e.respondWith(fetch(e.request));
-            }
-        } else {
-            e.respondWith(fetch(e.request));
-        }
+        // Don't call e.respondWith - just return to let the browser handle it natively
         return;
     }
 

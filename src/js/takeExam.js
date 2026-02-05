@@ -396,6 +396,25 @@ const takeExam = {
                     </label>`}
                 </div>
 
+                ${q.mediaAttachments && q.mediaAttachments.length > 0 ? `
+                    <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 10px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+                            ${q.mediaAttachments.map((media, mediaIdx) => `
+                                <div style="position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s ease;" 
+                                    onclick="takeExam.showMediaLightbox('${q.id}', ${mediaIdx})"
+                                    onmouseover="this.style.transform='scale(1.02)'" 
+                                    onmouseout="this.style.transform='scale(1)'">
+                                    <img src="${media.dataUrl}" alt="${media.name || 'Question Image'}" 
+                                        style="max-width: 100%; max-height: 200px; display: block; object-fit: contain;">
+                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 8px; text-align: center;">
+                                        <span style="color: white; font-size: 0.75rem;">🔍 Click to enlarge</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
                 <div class="q-text-display">
                     ${q.text}
                 </div>
@@ -421,6 +440,59 @@ const takeExam = {
         takeExam.flagged[qId] = isChecked;
         takeExam.updatePaletteBtn(index);
         takeExam.saveProgress();
+    },
+
+    showMediaLightbox: (questionId, mediaIndex) => {
+        const questions = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
+        const question = questions.find(q => q.id === questionId);
+
+        if (!question || !question.mediaAttachments || !question.mediaAttachments[mediaIndex]) {
+            return;
+        }
+
+        const media = question.mediaAttachments[mediaIndex];
+
+        // Create lightbox overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'exam-media-lightbox';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+            padding: 20px;
+        `;
+        overlay.onclick = () => overlay.remove();
+
+        overlay.innerHTML = `
+            <div style="position: relative; max-width: 95%; max-height: 95%; display: flex; flex-direction: column; align-items: center;" onclick="event.stopPropagation();">
+                <img src="${media.dataUrl}" alt="${media.name || 'Question Image'}" 
+                    style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5); object-fit: contain;">
+                <button onclick="this.parentElement.parentElement.remove()" 
+                    style="position: absolute; top: -15px; right: -15px; background: white; color: black; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 22px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">×</button>
+                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
+                    ${media.name || 'Question Image'} • Click anywhere outside to close
+                </p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Also allow ESC key to close
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
     },
 
     scrollToQuestion: (index) => {
@@ -518,6 +590,22 @@ const takeExam = {
     },
 
     submit: async () => {
+        // Prevent duplicate submissions
+        if (takeExam._isSubmitting) {
+            console.log('Already submitting, ignoring duplicate call');
+            return;
+        }
+        takeExam._isSubmitting = true;
+
+        // Disable submit button and show loading state
+        const submitBtn = document.getElementById('submit-btn');
+        const originalBtnText = submitBtn ? submitBtn.textContent : 'Submit Exam';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Submitting...';
+            submitBtn.style.opacity = '0.7';
+        }
+
         takeExam.timer.stop();
 
         // Grading Logic
@@ -728,6 +816,14 @@ const takeExam = {
             }
             window.location.href = 'student-dashboard.html';
         } catch (err) {
+            // Re-enable button on error so user can retry
+            takeExam._isSubmitting = false;
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Exam';
+                submitBtn.style.opacity = '1';
+            }
             alert('Submission failed: ' + err.message);
         }
     }

@@ -47,7 +47,8 @@ class DataService {
         // If teacher, they might have put email or username.
         const email = this._generateEmail(userData.username);
 
-        // 2. Sign Up
+        // 2. Sign Up - The database trigger will auto-create the profile
+        // We pass user metadata which the trigger will use
         const { data, error } = await sb.auth.signUp({
             email: email,
             password: userData.password,
@@ -55,7 +56,8 @@ class DataService {
                 data: {
                     full_name: userData.name,
                     role: userData.role,
-                    class_level: userData.classLevel || null
+                    class_level: userData.classLevel || null,
+                    school_version: userData.schoolVersion || null
                 }
             }
         });
@@ -63,26 +65,30 @@ class DataService {
         if (error) throw error;
         if (!data.user) throw new Error('Registration failed for unknown reason.');
 
-        // 3. Create Profile
-        // We do this manually because we didn't set up a Trigger in SQL
-        // RLS policy "Users can insert their own profile" must be ON
+        // 3. Try to create/update profile (backup in case trigger fails)
+        // The database trigger should handle this, but we try client-side too
         const profileData = {
             id: data.user.id,
             role: userData.role,
             full_name: userData.name,
-            class_level: userData.classLevel || null
+            class_level: userData.classLevel || null,
+            school_version: userData.schoolVersion || null
         };
 
-        const { error: profileError } = await sb
-            .from('profiles')
-            .insert([profileData]);
+        try {
+            // Use upsert to handle race conditions with the trigger
+            const { error: profileError } = await sb
+                .from('profiles')
+                .upsert([profileData], { onConflict: 'id' });
 
-        if (profileError) {
-            // Cleanup auth user if profile fails? 
-            // Hard to do from client if we log out. 
-            // Just warn for now.
-            console.error('Profile creation failed:', profileError);
-            throw new Error('User created but profile setup failed. Contact admin.');
+            if (profileError) {
+                // Don't throw - the trigger might have already created the profile
+                console.warn('Client-side profile creation note:', profileError.message);
+            }
+        } catch (profileErr) {
+            // Profile creation failed but auth user exists
+            // The database trigger should have created it, so just log
+            console.warn('Profile backup creation skipped:', profileErr.message);
         }
 
         return data.user;
@@ -161,6 +167,7 @@ class DataService {
                 role: profile.role,
                 name: profile.full_name,
                 classLevel: profile.class_level,
+                schoolVersion: profile.school_version,
                 _sb_user: data.user
             };
 
@@ -312,19 +319,42 @@ class DataService {
     async createExam(examData) {
         const sb = this._getSupabase();
 
+        // Generate a client-side ID to prevent duplicates on retry
+        // This ID will be stored with the exam and checked before creating
+        const clientGeneratedId = examData._clientId || `exam_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
         const dbPayload = {
             title: examData.title,
+            school_level: examData.schoolLevel || null,
             subject: examData.subject,
             target_class: examData.targetClass,
             duration: examData.duration,
             pass_score: examData.passScore,
             instructions: examData.instructions,
+            theory_instructions: examData.theoryInstructions || null,
             questions: examData.questions, // JSONB
             status: examData.status || 'draft',
             created_by: examData.createdBy, // Should match auth.uid()
             scheduled_date: examData.scheduledDate || null,
-            scramble_questions: examData.scrambleQuestions || false
+            scramble_questions: examData.scrambleQuestions || false,
+            client_id: clientGeneratedId // For deduplication
         };
+
+        // Check if this exam was already created (e.g., network retry scenario)
+        try {
+            const { data: existing } = await sb
+                .from('exams')
+                .select('id')
+                .eq('client_id', clientGeneratedId)
+                .single();
+
+            if (existing) {
+                console.log('Exam already exists (duplicate prevented), returning existing:', existing.id);
+                return await this.getExamById(existing.id);
+            }
+        } catch (checkErr) {
+            // No existing exam found, continue with creation
+        }
 
         const { data, error } = await sb
             .from('exams')
@@ -410,36 +440,48 @@ class DataService {
             total_points: resultData.totalPoints,
             answers: resultData.answers,
             // We use flags for status tracking if DB column doesn't exist
-            flags: { ...resultData.flags, _status: 'completed' }
+            flags: { ...resultData.flags, _status: 'completed' },
+            submitted_at: new Date().toISOString()
         };
 
         try {
-            // First, delete any existing in-progress or previous session for this exam/student
-            // IMPORTANT: Await the delete operation to ensure it completes before inserting
-            const { error: deleteError } = await sb
-                .from('results')
-                .delete()
-                .eq('exam_id', resultData.examId)
-                .eq('student_id', resultData.studentId);
-
-            // Log delete errors but don't throw (entry might not exist)
-            if (deleteError) {
-                console.warn('Delete operation warning:', deleteError);
-            }
-
-            // Now insert the final result
+            // Use upsert to handle both new submissions and re-submissions atomically
+            // This prevents race conditions and duplicates
             const { data, error } = await sb
                 .from('results')
-                .insert([dbPayload])
+                .upsert([dbPayload], {
+                    onConflict: 'exam_id,student_id',
+                    ignoreDuplicates: false // We want to update if exists
+                })
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                // If upsert fails (maybe no unique constraint), fall back to delete+insert
+                console.warn('Upsert failed, falling back to delete+insert:', error.message);
+
+                // Delete any existing entries
+                await sb
+                    .from('results')
+                    .delete()
+                    .eq('exam_id', resultData.examId)
+                    .eq('student_id', resultData.studentId);
+
+                // Insert the new result
+                const { data: insertData, error: insertError } = await sb
+                    .from('results')
+                    .insert([dbPayload])
+                    .select()
+                    .single();
+
+                if (insertError) throw insertError;
+                return this._mapResult(insertData);
+            }
+
             return this._mapResult(data);
         } catch (err) {
             if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
                 const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-                dbPayload.submitted_at = new Date().toISOString();
                 dbPayload._local_id = Date.now();
                 pending.push(dbPayload);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
@@ -659,6 +701,89 @@ class DataService {
         localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
 
         return { synced: syncedCount, pending: failed.length };
+    }
+
+    // --- Messaging ---
+
+    async sendMessage(messageData) {
+        const sb = this._getSupabase();
+
+        const dbPayload = {
+            from_id: messageData.fromId,
+            to_id: messageData.toId,
+            message: messageData.message,
+            school_version: messageData.schoolVersion,
+            read: false
+        };
+
+        const { data, error } = await sb
+            .from('messages')
+            .insert([dbPayload])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    async getMessages(filters = {}) {
+        const sb = this._getSupabase();
+
+        try {
+            // Try with joins first (requires proper FK relationships)
+            let query = sb.from('messages').select(`
+                *,
+                from:profiles!messages_from_id_fkey(full_name),
+                to:profiles!messages_to_id_fkey(full_name)
+            `);
+
+            if (filters.toId) query = query.eq('to_id', filters.toId);
+            if (filters.fromId) query = query.eq('from_id', filters.fromId);
+            if (filters.schoolVersion) query = query.eq('school_version', filters.schoolVersion);
+
+            const { data, error } = await query.order('created_at', { ascending: false });
+
+            if (error) {
+                // If join fails, try simple query without joins
+                console.warn('Join query failed, using simple query:', error.message);
+                let simpleQuery = sb.from('messages').select('*');
+
+                if (filters.toId) simpleQuery = simpleQuery.eq('to_id', filters.toId);
+                if (filters.fromId) simpleQuery = simpleQuery.eq('from_id', filters.fromId);
+                if (filters.schoolVersion) simpleQuery = simpleQuery.eq('school_version', filters.schoolVersion);
+
+                const { data: simpleData, error: simpleError } = await simpleQuery.order('created_at', { ascending: false });
+                if (simpleError) throw simpleError;
+                return simpleData;
+            }
+
+            return data;
+        } catch (err) {
+            console.error('getMessages error:', err);
+            throw err;
+        }
+    }
+
+    async markMessageAsRead(messageId) {
+        const sb = this._getSupabase();
+        const { error } = await sb
+            .from('messages')
+            .update({ read: true })
+            .eq('id', messageId);
+
+        if (error) throw error;
+        return true;
+    }
+
+    async deleteMessage(messageId) {
+        const sb = this._getSupabase();
+        const { error } = await sb
+            .from('messages')
+            .delete()
+            .eq('id', messageId);
+
+        if (error) throw error;
+        return true;
     }
 }
 

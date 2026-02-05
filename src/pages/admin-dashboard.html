@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="seatos">
+    <title>Admin Dashboard - CBT</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="manifest" href="../manifest.json">
+    <style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .admin-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+        }
+
+        .admin-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .admin-controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 200, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.9rem;
+            color: var(--light-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .exam-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .exam-card {
+            background: var(--inner-background);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+
+        .exam-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .exam-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .exam-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin: 0 0 5px 0;
+        }
+
+        .exam-meta {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: var(--light-text);
+        }
+
+        .exam-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-draft {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-archived {
+            background: #f5f5f5;
+            color: #616161;
+        }
+
+        .messaging-section {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .message-form {
+            background: var(--inner-background);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .message-form textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .message-form textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 200, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 200, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            opacity: 0.9;
+        }
+
+        .message-history {
+            background: var(--inner-background);
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .message-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .message-item .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .message-item .message-to {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .message-item .message-date {
+            color: var(--light-text);
+        }
+
+        .message-item .message-content {
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--light-text);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .logout-btn {
+            background: var(--error-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .messaging-section {
+                grid-template-columns: 1fr;
+            }
+
+            .admin-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Dark Mode Support */
+        [data-theme="dark"] body {
+            background-color: #1a1a2e;
+            color: #eee;
+        }
+
+        [data-theme="dark"] .admin-container {
+            background-color: #1a1a2e;
+        }
+
+        [data-theme="dark"] .admin-controls,
+        [data-theme="dark"] .section,
+        [data-theme="dark"] .stat-card {
+            background: #16213e;
+            border-color: #0f3460;
+        }
+
+        [data-theme="dark"] .control-group label {
+            color: #eee;
+        }
+
+        [data-theme="dark"] .control-group select,
+        [data-theme="dark"] .control-group input,
+        [data-theme="dark"] .form-control {
+            background: #1a1a2e;
+            border-color: #0f3460;
+            color: #eee;
+        }
+
+        [data-theme="dark"] .exam-card {
+            background: #1a1a2e;
+            border-color: #0f3460;
+        }
+
+        [data-theme="dark"] .exam-card:hover {
+            border-color: var(--primary-color);
+        }
+
+        [data-theme="dark"] .exam-title {
+            color: #eee;
+        }
+
+        [data-theme="dark"] .exam-meta {
+            color: #aaa;
+        }
+
+        [data-theme="dark"] .section-header h2 {
+            color: #eee;
+        }
+
+        [data-theme="dark"] .section-header {
+            border-color: #0f3460;
+        }
+
+        [data-theme="dark"] .message-form {
+            background: #1a1a2e;
+        }
+
+        [data-theme="dark"] .message-form textarea {
+            background: #16213e;
+            border-color: #0f3460;
+            color: #eee;
+        }
+
+        [data-theme="dark"] .message-history {
+            background: #1a1a2e;
+        }
+
+        [data-theme="dark"] .message-item {
+            background: #16213e;
+        }
+
+        [data-theme="dark"] .message-item .message-to {
+            color: #eee;
+        }
+
+        [data-theme="dark"] .message-item .message-content {
+            color: #ccc;
+        }
+
+        [data-theme="dark"] .status-active {
+            background: #1b4332;
+            color: #52b788;
+        }
+
+        [data-theme="dark"] .status-draft {
+            background: #4a3000;
+            color: #ffc107;
+        }
+
+        [data-theme="dark"] .status-archived {
+            background: #333;
+            color: #999;
+        }
+
+        [data-theme="dark"] .stat-card h3 {
+            color: #aaa;
+        }
+
+        [data-theme="dark"] .stat-card .value {
+            color: var(--primary-color);
+        }
+
+        [data-theme="dark"] .empty-state {
+            color: #888;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: transform 0.3s, background 0.3s;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        /* Fix scrolling - ensure page is scrollable */
+        html,
+        body {
+            height: auto;
+            min-height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto !important;
+        }
+
+        .admin-container {
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        /* Ensure exam grid allows scrolling */
+        .exam-grid {
+            max-height: none;
+            overflow: visible;
+        }
+
+        /* Section should not restrict height */
+        .section {
+            max-height: none;
+            overflow: visible;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <div class="admin-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>🔐 Admin Dashboard</h1>
+                    <p id="admin-welcome">Welcome, Admin</p>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Admin Controls -->
+        <div class="admin-controls">
+            <div class="control-group">
+                <label for="school-id-input">School ID</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="school-id-input" class="form-control"
+                        placeholder="Enter your school ID (e.g. SEATOS2026)" style="flex: 1;">
+                    <button class="btn btn-primary" onclick="handleLoadSchool()" id="load-school-btn">
+                        🔍 Load
+                    </button>
+                </div>
+                <small style="color: var(--light-text); margin-top: 5px; display: block;">
+                    Enter your school ID to view teachers and exams.
+                </small>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Teachers</h3>
+                <p class="value" id="stat-teachers">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Exams</h3>
+                <p class="value" id="stat-exams">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Active Exams</h3>
+                <p class="value" id="stat-active">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Students</h3>
+                <p class="value" id="stat-students">0</p>
+            </div>
+        </div>
+
+        <!-- All Exams Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>📚 All Exams</h2>
+                <div>
+                    <select id="exam-filter" onchange="filterExams()"
+                        style="padding: 8px 12px; border-radius: 6px; border: 2px solid var(--border-color);">
+                        <option value="all">All Exams</option>
+                        <option value="active">Active Only</option>
+                        <option value="draft">Drafts Only</option>
+                        <option value="archived">Archived Only</option>
+                    </select>
+                </div>
+            </div>
+            <div id="exams-container" class="exam-grid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <p>Select a school version to view exams</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messaging Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>💬 Teacher Messaging</h2>
+            </div>
+            <div class="messaging-section">
+                <div class="message-form">
+                    <div class="control-group">
+                        <label for="teacher-select">Select Teacher</label>
+                        <select id="teacher-select">
+                            <option value="">Choose a teacher...</option>
+                            <option value="ALL_TEACHERS" style="font-weight: bold; color: var(--primary-color);">📢 All
+                                Teachers (Bulk Message)</option>
+                        </select>
+                        <small id="teacher-count-hint"
+                            style="color: var(--light-text); font-size: 0.8rem; margin-top: 5px; display: none;">
+                            This will send to all teachers in your school.
+                        </small>
+                    </div>
+                    <div class="control-group">
+                        <label for="message-text">Message</label>
+                        <textarea id="message-text" placeholder="Type your message here..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">
+                        📤 Send Message
+                    </button>
+                </div>
+                <div class="message-history">
+                    <h3 style="margin-top: 0; margin-bottom: 15px;">Message History</h3>
+                    <div id="message-history-container">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💬</div>
+                            <p>No messages sent yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/supabaseClient.js"></script>
+
+    <!-- Configuration System -->
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        await initConfig();
+    </script>
+
+    <!-- Scripts -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/dataService.js"></script>
+    <script src="../js/auth.js"></script>
+
+    <script>
+        let currentUser = null;
+        let allTeachers = [];
+        let allExams = [];
+        let allStudents = [];
+        let messageHistory = [];
+        let currentVersion = '';
+
+        // Theme Management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeButton(savedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeButton(newTheme);
+        }
+
+        function updateThemeButton(theme) {
+            const btn = document.getElementById('theme-toggle');
+            if (btn) {
+                btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+        }
+
+        // Initialize theme immediately
+        initTheme();
+
+        // Initialize
+        async function init() {
+            currentUser = dataService.getCurrentUser();
+
+            if (!currentUser || currentUser.role !== 'admin') {
+                alert('Access denied. Admin privileges required.');
+                window.location.href = '../index.html';
+                return;
+            }
+
+            document.getElementById('admin-welcome').textContent = `Welcome, ${currentUser.name}`;
+
+            // Pre-fill the school ID if admin has one saved
+            if (currentUser.schoolVersion) {
+                document.getElementById('school-id-input').value = currentUser.schoolVersion;
+                currentVersion = currentUser.schoolVersion;
+                await loadData();
+            }
+
+            // Load message history
+            await loadMessageHistory();
+
+            // Allow pressing Enter to load
+            document.getElementById('school-id-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleLoadSchool();
+                }
+            });
+        }
+
+        async function handleLoadSchool() {
+            const input = document.getElementById('school-id-input');
+            const loadBtn = document.getElementById('load-school-btn');
+            const schoolId = input.value.trim();
+
+            if (!schoolId) {
+                alert('Please enter a School ID');
+                return;
+            }
+
+            currentVersion = schoolId;
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading...';
+
+            try {
+                await loadData();
+                // Save the school ID for next time
+                if (currentUser) {
+                    currentUser.schoolVersion = schoolId;
+                    localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load data: ' + error.message);
+            } finally {
+                loadBtn.disabled = false;
+                loadBtn.textContent = '🔍 Load';
+            }
+        }
+
+        async function loadData() {
+            try {
+                // Load all teachers for this version
+                const allUsers = await dataService.getUsers();
+                allTeachers = allUsers.filter(u => u.role === 'teacher' && u.school_version === currentVersion);
+                allStudents = allUsers.filter(u => u.role === 'student');
+
+                // Populate teacher dropdown (keep All Teachers option at top)
+                const teacherSelect = document.getElementById('teacher-select');
+                teacherSelect.innerHTML = `
+                    <option value="">Choose a teacher...</option>
+                    <option value="ALL_TEACHERS" style="font-weight: bold;">📢 All Teachers (${allTeachers.length})</option>
+                `;
+                allTeachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.id;
+                    option.textContent = teacher.full_name;
+                    teacherSelect.appendChild(option);
+                });
+
+                // Show/hide hint when All Teachers is selected
+                teacherSelect.addEventListener('change', () => {
+                    const hint = document.getElementById('teacher-count-hint');
+                    if (teacherSelect.value === 'ALL_TEACHERS') {
+                        hint.textContent = `This will send to all ${allTeachers.length} teachers in ${currentVersion}.`;
+                        hint.style.display = 'block';
+                    } else {
+                        hint.style.display = 'none';
+                    }
+                });
+
+                // Load all exams
+                allExams = await dataService.getExams();
+
+                // Filter exams by teachers in this version
+                const teacherIds = allTeachers.map(t => t.id);
+                allExams = allExams.filter(exam => teacherIds.includes(exam.createdBy));
+
+                // Update stats
+                const activeExams = allExams.filter(e => e.status === 'active').length;
+                updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
+
+                // Display exams
+                displayExams(allExams);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load data: ' + error.message);
+            }
+        }
+
+        function updateStats(teachers, exams, active, students) {
+            document.getElementById('stat-teachers').textContent = teachers;
+            document.getElementById('stat-exams').textContent = exams;
+            document.getElementById('stat-active').textContent = active;
+            document.getElementById('stat-students').textContent = students;
+        }
+
+        function displayExams(exams) {
+            const container = document.getElementById('exams-container');
+
+            if (exams.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <p>No exams found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = exams.map(exam => {
+                const teacher = allTeachers.find(t => t.id === exam.createdBy);
+                const teacherName = teacher ? teacher.full_name : 'Unknown Teacher';
+
+                let statusClass = 'status-draft';
+                if (exam.status === 'active') statusClass = 'status-active';
+                if (exam.status === 'archived') statusClass = 'status-archived';
+
+                return `
+                    <div class="exam-card">
+                        <div class="exam-card-header">
+                            <div>
+                                <h3 class="exam-title">${exam.title}</h3>
+                                <div class="exam-meta">
+                                    <span>👨‍🏫 ${teacherName}</span>
+                                    <span>📚 ${exam.subject}</span>
+                                    <span>🎯 ${exam.targetClass}</span>
+                                    <span>⏱️ ${exam.duration} min</span>
+                                    <span>❓ ${exam.questions.length} questions</span>
+                                </div>
+                            </div>
+                            <span class="status-badge ${statusClass}">${exam.status}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterExams() {
+            const filter = document.getElementById('exam-filter').value;
+            let filtered = allExams;
+
+            if (filter !== 'all') {
+                filtered = allExams.filter(e => e.status === filter);
+            }
+
+            displayExams(filtered);
+        }
+
+        async function sendMessage() {
+            const teacherSelect = document.getElementById('teacher-select');
+            const messageText = document.getElementById('message-text');
+            const sendBtn = document.getElementById('send-btn');
+
+            const teacherId = teacherSelect.value;
+            const message = messageText.value.trim();
+
+            if (!teacherId) {
+                alert('Please select a teacher');
+                return;
+            }
+
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            sendBtn.disabled = true;
+
+            try {
+                // Handle bulk messaging to all teachers
+                if (teacherId === 'ALL_TEACHERS') {
+                    if (allTeachers.length === 0) {
+                        alert('No teachers loaded. Please load a school first.');
+                        return;
+                    }
+
+                    const confirmBulk = confirm(`Send this message to ALL ${allTeachers.length} teachers in ${currentVersion}?`);
+                    if (!confirmBulk) {
+                        sendBtn.disabled = false;
+                        return;
+                    }
+
+                    sendBtn.textContent = `Sending to ${allTeachers.length} teachers...`;
+
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    // Send to each teacher
+                    for (let i = 0; i < allTeachers.length; i++) {
+                        const teacher = allTeachers[i];
+                        sendBtn.textContent = `Sending... ${i + 1}/${allTeachers.length}`;
+
+                        try {
+                            await dataService.sendMessage({
+                                fromId: currentUser.id,
+                                toId: teacher.id,
+                                message: message,
+                                schoolVersion: currentVersion
+                            });
+                            successCount++;
+                        } catch (err) {
+                            console.error(`Failed to send to ${teacher.full_name}:`, err);
+                            failCount++;
+                        }
+                    }
+
+                    // Show results
+                    if (failCount === 0) {
+                        alert(`✅ Message sent to all ${successCount} teachers!`);
+                    } else {
+                        alert(`Sent to ${successCount} teachers. Failed: ${failCount}`);
+                    }
+
+                } else {
+                    // Single teacher message
+                    sendBtn.textContent = 'Sending...';
+                    const teacher = allTeachers.find(t => t.id === teacherId);
+
+                    const messageData = {
+                        fromId: currentUser.id,
+                        toId: teacherId,
+                        message: message,
+                        schoolVersion: currentVersion
+                    };
+
+                    try {
+                        await dataService.sendMessage(messageData);
+                        alert(`Message sent to ${teacher?.full_name || 'teacher'}!`);
+                    } catch (dbError) {
+                        console.warn('Database save failed, using localStorage:', dbError);
+                        const messageObj = {
+                            id: Date.now(),
+                            from: currentUser.name,
+                            fromId: currentUser.id,
+                            to: teacher?.full_name || 'Unknown',
+                            toId: teacherId,
+                            message: message,
+                            timestamp: new Date().toISOString(),
+                            schoolVersion: currentVersion
+                        };
+                        messageHistory.push(messageObj);
+                        localStorage.setItem('admin_messages', JSON.stringify(messageHistory));
+                        alert(`Message sent! (Saved locally)`);
+                    }
+                }
+
+                // Clear form
+                messageText.value = '';
+                teacherSelect.value = '';
+                document.getElementById('teacher-count-hint').style.display = 'none';
+
+                // Reload message history
+                await loadMessageHistory();
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Failed to send message: ' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📤 Send Message';
+            }
+        }
+
+        async function loadMessageHistory() {
+            try {
+                // Try to load from database first
+                const dbMessages = await dataService.getMessages({
+                    fromId: currentUser.id,
+                    schoolVersion: currentVersion
+                });
+
+                // Transform database messages to display format
+                messageHistory = dbMessages.map(msg => ({
+                    id: msg.id,
+                    from: currentUser.name,
+                    fromId: msg.from_id,
+                    to: msg.to?.full_name || 'Unknown',
+                    toId: msg.to_id,
+                    message: msg.message,
+                    timestamp: msg.created_at,
+                    schoolVersion: msg.school_version
+                }));
+
+                displayMessageHistory();
+            } catch (error) {
+                console.warn('Failed to load messages from database, using localStorage:', error);
+                // Fallback to localStorage
+                const stored = localStorage.getItem('admin_messages');
+                if (stored) {
+                    messageHistory = JSON.parse(stored);
+                    displayMessageHistory();
+                }
+            }
+        }
+
+        function displayMessageHistory() {
+            const container = document.getElementById('message-history-container');
+
+            // Filter messages for current version
+            const versionMessages = messageHistory.filter(m => m.schoolVersion === currentVersion);
+
+            if (versionMessages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <p>No messages sent yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by timestamp, newest first
+            versionMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            container.innerHTML = versionMessages.map(msg => {
+                const date = new Date(msg.timestamp);
+                const formattedDate = date.toLocaleString();
+
+                return `
+                    <div class="message-item">
+                        <div class="message-header">
+                            <span class="message-to">To: ${msg.to}</span>
+                            <span class="message-date">${formattedDate}</span>
+                        </div>
+                        <div class="message-content">${msg.message}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                auth.logout();
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
