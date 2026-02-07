@@ -69,16 +69,12 @@
           ]
         }
       ],
-      "icon": "src/assets/icon.ico",
       "publisherName": "Gen7 CBT"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "src/assets/icon.ico",
-      "uninstallerIcon": "src/assets/icon.ico",
-      "installerHeaderIcon": "src/assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Gen7 CBT Exam"
