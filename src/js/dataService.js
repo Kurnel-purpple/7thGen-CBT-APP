@@ -675,31 +675,82 @@ class DataService {
     async syncPendingResults() {
         if (!navigator.onLine) return { synced: 0, pending: 0 };
 
-        const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+        const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
+        let pending = [];
+
+        // Get pending submissions from IndexedDB or localStorage
+        if (useIndexedDB) {
+            try {
+                pending = await window.idb.getPendingSubmissions();
+            } catch (err) {
+                console.warn('Could not read from IndexedDB, trying localStorage:', err);
+                pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+            }
+        } else {
+            pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+        }
+
         if (pending.length === 0) return { synced: 0, pending: 0 };
 
-        console.log(`Syncing ${pending.length} results...`);
+        console.log(`📤 Syncing ${pending.length} pending submissions...`);
         const sb = this._getSupabase();
         const failed = [];
         let syncedCount = 0;
 
         for (const submission of pending) {
             try {
-                // Remove local-only fields before sending if any
-                const { _local_id, ...cleanPayload } = submission;
+                // Remove local-only fields before sending
+                const { _local_id, localId, timestamp, synced, cachedAt, ...cleanPayload } = submission;
 
-                const { error } = await sb.from('results').insert([cleanPayload]);
-                if (error) throw error;
-                syncedCount++;
+                // Normalize field names for Supabase
+                const dbPayload = {
+                    exam_id: cleanPayload.exam_id || cleanPayload.examId,
+                    student_id: cleanPayload.student_id || cleanPayload.studentId,
+                    score: cleanPayload.score,
+                    total_points: cleanPayload.total_points || cleanPayload.totalPoints,
+                    pass_score: cleanPayload.pass_score || cleanPayload.passScore,
+                    answers: cleanPayload.answers,
+                    flags: cleanPayload.flags || {},
+                    submitted_at: cleanPayload.submitted_at || cleanPayload.submittedAt || new Date().toISOString()
+                };
+
+                const { error } = await sb.from('results').insert([dbPayload]);
+                if (error) {
+                    // Check for duplicate key error (already submitted)
+                    if (error.code === '23505') {
+                        console.log('⏭️ Skipping duplicate submission for exam:', dbPayload.exam_id);
+                        syncedCount++; // Count as synced since it exists
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    syncedCount++;
+                }
+
+                // Remove from IndexedDB if using it
+                if (useIndexedDB && submission.localId) {
+                    try {
+                        await window.idb.removePendingSubmission(submission.localId);
+                    } catch (e) {
+                        console.warn('Could not remove synced submission from IndexedDB:', e);
+                    }
+                }
             } catch (err) {
                 console.error('Failed to sync submission:', submission, err);
-                failed.push(submission); // Keep failed ones to retry later
+                failed.push(submission);
             }
         }
 
-        // Update local storage with whatever failed
-        localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
+        // Update storage with failed submissions only
+        if (useIndexedDB) {
+            // For IndexedDB, we've already removed successful ones
+            // Just ensure localStorage is clean
+            localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
+        } else {
+            localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
+        }
 
+        console.log(`✅ Sync complete: ${syncedCount} sent, ${failed.length} pending`);
         return { synced: syncedCount, pending: failed.length };
     }
 

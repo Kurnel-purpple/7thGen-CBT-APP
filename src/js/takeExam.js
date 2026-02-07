@@ -69,9 +69,55 @@ const takeExam = {
         }
 
         try {
-            const exam = await dataService.getExamById(examId);
-            if (!exam) throw new Error('Exam not found');
+            let exam = null;
+            let isUsingCache = false;
+            const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
+
+            try {
+                exam = await dataService.getExamById(examId);
+
+                // Cache successful fetch to IndexedDB
+                if (exam && useIndexedDB) {
+                    try {
+                        await window.idb.saveExam(exam);
+                    } catch (e) {
+                        console.warn('Could not cache exam to IndexedDB:', e);
+                    }
+                }
+            } catch (fetchErr) {
+                console.warn('⚠️ Failed to fetch exam from server:', fetchErr.message);
+
+                // Try IndexedDB cache first (more storage capacity)
+                if (useIndexedDB) {
+                    try {
+                        exam = await window.idb.getExam(examId);
+                        if (exam) {
+                            isUsingCache = true;
+                            console.log('📦 Using exam from IndexedDB cache');
+                        }
+                    } catch (idbErr) {
+                        console.warn('Could not load from IndexedDB:', idbErr);
+                    }
+                }
+
+                // Fallback to localStorage
+                if (!exam) {
+                    const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
+                    if (cache[examId]) {
+                        exam = cache[examId];
+                        isUsingCache = true;
+                        console.log('📦 Using exam from localStorage cache');
+                    }
+                }
+            }
+
+            if (!exam) throw new Error('Exam not found. Please check your network connection.');
             takeExam.exam = exam;
+
+            // Show notice if using cached data
+            if (isUsingCache) {
+                takeExam.showNotice('⚠️ Offline mode: Using cached exam data. Your answers will be saved locally and synced when online.', 'warning');
+            }
 
             // Check if exam is accessible (not archived, scheduled time passed)
             if (exam.status === 'archived') {
@@ -126,7 +172,7 @@ const takeExam = {
 
                 document.getElementById('exam-title').textContent = `Review: ${exam.title}`;
             } else {
-                takeExam.loadProgress(); // Restore auto-saves
+                await takeExam.loadProgress(); // Restore auto-saves
 
                 // Apply question scrambling if enabled
                 // Only scramble objective questions, keep theory questions at the end
@@ -156,6 +202,15 @@ const takeExam = {
 
             // Listeners
             document.getElementById('submit-btn').onclick = takeExam.showSubmitModal;
+
+            // Setup network monitoring for exam session
+            takeExam.setupNetworkMonitoring();
+
+            // Setup periodic auto-save (every 30 seconds)
+            takeExam.autoSaveInterval = setInterval(() => {
+                takeExam.saveProgress();
+                console.log('💾 Auto-saved progress');
+            }, 30000);
 
         } catch (err) {
             console.error(err);
@@ -548,21 +603,131 @@ const takeExam = {
         else btn.classList.remove('flagged');
     },
 
-    saveProgress: () => {
+    saveProgress: async () => {
         const data = {
             answers: takeExam.answers,
             flagged: takeExam.flagged,
+            currentQuestion: takeExam.currentQuestion,
+            savedAt: Date.now()
         };
+
+        // Always save to localStorage as immediate backup
         localStorage.setItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`, JSON.stringify(data));
+
+        // Also save to IndexedDB if available (larger storage)
+        if (window.idb && window.idb.isIndexedDBAvailable()) {
+            try {
+                await window.idb.saveProgress(takeExam.exam.id, takeExam.user.id, data);
+            } catch (err) {
+                console.warn('Could not save progress to IndexedDB:', err);
+            }
+        }
     },
 
-    loadProgress: () => {
-        const saved = localStorage.getItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+    loadProgress: async () => {
+        let saved = null;
+
+        // Try IndexedDB first (more reliable)
+        if (window.idb && window.idb.isIndexedDBAvailable()) {
+            try {
+                saved = await window.idb.loadProgress(takeExam.exam.id, takeExam.user.id);
+            } catch (err) {
+                console.warn('Could not load progress from IndexedDB:', err);
+            }
+        }
+
+        // Fallback to localStorage
+        if (!saved) {
+            const localSaved = localStorage.getItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+            if (localSaved) {
+                saved = JSON.parse(localSaved);
+            }
+        }
+
         if (saved) {
-            const data = JSON.parse(saved);
-            takeExam.answers = data.answers || {};
-            takeExam.flagged = data.flagged || {};
+            takeExam.answers = saved.answers || {};
+            takeExam.flagged = saved.flagged || {};
             takeExam.exam.questions.forEach((q, i) => takeExam.updatePaletteBtn(i));
+            console.log('📂 Restored exam progress');
+        }
+    },
+
+    // Monitor network connectivity during exam
+    setupNetworkMonitoring: () => {
+        let wasOffline = !navigator.onLine;
+
+        // Create persistent network status indicator
+        const createStatusIndicator = () => {
+            let indicator = document.getElementById('exam-network-status');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'exam-network-status';
+                indicator.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                    font-weight: bold;
+                    z-index: 9999;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                `;
+                document.body.appendChild(indicator);
+            }
+            return indicator;
+        };
+
+        const updateNetworkStatus = (isOnline) => {
+            const indicator = createStatusIndicator();
+
+            if (isOnline) {
+                indicator.textContent = '🟢 Online';
+                indicator.style.backgroundColor = '#d4edda';
+                indicator.style.color = '#155724';
+                indicator.style.border = '1px solid #c3e6cb';
+
+                // Hide after 3 seconds when online
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                }, 3000);
+
+                // If was offline, show recovery message
+                if (wasOffline) {
+                    takeExam.showNotice('✅ Back online! Your answers are safe.', 'success');
+                }
+            } else {
+                indicator.textContent = '🔴 Offline - Answers saving locally';
+                indicator.style.backgroundColor = '#fff3cd';
+                indicator.style.color = '#856404';
+                indicator.style.border = '1px solid #ffc107';
+                indicator.style.opacity = '1';
+
+                takeExam.showNotice('📴 You are offline. Don\'t worry - your answers are being saved locally and will sync when you\'re back online.', 'warning');
+
+                // Force save progress
+                takeExam.saveProgress();
+            }
+
+            wasOffline = !isOnline;
+        };
+
+        window.addEventListener('online', () => {
+            console.log('📶 Exam: Back online');
+            updateNetworkStatus(true);
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('📴 Exam: Gone offline');
+            updateNetworkStatus(false);
+        });
+
+        // Initial check
+        if (!navigator.onLine) {
+            updateNetworkStatus(false);
         }
     },
 
@@ -816,6 +981,41 @@ const takeExam = {
             }
             window.location.href = 'student-dashboard.html';
         } catch (err) {
+            console.error('Submission error:', err);
+
+            // Check if it was saved offline
+            if (err.message === 'Saved Offline') {
+                // Successfully queued for later sync
+                localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                alert(`📱 Exam Saved Offline!\n\nYour answers have been saved locally and will sync automatically when you're back online.\n\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
+                window.location.href = 'student-dashboard.html';
+                return;
+            }
+
+            // Check if network error - save locally as backup
+            if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                // Queue for later sync
+                const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+                const submission = {
+                    _local_id: Date.now(),
+                    exam_id: resultData.examId,
+                    student_id: resultData.studentId,
+                    score: resultData.score,
+                    total_points: resultData.totalPoints,
+                    pass_score: resultData.passScore,
+                    answers: resultData.answers,
+                    flags: resultData.flags,
+                    submitted_at: new Date().toISOString()
+                };
+                pending.push(submission);
+                localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
+                localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+
+                alert(`📱 Exam Saved Offline!\n\nNetwork issue detected. Your answers have been saved locally and will sync automatically when you're back online.\n\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
+                window.location.href = 'student-dashboard.html';
+                return;
+            }
+
             // Re-enable button on error so user can retry
             takeExam._isSubmitting = false;
             const submitBtn = document.getElementById('submit-btn');
@@ -824,9 +1024,76 @@ const takeExam = {
                 submitBtn.textContent = 'Submit Exam';
                 submitBtn.style.opacity = '1';
             }
-            alert('Submission failed: ' + err.message);
+
+            // Show user-friendly error with retry option
+            takeExam.showNotice(`⚠️ Submission issue: ${err.message}. Your answers are saved - tap Submit to retry.`, 'error');
+        }
+    },
+
+    // Helper to show notices (offline mode, errors, etc.)
+    showNotice: (message, type = 'info') => {
+        // Remove any existing notice
+        const existing = document.getElementById('exam-notice');
+        if (existing) existing.remove();
+
+        const colors = {
+            info: { bg: '#e3f2fd', color: '#1565c0', border: '#90caf9' },
+            warning: { bg: '#fff3e0', color: '#e65100', border: '#ffcc80' },
+            error: { bg: '#ffebee', color: '#c62828', border: '#ef9a9a' },
+            success: { bg: '#e8f5e9', color: '#2e7d32', border: '#a5d6a7' }
+        };
+
+        const style = colors[type] || colors.info;
+
+        const notice = document.createElement('div');
+        notice.id = 'exam-notice';
+        notice.style.cssText = `
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${style.bg};
+            color: ${style.color};
+            border: 1px solid ${style.border};
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-size: 0.9rem;
+            max-width: 90%;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+
+        notice.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                font-size: 1.2rem;
+                cursor: pointer;
+                color: ${style.color};
+                padding: 0 4px;
+            ">×</button>
+        `;
+
+        document.body.appendChild(notice);
+
+        // Auto-hide success and info after 6 seconds
+        if (type === 'success' || type === 'info') {
+            setTimeout(() => {
+                if (notice.parentElement) {
+                    notice.style.opacity = '0';
+                    notice.style.transform = 'translateX(-50%) translateY(-20px)';
+                    notice.style.transition = 'all 0.3s ease';
+                    setTimeout(() => notice.remove(), 300);
+                }
+            }, 6000);
         }
     }
 };
 
 document.addEventListener('DOMContentLoaded', takeExam.init);
+

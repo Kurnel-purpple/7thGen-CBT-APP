@@ -72,13 +72,14 @@ const studentDashboard = {
                 el = document.createElement('div');
                 el.id = 'connection-status';
                 el.style.position = 'fixed';
-                el.style.top = '10px'; // Below header? No, header is fixed usually?
-                el.style.right = '120px'; // Left of logout/menu
+                el.style.top = '10px';
+                el.style.right = '120px';
                 el.style.zIndex = '2000';
                 el.style.padding = '5px 10px';
                 el.style.borderRadius = '20px';
                 el.style.fontSize = '0.8rem';
                 el.style.fontWeight = 'bold';
+                el.style.transition = 'opacity 0.3s ease';
                 document.body.appendChild(el);
             }
 
@@ -87,9 +88,9 @@ const studentDashboard = {
                 el.style.backgroundColor = '#d4edda';
                 el.style.color = '#155724';
                 el.style.border = '1px solid #c3e6cb';
-                // fade out after 5s?
-                setTimeout(() => { if (el) el.style.opacity = '0'; }, 5000);
                 el.style.opacity = '1';
+                // fade out after 5s
+                setTimeout(() => { if (el) el.style.opacity = '0'; }, 5000);
             } else {
                 el.textContent = '🔴 Offline';
                 el.style.backgroundColor = '#f8d7da';
@@ -99,14 +100,39 @@ const studentDashboard = {
             }
         };
 
-        window.addEventListener('online', () => {
+        // Online/Offline event listeners
+        window.addEventListener('online', async () => {
+            console.log('📶 Back online! Syncing data...');
             updateStatus();
-            studentDashboard.syncResults();
+
+            // Sync pending results
+            await studentDashboard.syncResults();
+
+            // Reload fresh data from server
+            setTimeout(() => {
+                studentDashboard.loadData();
+            }, 1500);
         });
-        window.addEventListener('offline', updateStatus);
+
+        window.addEventListener('offline', () => {
+            console.log('📴 Gone offline');
+            updateStatus();
+            studentDashboard.showOfflineNotice('You are offline. Showing cached data.');
+        });
+
+        // Listen for service worker sync messages
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'SYNC_PENDING') {
+                    console.log('📡 Received sync request from service worker');
+                    studentDashboard.syncResults();
+                }
+            });
+        }
 
         // Initial Check
         updateStatus();
+
         // Initial Sync Attempt
         if (navigator.onLine) {
             setTimeout(studentDashboard.syncResults, 2000);
@@ -134,47 +160,302 @@ const studentDashboard = {
     },
 
     loadData: async () => {
+        const userId = studentDashboard.user.id;
+        const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
+
+        let exams = [];
+        let serverResults = [];
+        let isUsingCache = false;
+
         try {
-            const [exams, serverResults] = await Promise.all([
+            // Attempt to fetch from server
+            [exams, serverResults] = await Promise.all([
                 dataService.getExams(),
-                studentDashboard.user.id
-                    ? dataService.getResults({ studentId: studentDashboard.user.id })
+                userId
+                    ? dataService.getResults({ studentId: userId })
                     : Promise.resolve([])
             ]);
 
-            // Merge with Pending Submissions (Local)
-            const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-            // Filter pending to only this user's submissions (in case of shared device)
-            // Pending items have: student_id, exam_id, etc.
-            const myPending = pending.filter(p => p.student_id === studentDashboard.user.id);
+            // SUCCESS! Cache the fresh data for offline fallback
+            try {
+                if (useIndexedDB) {
+                    // Use IndexedDB for larger storage capacity
+                    await window.idb.saveExams(exams);
+                    await window.idb.saveDashboardCache('exams_list', {
+                        data: exams,
+                        timestamp: Date.now()
+                    });
+                    await window.idb.saveDashboardCache(`results_${userId}`, {
+                        data: serverResults,
+                        timestamp: Date.now()
+                    });
+                    // Also save results to IndexedDB
+                    if (serverResults.length > 0) {
+                        await window.idb.saveResults(serverResults);
+                    }
+                    console.log('✅ Dashboard data cached to IndexedDB');
+                } else {
+                    // Fallback to localStorage
+                    localStorage.setItem('cbt_dashboard_exams_cache', JSON.stringify({
+                        data: exams,
+                        timestamp: Date.now()
+                    }));
+                    localStorage.setItem(`cbt_dashboard_results_${userId}`, JSON.stringify({
+                        data: serverResults,
+                        timestamp: Date.now()
+                    }));
+                    console.log('✅ Dashboard data cached to localStorage');
+                }
+            } catch (cacheErr) {
+                console.warn('Could not cache dashboard data:', cacheErr);
+            }
 
-            // Map pending to match result structure
-            const mappedPending = myPending.map(p => ({
-                id: p._local_id || 'pending-' + Date.now(), // Temp ID
-                examId: p.exam_id,
-                studentId: p.student_id,
-                score: p.score,
-                totalPoints: p.total_points,
-                answers: p.answers,
-                submittedAt: p.submitted_at,
-                studentName: studentDashboard.user.name,
-                passed: p.score >= (p.pass_score || 50), // Approximation
-                isPending: true
-            }));
-
-            // Combine, avoiding duplicates if sync happened partly? 
-            // Ideally serverResults checks ID. Pending has no server ID.
-            // Just concat. If it shows twice, better than not showing.
-            studentDashboard.results = [...mappedPending, ...serverResults];
-
-            studentDashboard.exams = exams;
-            studentDashboard.populateSubjectFilters();
-            studentDashboard.renderAvailable();
-            studentDashboard.renderResolved();
-            studentDashboard.renderCompleted();
         } catch (err) {
-            console.error('Data load error', err);
-            alert('Failed to load exams.');
+            console.warn('⚠️ Network issue loading data:', err.message);
+
+            // FALLBACK: Try to use cached data
+            try {
+                if (useIndexedDB) {
+                    // Try IndexedDB first
+                    const cachedExams = await window.idb.getDashboardCache('exams_list');
+                    const cachedResults = await window.idb.getDashboardCache(`results_${userId}`);
+
+                    if (cachedExams && cachedExams.data && cachedExams.data.data) {
+                        exams = cachedExams.data.data;
+                        isUsingCache = true;
+                        console.log(`📦 Loaded ${exams.length} exams from IndexedDB (saved ${window.idb.formatCacheAge(cachedExams.data.timestamp)})`);
+                    } else {
+                        // Try getting all exams from IndexedDB
+                        const allExams = await window.idb.getAllExams();
+                        if (allExams && allExams.length > 0) {
+                            exams = allExams;
+                            isUsingCache = true;
+                            console.log(`📦 Loaded ${exams.length} exams from IndexedDB cache`);
+                        }
+                    }
+
+                    if (cachedResults && cachedResults.data && cachedResults.data.data) {
+                        serverResults = cachedResults.data.data;
+                        console.log(`📦 Loaded ${serverResults.length} results from IndexedDB`);
+                    } else {
+                        // Try getting results by student
+                        const idbResults = await window.idb.getResultsByStudent(userId);
+                        if (idbResults && idbResults.length > 0) {
+                            serverResults = idbResults;
+                            console.log(`📦 Loaded ${serverResults.length} results from IndexedDB`);
+                        }
+                    }
+                } else {
+                    // Fallback to localStorage
+                    const cachedExams = JSON.parse(localStorage.getItem('cbt_dashboard_exams_cache') || 'null');
+                    const cachedResults = JSON.parse(localStorage.getItem(`cbt_dashboard_results_${userId}`) || 'null');
+
+                    if (cachedExams && cachedExams.data) {
+                        exams = cachedExams.data;
+                        isUsingCache = true;
+                        console.log(`📦 Loaded ${exams.length} exams from localStorage`);
+                    }
+
+                    if (cachedResults && cachedResults.data) {
+                        serverResults = cachedResults.data;
+                        console.log(`📦 Loaded ${serverResults.length} results from localStorage`);
+                    }
+                }
+
+                if (isUsingCache) {
+                    studentDashboard.showOfflineNotice('Showing cached data. Some info may be outdated.');
+                }
+            } catch (cacheLoadErr) {
+                console.error('Failed to load from cache:', cacheLoadErr);
+            }
+
+            // If still no data, show empty state with retry option
+            if (exams.length === 0) {
+                studentDashboard.showOfflineNotice('Unable to load exams. Check your network and try again.', true);
+            }
+        }
+
+        // Merge with Pending Submissions (from IndexedDB or localStorage)
+        let myPending = [];
+        try {
+            if (useIndexedDB) {
+                const allPending = await window.idb.getPendingSubmissions();
+                myPending = allPending.filter(p => p.student_id === userId || p.studentId === userId);
+            } else {
+                const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+                myPending = pending.filter(p => p.student_id === userId);
+            }
+        } catch (pendingErr) {
+            console.warn('Could not load pending submissions:', pendingErr);
+        }
+
+        // Map pending to match result structure
+        const mappedPending = myPending.map(p => ({
+            id: p.localId || p._local_id || 'pending-' + Date.now(),
+            examId: p.exam_id || p.examId,
+            studentId: p.student_id || p.studentId,
+            score: p.score,
+            totalPoints: p.total_points || p.totalPoints,
+            answers: p.answers,
+            submittedAt: p.submitted_at || p.submittedAt,
+            studentName: studentDashboard.user.name,
+            passed: p.score >= (p.pass_score || p.passScore || 50),
+            isPending: true
+        }));
+
+        // Combine results
+        studentDashboard.results = [...mappedPending, ...serverResults];
+
+        studentDashboard.exams = exams;
+        studentDashboard.populateSubjectFilters();
+        studentDashboard.renderAvailable();
+        studentDashboard.renderResolved();
+        studentDashboard.renderCompleted();
+
+        // Trigger preload of ready exams for offline use
+        studentDashboard.preloadExamsForOffline();
+    },
+
+    // Helper to format cache age
+    _formatCacheAge: (timestamp) => {
+        if (!timestamp) return 'unknown time ago';
+        const age = Date.now() - timestamp;
+        const minutes = Math.floor(age / 60000);
+        const hours = Math.floor(minutes / 60);
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return 'just now';
+    },
+
+    // Show offline/cache notice
+    showOfflineNotice: (message, showRetry = false) => {
+        // Remove any existing notice
+        const existing = document.getElementById('offline-notice');
+        if (existing) existing.remove();
+
+        const notice = document.createElement('div');
+        notice.id = 'offline-notice';
+        notice.style.cssText = `
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #fff3cd, #ffe69c);
+            color: #856404;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 90%;
+            text-align: center;
+            animation: slideDown 0.3s ease;
+        `;
+
+        let html = `<span>⚠️ ${message}</span>`;
+        if (showRetry) {
+            html += `<button onclick="studentDashboard.retryLoad()" style="
+                background: #856404;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.85rem;
+            ">🔄 Retry</button>`;
+        }
+        html += `<button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #856404;
+            padding: 0 4px;
+        ">×</button>`;
+
+        notice.innerHTML = html;
+        document.body.appendChild(notice);
+
+        // Auto-hide after 8 seconds if no retry needed
+        if (!showRetry) {
+            setTimeout(() => {
+                if (notice.parentElement) {
+                    notice.style.opacity = '0';
+                    notice.style.transform = 'translateX(-50%) translateY(-20px)';
+                    notice.style.transition = 'all 0.3s ease';
+                    setTimeout(() => notice.remove(), 300);
+                }
+            }, 8000);
+        }
+    },
+
+    // Retry loading data
+    retryLoad: async () => {
+        const notice = document.getElementById('offline-notice');
+        if (notice) {
+            notice.innerHTML = `<span>🔄 Retrying...</span>`;
+        }
+        await studentDashboard.loadData();
+    },
+
+    // Preload exams for offline use (opportunistic)
+    preloadExamsForOffline: async () => {
+        if (!navigator.onLine) return;
+        if (!window.idb || !window.idb.isIndexedDBAvailable()) return;
+
+        // Only preload available exams that haven't been taken
+        const availableExams = studentDashboard.exams.filter(exam => {
+            const taken = studentDashboard.results.some(r =>
+                r.examId === exam.id && !r.isPending
+            );
+            return !taken && exam.status === 'active';
+        });
+
+        let preloadedCount = 0;
+
+        for (const exam of availableExams) {
+            try {
+                // Check if already cached with full questions
+                const cached = await window.idb.getExam(exam.id);
+                if (cached && cached.questions && cached.questions.length > 0) {
+                    continue; // Already cached
+                }
+
+                // Fetch full exam with questions
+                const fullExam = await dataService.getExamById(exam.id);
+                if (fullExam && fullExam.questions) {
+                    await window.idb.saveExam(fullExam);
+                    preloadedCount++;
+                    console.log(`📥 Preloaded exam: ${exam.title}`);
+                }
+            } catch (err) {
+                console.warn(`Could not preload exam ${exam.id}:`, err.message);
+            }
+        }
+
+        if (preloadedCount > 0) {
+            console.log(`✅ Preloaded ${preloadedCount} exams for offline use`);
+        }
+    },
+
+    // Register background sync if supported
+    registerBackgroundSync: async () => {
+        if (!('serviceWorker' in navigator) || !('SyncManager' in window)) {
+            console.warn('Background Sync not supported – using online event fallback');
+            return false;
+        }
+
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.sync.register('sync-pending-answers');
+            console.log('📡 Background sync registered');
+            return true;
+        } catch (err) {
+            console.warn('Sync registration failed:', err);
+            return false;
         }
     },
 

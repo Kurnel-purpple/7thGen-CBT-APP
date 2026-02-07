@@ -36,12 +36,13 @@
                             <input type="text" id="username" class="form-control"
                                 placeholder="Student ID (e.g. JMS123) or Username" required autocomplete="off">
                         </div>
-<div class="form-group">
+                        <div class="form-group">
                             <label for="password">Password</label>
                             <div class="password-input-container">
-                                <input type="password" id="password" class="form-control" placeholder="Enter your password"
-                                    required autocomplete="new-password">
-                                <button type="button" class="password-toggle-btn" onclick="togglePassword('password', this)">
+                                <input type="password" id="password" class="form-control"
+                                    placeholder="Enter your password" required autocomplete="new-password">
+                                <button type="button" class="password-toggle-btn"
+                                    onclick="togglePassword('password', this)">
                                     <span class="eye-icon">👁️</span>
                                 </button>
                             </div>
@@ -56,6 +57,18 @@
                 </div>
             </div>
         </main>
+
+        <!-- Download Desktop App Banner (only shows on web, not in Electron) -->
+        <div id="download-banner" class="download-banner" style="display: none;">
+            <div class="download-content">
+                <span>📥 For better offline experience, download the desktop app</span>
+                <a href="https://github.com/Kurnel-purpple/7thGen-CBT-APP/releases/latest" target="_blank"
+                    class="btn btn-primary download-btn">
+                    ⬇️ Download for Windows
+                </a>
+                <button onclick="dismissDownloadBanner()" class="dismiss-btn">✕</button>
+            </div>
+        </div>
 
         <footer class="main-footer">
             <p>&copy; 2026 corneliusajayi123@gmail.com </p>
@@ -73,7 +86,8 @@
         await initConfig();
     </script>
 
-<!-- Scripts -->
+    <!-- Scripts -->
+    <script src="js/idb.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/dataService.js"></script>
     <script src="js/auth.js"></script>
@@ -94,6 +108,49 @@
                     .catch(err => console.log('Service Worker registration failed: ', err));
             });
         }
+
+        // Download banner logic (only show in browser, not Electron)
+        function isElectron() {
+            return typeof window !== 'undefined' &&
+                typeof window.process === 'object' &&
+                window.process.type === 'renderer';
+        }
+
+        function showDownloadBanner() {
+            const banner = document.getElementById('download-banner');
+            if (!banner) return;
+
+            // Don't show in Electron
+            if (isElectron()) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            // Don't show if dismissed recently (7 days)
+            const dismissed = localStorage.getItem('download_banner_dismissed');
+            if (dismissed) {
+                const dismissedAt = parseInt(dismissed, 10);
+                const sevenDays = 7 * 24 * 60 * 60 * 1000;
+                if (Date.now() - dismissedAt < sevenDays) {
+                    return;
+                }
+            }
+
+            banner.style.display = 'block';
+        }
+
+        function dismissDownloadBanner() {
+            const banner = document.getElementById('download-banner');
+            if (banner) {
+                banner.style.display = 'none';
+                localStorage.setItem('download_banner_dismissed', Date.now().toString());
+            }
+        }
+
+        // Show banner after page loads
+        window.addEventListener('load', () => {
+            setTimeout(showDownloadBanner, 2000); // Show after 2 seconds
+        });
     </script>
     <script src="js/app.js"></script>
 </body>

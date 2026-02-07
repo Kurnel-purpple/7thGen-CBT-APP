@@ -1,22 +1,93 @@
 {
   "name": "cbt-exam-app",
   "version": "1.0.0",
-  "description": "CBT Exam Software",
+  "description": "CBT Exam Software - Offline-capable exam platform",
   "main": "main.js",
+  "author": {
+    "name": "Gen7 CBT",
+    "email": "corneliusajayi123@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kurnel-purpple/7thGen-CBT-APP.git"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "nodemon --exec electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "electron-builder --win",
+    "build:all": "electron-builder --win --mac --linux",
+    "build:portable": "electron-builder --win portable",
+    "release": "electron-builder --win --publish always",
+    "test": "echo \"No tests configured\" && exit 0"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "cbt",
+    "exam",
+    "education",
+    "offline"
+  ],
   "license": "ISC",
   "devDependencies": {
     "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
     "nodemon": "^3.1.11"
   },
-  "type": "commonjs",
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "electron-updater": "^6.3.9"
+  },
+  "type": "commonjs",
+  "build": {
+    "appId": "com.gen7cbt.examapp",
+    "productName": "Gen7 CBT Exam",
+    "copyright": "Copyright © 2026 Gen7 CBT",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "src/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/README*",
+      "!node_modules/**/CHANGELOG*",
+      "!node_modules/**/*.md"
+    ],
+    "extraResources": [
+      {
+        "from": "src/assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ],
+      "icon": "src/assets/icon.ico",
+      "publisherName": "Gen7 CBT"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "src/assets/icon.ico",
+      "uninstallerIcon": "src/assets/icon.ico",
+      "installerHeaderIcon": "src/assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gen7 CBT Exam"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Kurnel-purpple",
+      "repo": "7thGen-CBT-APP",
+      "releaseType": "release"
+    }
   }
 }
