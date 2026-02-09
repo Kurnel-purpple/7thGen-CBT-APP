@@ -438,6 +438,38 @@ const takeExam = {
                         </p>
                     </div>
                 `;
+            } else if (q.type === 'image_multi') {
+                // Picture Comprehension: One image with multiple sub-questions (A-E options each)
+                let imgHtml = '';
+                if (q.image) {
+                    imgHtml = `<div style="margin-bottom: 20px; text-align: center;">
+                        <img src="${q.image}" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    </div>`;
+                }
+
+                // Get current answers for this question (stored as object: { subQId: 'A', ... })
+                const userAnswers = takeExam.answers[q.id] || {};
+
+                const subQuestionsHtml = q.subQuestions.map((subQ) => {
+                    const currentAnswer = userAnswers[subQ.id] || '';
+                    return `
+                    <div style="margin-bottom: 15px; padding: 12px; background: var(--inner-bg); border-radius: 8px;">
+                        <div style="font-weight: 600; margin-bottom: 10px; color: var(--primary-color);">Question ${subQ.number}</div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            ${['A', 'B', 'C', 'D', 'E'].map(opt => `
+                                <label class="option-label ${currentAnswer === opt ? 'selected' : ''}" style="min-width: 50px; justify-content: center;">
+                                    <input type="radio" name="subq-${q.id}-${subQ.id}" value="${opt}" ${currentAnswer === opt ? 'checked' : ''} 
+                                        onchange="takeExam.selectAnswer('${q.id}', { subQId: '${subQ.id}', value: '${opt}' })" 
+                                        class="option-input" style="margin-right: 6px;">
+                                    <span style="font-weight: 600;">${opt}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+
+                optionsHtml = imgHtml + subQuestionsHtml;
             }
 
             return `
@@ -568,6 +600,11 @@ const takeExam = {
             const current = takeExam.answers[qId] || {};
             current[val.index] = val.value;
             takeExam.answers[qId] = current;
+        } else if (q.type === 'image_multi') {
+            // Picture Comprehension: Store answers as object with subQId as keys
+            const current = takeExam.answers[qId] || {};
+            current[val.subQId] = val.value;
+            takeExam.answers[qId] = current;
         } else {
             takeExam.answers[qId] = val;
         }
@@ -583,6 +620,21 @@ const takeExam = {
                 const selectedInput = card.querySelector(`input[value="${val}"]`);
                 if (selectedInput) selectedInput.parentElement.classList.add('selected');
             }
+        } else if (q.type === 'image_multi') {
+            // Update visual selection for Picture Comprehension questions
+            const card = document.getElementById(`q-card-${qIndex}`);
+            if (card) {
+                // Find the specific sub-question container and update its labels
+                const subQContainers = card.querySelectorAll('[style*="margin-bottom: 15px"]');
+                subQContainers.forEach(container => {
+                    const radio = container.querySelector(`input[type="radio"][value="${val.value}"]`);
+                    if (radio && radio.name.includes(val.subQId)) {
+                        const labels = container.querySelectorAll('.option-label');
+                        labels.forEach(l => l.classList.remove('selected'));
+                        radio.parentElement.classList.add('selected');
+                    }
+                });
+            }
         }
 
         takeExam.updatePaletteBtn(qIndex);
@@ -593,7 +645,17 @@ const takeExam = {
         const qList = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
         const q = qList[index];
         const btn = document.getElementById(`palette-btn-${index}`);
-        const answered = !!takeExam.answers[q.id];
+
+        // Check if question is answered based on type
+        let answered = false;
+        if (q.type === 'image_multi') {
+            // For image_multi, check if at least one sub-question is answered
+            const answers = takeExam.answers[q.id] || {};
+            answered = Object.keys(answers).length > 0;
+        } else {
+            answered = !!takeExam.answers[q.id];
+        }
+
         const flagged = !!takeExam.flagged[q.id];
 
         if (answered) btn.classList.add('answered');
@@ -883,6 +945,19 @@ const takeExam = {
                             if (answer[idx] !== pair.right) allCorrect = false;
                         });
                         if (allCorrect) score += points;
+                    }
+                } else if (q.type === 'image_multi') {
+                    // Picture Comprehension: Score based on correct sub-answers
+                    if (answer && q.subQuestions) {
+                        let correctCount = 0;
+                        q.subQuestions.forEach(subQ => {
+                            if (answer[subQ.id] === subQ.correctAnswer) {
+                                correctCount++;
+                            }
+                        });
+                        // Score proportionally: (correct / total) * points
+                        const pointsPerSubQ = points / q.subQuestions.length;
+                        score += correctCount * pointsPerSubQ;
                     }
                 } else {
                     if (answer) {

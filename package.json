@@ -1,6 +1,6 @@
 {
   "name": "cbt-exam-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CBT Exam Software - Offline-capable exam platform",
   "main": "main.js",
   "author": {
@@ -78,6 +78,13 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Gen7 CBT Exam"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.education"
     },
     "publish": {
       "provider": "github",

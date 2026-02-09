@@ -228,6 +228,19 @@ const resultsController = {
                             });
                             if (allCorrect) objectivePoints += qPoints;
                         }
+                    } else if (q.type === 'image_multi') {
+                        // Picture Comprehension: Score based on correct sub-answers
+                        if (answer && q.subQuestions) {
+                            let correctCount = 0;
+                            q.subQuestions.forEach(subQ => {
+                                if (answer[subQ.id] === subQ.correctAnswer) {
+                                    correctCount++;
+                                }
+                            });
+                            // Score proportionally
+                            const pointsPerSubQ = qPoints / q.subQuestions.length;
+                            objectivePoints += correctCount * pointsPerSubQ;
+                        }
                     } else if (q.options) {
                         const correctOpt = q.options.find(o => o.isCorrect);
                         if (answer && correctOpt && correctOpt.id === answer) {
@@ -289,12 +302,15 @@ const resultsController = {
                 const currentScore = resultsController.theoryScores[q.id] || 0;
                 const maxPoints = parseFloat(q.points) || 0;
 
+                // Check if this theory question has already been graded
+                const hasBeenGraded = currentScore > 0 || (result.theoryScores && result.theoryScores[q.id] !== undefined);
+                
                 // Show grading input only for teachers
                 const gradingHtml = user && user.role === 'teacher' ? `
-                    <div style="margin-top:15px; padding:12px; background:var(--card-bg); border:1px solid var(--accent-color); border-radius:6px;">
+                    <div style="margin-top:15px; padding:12px; background:var(--card-bg); border:1px solid ${hasBeenGraded ? 'var(--success-color)' : 'var(--accent-color)'}; border-radius:6px;">
                         <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
-                            <label style="font-weight:600; color:var(--accent-color);">
-                                📊 Grade this answer:
+                            <label style="font-weight:600; color:${hasBeenGraded ? 'var(--success-color)' : 'var(--accent-color)'};">
+                                ${hasBeenGraded ? '✏️ Edit grade:' : '📊 Grade this answer:'}
                             </label>
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <input 
@@ -311,7 +327,7 @@ const resultsController = {
                             </div>
                         </div>
                         <div style="margin-top:8px; font-size:0.85rem; color:var(--light-text);">
-                            💡 Enter the points earned for this answer. Click "Save Theory Grades" at the bottom when done.
+                            ${hasBeenGraded ? '✓ This question has been graded. You can edit the score above.' : '💡 Enter the points earned for this answer. Click "Save Theory Grades" at the bottom when done.'}
                         </div>
                     </div>
                 ` : `
@@ -345,6 +361,54 @@ const resultsController = {
                     isCorrect = allC;
                 }
                 optionsHtml = `<div style="font-style:italic; color:gray;">(Matching Question Detail - See Dashboard)</div>`;
+            } else if (q.type === 'image_multi') {
+                // Picture Comprehension: Check each sub-question answer
+                const userAnswers = selectedOptId || {};
+                let allCorrect = true;
+                let correctCount = 0;
+
+                // Build sub-questions display
+                let subQHtml = '';
+                if (q.image) {
+                    subQHtml += `<div style="margin-bottom: 15px; text-align: center;"><img src="${q.image}" style="max-width: 100%; max-height: 300px; border-radius: 8px;"></div>`;
+                }
+
+                subQHtml += '<div style="display: grid; gap: 10px;">';
+                q.subQuestions.forEach(subQ => {
+                    const userAnswer = userAnswers[subQ.id] || '(No Answer)';
+                    const isSubCorrect = userAnswer === subQ.correctAnswer;
+                    if (isSubCorrect) correctCount++;
+                    else allCorrect = false;
+
+                    const statusColor = isSubCorrect ? 'var(--success-color)' : 'var(--accent-color)';
+                    const statusIcon = isSubCorrect ? '✓' : '✗';
+
+                    subQHtml += `
+                        <div style="padding: 10px; background: var(--inner-bg); border-radius: 6px; border-left: 4px solid ${statusColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 600;">Question ${subQ.number}</span>
+                                <span style="color: ${statusColor}; font-weight: bold;">${statusIcon}</span>
+                            </div>
+                            <div style="margin-top: 5px; display: flex; gap: 15px; font-size: 0.9rem;">
+                                <span><strong>Student:</strong> ${userAnswer}</span>
+                                <span style="color: var(--success-color);"><strong>Correct:</strong> ${subQ.correctAnswer}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                subQHtml += '</div>';
+
+                // For scoring: Each sub-question is worth (q.points / numSubQuestions)
+                const pointsPerSubQ = (parseFloat(q.points) || 0.5) / q.subQuestions.length;
+                const earnedPoints = correctCount * pointsPerSubQ;
+
+                isCorrect = allCorrect;
+                optionsHtml = `
+                    <div style="margin-bottom: 10px; padding: 8px; background: var(--card-bg); border-radius: 4px;">
+                        <strong>Score:</strong> ${correctCount}/${q.subQuestions.length} correct (${earnedPoints.toFixed(2)} points)
+                    </div>
+                    ${subQHtml}
+                `;
             } else {
                 // MCQ / Image / TF - check if options exist
                 if (q.options) {
@@ -396,6 +460,7 @@ const resultsController = {
                         <strong>Q${i + 1}. ${q.text}</strong>
                         ${isFlagged ? '<span title="Flagged by student" style="font-size:1.2rem;">🚩</span>' : ''}
                         ${q.type === 'theory' ? '<span style="font-size:0.75rem; color:var(--accent-color); margin-left:8px;">(THEORY)</span>' : ''}
+                        ${q.type === 'image_multi' ? '<span style="font-size:0.75rem; color:var(--primary-color); margin-left:8px;">(PICTURE COMPREHENSION)</span>' : ''}
                     </div>
                     <span class="status-badge ${isCorrect === null ? 'theory' : (isCorrect ? 'correct' : 'incorrect')}" style="flex-shrink:0;">
                         ${isCorrect === null ? 'Manual Grading' : (isCorrect ? `+${parseFloat(q.points) || 0.5} pts` : '0 pts')}

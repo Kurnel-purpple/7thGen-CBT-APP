@@ -321,6 +321,43 @@ const examManager = {
             document.title = 'Edit Exam - CBT Exam';
             await examManager.loadExam(examId);
         }
+
+        // Initialize Quill rich text editor for bulk import
+        examManager.initQuillEditor();
+    },
+
+    // Quill editor instance for bulk import
+    quillEditor: null,
+
+    initQuillEditor: () => {
+        const editorElement = document.getElementById('import-editor');
+        if (!editorElement) return;
+
+        examManager.quillEditor = new Quill('#import-editor', {
+            theme: 'snow',
+            placeholder: 'Paste questions here... You can copy & paste from MS Word including shapes and images.',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['image']
+                ]
+            }
+        });
+
+        // Handle paste events to clean up formatting
+        examManager.quillEditor.root.addEventListener('paste', (e) => {
+            // Let Quill handle the paste, it will convert most content properly
+            // including images from Word
+            setTimeout(() => {
+                // Optional: Clean up excessive formatting if needed
+                const text = examManager.quillEditor.getText();
+                if (text.trim()) {
+                    // Content was pasted successfully
+                    console.log('Content pasted into Quill editor');
+                }
+            }, 0);
+        });
     },
 
     loadExam: async (id) => {
@@ -458,7 +495,19 @@ const examManager = {
                 delete q.options;
                 delete q.correctAnswer;
                 delete q.pairs;
+                delete q.subQuestions;
                 q.points = 0;
+            } else if (newType === 'image_multi') {
+                // Picture Comprehension: One image with multiple questions (A-E options each)
+                q.subQuestions = [
+                    { id: Utils.generateId(), number: 1, correctAnswer: '' },
+                    { id: Utils.generateId(), number: 2, correctAnswer: '' },
+                    { id: Utils.generateId(), number: 3, correctAnswer: '' }
+                ];
+                q.numSubQuestions = 3;
+                delete q.options;
+                delete q.correctAnswer;
+                delete q.pairs;
             } else {
                 // mcq or image_mcq
                 q.options = [
@@ -466,6 +515,8 @@ const examManager = {
                     { id: Utils.generateId(), text: '', isCorrect: false }
                 ];
                 if (newType !== 'image_mcq') delete q.image;
+                delete q.subQuestions;
+                delete q.numSubQuestions;
             }
             examManager.renderQuestions();
         }
@@ -477,14 +528,18 @@ const examManager = {
 
     closeImportModal: () => {
         document.getElementById('import-modal').style.display = 'none';
-        document.getElementById('import-text').value = '';
+        // Clear Quill editor content
+        if (examManager.quillEditor) {
+            examManager.quillEditor.setText('');
+        }
         // Reset import points to default
         const importPointsInput = document.getElementById('import-points');
         if (importPointsInput) importPointsInput.value = '0.5';
     },
 
     processBulkImport: () => {
-        const text = document.getElementById('import-text').value;
+        // Get plain text from Quill editor (strips HTML, keeps only text content)
+        const text = examManager.quillEditor ? examManager.quillEditor.getText() : '';
         if (!text.trim()) {
             alert('Please paste some text.');
             return;
@@ -706,8 +761,8 @@ const examManager = {
                 // Insert before question text container
                 const qTextEl = qEl.querySelector('.q-text').parentNode;
                 qTextEl.parentNode.insertBefore(mediaSection, qTextEl);
-            } else {
-                // No media attached - show "Add Media" button
+            } else if (q.type !== 'image_multi') {
+                // No media attached - show "Add Media" button (except for Picture Comprehension which has its own image upload)
                 const addMediaSection = document.createElement('div');
                 addMediaSection.style.cssText = 'margin: 10px 0;';
                 addMediaSection.innerHTML = `
@@ -870,6 +925,88 @@ const examManager = {
                     examManager.renderQuestions();
                 };
                 optsContainer.appendChild(addPairBtn);
+            } else if (q.type === 'image_multi') {
+                // Picture Comprehension: One image with multiple sub-questions (A-E options each)
+
+                // Image Upload
+                const imgDiv = document.createElement('div');
+                imgDiv.style.marginBottom = '15px';
+                imgDiv.innerHTML = `
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">📷 Upload Comprehension Image</label>
+                    <input type="file" accept="image/*" class="form-control file-upload-btn" style="margin-bottom: 10px; padding: 10px 16px; cursor: pointer; border: 2px dashed var(--primary-color); background: rgba(99, 102, 241, 0.05); color: var(--primary-color); border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease;">
+                    ${q.image ? `<img src="${q.image}" style="max-width: 100%; max-height: 300px; margin-top: 10px; border-radius: 4px; border: 1px solid var(--border-color);">` : ''}
+                `;
+                const fileInput = imgDiv.querySelector('input');
+                fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                            q.image = evt.target.result;
+                            examManager.renderQuestions();
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                };
+                optsContainer.appendChild(imgDiv);
+
+                // Number of Questions Selector
+                const numQDiv = document.createElement('div');
+                numQDiv.style.marginBottom = '15px';
+                numQDiv.innerHTML = `
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">Number of Questions</label>
+                    <select class="form-control" style="width: 80px;">
+                        ${Array.from({length: 100}, (_, i) => i + 1).map(n => `<option value="${n}" ${q.numSubQuestions === n ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                `;
+                numQDiv.querySelector('select').onchange = (e) => {
+                    const newCount = parseInt(e.target.value);
+                    q.numSubQuestions = newCount;
+                    // Adjust subQuestions array
+                    if (newCount > q.subQuestions.length) {
+                        // Add more questions
+                        for (let i = q.subQuestions.length + 1; i <= newCount; i++) {
+                            q.subQuestions.push({ id: Utils.generateId(), number: i, correctAnswer: '' });
+                        }
+                    } else {
+                        // Remove excess questions
+                        q.subQuestions = q.subQuestions.slice(0, newCount);
+                    }
+                    examManager.renderQuestions();
+                };
+                optsContainer.appendChild(numQDiv);
+
+                // Sub-questions with correct answers
+                const subQContainer = document.createElement('div');
+                subQContainer.style.cssText = 'background: var(--inner-bg); padding: 15px; border-radius: 8px; margin-top: 15px;';
+                subQContainer.innerHTML = '<label style="font-weight: 600; display: block; margin-bottom: 10px;">Set Correct Answers</label>';
+
+                q.subQuestions = q.subQuestions || [];
+                q.subQuestions.forEach((subQ, idx) => {
+                    const subQDiv = document.createElement('div');
+                    subQDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 10px; gap: 10px;';
+                    subQDiv.innerHTML = `
+                        <span style="font-weight: 600; min-width: 90px;">Question ${subQ.number}:</span>
+                        <div style="display: flex; gap: 8px;">
+                            ${['A', 'B', 'C', 'D', 'E'].map(opt => `
+                                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 8px; border-radius: 4px; ${subQ.correctAnswer === opt ? 'background: var(--success-color); color: white;' : 'background: var(--card-bg);'}">
+                                    <input type="radio" name="subq_${subQ.id}" value="${opt}" ${subQ.correctAnswer === opt ? 'checked' : ''} style="cursor: pointer;">
+                                    <span>${opt}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    `;
+                    subQDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
+                        radio.onchange = () => {
+                            subQ.correctAnswer = radio.value;
+                            examManager.renderQuestions();
+                        };
+                    });
+                    subQContainer.appendChild(subQDiv);
+                });
+
+                optsContainer.appendChild(subQContainer);
+
             } else if (q.type === 'theory') {
                 // Theory questions don't need options
                 // Just show a note that students will write their answers
@@ -877,7 +1014,7 @@ const examManager = {
                 theoryDiv.innerHTML = `
                     <div class="form-group">
                         <p style="color: var(--light-text); font-size: 0.9rem; font-style: italic;">
-                            📝 Students will provide a written answer for this question. This question requires manual grading.
+                            Students will provide a written answer for this question. This question requires manual grading.
                         </p>
                     </div>
                 `;
@@ -963,6 +1100,26 @@ const examManager = {
             } else if (q.type === 'theory') {
                 // Theory questions only need text, no validation for options/answers
                 // They will be manually graded
+            } else if (q.type === 'image_multi') {
+                // Picture Comprehension validation
+                if (!q.image) {
+                    alert(`Question ${i + 1} (Picture Comprehension) needs an image.`);
+                    valid = false;
+                    return;
+                }
+                if (!q.subQuestions || q.subQuestions.length === 0) {
+                    alert(`Question ${i + 1} (Picture Comprehension) needs at least one sub-question.`);
+                    valid = false;
+                    return;
+                }
+                // Check that all sub-questions have correct answers selected
+                const missingAnswers = q.subQuestions.filter(sq => !sq.correctAnswer);
+                if (missingAnswers.length > 0) {
+                    const qNumbers = missingAnswers.map(sq => sq.number).join(', ');
+                    alert(`Question ${i + 1} (Picture Comprehension) is missing correct answers for sub-question(s): ${qNumbers}`);
+                    valid = false;
+                    return;
+                }
             }
         });
 

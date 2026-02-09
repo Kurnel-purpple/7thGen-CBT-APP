@@ -36,21 +36,19 @@ const examResults = {
 
                 exam.questions.forEach(q => {
                     const qPoints = parseFloat(q.points) || 0.5;
-
-                    // Skip theory questions - they require manual grading
-                    if (q.type === 'theory') {
-                        // Don't add to totalPossible since theory questions have 0 points
-                        return;
-                    }
-
                     totalPossible += qPoints;
-                    const answer = r.answers[q.id];
 
-                    if (q.type === 'fill_blank') {
+                    if (q.type === 'theory') {
+                        // Theory questions - use saved theory scores if available
+                        const theoryScore = r.theoryScores && r.theoryScores[q.id] ? parseFloat(r.theoryScores[q.id]) : 0;
+                        calculatedPoints += theoryScore;
+                    } else if (q.type === 'fill_blank') {
+                        const answer = r.answers[q.id];
                         if (answer && q.correctAnswer && answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
                             calculatedPoints += qPoints;
                         }
                     } else if (q.type === 'match') {
+                        const answer = r.answers[q.id];
                         if (answer) {
                             let allCorrect = true;
                             q.pairs.forEach((pair, idx) => {
@@ -58,8 +56,23 @@ const examResults = {
                             });
                             if (allCorrect) calculatedPoints += qPoints;
                         }
+                    } else if (q.type === 'image_multi') {
+                        // Picture Comprehension: Score based on correct sub-answers
+                        const answer = r.answers[q.id];
+                        if (answer && q.subQuestions) {
+                            let correctCount = 0;
+                            q.subQuestions.forEach(subQ => {
+                                if (answer[subQ.id] === subQ.correctAnswer) {
+                                    correctCount++;
+                                }
+                            });
+                            // Score proportionally
+                            const pointsPerSubQ = qPoints / q.subQuestions.length;
+                            calculatedPoints += correctCount * pointsPerSubQ;
+                        }
                     } else {
                         // MCQ, True/False, Image MCQ - check if options exist
+                        const answer = r.answers[q.id];
                         if (q.options) {
                             const correctOpt = q.options.find(o => o.isCorrect);
                             if (answer && correctOpt && correctOpt.id === answer) {
