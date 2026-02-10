@@ -1,4 +1,4 @@
-// Performance Monitor for Supabase Queries
+// Performance Monitor for PocketBase Queries
 // Add this to your main.js or dashboard
 
 const performanceMonitor = {
@@ -14,17 +14,18 @@ const performanceMonitor = {
             if (duration > 2000) {
                 console.warn(`🐌 Slow query detected: ${queryName} took ${duration.toFixed(2)}ms`);
                 
-                // Log to Supabase for monitoring (optional)
-                if (window.supabaseClient) {
-                    window.supabaseClient
-                        .from('performance_logs')
-                        .insert([{
+                // Log to PocketBase for monitoring (optional)
+                if (window.dataService && window.dataService.pb) {
+                    try {
+                        await window.dataService.pb.collection('performance_logs').create({
                             query_name: queryName,
                             duration_ms: Math.round(duration),
                             user_agent: navigator.userAgent,
                             timestamp: new Date().toISOString()
-                        }])
-                        .catch(err => console.warn('Could not log performance:', err));
+                        });
+                    } catch (err) {
+                        console.warn('Could not log performance:', err);
+                    }
                 }
             }
             

@@ -1,176 +1,120 @@
 /**
- * Data Service Module (Supabase Version)
- * Handles persistence using Supabase Client.
+ * Data Service Module (PocketBase Version)
+ * Handles persistence using PocketBase Client.
  */
 
 class DataService {
     constructor() {
-        this.client = window.supabaseClient;
-        this.PROXY_DOMAIN = 'school.cbt'; // Domain to append for ID-based logins
+        // Initialize PocketBase client
+        this.pb = new PocketBase('http://127.0.0.1:8090'); // Change to your PocketBase URL
+        this.pb.autoCancellation(false);
+        
+        // Restore auth state from localStorage
+        const savedAuth = localStorage.getItem('pb_auth');
+        if (savedAuth) {
+            try {
+                this.pb.authStore.loadFromCookie(savedAuth);
+            } catch (e) {
+                console.warn('Failed to restore auth state:', e);
+            }
+        }
+        
+        this.PROXY_DOMAIN = 'school.cbt';
         this.queryCache = new Map();
         this.CACHE_TTL = 30000; // 30 seconds cache for dashboard queries
     }
 
-    _getSupabase() {
-        if (!this.client) {
-            // Retry getting it if strictly loaded order messed up (unlikely with defer/order in HTML)
-            if (window.supabaseClient) {
-                this.client = window.supabaseClient;
-            } else {
-                throw new Error('Supabase client not initialized. Check your connection.');
-            }
-        }
-        return this.client;
+    _getPB() {
+        return this.pb;
     }
 
     /**
      * Helper to generate email from ID/Username
-     * Use a consistent domain for proxying.
      */
     _generateEmail(identifier) {
         identifier = identifier.trim();
-        // If it looks like an email, return it (for teachers who want to use email)
         if (identifier.includes('@')) {
             return identifier;
         }
-        // Otherwise, append dummy domain
-        // Sanitize identifier to be email-safe? (Spaces to dots, etc)
-        // Ideally IDs shouldn't have spaces, but let's handle basic trimming.
         return `${identifier}@${this.PROXY_DOMAIN}`;
     }
 
     // --- Auth ---
 
     async registerUser(userData) {
-        const sb = this._getSupabase();
-
-        // 1. Prepare Email
-        // If role is student, use 'username' (which is Student ID)
-        // If teacher, they might have put email or username.
         const email = this._generateEmail(userData.username);
-
-        // 2. Sign Up - The database trigger will auto-create the profile
-        // We pass user metadata which the trigger will use
-        const { data, error } = await sb.auth.signUp({
-            email: email,
-            password: userData.password,
-            options: {
-                data: {
-                    full_name: userData.name,
-                    role: userData.role,
-                    class_level: userData.classLevel || null,
-                    school_version: userData.schoolVersion || null
-                }
-            }
-        });
-
-        if (error) throw error;
-        if (!data.user) throw new Error('Registration failed for unknown reason.');
-
-        // 3. Try to create/update profile (backup in case trigger fails)
-        // The database trigger should handle this, but we try client-side too
-        const profileData = {
-            id: data.user.id,
-            role: userData.role,
-            full_name: userData.name,
-            class_level: userData.classLevel || null,
-            school_version: userData.schoolVersion || null
-        };
-
+        
         try {
-            // Use upsert to handle race conditions with the trigger
-            const { error: profileError } = await sb
-                .from('profiles')
-                .upsert([profileData], { onConflict: 'id' });
+            // Create user in PocketBase
+            const user = await this.pb.collection('users').create({
+                email: email,
+                password: userData.password,
+                passwordConfirm: userData.password,
+                role: userData.role,
+                full_name: userData.name,
+                class_level: userData.classLevel || null,
+                school_version: userData.schoolVersion || null,
+                emailVisibility: false
+            });
 
-            if (profileError) {
-                // Don't throw - the trigger might have already created the profile
-                console.warn('Client-side profile creation note:', profileError.message);
+            // Also create/update profile record
+            try {
+                await this.pb.collection('profiles').create({
+                    id: user.id,
+                    role: userData.role,
+                    full_name: userData.name,
+                    class_level: userData.classLevel || null,
+                    school_version: userData.schoolVersion || null,
+                    user: user.id
+                });
+            } catch (profileErr) {
+                console.warn('Profile creation note:', profileErr.message);
             }
-        } catch (profileErr) {
-            // Profile creation failed but auth user exists
-            // The database trigger should have created it, so just log
-            console.warn('Profile backup creation skipped:', profileErr.message);
-        }
 
-        return data.user;
+            return user;
+        } catch (error) {
+            throw new Error(error.message || 'Registration failed');
+        }
     }
 
     async login(identifier, password) {
-        const sb = this._getSupabase();
         const email = this._generateEmail(identifier);
 
         try {
-            // Step 1: Sign in with password
-            const { data, error } = await sb.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
-
-            if (error) throw error;
-
-            if (!data.user) {
+            // Authenticate with PocketBase
+            const authData = await this.pb.collection('users').authWithPassword(email, password);
+            
+            if (!authData.record) {
                 throw new Error('Login failed: No user data returned');
             }
 
-            // Step 2: Fetch Profile to get Role
-            // Add delay and retry logic to handle session establishment on mobile
+            // Save auth state
+            localStorage.setItem('pb_auth', JSON.stringify(this.pb.authStore.exportToCookie()));
+
+            // Get user profile
             let profile = null;
-            let profileError = null;
-            let retries = 3;
-
-            while (retries > 0 && !profile) {
-                // Wait longer on mobile networks
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                try {
-                    const result = await sb
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', data.user.id)
-                        .single();
-
-                    profile = result.data;
-                    profileError = result.error;
-
-                    if (profile) break; // Success!
-
-                } catch (err) {
-                    // Catch AbortError or network errors
-                    console.warn(`Profile fetch attempt ${4 - retries} failed:`, err);
-                    profileError = err;
-                }
-
-                retries--;
-                if (!profile && retries > 0) {
-                    console.log(`Retrying profile fetch... (${retries} attempts left)`);
-                }
-            }
-
-            if (profileError && !profile) {
-                console.error('Profile fetch error after retries:', profileError);
-                // More specific error message
-                if (profileError.code === 'PGRST116') {
-                    throw new Error('Profile not found. Your account may not be fully set up. Please contact support.');
-                }
-                if (profileError.name === 'AbortError' || (profileError.message && profileError.message.includes('abort'))) {
-                    throw new Error('Connection interrupted. Please check your network and try again.');
-                }
-                throw new Error(`Profile error: ${profileError.message || 'Unknown error'}`);
-            }
-
-            if (!profile) {
-                throw new Error('Profile not found after multiple attempts. Please contact support.');
+            try {
+                profile = await this.pb.collection('profiles').getFirstListItem(`user="${authData.record.id}"`);
+            } catch (profileErr) {
+                // Profile might not exist yet
+                console.warn('Profile fetch failed:', profileErr.message);
+                // Create profile from user data
+                profile = {
+                    role: authData.record.role || 'student',
+                    full_name: authData.record.full_name,
+                    class_level: authData.record.class_level,
+                    school_version: authData.record.school_version
+                };
             }
 
             const userObj = {
-                id: data.user.id,
-                email: data.user.email,
-                role: profile.role,
-                name: profile.full_name,
-                classLevel: profile.class_level,
-                schoolVersion: profile.school_version,
-                _sb_user: data.user
+                id: authData.record.id,
+                email: authData.record.email,
+                role: profile?.role || authData.record.role || 'student',
+                name: profile?.full_name || authData.record.full_name,
+                classLevel: profile?.class_level || authData.record.class_level,
+                schoolVersion: profile?.school_version || authData.record.school_version,
+                _pb_user: authData.record
             };
 
             localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
@@ -179,31 +123,26 @@ class DataService {
         } catch (err) {
             // Offline Fallback
             if (!navigator.onLine || err.message === 'Failed to fetch') {
-                // 1. Try Cached Session (Last logged in user)
                 const cachedUser = this.getCurrentUser();
                 if (cachedUser && cachedUser.email === email) {
                     console.warn('Network error, logging in with cached credentials.');
                     return cachedUser;
                 }
 
-                // 2. Try Offline Student List (Prepared Device)
                 const offlineUsers = JSON.parse(localStorage.getItem('cbt_offline_users') || '[]');
                 const offlineStudent = offlineUsers.find(u => {
-                    // Check either username (ID) or email
-                    // identifier is what user typed
                     return u.username === identifier || u.email === identifier;
                 });
 
                 if (offlineStudent) {
                     console.warn('Network error, treating as Offline Student Login.');
-                    // Create a simulated session user object
                     const userObj = {
                         id: offlineStudent.id,
                         email: offlineStudent.email || `${offlineStudent.username}@school.cbt`,
                         role: offlineStudent.role,
                         name: offlineStudent.full_name,
                         classLevel: offlineStudent.class_level,
-                        _sb_user: { id: offlineStudent.id, email: offlineStudent.email }
+                        _pb_user: { id: offlineStudent.id, email: offlineStudent.email }
                     };
 
                     localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
@@ -215,54 +154,46 @@ class DataService {
     }
 
     getCurrentUser() {
-        const sb = this._getSupabase();
-        const session = sb.auth.getSession(); // Async... wait.
-        // Supabase getSession is async, but we need synchronous for the existing app structure
-        // unless we refactor everything to async.
-        // We will rely on localStorage cache for immediate UI rendering,
-        // and background validaton.
-
         const cached = localStorage.getItem('cbt_user_meta');
         return cached ? JSON.parse(cached) : null;
     }
 
     async logout() {
-        const sb = this._getSupabase();
         try {
-            await sb.auth.signOut();
+            this.pb.authStore.clear();
         } catch (err) {
-            console.warn('Supabase signOut error:', err);
+            console.warn('PocketBase logout error:', err);
         } finally {
-            // Clear all cached user data
             localStorage.removeItem('cbt_user_meta');
-
-            // Clear any cached sessions
+            localStorage.removeItem('pb_auth');
             localStorage.removeItem('cbt_exam_cache');
             localStorage.removeItem('cbt_pending_submissions');
-
-            // DO NOT set this.client = null - this breaks subsequent logins!
-            // The Supabase client should persist across sessions
         }
     }
 
     async getUsers(role) {
-        // Only feasible if RLS allows.
-        // Our schema: "Public profiles are viewable by everyone" -> YES.
-        const sb = this._getSupabase();
-        let query = sb.from('profiles').select('*');
-        if (role) {
-            query = query.eq('role', role);
+        try {
+            let filter = '';
+            if (role) {
+                filter = `role="${role}"`;
+            }
+            
+            const users = await this.pb.collection('profiles').getFullList({
+                filter: filter
+            });
+            
+            return users;
+        } catch (error) {
+            throw error;
         }
-        const { data, error } = await query;
-        if (error) throw error;
-        return data;
     }
 
     // --- Exams ---
 
-async getExams(filters = {}) {
-        // Check cache for dashboard queries
+    async getExams(filters = {}) {
         const cacheKey = `exams_${JSON.stringify(filters)}`;
+        
+        // Check cache for dashboard queries
         if (filters.studentDashboard && this.queryCache.has(cacheKey)) {
             const cached = this.queryCache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.CACHE_TTL) {
@@ -271,66 +202,61 @@ async getExams(filters = {}) {
             }
         }
 
-        const sb = this._getSupabase();
-        let query = sb.from('exams').select(`
-            id, title, subject, target_class, duration, pass_score, 
-            instructions, status, created_by, created_at, updated_at,
-            scheduled_date, scramble_questions, extensions, global_extension
-        `);
+        try {
+            let filterString = '';
+            
+            if (filters.status) {
+                filterString += `status="${filters.status}"`;
+            }
+            
+            if (filters.teacherId) {
+                if (filterString) filterString += ' && ';
+                filterString += `created_by="${filters.teacherId}"`;
+            }
+            
+            if (filters.targetClass) {
+                if (filterString) filterString += ' && ';
+                filterString += `(target_class="${filters.targetClass}" || target_class="All")`;
+            }
 
-        if (filters.teacherId) {
-            query = query.eq('created_by', filters.teacherId);
+            const options = {
+                filter: filterString,
+                sort: '-created_at'
+            };
+            
+            if (filters.studentDashboard) {
+                options.perPage = 50;
+            }
+
+            const exams = await this.pb.collection('exams').getFullList(options);
+            
+            const mappedData = exams.map(e => this._mapExam(e));
+
+            // Cache dashboard queries
+            if (filters.studentDashboard) {
+                this.queryCache.set(cacheKey, {
+                    data: mappedData,
+                    timestamp: Date.now()
+                });
+            }
+
+            return mappedData;
+        } catch (error) {
+            throw error;
         }
-        if (filters.status) {
-            query = query.eq('status', filters.status);
-        }
-
-        // Handling Class Targeting - optimized for student dashboard
-        if (filters.targetClass) {
-            query = query.or(`target_class.eq.${filters.targetClass},target_class.eq.All`);
-        }
-
-        // Add limit for student dashboard to prevent large result sets
-        if (filters.studentDashboard) {
-            query = query.limit(50);
-        }
-
-        const { data, error } = await query.order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        const mappedData = data.map(e => this._mapExam(e));
-
-        // Cache dashboard queries
-        if (filters.studentDashboard) {
-            this.queryCache.set(cacheKey, {
-                data: mappedData,
-                timestamp: Date.now()
-            });
-        }
-
-        return mappedData;
     }
 
     async getExamById(id) {
-        const sb = this._getSupabase();
         try {
-            const { data, error } = await sb
-                .from('exams')
-                .select('*')
-                .eq('id', id)
-                .single();
-
-            if (error) throw error;
-
-            const exam = this._mapExam(data);
+            const exam = await this.pb.collection('exams').getOne(id);
+            const mappedExam = this._mapExam(exam);
 
             // Cache the exam
             const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
-            cache[id] = exam;
+            cache[id] = mappedExam;
             localStorage.setItem('cbt_exam_cache', JSON.stringify(cache));
 
-            return exam;
+            return mappedExam;
         } catch (err) {
             if (!navigator.onLine || err.message === 'Failed to fetch') {
                 const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
@@ -344,93 +270,74 @@ async getExams(filters = {}) {
     }
 
     async createExam(examData) {
-        const sb = this._getSupabase();
-
-        // Generate a client-side ID to prevent duplicates on retry
-        // This ID will be stored with the exam and checked before creating
         const clientGeneratedId = examData._clientId || `exam_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        const dbPayload = {
-            title: examData.title,
-            school_level: examData.schoolLevel || null,
-            subject: examData.subject,
-            target_class: examData.targetClass,
-            duration: examData.duration,
-            pass_score: examData.passScore,
-            instructions: examData.instructions,
-            theory_instructions: examData.theoryInstructions || null,
-            questions: examData.questions, // JSONB
-            status: examData.status || 'draft',
-            created_by: examData.createdBy, // Should match auth.uid()
-            scheduled_date: examData.scheduledDate || null,
-            scramble_questions: examData.scrambleQuestions || false,
-            client_id: clientGeneratedId // For deduplication
-        };
-
-        // Check if this exam was already created (e.g., network retry scenario)
+        // Check for existing exam
         try {
-            const { data: existing } = await sb
-                .from('exams')
-                .select('id')
-                .eq('client_id', clientGeneratedId)
-                .single();
-
+            const existing = await this.pb.collection('exams').getFirstListItem(`client_id="${clientGeneratedId}"`);
             if (existing) {
                 console.log('Exam already exists (duplicate prevented), returning existing:', existing.id);
                 return await this.getExamById(existing.id);
             }
         } catch (checkErr) {
-            // No existing exam found, continue with creation
+            // No existing exam found, continue
         }
 
-        const { data, error } = await sb
-            .from('exams')
-            .insert([dbPayload])
-            .select()
-            .single();
+        try {
+            const data = {
+                title: examData.title,
+                school_level: examData.schoolLevel || null,
+                subject: examData.subject,
+                target_class: examData.targetClass,
+                duration: examData.duration,
+                pass_score: examData.passScore,
+                instructions: examData.instructions,
+                theory_instructions: examData.theoryInstructions || null,
+                questions: examData.questions,
+                status: examData.status || 'draft',
+                created_by: examData.createdBy,
+                scheduled_date: examData.scheduledDate || null,
+                scramble_questions: examData.scrambleQuestions || false,
+                client_id: clientGeneratedId
+            };
 
-        if (error) throw error;
-        return this._mapExam(data);
+            const created = await this.pb.collection('exams').create(data);
+            return this._mapExam(created);
+        } catch (error) {
+            throw error;
+        }
     }
 
     async updateExam(id, updates) {
-        const sb = this._getSupabase();
+        try {
+            const data = {};
+            if (updates.title) data.title = updates.title;
+            if (updates.subject) data.subject = updates.subject;
+            if (updates.targetClass) data.target_class = updates.targetClass;
+            if (updates.duration) data.duration = updates.duration;
+            if (updates.passScore) data.pass_score = updates.passScore;
+            if (updates.instructions) data.instructions = updates.instructions;
+            if (updates.questions) data.questions = updates.questions;
+            if (updates.status) data.status = updates.status;
+            if (updates.extensions !== undefined) data.extensions = updates.extensions;
+            if (updates.globalExtension !== undefined) data.global_extension = updates.globalExtension;
+            if (updates.scheduledDate !== undefined) data.scheduled_date = updates.scheduledDate;
+            if (updates.scrambleQuestions !== undefined) data.scramble_questions = updates.scrambleQuestions;
 
-        const dbUpdates = {};
-        if (updates.title) dbUpdates.title = updates.title;
-        if (updates.subject) dbUpdates.subject = updates.subject;
-        if (updates.targetClass) dbUpdates.target_class = updates.targetClass;
-        if (updates.duration) dbUpdates.duration = updates.duration;
-        if (updates.passScore) dbUpdates.pass_score = updates.passScore;
-        if (updates.instructions) dbUpdates.instructions = updates.instructions;
-        if (updates.questions) dbUpdates.questions = updates.questions;
-        if (updates.status) dbUpdates.status = updates.status;
-        if (updates.extensions !== undefined) dbUpdates.extensions = updates.extensions;
-        if (updates.globalExtension !== undefined) dbUpdates.global_extension = updates.globalExtension;
-        if (updates.scheduledDate !== undefined) dbUpdates.scheduled_date = updates.scheduledDate;
-        if (updates.scrambleQuestions !== undefined) dbUpdates.scramble_questions = updates.scrambleQuestions;
-        dbUpdates.updated_at = new Date().toISOString();
-
-        const { data, error } = await sb
-            .from('exams')
-            .update(dbUpdates)
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return this._mapExam(data);
+            const updated = await this.pb.collection('exams').update(id, data);
+            return this._mapExam(updated);
+        } catch (error) {
+            throw error;
+        }
     }
 
     async deleteExam(id) {
-        const sb = this._getSupabase();
-        const { error } = await sb
-            .from('exams')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw error;
-        return true;
+        try {
+            await this.pb.collection('exams').delete(id);
+            return true;
+        } catch (error) {
+            throw error;
+        }
     }
 
     _mapExam(dbExam) {
@@ -458,59 +365,35 @@ async getExams(filters = {}) {
     // --- Results ---
 
     async saveResult(resultData) {
-        const sb = this._getSupabase();
-
-        const dbPayload = {
+        const data = {
             exam_id: resultData.examId,
             student_id: resultData.studentId,
             score: resultData.score,
             total_points: resultData.totalPoints,
             answers: resultData.answers,
-            // We use flags for status tracking if DB column doesn't exist
             flags: { ...resultData.flags, _status: 'completed' },
             submitted_at: new Date().toISOString()
         };
 
         try {
-            // Use upsert to handle both new submissions and re-submissions atomically
-            // This prevents race conditions and duplicates
-            const { data, error } = await sb
-                .from('results')
-                .upsert([dbPayload], {
-                    onConflict: 'exam_id,student_id',
-                    ignoreDuplicates: false // We want to update if exists
-                })
-                .select()
-                .single();
-
-            if (error) {
-                // If upsert fails (maybe no unique constraint), fall back to delete+insert
-                console.warn('Upsert failed, falling back to delete+insert:', error.message);
-
-                // Delete any existing entries
-                await sb
-                    .from('results')
-                    .delete()
-                    .eq('exam_id', resultData.examId)
-                    .eq('student_id', resultData.studentId);
-
-                // Insert the new result
-                const { data: insertData, error: insertError } = await sb
-                    .from('results')
-                    .insert([dbPayload])
-                    .select()
-                    .single();
-
-                if (insertError) throw insertError;
-                return this._mapResult(insertData);
+            // Try to find existing result first
+            try {
+                const existing = await this.pb.collection('results').getFirstListItem(
+                    `exam_id="${resultData.examId}" && student_id="${resultData.studentId}"`
+                );
+                // Update existing
+                const updated = await this.pb.collection('results').update(existing.id, data);
+                return this._mapResult(updated);
+            } catch (notFoundErr) {
+                // Create new
+                const created = await this.pb.collection('results').create(data);
+                return this._mapResult(created);
             }
-
-            return this._mapResult(data);
         } catch (err) {
             if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
                 const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-                dbPayload._local_id = Date.now();
-                pending.push(dbPayload);
+                data._local_id = Date.now();
+                pending.push(data);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
                 throw new Error('Saved Offline');
             }
@@ -519,68 +402,71 @@ async getExams(filters = {}) {
     }
 
     async startExamSession(examId, studentId) {
-        const sb = this._getSupabase();
-        // Check if exists
-        const { data: existing } = await sb
-            .from('results')
-            .select('id')
-            .eq('exam_id', examId)
-            .eq('student_id', studentId)
-            .single();
-
-        if (existing) return;
-
-        // Insert "In Progress" marker using flags column
-        const { error } = await sb
-            .from('results')
-            .insert([{
-                exam_id: examId,
-                student_id: studentId,
-                // STATUS and STARTED_AT columns do not exist.
-                // We piggyback on 'flags' JSONB.
-                flags: { _status: 'in-progress', _started_at: new Date().toISOString() },
-                score: 0,
-                total_points: 0,
-                answers: {}
-            }]);
-
-        if (error) {
+        try {
+            // Check if exists
+            try {
+                const existing = await this.pb.collection('results').getFirstListItem(
+                    `exam_id="${examId}" && student_id="${studentId}"`
+                );
+                return; // Already exists
+            } catch (notFoundErr) {
+                // Create new session marker
+                await this.pb.collection('results').create({
+                    exam_id: examId,
+                    student_id: studentId,
+                    flags: { _status: 'in-progress', _started_at: new Date().toISOString() },
+                    score: 0,
+                    total_points: 0,
+                    answers: {}
+                });
+            }
+        } catch (error) {
             console.error('Failed to start session', error);
         }
     }
 
-async getResults(filters = {}) {
-        const sb = this._getSupabase();
-        
-        // Optimize query - only select needed columns
-        let query = sb.from('results').select(`
-            id, exam_id, student_id, score, total_points, answers, 
-            submitted_at, flags, profiles(full_name)
-        `);
+    async getResults(filters = {}) {
+        try {
+            let filterString = '';
+            
+            if (filters.studentId) {
+                filterString += `student_id="${filters.studentId}"`;
+            }
+            
+            if (filters.examId) {
+                if (filterString) filterString += ' && ';
+                filterString += `exam_id="${filters.examId}"`;
+            }
 
-        if (filters.studentId) query = query.eq('student_id', filters.studentId);
-        if (filters.examId) query = query.eq('exam_id', filters.examId);
+            const options = {
+                filter: filterString,
+                sort: '-submitted_at',
+                expand: 'student_id' // Get student info
+            };
+            
+            if (filters.studentDashboard) {
+                options.perPage = 100;
+            }
 
-        // Add limit for student dashboard performance
-        if (filters.studentDashboard) {
-            query = query.limit(100);
+            const results = await this.pb.collection('results').getFullList(options);
+            return results.map(r => this._mapResult(r));
+        } catch (error) {
+            throw error;
         }
-
-        const { data, error } = await query.order('submitted_at', { ascending: false });
-        if (error) throw error;
-
-        return data.map(r => this._mapResult(r));
     }
 
     _mapResult(dbResult) {
         if (!dbResult) return null;
 
-        // Determine Status from Flags if Column missing
-        let status = 'completed'; // Default for old rows
+        let status = 'completed';
         if (dbResult.flags && dbResult.flags._status) {
             status = dbResult.flags._status;
-        } else if (dbResult.status) {
-            status = dbResult.status;
+        }
+
+        // Get student name from expanded relation
+        let studentName = 'Unknown';
+        if (dbResult.expand && dbResult.expand.student_id) {
+            studentName = dbResult.expand.student_id.full_name;
         }
 
         return {
@@ -588,125 +474,78 @@ async getResults(filters = {}) {
             examId: dbResult.exam_id,
             studentId: dbResult.student_id,
             score: dbResult.score,
-            totalPoints: (dbResult.flags && dbResult.flags._real_total_points) ? parseFloat(dbResult.flags._real_total_points) : dbResult.total_points,
+            totalPoints: (dbResult.flags && dbResult.flags._real_total_points) ? 
+                parseFloat(dbResult.flags._real_total_points) : dbResult.total_points,
             passScore: dbResult.pass_score,
             passed: dbResult.passed,
             answers: dbResult.answers,
             submittedAt: dbResult.submitted_at,
-            studentName: dbResult.profiles ? dbResult.profiles.full_name : 'Unknown',
+            studentName: studentName,
             flags: dbResult.flags || {},
             status: status
         };
     }
 
     async updateResult(resultId, updates) {
-        const sb = this._getSupabase();
+        try {
+            const data = {};
+            if (updates.flags !== undefined) data.flags = updates.flags;
+            if (updates.score !== undefined) data.score = updates.score;
+            if (updates.totalPoints !== undefined) data.total_points = updates.totalPoints;
+            if (updates.answers !== undefined) data.answers = updates.answers;
+            if (updates.passScore !== undefined) data.pass_score = updates.passScore;
+            if (updates.passed !== undefined) data.passed = updates.passed;
 
-        const dbUpdates = {};
-        if (updates.flags !== undefined) dbUpdates.flags = updates.flags;
-        if (updates.score !== undefined) dbUpdates.score = updates.score;
-        if (updates.totalPoints !== undefined) dbUpdates.total_points = updates.totalPoints;
-        if (updates.answers !== undefined) dbUpdates.answers = updates.answers;
-        if (updates.passScore !== undefined) dbUpdates.pass_score = updates.passScore;
-        if (updates.passed !== undefined) dbUpdates.passed = updates.passed;
-
-        const { data, error } = await sb
-            .from('results')
-            .update(dbUpdates)
-            .eq('id', resultId)
-            .select();
-
-        if (error) throw error;
-
-        // Return the first result if available, otherwise return a basic object
-        if (data && data.length > 0) {
-            return this._mapResult(data[0]);
+            const updated = await this.pb.collection('results').update(resultId, data);
+            return this._mapResult(updated);
+        } catch (error) {
+            // If no data returned (auth issue), return success indicator
+            if (error.status === 403) {
+                return { id: resultId, ...updates };
+            }
+            throw error;
         }
-
-        // If no data returned (RLS policy), return success indicator
-        return { id: resultId, ...updates };
     }
 
-
-    // Export singleton
     // --- Offline Prep ---
 
     async prepareOfflineData(teacherId) {
         if (!navigator.onLine) throw new Error('Must be online to prepare device.');
 
-        const sb = this._getSupabase();
+        try {
+            // Fetch students
+            const students = await this.pb.collection('profiles').getFullList({
+                filter: 'role="student"'
+            });
 
-        // 1. Fetch Requesting Teacher (Verify permissions? assuming yes)
+            // Fetch active exams
+            const exams = await this.pb.collection('exams').getFullList({
+                filter: 'status!="draft"'
+            });
 
-        // 2. Fetch ALL Students (or scoped?)
-        // Fetching all 'student' role profiles
-        const { data: students, error: studentError } = await sb
-            .from('profiles')
-            .select('*')
-            .eq('role', 'student');
-
-        if (studentError) throw studentError;
-
-        // 3. Fetch Active Exams
-        // We might want ALL exams or just those created by this teacher?
-        // Let's fetch ALL exams for now to be safe for shared labs
-        const { data: exams, error: examError } = await sb
-            .from('exams')
-            .select('*')
-            .neq('status', 'draft'); // Only active/published
-
-        if (examError) throw examError;
-
-        // 4. Cache Students
-        // Store minimal needed info: id, username/email, name, class_level
-        // We need 'username' which we map from ... wait, profiles doesn't have username column?
-        // In signup we used email. 'username' is implicit in email "ID@domain". 
-        // We should extract ID from email if username column is missing.
-        // Or if profiles has username. Let's assume standard profiles schema or extract.
-        // Looking at registerUser: email = ID@domain. So ID = email.split('@')[0].
-
-        const offlineUsers = students.map(s => {
-            // Extract ID from email if possible, or assume s.username exists if added previously
-            // s.email might not be in profile if not selected query! 
-            // Wait, profiles usually has ID, Role, Full Name, Class. 
-            // Email is in auth.users. Implementation complexity: We can't query auth.users easily.
-            // We'll rely on profiles. If profiles doesn't have the "ID" string (username), we rely on full_name?
-            // Ideally we should have stored 'username' in profile.
-            // Workaround: We will search by Full Name or we need the unique Student ID.
-            // Let's assume for this feature, students log in with ID, and we stored that ID... where?
-            // In registerUser we did: email = identifier@domain.
-            // We can't reverse engineer easily without email in profile.
-            // FIX: We will store 'username' in profile during register in future. 
-            // For now, let's assume we can match by 'id' if we knew it? No student doesn't know UUID.
-            // Let's just store the profile and match 'full_name' as username? No, unreliable.
-
-            // Check if 'username' field exists in fetched data (it might if we added it way back)
-            // If not, we might need to rely on 'full_name' for now or update schema.
-            // Let's assume 'username' is NOT in profile based on previous registerUser code (it only inserts full_name, role, class).
-            // CRITICAL: We need a way to identify students. using 'full_name' is risky but only option without schema change.
-            // OR we update `registerUser` to add `username` to profile (better).
-            // Use `full_name` as fallback username for now.
-
-            return {
+            // Cache students
+            const offlineUsers = students.map(s => ({
                 id: s.id,
-                username: s.username || s.full_name, // Fallback
+                username: s.username || s.full_name,
                 full_name: s.full_name,
                 role: 'student',
                 class_level: s.class_level,
-                email: s.email // might be undefined in profile
-            };
-        });
+                email: s.email
+            }));
 
-        localStorage.setItem('cbt_offline_users', JSON.stringify(offlineUsers));
+            localStorage.setItem('cbt_offline_users', JSON.stringify(offlineUsers));
 
-        // 5. Cache Exams
-        const examCache = {};
-        exams.forEach(e => {
-            examCache[e.id] = this._mapExam(e);
-        });
-        localStorage.setItem('cbt_exam_cache', JSON.stringify(examCache));
+            // Cache exams
+            const examCache = {};
+            exams.forEach(e => {
+                examCache[e.id] = this._mapExam(e);
+            });
+            localStorage.setItem('cbt_exam_cache', JSON.stringify(examCache));
 
-        return { students: offlineUsers.length, exams: exams.length };
+            return { students: offlineUsers.length, exams: exams.length };
+        } catch (error) {
+            throw error;
+        }
     }
 
     async syncPendingResults() {
@@ -715,7 +554,7 @@ async getResults(filters = {}) {
         const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
         let pending = [];
 
-        // Get pending submissions from IndexedDB or localStorage
+        // Get pending submissions
         if (useIndexedDB) {
             try {
                 pending = await window.idb.getPendingSubmissions();
@@ -730,17 +569,14 @@ async getResults(filters = {}) {
         if (pending.length === 0) return { synced: 0, pending: 0 };
 
         console.log(`📤 Syncing ${pending.length} pending submissions...`);
-        const sb = this._getSupabase();
         const failed = [];
         let syncedCount = 0;
 
         for (const submission of pending) {
             try {
-                // Remove local-only fields before sending
                 const { _local_id, localId, timestamp, synced, cachedAt, ...cleanPayload } = submission;
 
-                // Normalize field names for Supabase
-                const dbPayload = {
+                const data = {
                     exam_id: cleanPayload.exam_id || cleanPayload.examId,
                     student_id: cleanPayload.student_id || cleanPayload.studentId,
                     score: cleanPayload.score,
@@ -751,16 +587,17 @@ async getResults(filters = {}) {
                     submitted_at: cleanPayload.submitted_at || cleanPayload.submittedAt || new Date().toISOString()
                 };
 
-                const { error } = await sb.from('results').insert([dbPayload]);
-                if (error) {
-                    // Check for duplicate key error (already submitted)
-                    if (error.code === '23505') {
-                        console.log('⏭️ Skipping duplicate submission for exam:', dbPayload.exam_id);
-                        syncedCount++; // Count as synced since it exists
-                    } else {
-                        throw error;
-                    }
-                } else {
+                try {
+                    // Check if already exists
+                    const existing = await this.pb.collection('results').getFirstListItem(
+                        `exam_id="${data.exam_id}" && student_id="${data.student_id}"`
+                    );
+                    // Update existing
+                    await this.pb.collection('results').update(existing.id, data);
+                    syncedCount++;
+                } catch (notFoundErr) {
+                    // Create new
+                    await this.pb.collection('results').create(data);
                     syncedCount++;
                 }
 
@@ -779,13 +616,7 @@ async getResults(filters = {}) {
         }
 
         // Update storage with failed submissions only
-        if (useIndexedDB) {
-            // For IndexedDB, we've already removed successful ones
-            // Just ensure localStorage is clean
-            localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
-        } else {
-            localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
-        }
+        localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
 
         console.log(`✅ Sync complete: ${syncedCount} sent, ${failed.length} pending`);
         return { synced: syncedCount, pending: failed.length };
@@ -794,84 +625,67 @@ async getResults(filters = {}) {
     // --- Messaging ---
 
     async sendMessage(messageData) {
-        const sb = this._getSupabase();
+        try {
+            const data = {
+                from_id: messageData.fromId,
+                to_id: messageData.toId,
+                message: messageData.message,
+                school_version: messageData.schoolVersion,
+                read: false
+            };
 
-        const dbPayload = {
-            from_id: messageData.fromId,
-            to_id: messageData.toId,
-            message: messageData.message,
-            school_version: messageData.schoolVersion,
-            read: false
-        };
-
-        const { data, error } = await sb
-            .from('messages')
-            .insert([dbPayload])
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+            const created = await this.pb.collection('messages').create(data);
+            return created;
+        } catch (error) {
+            throw error;
+        }
     }
 
     async getMessages(filters = {}) {
-        const sb = this._getSupabase();
-
         try {
-            // Try with joins first (requires proper FK relationships)
-            let query = sb.from('messages').select(`
-                *,
-                from:profiles!messages_from_id_fkey(full_name),
-                to:profiles!messages_to_id_fkey(full_name)
-            `);
-
-            if (filters.toId) query = query.eq('to_id', filters.toId);
-            if (filters.fromId) query = query.eq('from_id', filters.fromId);
-            if (filters.schoolVersion) query = query.eq('school_version', filters.schoolVersion);
-
-            const { data, error } = await query.order('created_at', { ascending: false });
-
-            if (error) {
-                // If join fails, try simple query without joins
-                console.warn('Join query failed, using simple query:', error.message);
-                let simpleQuery = sb.from('messages').select('*');
-
-                if (filters.toId) simpleQuery = simpleQuery.eq('to_id', filters.toId);
-                if (filters.fromId) simpleQuery = simpleQuery.eq('from_id', filters.fromId);
-                if (filters.schoolVersion) simpleQuery = simpleQuery.eq('school_version', filters.schoolVersion);
-
-                const { data: simpleData, error: simpleError } = await simpleQuery.order('created_at', { ascending: false });
-                if (simpleError) throw simpleError;
-                return simpleData;
+            let filterString = '';
+            
+            if (filters.toId) {
+                filterString += `to_id="${filters.toId}"`;
+            }
+            if (filters.fromId) {
+                if (filterString) filterString += ' && ';
+                filterString += `from_id="${filters.fromId}"`;
+            }
+            if (filters.schoolVersion) {
+                if (filterString) filterString += ' && ';
+                filterString += `school_version="${filters.schoolVersion}"`;
             }
 
-            return data;
-        } catch (err) {
-            console.error('getMessages error:', err);
-            throw err;
+            const messages = await this.pb.collection('messages').getFullList({
+                filter: filterString,
+                sort: '-created_at',
+                expand: 'from_id,to_id'
+            });
+
+            return messages;
+        } catch (error) {
+            console.error('getMessages error:', error);
+            throw error;
         }
     }
 
     async markMessageAsRead(messageId) {
-        const sb = this._getSupabase();
-        const { error } = await sb
-            .from('messages')
-            .update({ read: true })
-            .eq('id', messageId);
-
-        if (error) throw error;
-        return true;
+        try {
+            await this.pb.collection('messages').update(messageId, { read: true });
+            return true;
+        } catch (error) {
+            throw error;
+        }
     }
 
     async deleteMessage(messageId) {
-        const sb = this._getSupabase();
-        const { error } = await sb
-            .from('messages')
-            .delete()
-            .eq('id', messageId);
-
-        if (error) throw error;
-        return true;
+        try {
+            await this.pb.collection('messages').delete(messageId);
+            return true;
+        } catch (error) {
+            throw error;
+        }
     }
 }
 

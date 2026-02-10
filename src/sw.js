@@ -73,9 +73,9 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
-    // 1. Handle Supabase API requests specially
+    // 1. Handle PocketBase API requests specially
     // These need network-first with graceful offline handling
-    if (e.request.url.includes('supabase.co')) {
+    if (e.request.url.includes(':8090') || e.request.url.includes('/api/')) {
         // For GET requests (fetching data), try network first then return error response
         if (e.request.method === 'GET') {
             e.respondWith(
@@ -91,11 +91,11 @@ self.addEventListener('fetch', (e) => {
                         return response;
                     })
                     .catch(async () => {
-                        console.log('[SW] Supabase GET failed, checking API cache:', e.request.url);
+                        console.log('[SW] PocketBase GET failed, checking API cache:', e.request.url);
                         // Try API cache
                         const cachedResponse = await caches.match(e.request);
                         if (cachedResponse) {
-                            console.log('[SW] Serving Supabase response from cache');
+                            console.log('[SW] Serving PocketBase response from cache');
                             return cachedResponse;
                         }
                         // Return offline JSON response
@@ -117,8 +117,8 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
-    // 2. Handle CDN resources (Supabase JS, fonts, etc.)
-    if (e.request.url.includes('cdn.jsdelivr.net') ||
+    // 2. Handle CDN resources (PocketBase SDK, fonts, etc.)
+    if (e.request.url.includes('unpkg.com') ||
         e.request.url.includes('fonts.googleapis.com') ||
         e.request.url.includes('fonts.gstatic.com')) {
         e.respondWith(
