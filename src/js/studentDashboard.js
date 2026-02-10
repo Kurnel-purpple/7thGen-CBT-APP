@@ -159,7 +159,7 @@ const studentDashboard = {
         }
     },
 
-    loadData: async () => {
+loadData: async () => {
         const userId = studentDashboard.user.id;
         const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
 
@@ -167,12 +167,18 @@ const studentDashboard = {
         let serverResults = [];
         let isUsingCache = false;
 
-        try {
-            // Attempt to fetch from server
+try {
+            // Attempt to fetch from server with optimizations
             [exams, serverResults] = await Promise.all([
-                dataService.getExams(),
+                dataService.getExams({ 
+                    status: 'active',
+                    studentDashboard: true // Use optimized query
+                }),
                 userId
-                    ? dataService.getResults({ studentId: userId })
+                    ? dataService.getResults({ 
+                        studentId: userId,
+                        studentDashboard: true // Use optimized query
+                    })
                     : Promise.resolve([])
             ]);
 

@@ -7,6 +7,8 @@ class DataService {
     constructor() {
         this.client = window.supabaseClient;
         this.PROXY_DOMAIN = 'school.cbt'; // Domain to append for ID-based logins
+        this.queryCache = new Map();
+        this.CACHE_TTL = 30000; // 30 seconds cache for dashboard queries
     }
 
     _getSupabase() {
@@ -258,9 +260,23 @@ class DataService {
 
     // --- Exams ---
 
-    async getExams(filters = {}) {
+async getExams(filters = {}) {
+        // Check cache for dashboard queries
+        const cacheKey = `exams_${JSON.stringify(filters)}`;
+        if (filters.studentDashboard && this.queryCache.has(cacheKey)) {
+            const cached = this.queryCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < this.CACHE_TTL) {
+                console.log('📋 Serving exams from cache');
+                return cached.data;
+            }
+        }
+
         const sb = this._getSupabase();
-        let query = sb.from('exams').select('*');
+        let query = sb.from('exams').select(`
+            id, title, subject, target_class, duration, pass_score, 
+            instructions, status, created_by, created_at, updated_at,
+            scheduled_date, scramble_questions, extensions, global_extension
+        `);
 
         if (filters.teacherId) {
             query = query.eq('created_by', filters.teacherId);
@@ -269,20 +285,31 @@ class DataService {
             query = query.eq('status', filters.status);
         }
 
-        // Handling Class Targeting
-        // Often we want exams for a specific class OR 'All'
-        // If filters.targetClass is passed (e.g. by Student view)
+        // Handling Class Targeting - optimized for student dashboard
         if (filters.targetClass) {
             query = query.or(`target_class.eq.${filters.targetClass},target_class.eq.All`);
+        }
+
+        // Add limit for student dashboard to prevent large result sets
+        if (filters.studentDashboard) {
+            query = query.limit(50);
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Remap to match internal app structure if needed
-        // App uses camelCase, DB uses snake_case
-        return data.map(e => this._mapExam(e));
+        const mappedData = data.map(e => this._mapExam(e));
+
+        // Cache dashboard queries
+        if (filters.studentDashboard) {
+            this.queryCache.set(cacheKey, {
+                data: mappedData,
+                timestamp: Date.now()
+            });
+        }
+
+        return mappedData;
     }
 
     async getExamById(id) {
@@ -522,12 +549,22 @@ class DataService {
         }
     }
 
-    async getResults(filters = {}) {
+async getResults(filters = {}) {
         const sb = this._getSupabase();
-        let query = sb.from('results').select('*, profiles(full_name)');
+        
+        // Optimize query - only select needed columns
+        let query = sb.from('results').select(`
+            id, exam_id, student_id, score, total_points, answers, 
+            submitted_at, flags, profiles(full_name)
+        `);
 
         if (filters.studentId) query = query.eq('student_id', filters.studentId);
         if (filters.examId) query = query.eq('exam_id', filters.examId);
+
+        // Add limit for student dashboard performance
+        if (filters.studentDashboard) {
+            query = query.limit(100);
+        }
 
         const { data, error } = await query.order('submitted_at', { ascending: false });
         if (error) throw error;
