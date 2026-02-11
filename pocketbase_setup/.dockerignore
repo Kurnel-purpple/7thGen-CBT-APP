@@ -1,0 +1,10 @@
+# Don't include the Windows binary or zip in the Docker image
+pocketbase.exe
+pocketbase.zip
+
+# Don't include local data (the Fly volume handles persistence)
+pb_data/
+
+# Don't include docs
+CHANGELOG.md
+LICENSE.md

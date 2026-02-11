@@ -6,19 +6,33 @@
 class DataService {
     constructor() {
         // Initialize PocketBase client
-        this.pb = new PocketBase('http://127.0.0.1:8090'); // Change to your PocketBase URL
+        this.pb = new PocketBase('https://gen7-cbt-app.fly.dev'); // Production PocketBase on Fly.io
         this.pb.autoCancellation(false);
-        
+
         // Restore auth state from localStorage
         const savedAuth = localStorage.getItem('pb_auth');
         if (savedAuth) {
             try {
-                this.pb.authStore.loadFromCookie(savedAuth);
+                const authData = JSON.parse(savedAuth);
+                if (authData.token) {
+                    this.pb.authStore.save(authData.token, authData.model);
+                    console.log('✅ Auth restored for:', authData.model?.email);
+                }
             } catch (e) {
                 console.warn('Failed to restore auth state:', e);
+                localStorage.removeItem('pb_auth');
             }
         }
-        
+
+        // Auto-persist auth state whenever it changes
+        this.pb.authStore.onChange((token, model) => {
+            if (token) {
+                localStorage.setItem('pb_auth', JSON.stringify({ token, model }));
+            } else {
+                localStorage.removeItem('pb_auth');
+            }
+        });
+
         this.PROXY_DOMAIN = 'school.cbt';
         this.queryCache = new Map();
         this.CACHE_TTL = 30000; // 30 seconds cache for dashboard queries
@@ -43,7 +57,7 @@ class DataService {
 
     async registerUser(userData) {
         const email = this._generateEmail(userData.username);
-        
+
         try {
             // Create user in PocketBase
             const user = await this.pb.collection('users').create({
@@ -83,13 +97,12 @@ class DataService {
         try {
             // Authenticate with PocketBase
             const authData = await this.pb.collection('users').authWithPassword(email, password);
-            
+
             if (!authData.record) {
                 throw new Error('Login failed: No user data returned');
             }
 
-            // Save auth state
-            localStorage.setItem('pb_auth', JSON.stringify(this.pb.authStore.exportToCookie()));
+            // Auth state is auto-saved by the onChange listener in constructor
 
             // Get user profile
             let profile = null;
@@ -177,11 +190,11 @@ class DataService {
             if (role) {
                 filter = `role="${role}"`;
             }
-            
+
             const users = await this.pb.collection('profiles').getFullList({
                 filter: filter
             });
-            
+
             return users;
         } catch (error) {
             throw error;
@@ -192,7 +205,7 @@ class DataService {
 
     async getExams(filters = {}) {
         const cacheKey = `exams_${JSON.stringify(filters)}`;
-        
+
         // Check cache for dashboard queries
         if (filters.studentDashboard && this.queryCache.has(cacheKey)) {
             const cached = this.queryCache.get(cacheKey);
@@ -204,16 +217,16 @@ class DataService {
 
         try {
             let filterString = '';
-            
+
             if (filters.status) {
                 filterString += `status="${filters.status}"`;
             }
-            
+
             if (filters.teacherId) {
                 if (filterString) filterString += ' && ';
                 filterString += `created_by="${filters.teacherId}"`;
             }
-            
+
             if (filters.targetClass) {
                 if (filterString) filterString += ' && ';
                 filterString += `(target_class="${filters.targetClass}" || target_class="All")`;
@@ -221,15 +234,15 @@ class DataService {
 
             const options = {
                 filter: filterString,
-                sort: '-created_at'
+                sort: '-created'
             };
-            
+
             if (filters.studentDashboard) {
                 options.perPage = 50;
             }
 
             const exams = await this.pb.collection('exams').getFullList(options);
-            
+
             const mappedData = exams.map(e => this._mapExam(e));
 
             // Cache dashboard queries
@@ -353,8 +366,8 @@ class DataService {
             questions: dbExam.questions,
             status: dbExam.status,
             createdBy: dbExam.created_by,
-            createdAt: dbExam.created_at,
-            updatedAt: dbExam.updated_at,
+            createdAt: dbExam.created,
+            updatedAt: dbExam.updated,
             extensions: dbExam.extensions || {},
             globalExtension: dbExam.global_extension || null,
             scheduledDate: dbExam.scheduled_date || null,
@@ -428,11 +441,11 @@ class DataService {
     async getResults(filters = {}) {
         try {
             let filterString = '';
-            
+
             if (filters.studentId) {
                 filterString += `student_id="${filters.studentId}"`;
             }
-            
+
             if (filters.examId) {
                 if (filterString) filterString += ' && ';
                 filterString += `exam_id="${filters.examId}"`;
@@ -440,10 +453,10 @@ class DataService {
 
             const options = {
                 filter: filterString,
-                sort: '-submitted_at',
+                sort: '-submitted_at',  // This is a custom field, not PocketBase's built-in
                 expand: 'student_id' // Get student info
             };
-            
+
             if (filters.studentDashboard) {
                 options.perPage = 100;
             }
@@ -474,7 +487,7 @@ class DataService {
             examId: dbResult.exam_id,
             studentId: dbResult.student_id,
             score: dbResult.score,
-            totalPoints: (dbResult.flags && dbResult.flags._real_total_points) ? 
+            totalPoints: (dbResult.flags && dbResult.flags._real_total_points) ?
                 parseFloat(dbResult.flags._real_total_points) : dbResult.total_points,
             passScore: dbResult.pass_score,
             passed: dbResult.passed,
@@ -644,7 +657,7 @@ class DataService {
     async getMessages(filters = {}) {
         try {
             let filterString = '';
-            
+
             if (filters.toId) {
                 filterString += `to_id="${filters.toId}"`;
             }
@@ -659,7 +672,7 @@ class DataService {
 
             const messages = await this.pb.collection('messages').getFullList({
                 filter: filterString,
-                sort: '-created_at',
+                sort: '-created',
                 expand: 'from_id,to_id'
             });
 

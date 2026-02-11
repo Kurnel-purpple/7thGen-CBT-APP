@@ -1,0 +1,25 @@
+app = 'gen7-cbt-app'
+primary_region = 'jnb'
+
+# Build from our Dockerfile (no external image needed)
+[build]
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Persistent volume for PocketBase SQLite data
+[mounts]
+  source = "pb_data"
+  destination = "/pb/pb_data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

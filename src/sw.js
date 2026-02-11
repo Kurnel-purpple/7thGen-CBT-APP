@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-exam-v14';
+const CACHE_NAME = 'cbt-exam-v15';
 const ASSETS = [
     './',
     './index.html',
@@ -75,7 +75,7 @@ self.addEventListener('fetch', (e) => {
 
     // 1. Handle PocketBase API requests specially
     // These need network-first with graceful offline handling
-    if (e.request.url.includes(':8090') || e.request.url.includes('/api/')) {
+    if (e.request.url.includes('gen7-cbt-app.fly.dev') || e.request.url.includes('/api/')) {
         // For GET requests (fetching data), try network first then return error response
         if (e.request.method === 'GET') {
             e.respondWith(
