@@ -184,6 +184,22 @@ class DataService {
         }
     }
 
+    async updatePassword(oldPassword, newPassword) {
+        try {
+            if (!this.pb.authStore.isValid) {
+                throw new Error('Not authenticated');
+            }
+            await this.pb.collection('users').update(this.pb.authStore.model.id, {
+                oldPassword: oldPassword,
+                password: newPassword,
+                passwordConfirm: newPassword,
+            });
+            return true;
+        } catch (error) {
+            throw new Error(error.message || 'Failed to update password');
+        }
+    }
+
     async getUsers(role) {
         try {
             let filter = '';

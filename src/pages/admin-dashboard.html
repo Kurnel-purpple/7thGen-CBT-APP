@@ -334,12 +334,35 @@
                 grid-template-columns: 1fr;
             }
 
+            .admin-header {
+                padding: 20px 15px;
+                text-align: center;
+                border-radius: 0;
+                margin-bottom: 20px;
+            }
+
+            .admin-header>div {
+                flex-direction: column;
+                gap: 15px;
+            }
+
             .admin-header h1 {
                 font-size: 1.5rem;
             }
 
             .stats-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .header-actions {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .header-actions button {
+                width: 100%;
             }
         }
 
@@ -509,7 +532,12 @@
                     <h1>🔐 Admin Dashboard</h1>
                     <p id="admin-welcome">Welcome, Admin</p>
                 </div>
-                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                <div class="header-actions" style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="openChangePasswordModal()"
+                        style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(5px);">🔑
+                        Password</button>
+                    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                </div>
             </div>
         </div>
 
@@ -613,6 +641,67 @@
 
         <!-- Theme Toggle Button -->
         <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content"
+            style="max-width: 400px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="modal-header"
+                style="background: var(--primary-color); color: white; padding: 20px; margin-bottom: 0; border: none;">
+                <h3 style="margin: 0; color: white;">🔑 Change Password</h3>
+                <span class="close-btn" onclick="closeChangePasswordModal()"
+                    style="color: white; opacity: 0.8;">&times;</span>
+            </div>
+            <div style="padding: 24px; background: var(--card-bg);">
+                <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 24px;">
+                    Enter your current password and a new secure password.
+                </p>
+
+                <div class="control-group" style="margin-bottom: 20px;">
+                    <label
+                        style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">Current
+                        Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="current-password" class="form-control"
+                            autocomplete="current-password" placeholder="••••••••">
+                        <button type="button" onclick="togglePasswordVisibility('current-password', this)"
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; opacity: 0.6;">👁️</button>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">New
+                        Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="new-password" class="form-control" autocomplete="new-password"
+                            placeholder="At least 8 characters">
+                        <button type="button" onclick="togglePasswordVisibility('new-password', this)"
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; opacity: 0.6;">👁️</button>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 24px;">
+                    <label
+                        style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">Confirm
+                        New Password</label>
+                    <input type="password" id="confirm-new-password" class="form-control" autocomplete="new-password"
+                        placeholder="Repeat new password">
+                </div>
+
+                <div id="password-error"
+                    style="color: #e74c3c; font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px; display: none; background: #fff5f5; padding: 10px; border-radius: 6px; border: 1px solid #fed7d7;">
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 15px 24px; background: var(--inner-background); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
+                <button class="btn"
+                    style="background: transparent; border: 1px solid var(--border-color); color: var(--light-text);"
+                    onclick="closeChangePasswordModal()">Cancel</button>
+                <button id="submit-password-btn" class="btn btn-primary" onclick="submitPasswordChange()">Update
+                    Password</button>
+            </div>
+        </div>
     </div>
 
     <!-- PocketBase SDK -->
@@ -1019,6 +1108,73 @@
                 auth.logout();
             }
         }
+
+        // Change Password Functions
+        window.openChangePasswordModal = function () {
+            document.getElementById('change-password-modal').style.display = 'flex';
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-new-password').value = '';
+            const errorEl = document.getElementById('password-error');
+            if (errorEl) errorEl.style.display = 'none';
+        };
+
+        window.closeChangePasswordModal = function () {
+            document.getElementById('change-password-modal').style.display = 'none';
+        };
+
+        window.togglePasswordVisibility = function (inputId, button) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🔒';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+            }
+        };
+
+        window.submitPasswordChange = async function () {
+            const oldPass = document.getElementById('current-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('confirm-new-password').value;
+            const errorEl = document.getElementById('password-error');
+            const submitBtn = document.getElementById('submit-password-btn');
+
+            if (!oldPass || !newPass || !confirmPass) {
+                errorEl.textContent = 'Please fill in all fields';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'New passwords do not match';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (newPass.length < 8) {
+                errorEl.textContent = 'New password must be at least 8 characters';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+                errorEl.style.display = 'none';
+
+                await dataService.updatePassword(oldPass, newPass);
+
+                alert('Password updated successfully! Please login again with your new password.');
+                auth.logout();
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to update password';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Password';
+            }
+        };
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);

@@ -118,6 +118,11 @@
             </div>
             <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
                 <!-- Dark mode toggle will be injected here by utils.js -->
+                <button onclick="openChangePasswordModal()" class="btn"
+                    style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
+                    title="Change Password">
+                    🔑 <span class="desktop-text">Password</span>
+                </button>
                 <button onclick="auth.logout()" class="btn"
                     style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
                     Logout</button>
@@ -129,12 +134,24 @@
         <div id="mobile-menu" class="mobile-menu">
             <div class="mobile-menu-content">
                 <div class="mobile-user-row">
-                    <button onclick="auth.logout()" class="btn-logout-mobile">
-                        <span>🚪 Logout</span>
-                    </button>
+                    <div id="student-name-mobile"
+                        style="font-weight: bold; font-size: 1.1rem; color: var(--text-color);">Student Portal</div>
                     <button id="mobile-theme-toggle" class="btn"
                         style="background: transparent; font-size: 1.2rem;">🌓</button>
                 </div>
+
+                <div class="mobile-actions"
+                    style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="openChangePasswordModal()" class="btn btn-outline"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                        <span>🔑 Change Password</span>
+                    </button>
+                    <button onclick="auth.logout()" class="btn btn-outline"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; color: var(--accent-color); border-color: var(--accent-color);">
+                        <span>🚪 Logout</span>
+                    </button>
+                </div>
+
                 <div class="mobile-filter-group">
                     <label>Filter Subject:</label>
                     <select id="mobile-subject-filter" class="form-control">
@@ -320,6 +337,133 @@
     <script src="../js/dataService.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/studentDashboard.js"></script>
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content" style="max-width: 400px; margin: 5vh auto; width: 92%;">
+            <div class="modal-header">
+                <h3>🔑 Change Password</h3>
+                <span class="close-btn" onclick="closeChangePasswordModal()">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 20px;">
+                    Enter your current password and a new secure password.
+                </p>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label
+                        style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">Current
+                        Password</label>
+                    <div class="password-input-container" style="position: relative;">
+                        <input type="password" id="current-password" class="form-control"
+                            autocomplete="current-password" placeholder="••••••••"
+                            style="width: 100%; padding-right: 40px;">
+                        <button type="button" class="password-toggle-btn"
+                            onclick="togglePasswordVisibility('current-password', this)"
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;">👁️</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">New
+                        Password</label>
+                    <div class="password-input-container" style="position: relative;">
+                        <input type="password" id="new-password" class="form-control" autocomplete="new-password"
+                            placeholder="At least 8 characters" style="width: 100%; padding-right: 40px;">
+                        <button type="button" class="password-toggle-btn"
+                            onclick="togglePasswordVisibility('new-password', this)"
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;">👁️</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label
+                        style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">Confirm
+                        New Password</label>
+                    <input type="password" id="confirm-new-password" class="form-control" autocomplete="new-password"
+                        placeholder="Repeat new password" style="width: 100%;">
+                </div>
+
+                <div id="password-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;">
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeChangePasswordModal()">Cancel</button>
+                <button id="submit-password-btn" class="btn btn-primary" onclick="submitPasswordChange()">Update
+                    Password</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Change Password Functions
+        window.openChangePasswordModal = function () {
+            document.getElementById('change-password-modal').style.display = 'flex';
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-new-password').value = '';
+            const errorEl = document.getElementById('password-error');
+            if (errorEl) errorEl.style.display = 'none';
+        };
+
+        window.closeChangePasswordModal = function () {
+            document.getElementById('change-password-modal').style.display = 'none';
+        };
+
+        window.togglePasswordVisibility = function (inputId, button) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🔒';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+            }
+        };
+
+        window.submitPasswordChange = async function () {
+            const oldPass = document.getElementById('current-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('confirm-new-password').value;
+            const errorEl = document.getElementById('password-error');
+            const submitBtn = document.getElementById('submit-password-btn');
+
+            if (!oldPass || !newPass || !confirmPass) {
+                errorEl.textContent = 'Please fill in all fields';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'New passwords do not match';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (newPass.length < 8) {
+                errorEl.textContent = 'New password must be at least 8 characters';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+                errorEl.style.display = 'none';
+
+                await dataService.updatePassword(oldPass, newPass);
+
+                alert('Password updated successfully! Please login again with your new password.');
+                auth.logout();
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to update password';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Password';
+            }
+        };
+    </script>
 </body>
 
 </html>
