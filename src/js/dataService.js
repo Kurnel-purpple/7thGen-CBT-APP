@@ -200,6 +200,70 @@ class DataService {
         }
     }
 
+    /**
+     * Get current username (extracted from email, without @school.cbt)
+     */
+    getUsername() {
+        const user = this.getCurrentUser();
+        if (user && user.email) {
+            return user.email.replace(`@${this.PROXY_DOMAIN}`, '');
+        }
+        return '';
+    }
+
+    /**
+     * Change username (updates email field)
+     */
+    async changeUsername(newUsername, currentPassword) {
+        try {
+            if (!this.pb.authStore.isValid) {
+                throw new Error('Not authenticated');
+            }
+
+            // Validate username
+            if (!newUsername || newUsername.length < 3) {
+                throw new Error('Username must be at least 3 characters');
+            }
+
+            if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
+                throw new Error('Username can only contain letters, numbers, underscores, and hyphens');
+            }
+
+            const userId = this.pb.authStore.model.id;
+            const currentEmail = this.pb.authStore.model.email;
+
+            // Verify password first
+            try {
+                await this.pb.collection('users').authWithPassword(currentEmail, currentPassword);
+            } catch (authErr) {
+                throw new Error('Current password is incorrect');
+            }
+
+            // Update email with new username
+            const newEmail = `${newUsername}@${this.PROXY_DOMAIN}`;
+            await this.pb.collection('users').update(userId, {
+                email: newEmail
+            });
+
+            // Update cached user data
+            const cachedUser = this.getCurrentUser();
+            if (cachedUser) {
+                cachedUser.email = newEmail;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(cachedUser));
+            }
+
+            // Update auth store
+            const authData = await this.pb.collection('users').authRefresh();
+            if (authData.token) {
+                this.pb.authStore.save(authData.token, authData.record);
+            }
+
+            return true;
+        } catch (error) {
+            throw new Error(error.message || 'Failed to change username');
+        }
+    }
+
     async getUsers(role) {
         try {
             let filter = '';
