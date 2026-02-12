@@ -14,7 +14,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "nodemon --exec electron .",
-    "build": "electron-builder --win",
+    "build": "electron-builder",
     "build:all": "electron-builder --win --mac --linux",
     "build:portable": "electron-builder --win portable",
     "release": "electron-builder --win --publish always",
