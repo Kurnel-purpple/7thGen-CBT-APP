@@ -118,11 +118,21 @@
             </div>
             <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
                 <!-- Dark mode toggle will be injected here by utils.js -->
-                <button onclick="openChangePasswordModal()" class="btn"
-                    style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
-                    title="Change Password">
-                    🔑 <span class="desktop-text">Password</span>
-                </button>
+                <div class="dropdown" style="position: relative;">
+                    <button onclick="toggleCredentialsDropdown()" class="btn"
+                        style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
+                        title="Change Credentials">
+                        🔐 <span class="desktop-text">Credentials</span> ▼
+                    </button>
+                    <div id="credentials-dropdown" class="dropdown-content" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: white; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 160px; z-index: 1000;">
+                        <a href="#" onclick="openChangePasswordModal(); return false;" style="display: block; padding: 12px 16px; color: var(--text-color); text-decoration: none; border-bottom: 1px solid #f0f0f0;">
+                            🔑 Change Password
+                        </a>
+                        <a href="#" onclick="openChangeUsernameModal(); return false;" style="display: block; padding: 12px 16px; color: var(--text-color); text-decoration: none;">
+                            👤 Change Username
+                        </a>
+                    </div>
+                </div>
                 <button onclick="auth.logout()" class="btn"
                     style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
                     Logout</button>
@@ -142,10 +152,20 @@
 
                 <div class="mobile-actions"
                     style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                    <button onclick="openChangePasswordModal()" class="btn btn-outline"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                        <span>🔑 Change Password</span>
-                    </button>
+                    <div style="position: relative;">
+                        <button onclick="toggleMobileCredentialsDropdown()" class="btn btn-outline"
+                            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                            <span>🔐 Change Credentials ▼</span>
+                        </button>
+                        <div id="mobile-credentials-dropdown" style="display: none; margin-top: 5px; background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+                            <button onclick="openChangePasswordModal(); toggleMobileCredentialsDropdown();" class="btn" style="width: 100%; padding: 12px; border: none; border-bottom: 1px solid #f0f0f0; background: transparent; text-align: left;">
+                                🔑 Change Password
+                            </button>
+                            <button onclick="openChangeUsernameModal(); toggleMobileCredentialsDropdown();" class="btn" style="width: 100%; padding: 12px; border: none; background: transparent; text-align: left;">
+                                👤 Change Username
+                            </button>
+                        </div>
+                    </div>
                     <button onclick="auth.logout()" class="btn btn-outline"
                         style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; color: var(--accent-color); border-color: var(--accent-color);">
                         <span>🚪 Logout</span>
@@ -396,6 +416,47 @@
         </div>
     </div>
 
+    <!-- Change Username Modal -->
+    <div id="change-username-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content" style="max-width: 400px; margin: 5vh auto; width: 92%;">
+            <div class="modal-header">
+                <h3>👤 Change Username</h3>
+                <span class="close-btn" onclick="closeChangeUsernameModal()">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 20px;">
+                    Enter your current password and a new username.
+                </p>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">Current Username</label>
+                    <input type="text" id="current-username-display" class="form-control" readonly style="width: 100%; background: #f5f5f5;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">New Username</label>
+                    <input type="text" id="new-username" class="form-control" placeholder="e.g., USER001 or yaya2" style="width: 100%;">
+                    <small style="color: #666; font-size: 0.75rem;">Letters, numbers, underscores, and hyphens only (3-50 chars)</small>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">Current Password</label>
+                    <div class="password-input-container" style="position: relative;">
+                        <input type="password" id="username-current-password" class="form-control" placeholder="Enter current password" style="width: 100%; padding-right: 40px;">
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('username-current-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;">👁️</button>
+                    </div>
+                </div>
+
+                <div id="username-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;"></div>
+                <div id="username-success" style="color: #27ae60; font-size: 0.85rem; margin-top: 10px; display: none;"></div>
+            </div>
+            <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeChangeUsernameModal()">Cancel</button>
+                <button id="submit-username-btn" class="btn btn-primary" onclick="submitUsernameChange()">Update Username</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Change Password Functions
         window.openChangePasswordModal = function () {
@@ -461,6 +522,106 @@
                 errorEl.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Update Password';
+            }
+        };
+
+        // Credentials Dropdown Functions
+        window.toggleCredentialsDropdown = function () {
+            const dropdown = document.getElementById('credentials-dropdown');
+            if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+                dropdown.style.display = 'block';
+                document.addEventListener('click', closeCredentialsDropdownOutside);
+            } else {
+                dropdown.style.display = 'none';
+                document.removeEventListener('click', closeCredentialsDropdownOutside);
+            }
+        };
+
+        function closeCredentialsDropdownOutside(event) {
+            const dropdown = document.getElementById('credentials-dropdown');
+            const button = event.target.closest('.dropdown');
+            if (!button && dropdown.style.display === 'block') {
+                dropdown.style.display = 'none';
+                document.removeEventListener('click', closeCredentialsDropdownOutside);
+            }
+        }
+
+        window.toggleMobileCredentialsDropdown = function () {
+            const dropdown = document.getElementById('mobile-credentials-dropdown');
+            dropdown.style.display = dropdown.style.display === 'none' || dropdown.style.display === '' ? 'block' : 'none';
+        };
+
+        // Change Username Functions
+        window.openChangeUsernameModal = async function () {
+            document.getElementById('change-username-modal').style.display = 'flex';
+            document.getElementById('new-username').value = '';
+            document.getElementById('username-current-password').value = '';
+            document.getElementById('username-error').style.display = 'none';
+            document.getElementById('username-success').style.display = 'none';
+
+            // Load and display current username
+            try {
+                const currentUsername = dataService.getUsername();
+                document.getElementById('current-username-display').value = currentUsername;
+            } catch (err) {
+                console.error('Failed to get username:', err);
+                document.getElementById('current-username-display').value = 'Loading...';
+            }
+        };
+
+        window.closeChangeUsernameModal = function () {
+            document.getElementById('change-username-modal').style.display = 'none';
+        };
+
+        window.submitUsernameChange = async function () {
+            const newUsername = document.getElementById('new-username').value.trim();
+            const currentPassword = document.getElementById('username-current-password').value;
+            const errorEl = document.getElementById('username-error');
+            const successEl = document.getElementById('username-success');
+            const submitBtn = document.getElementById('submit-username-btn');
+
+            if (!newUsername || !currentPassword) {
+                errorEl.textContent = 'Please fill in all fields';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            if (newUsername.length < 3) {
+                errorEl.textContent = 'Username must be at least 3 characters';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
+                errorEl.textContent = 'Username can only contain letters, numbers, underscores, and hyphens';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+                errorEl.style.display = 'none';
+                successEl.style.display = 'none';
+
+                await dataService.changeUsername(newUsername, currentPassword);
+
+                successEl.textContent = 'Username updated successfully!';
+                successEl.style.display = 'block';
+                document.getElementById('current-username-display').value = newUsername;
+
+                setTimeout(() => {
+                    closeChangeUsernameModal();
+                }, 2000);
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to change username';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Username';
             }
         };
     </script>
