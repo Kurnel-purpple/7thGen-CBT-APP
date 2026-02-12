@@ -118,6 +118,11 @@
             </div>
             <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
                 <!-- Dark mode toggle will be injected here by utils.js -->
+                <button onclick="openChangePasswordModal()" class="btn"
+                    style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
+                    title="Change Password">
+                    🔑 <span class="desktop-text">Password</span>
+                </button>
                 <div class="dropdown" style="position: relative;">
                     <button onclick="toggleCredentialsDropdown()" class="btn"
                         style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
@@ -152,6 +157,10 @@
 
                 <div class="mobile-actions"
                     style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="openChangePasswordModal()" class="btn btn-outline"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                        <span>🔑 Change Password</span>
+                    </button>
                     <div style="position: relative;">
                         <button onclick="toggleMobileCredentialsDropdown()" class="btn btn-outline"
                             style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
