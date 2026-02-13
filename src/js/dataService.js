@@ -123,6 +123,7 @@ class DataService {
             const userObj = {
                 id: authData.record.id,
                 email: authData.record.email,
+                username: authData.record.username,
                 role: profile?.role || authData.record.role || 'student',
                 name: profile?.full_name || authData.record.full_name,
                 classLevel: profile?.class_level || authData.record.class_level,
@@ -201,20 +202,22 @@ class DataService {
     }
 
     /**
-     * Get current username (extracted from email, without @school.cbt)
+     * Get current username (prefers explicit username field, falls back to email extraction)
      */
     getUsername() {
         const user = this.getCurrentUser();
-        if (user && user.email) {
+        if (!user) return '';
+        if (user.username) return user.username;
+        if (user.email) {
             return user.email.replace(`@${this.PROXY_DOMAIN}`, '');
         }
         return '';
     }
 
     /**
-     * Change username (updates email field)
+     * Update username (updates both username and email field for login consistency)
      */
-    async changeUsername(newUsername, currentPassword) {
+    async updateUsername(newUsername) {
         try {
             if (!this.pb.authStore.isValid) {
                 throw new Error('Not authenticated');
@@ -229,38 +232,30 @@ class DataService {
                 throw new Error('Username can only contain letters, numbers, underscores, and hyphens');
             }
 
-            const userId = this.pb.authStore.model.id;
-            const currentEmail = this.pb.authStore.model.email;
-
-            // Verify password first
-            try {
-                await this.pb.collection('users').authWithPassword(currentEmail, currentPassword);
-            } catch (authErr) {
-                throw new Error('Current password is incorrect');
-            }
-
-            // Update email with new username
+            // Update both username and email (for login consistency)
             const newEmail = `${newUsername}@${this.PROXY_DOMAIN}`;
-            await this.pb.collection('users').update(userId, {
+            const updatedUser = await this.pb.collection('users').update(this.pb.authStore.model.id, {
+                username: newUsername,
                 email: newEmail
             });
 
-            // Update cached user data
-            const cachedUser = this.getCurrentUser();
-            if (cachedUser) {
-                cachedUser.email = newEmail;
-                localStorage.setItem('cbt_user_meta', JSON.stringify(cachedUser));
+            // Update local metadata cache
+            const cached = this.getCurrentUser();
+            if (cached) {
+                cached.username = updatedUser.username;
+                cached.email = updatedUser.email;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
             }
 
-            // Update auth store
-            const authData = await this.pb.collection('users').authRefresh();
-            if (authData.token) {
-                this.pb.authStore.save(authData.token, authData.record);
-            }
-
-            return true;
+            return updatedUser;
         } catch (error) {
-            throw new Error(error.message || 'Failed to change username');
+            if (error.status === 400 && error.data?.data?.username) {
+                throw new Error('This username is already taken. Please choose another.');
+            }
+            if (error.status === 400 && error.data?.data?.email) {
+                throw new Error('This username variant is already taken.');
+            }
+            throw new Error(error.message || 'Failed to update username');
         }
     }
 
@@ -782,5 +777,6 @@ class DataService {
     }
 }
 
-// Export singleton
+// Global instance
 window.dataService = new DataService();
+export default window.dataService;
