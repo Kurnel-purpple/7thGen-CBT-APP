@@ -200,6 +200,33 @@ class DataService {
         }
     }
 
+    async updateUsername(newUsername) {
+        try {
+            if (!this.pb.authStore.isValid) {
+                throw new Error('Not authenticated');
+            }
+
+            // Check if username is already taken (PB performs this check but we handle the error)
+            const updatedUser = await this.pb.collection('users').update(this.pb.authStore.model.id, {
+                username: newUsername
+            });
+
+            // Update local metadata cache
+            const cached = this.getCurrentUser();
+            if (cached) {
+                cached.username = updatedUser.username;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
+            }
+
+            return updatedUser;
+        } catch (error) {
+            if (error.status === 400 && error.data?.data?.username) {
+                throw new Error('This username is already taken. Please choose another.');
+            }
+            throw new Error(error.message || 'Failed to update username');
+        }
+    }
+
     async getUsers(role) {
         try {
             let filter = '';

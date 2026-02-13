@@ -60,6 +60,93 @@
             opacity: 0.7;
         }
 
+        /* Credentials Dropdown */
+        .credentials-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .dropdown-btn:hover {
+            background: var(--inner-bg);
+            border-color: var(--primary-color);
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 5px);
+            background: var(--card-bg);
+            min-width: 200px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 8px 0;
+            z-index: 4000;
+            border: 1px solid var(--border-color);
+            animation: slideUp 0.2s ease-out;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            text-decoration: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+        }
+
+        .dropdown-item:hover {
+            background: var(--inner-bg);
+            color: var(--primary-color);
+        }
+
+        .dropdown-item.danger {
+            color: var(--accent-color);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 8px 0;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Responsive tab labels */
         @media (max-width: 768px) {
             .tab-text {
@@ -118,14 +205,30 @@
             </div>
             <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
                 <!-- Dark mode toggle will be injected here by utils.js -->
-                <button onclick="openChangePasswordModal()" class="btn"
-                    style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
-                    title="Change Password">
-                    🔑 <span class="desktop-text">Password</span>
-                </button>
-                <button onclick="auth.logout()" class="btn"
-                    style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
-                    Logout</button>
+
+                <div class="credentials-dropdown">
+                    <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
+                        <span id="nav-user-display"
+                            style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">👤
+                            Account</span>
+                        <span style="font-size: 0.8rem; opacity: 0.6;">▼</span>
+                    </button>
+                    <div id="credentials-dropdown-content" class="dropdown-content">
+                        <div
+                            style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                            Settings</div>
+                        <button class="dropdown-item" onclick="openChangeUsernameModal()">
+                            <span>🆔 Change Username</span>
+                        </button>
+                        <button class="dropdown-item" onclick="openChangePasswordModal()">
+                            <span>🔑 Change Password</span>
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item danger" onclick="auth.logout()">
+                            <span>🚪 Logout</span>
+                        </button>
+                    </div>
+                </div>
             </div>
             <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
         </header>
@@ -142,6 +245,10 @@
 
                 <div class="mobile-actions"
                     style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="openChangeUsernameModal()" class="btn btn-outline"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                        <span>🆔 Change Username</span>
+                    </button>
                     <button onclick="openChangePasswordModal()" class="btn btn-outline"
                         style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
                         <span>🔑 Change Password</span>
@@ -396,7 +503,115 @@
         </div>
     </div>
 
+    <!-- Change Username Modal -->
+    <div id="change-username-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content" style="max-width: 400px; margin: 10vh auto; width: 92%;">
+            <div class="modal-header">
+                <h3>🆔 Change Username</h3>
+                <span class="close-btn" onclick="closeChangeUsernameModal()">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 20px;">
+                    Update your account identifier (username).
+                </p>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 5px;">New
+                        Username</label>
+                    <input type="text" id="new-username" class="form-control" placeholder="e.g. john.doe123"
+                        style="width: 100%;">
+                </div>
+
+                <div id="username-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;">
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeChangeUsernameModal()">Cancel</button>
+                <button id="submit-username-btn" class="btn btn-primary" onclick="submitUsernameChange()">Update
+                    Username</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Credentials Dropdown Functions
+        window.toggleCredentialsDropdown = function () {
+            const content = document.getElementById('credentials-dropdown-content');
+            content.classList.toggle('show');
+
+            // Close when clicking outside
+            const closeHandler = (e) => {
+                if (!e.target.closest('.credentials-dropdown')) {
+                    content.classList.remove('show');
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+
+            if (content.classList.contains('show')) {
+                setTimeout(() => document.addEventListener('click', closeHandler), 10);
+            }
+        };
+
+        // Change Username Functions
+        window.openChangeUsernameModal = function () {
+            document.getElementById('change-username-modal').style.display = 'flex';
+            const user = dataService.getCurrentUser();
+            if (user) {
+                document.getElementById('new-username').value = user.username || '';
+            }
+            document.getElementById('username-error').style.display = 'none';
+            // Close dropdown if open
+            const content = document.getElementById('credentials-dropdown-content');
+            if (content) content.classList.remove('show');
+        };
+
+        window.closeChangeUsernameModal = function () {
+            document.getElementById('change-username-modal').style.display = 'none';
+        };
+
+        window.submitUsernameChange = async function () {
+            const newUsername = document.getElementById('new-username').value.trim();
+            const errorEl = document.getElementById('username-error');
+            const submitBtn = document.getElementById('submit-username-btn');
+
+            if (!newUsername) {
+                errorEl.textContent = 'Username cannot be empty';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+                errorEl.style.display = 'none';
+
+                await dataService.updateUsername(newUsername);
+
+                alert('Username updated successfully!');
+
+                // Update nav display if needed
+                const navDisplay = document.getElementById('nav-user-display');
+                if (navDisplay) navDisplay.textContent = `👤 ${newUsername}`;
+
+                closeChangeUsernameModal();
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to update username';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Username';
+            }
+        };
+
+        // Update nav display initially
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = dataService.getCurrentUser();
+            if (user && user.username) {
+                const navDisplay = document.getElementById('nav-user-display');
+                if (navDisplay) navDisplay.textContent = `👤 ${user.username}`;
+            }
+        });
+
         // Change Password Functions
         window.openChangePasswordModal = function () {
             document.getElementById('change-password-modal').style.display = 'flex';

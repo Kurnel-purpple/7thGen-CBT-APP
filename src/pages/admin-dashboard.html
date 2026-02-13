@@ -106,6 +106,95 @@
             margin: 0;
         }
 
+        /* Credentials Dropdown */
+        .credentials-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+        }
+
+        .dropdown-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: white;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 10px);
+            background: white;
+            min-width: 220px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 8px 0;
+            z-index: 4000;
+            border: 1px solid var(--border-color);
+            animation: slideUp 0.2s ease-out;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 18px;
+            text-decoration: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .dropdown-item:hover {
+            background: var(--inner-background);
+            color: var(--primary-color);
+        }
+
+        .dropdown-item.danger {
+            color: var(--error-color);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 8px 0;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .section {
             background: white;
             padding: 25px;
@@ -532,11 +621,31 @@
                     <h1>🔐 Admin Dashboard</h1>
                     <p id="admin-welcome">Welcome, Admin</p>
                 </div>
-                <div class="header-actions" style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="openChangePasswordModal()"
-                        style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(5px);">🔑
-                        Password</button>
-                    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+                    <button class="theme-toggle" onclick="toggleTheme()"
+                        style="position: static; transform: none; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">🌓</button>
+
+                    <div class="credentials-dropdown">
+                        <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
+                            <span id="nav-user-display">👤 Account</span>
+                            <span style="font-size: 0.7rem; opacity: 0.8;">▼</span>
+                        </button>
+                        <div id="credentials-dropdown-content" class="dropdown-content">
+                            <div
+                                style="padding: 10px 18px; font-size: 0.7rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">
+                                Admin Settings</div>
+                            <button class="dropdown-item" onclick="openChangeUsernameModal()">
+                                <span>🆔 Change Username</span>
+                            </button>
+                            <button class="dropdown-item" onclick="openChangePasswordModal()">
+                                <span>🔑 Change Password</span>
+                            </button>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item danger" onclick="handleLogout()">
+                                <span>🚪 Logout</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -700,6 +809,41 @@
                     onclick="closeChangePasswordModal()">Cancel</button>
                 <button id="submit-password-btn" class="btn btn-primary" onclick="submitPasswordChange()">Update
                     Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Username Modal -->
+    <div id="change-username-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content"
+            style="max-width: 400px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="modal-header"
+                style="background: var(--primary-color); color: white; padding: 20px; margin-bottom: 0; border: none;">
+                <h3 style="margin: 0; color: white;">🆔 Change Username</h3>
+                <span class="close-btn" onclick="closeChangeUsernameModal()"
+                    style="color: white; opacity: 0.8;">&times;</span>
+            </div>
+            <div style="padding: 24px; background: var(--card-bg);">
+                <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 24px;">
+                    Update your admin account identifier (username).
+                </p>
+
+                <div class="control-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">New
+                        Username</label>
+                    <input type="text" id="new-username" class="form-control" placeholder="e.g. admin_pro"
+                        style="width: 100%; border-radius: 8px;">
+                </div>
+
+                <div id="username-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;">
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 20px 24px; background: var(--inner-background); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
+                <button class="btn btn-outline" onclick="closeChangeUsernameModal()"
+                    style="padding: 10px 20px; border-radius: 8px;">Cancel</button>
+                <button id="submit-username-btn" class="btn btn-primary" onclick="submitUsernameChange()"
+                    style="padding: 10px 25px; border-radius: 8px; font-weight: 600;">Update Username</button>
             </div>
         </div>
     </div>
@@ -1108,6 +1252,83 @@
                 auth.logout();
             }
         }
+
+        // Credentials Dropdown Functions
+        window.toggleCredentialsDropdown = function () {
+            const content = document.getElementById('credentials-dropdown-content');
+            content.classList.toggle('show');
+
+            // Close when clicking outside
+            const closeHandler = (e) => {
+                if (!e.target.closest('.credentials-dropdown')) {
+                    content.classList.remove('show');
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+
+            if (content.classList.contains('show')) {
+                setTimeout(() => document.addEventListener('click', closeHandler), 10);
+            }
+        };
+
+        // Change Username Functions
+        window.openChangeUsernameModal = function () {
+            document.getElementById('change-username-modal').style.display = 'flex';
+            const user = dataService.getCurrentUser();
+            if (user) {
+                document.getElementById('new-username').value = user.username || '';
+            }
+            document.getElementById('username-error').style.display = 'none';
+            // Close dropdown if open
+            const content = document.getElementById('credentials-dropdown-content');
+            if (content) content.classList.remove('show');
+        };
+
+        window.closeChangeUsernameModal = function () {
+            document.getElementById('change-username-modal').style.display = 'none';
+        };
+
+        window.submitUsernameChange = async function () {
+            const newUsername = document.getElementById('new-username').value.trim();
+            const errorEl = document.getElementById('username-error');
+            const submitBtn = document.getElementById('submit-username-btn');
+
+            if (!newUsername) {
+                errorEl.textContent = 'Username cannot be empty';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+                errorEl.style.display = 'none';
+
+                await dataService.updateUsername(newUsername);
+
+                alert('Username updated successfully!');
+
+                // Update nav display if needed
+                const navDisplay = document.getElementById('nav-user-display');
+                if (navDisplay) navDisplay.textContent = `👤 ${newUsername}`;
+
+                closeChangeUsernameModal();
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to update username';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Username';
+            }
+        };
+
+        // Update nav display initially
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = dataService.getCurrentUser();
+            if (user && user.username) {
+                const navDisplay = document.getElementById('nav-user-display');
+                if (navDisplay) navDisplay.textContent = `👤 ${user.username}`;
+            }
+        });
 
         // Change Password Functions
         window.openChangePasswordModal = function () {
