@@ -649,107 +649,108 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Admin Controls -->
-        <div class="admin-controls">
-            <div class="control-group">
-                <label for="school-id-input">School ID</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="school-id-input" class="form-control"
-                        placeholder="Enter your school ID (e.g. SEATOS2026)" style="flex: 1;">
-                    <button class="btn btn-primary" onclick="handleLoadSchool()" id="load-school-btn">
-                        🔍 Load
-                    </button>
-                </div>
-                <small style="color: var(--light-text); margin-top: 5px; display: block;">
-                    Enter your school ID to view teachers and exams.
-                </small>
+    <!-- Admin Controls -->
+    <div class="admin-controls">
+        <div class="control-group">
+            <label for="school-id-input">School ID</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="school-id-input" class="form-control"
+                    placeholder="Enter your school ID (e.g. SEATOS2026)" style="flex: 1;">
+                <button class="btn btn-primary" onclick="handleLoadSchool()" id="load-school-btn">
+                    🔍 Load
+                </button>
+            </div>
+            <small style="color: var(--light-text); margin-top: 5px; display: block;">
+                Enter your school ID to view teachers and exams.
+            </small>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Teachers</h3>
+            <p class="value" id="stat-teachers">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Total Exams</h3>
+            <p class="value" id="stat-exams">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Active Exams</h3>
+            <p class="value" id="stat-active">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Total Students</h3>
+            <p class="value" id="stat-students">0</p>
+        </div>
+    </div>
+
+    <!-- All Exams Section -->
+    <div class="section">
+        <div class="section-header">
+            <h2>📚 All Exams</h2>
+            <div>
+                <select id="exam-filter" onchange="filterExams()"
+                    style="padding: 8px 12px; border-radius: 6px; border: 2px solid var(--border-color);">
+                    <option value="all">All Exams</option>
+                    <option value="active">Active Only</option>
+                    <option value="draft">Drafts Only</option>
+                    <option value="archived">Archived Only</option>
+                </select>
             </div>
         </div>
-
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Total Teachers</h3>
-                <p class="value" id="stat-teachers">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Total Exams</h3>
-                <p class="value" id="stat-exams">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Active Exams</h3>
-                <p class="value" id="stat-active">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Total Students</h3>
-                <p class="value" id="stat-students">0</p>
+        <div id="exams-container" class="exam-grid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <p>Select a school version to view exams</p>
             </div>
         </div>
+    </div>
 
-        <!-- All Exams Section -->
-        <div class="section">
-            <div class="section-header">
-                <h2>📚 All Exams</h2>
-                <div>
-                    <select id="exam-filter" onchange="filterExams()"
-                        style="padding: 8px 12px; border-radius: 6px; border: 2px solid var(--border-color);">
-                        <option value="all">All Exams</option>
-                        <option value="active">Active Only</option>
-                        <option value="draft">Drafts Only</option>
-                        <option value="archived">Archived Only</option>
+    <!-- Messaging Section -->
+    <div class="section">
+        <div class="section-header">
+            <h2>💬 Teacher Messaging</h2>
+        </div>
+        <div class="messaging-section">
+            <div class="message-form">
+                <div class="control-group">
+                    <label for="teacher-select">Select Teacher</label>
+                    <select id="teacher-select">
+                        <option value="">Choose a teacher...</option>
+                        <option value="ALL_TEACHERS" style="font-weight: bold; color: var(--primary-color);">📢 All
+                            Teachers (Bulk Message)</option>
                     </select>
+                    <small id="teacher-count-hint"
+                        style="color: var(--light-text); font-size: 0.8rem; margin-top: 5px; display: none;">
+                        This will send to all teachers in your school.
+                    </small>
                 </div>
-            </div>
-            <div id="exams-container" class="exam-grid">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📋</div>
-                    <p>Select a school version to view exams</p>
+                <div class="control-group">
+                    <label for="message-text">Message</label>
+                    <textarea id="message-text" placeholder="Type your message here..."></textarea>
                 </div>
+                <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">
+                    📤 Send Message
+                </button>
             </div>
-        </div>
-
-        <!-- Messaging Section -->
-        <div class="section">
-            <div class="section-header">
-                <h2>💬 Teacher Messaging</h2>
-            </div>
-            <div class="messaging-section">
-                <div class="message-form">
-                    <div class="control-group">
-                        <label for="teacher-select">Select Teacher</label>
-                        <select id="teacher-select">
-                            <option value="">Choose a teacher...</option>
-                            <option value="ALL_TEACHERS" style="font-weight: bold; color: var(--primary-color);">📢 All
-                                Teachers (Bulk Message)</option>
-                        </select>
-                        <small id="teacher-count-hint"
-                            style="color: var(--light-text); font-size: 0.8rem; margin-top: 5px; display: none;">
-                            This will send to all teachers in your school.
-                        </small>
-                    </div>
-                    <div class="control-group">
-                        <label for="message-text">Message</label>
-                        <textarea id="message-text" placeholder="Type your message here..."></textarea>
-                    </div>
-                    <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">
-                        📤 Send Message
-                    </button>
-                </div>
-                <div class="message-history">
-                    <h3 style="margin-top: 0; margin-bottom: 15px;">Message History</h3>
-                    <div id="message-history-container">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">💬</div>
-                            <p>No messages sent yet</p>
-                        </div>
+            <div class="message-history">
+                <h3 style="margin-top: 0; margin-bottom: 15px;">Message History</h3>
+                <div id="message-history-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <p>No messages sent yet</p>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Theme Toggle Button -->
-        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌙</button>
     </div>
 
     <!-- Change Password Modal -->
@@ -1397,6 +1398,97 @@
             }
         };
 
+        // Credentials Dropdown Functions
+        window.toggleCredentialsDropdown = function () {
+            const content = document.getElementById('credentials-dropdown-content');
+            content.classList.toggle('show');
+
+            // Close when clicking outside
+            const closeHandler = (e) => {
+                if (!e.target.closest('.credentials-dropdown')) {
+                    content.classList.remove('show');
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+
+            if (content.classList.contains('show')) {
+                setTimeout(() => document.addEventListener('click', closeHandler), 10);
+            }
+        };
+
+        // Change Username Functions
+        window.openChangeUsernameModal = async function () {
+            document.getElementById('change-username-modal').style.display = 'flex';
+            document.getElementById('new-username').value = '';
+            document.getElementById('username-current-password').value = '';
+            document.getElementById('username-error').style.display = 'none';
+            document.getElementById('username-success').style.display = 'none';
+
+            // Load and display current username
+            try {
+                const currentUsername = dataService.getUsername();
+                document.getElementById('current-username-display').value = currentUsername;
+            } catch (err) {
+                console.error('Failed to get username:', err);
+                document.getElementById('current-username-display').value = 'Loading...';
+            }
+        };
+
+        window.closeChangeUsernameModal = function () {
+            document.getElementById('change-username-modal').style.display = 'none';
+        };
+
+        window.submitUsernameChange = async function () {
+            const newUsername = document.getElementById('new-username').value.trim();
+            const currentPassword = document.getElementById('username-current-password').value;
+            const errorEl = document.getElementById('username-error');
+            const successEl = document.getElementById('username-success');
+            const submitBtn = document.getElementById('submit-username-btn');
+
+            if (!newUsername || !currentPassword) {
+                errorEl.textContent = 'Please fill in all fields';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            if (newUsername.length < 3) {
+                errorEl.textContent = 'Username must be at least 3 characters';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
+                errorEl.textContent = 'Username can only contain letters, numbers, underscores, and hyphens';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Updating...';
+                errorEl.style.display = 'none';
+                successEl.style.display = 'none';
+
+                await dataService.changeUsername(newUsername, currentPassword);
+
+                successEl.textContent = 'Username updated successfully!';
+                successEl.style.display = 'block';
+                document.getElementById('current-username-display').value = newUsername;
+
+                setTimeout(() => {
+                    closeChangeUsernameModal();
+                }, 2000);
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to change username';
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Update Username';
+            }
+        };
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);
     </script>

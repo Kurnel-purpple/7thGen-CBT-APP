@@ -285,30 +285,46 @@
                     ">0</span>
                 </button>
                 <!-- Dark mode toggle will be injected here by utils.js -->
-
-                <div class="credentials-dropdown">
+                <<<<<<< HEAD <div class="credentials-dropdown">
                     <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
                         <span id="nav-user-display"
                             style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">👤
                             Account</span>
                         <span style="font-size: 0.8rem; opacity: 0.6;">▼</span>
+                        =======
+                        <button onclick="openChangePasswordModal()" class="btn"
+                            style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
+                            title="Change Password">
+                            🔑 <span class="desktop-text">Password</span>
+                        </button>
+                        <div class="dropdown" style="position: relative;">
+                            <button onclick="toggleCredentialsDropdown()" class="btn"
+                                style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
+                                title="Change Credentials">
+                                🔐 <span class="desktop-text">Credentials</span> ▼
+                                >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
+                            </button>
+                            <div id="credentials-dropdown-content" class="dropdown-content">
+                                <div
+                                    style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                                    Settings</div>
+                                <button class="dropdown-item" onclick="openChangeUsernameModal()">
+                                    <span>🆔 Change Username</span>
+                                </button>
+                                <button class="dropdown-item" onclick="openChangePasswordModal()">
+                                    <span>🔑 Change Password</span>
+                                </button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item danger" onclick="auth.logout()">
+                                    <span>🚪 Logout</span>
+                                </button>
+                            </div>
+                        </div>
+                        <<<<<<< HEAD=======<button onclick="auth.logout()" class="btn"
+                            style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
+                            Logout
                     </button>
-                    <div id="credentials-dropdown-content" class="dropdown-content">
-                        <div
-                            style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                            Settings</div>
-                        <button class="dropdown-item" onclick="openChangeUsernameModal()">
-                            <span>🆔 Change Username</span>
-                        </button>
-                        <button class="dropdown-item" onclick="openChangePasswordModal()">
-                            <span>🔑 Change Password</span>
-                        </button>
-                        <div class="dropdown-divider"></div>
-                        <button class="dropdown-item danger" onclick="auth.logout()">
-                            <span>🚪 Logout</span>
-                        </button>
-                    </div>
-                </div>
+                    >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
             </div>
             <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
         </header>
@@ -325,52 +341,73 @@
 
                 <div class="mobile-actions"
                     style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                    <button onclick="openChangeUsernameModal()" class="btn btn-outline"
+                    <<<<<<< HEAD <button onclick="openChangeUsernameModal()" class="btn btn-outline"
                         style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
                         <span>🆔 Change Username</span>
-                    </button>
-                    <button onclick="openChangePasswordModal()" class="btn btn-outline"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                        <span>🔑 Change Password</span>
-                    </button>
-                    <button onclick="auth.logout()" class="btn btn-outline"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; color: var(--accent-color); border-color: var(--accent-color);">
-                        <span>🚪 Logout</span>
-                    </button>
+                        </button>
+                        =======
+                        >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
+                        <button onclick="openChangePasswordModal()" class="btn btn-outline"
+                            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                            <span>🔑 Change Password</span>
+                        </button>
+                        <<<<<<< HEAD=======<div style="position: relative;">
+                            <button onclick="toggleMobileCredentialsDropdown()" class="btn btn-outline"
+                                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                                <span>🔐 Change Credentials ▼</span>
+                            </button>
+                            <div id="mobile-credentials-dropdown"
+                                style="display: none; margin-top: 5px; background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+                                <button onclick="openChangePasswordModal(); toggleMobileCredentialsDropdown();"
+                                    class="btn"
+                                    style="width: 100%; padding: 12px; border: none; border-bottom: 1px solid #f0f0f0; background: transparent; text-align: left;">
+                                    🔑 Change Password
+                                </button>
+                                <button onclick="openChangeUsernameModal(); toggleMobileCredentialsDropdown();"
+                                    class="btn"
+                                    style="width: 100%; padding: 12px; border: none; background: transparent; text-align: left;">
+                                    👤 Change Username
+                                </button>
+                            </div>
                 </div>
+                >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
+                <button onclick="auth.logout()" class="btn btn-outline"
+                    style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; color: var(--accent-color); border-color: var(--accent-color);">
+                    <span>🚪 Logout</span>
+                </button>
+            </div>
 
-                <div class="mobile-stats">
-                    <div class="stat-card">
-                        <div class="stat-number" id="mobile-total-exams">0</div>
-                        <div class="stat-label">Total Exams</div>
-                    </div>
-                    <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModalFromMobile()">
-                        <div class="stat-number" id="mobile-results-pending-count">-</div>
-                        <div class="stat-label">Results Pending / Flags</div>
-                    </div>
+            <div class="mobile-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="mobile-total-exams">0</div>
+                    <div class="stat-label">Total Exams</div>
                 </div>
-
-                <!-- Mobile School ID Input -->
-                <div style="margin: 15px 0; padding: 10px; background: var(--inner-bg); border-radius: 8px;">
-                    <label
-                        style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 5px; display: block;">School
-                        ID</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="mobile-teacher-school-id" placeholder="Enter school ID"
-                            style="flex: 1; padding: 8px 10px; font-size: 0.9rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color);">
-                        <button onclick="saveTeacherSchoolId(true)" class="btn btn-primary"
-                            style="padding: 8px 15px; font-size: 0.85rem;">Save</button>
-                    </div>
-                    <small style="color: var(--light-text); font-size: 0.75rem; margin-top: 5px; display: block;">Get
-                        this from your admin</small>
+                <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModalFromMobile()">
+                    <div class="stat-number" id="mobile-results-pending-count">-</div>
+                    <div class="stat-label">Results Pending / Flags</div>
                 </div>
+            </div>
 
-                <!-- Mobile Messages Button -->
-                <button class="btn"
-                    onclick="openMessagesSection(); document.getElementById('mobile-menu').classList.remove('show');"
-                    style="width: 100%; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    🔔 Messages from Admin
-                    <span id="mobile-messages-badge" style="
+            <!-- Mobile School ID Input -->
+            <div style="margin: 15px 0; padding: 10px; background: var(--inner-bg); border-radius: 8px;">
+                <label style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 5px; display: block;">School
+                    ID</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="mobile-teacher-school-id" placeholder="Enter school ID"
+                        style="flex: 1; padding: 8px 10px; font-size: 0.9rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color);">
+                    <button onclick="saveTeacherSchoolId(true)" class="btn btn-primary"
+                        style="padding: 8px 15px; font-size: 0.85rem;">Save</button>
+                </div>
+                <small style="color: var(--light-text); font-size: 0.75rem; margin-top: 5px; display: block;">Get
+                    this from your admin</small>
+            </div>
+
+            <!-- Mobile Messages Button -->
+            <button class="btn"
+                onclick="openMessagesSection(); document.getElementById('mobile-menu').classList.remove('show');"
+                style="width: 100%; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                🔔 Messages from Admin
+                <span id="mobile-messages-badge" style="
                         display: none;
                         background: #e74c3c;
                         color: white;
@@ -383,86 +420,86 @@
                         align-items: center;
                         justify-content: center;
                     ">0</span>
-                </button>
+            </button>
 
-                <button class="btn btn-primary"
-                    style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
-                    onclick="prepareDevice()">💾 Prepare Device for Offline</button>
+            <button class="btn btn-primary"
+                style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
+                onclick="prepareDevice()">💾 Prepare Device for Offline</button>
+        </div>
+    </div>
+
+    <main class="main-content" style="display: block;">
+        <div class="section-header desktop-only">
+            <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
+                onclick="prepareDevice()">💾
+                Prepare Device for Offline</button>
+            <div style="display: flex; gap: 10px;">
+                <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
             </div>
         </div>
 
-        <main class="main-content" style="display: block;">
-            <div class="section-header desktop-only">
-                <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
-                    onclick="prepareDevice()">💾
-                    Prepare Device for Offline</button>
-                <div style="display: flex; gap: 10px;">
-                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
-                </div>
+        <!-- Admin Messages Section -->
+        <div id="messages-section" style="display: none; margin-bottom: 20px;">
+            <div class="section-header" style="cursor: pointer;" onclick="toggleMessagesSection()">
+                <h3 class="section-title" style="display: flex; align-items: center; gap: 10px;">
+                    📬 Messages from Admin
+                    <span id="unread-count"
+                        style="background: #e74c3c; color: white; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px;">0</span>
+                </h3>
+                <span id="messages-toggle-icon" style="font-size: 1.2rem;">▼</span>
             </div>
+            <div id="messages-container"
+                style="background: var(--card-bg); border-radius: 10px; padding: 15px; border: 1px solid var(--border-color);">
+                <!-- Messages will be loaded here -->
+                <p style="color: var(--light-text); text-align: center;">Loading messages...</p>
+            </div>
+        </div>
 
-            <!-- Admin Messages Section -->
-            <div id="messages-section" style="display: none; margin-bottom: 20px;">
-                <div class="section-header" style="cursor: pointer;" onclick="toggleMessagesSection()">
-                    <h3 class="section-title" style="display: flex; align-items: center; gap: 10px;">
-                        📬 Messages from Admin
-                        <span id="unread-count"
-                            style="background: #e74c3c; color: white; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px;">0</span>
-                    </h3>
-                    <span id="messages-toggle-icon" style="font-size: 1.2rem;">▼</span>
-                </div>
-                <div id="messages-container"
-                    style="background: var(--card-bg); border-radius: 10px; padding: 15px; border: 1px solid var(--border-color);">
-                    <!-- Messages will be loaded here -->
-                    <p style="color: var(--light-text); text-align: center;">Loading messages...</p>
-                </div>
+        <!-- Stats Row (Desktop Only) -->
+        <div class="dashboard-grid desktop-only">
+            <div class="stat-card">
+                <div class="stat-number" id="total-exams">0</div>
+                <div class="stat-label">Total Exams</div>
             </div>
+            <!-- Future stats -->
+            <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModal()">
+                <div class="stat-number" id="results-pending-count">-</div>
+                <div class="stat-label">Results Pending / Flags</div>
+            </div>
+        </div>
 
-            <!-- Stats Row (Desktop Only) -->
-            <div class="dashboard-grid desktop-only">
-                <div class="stat-card">
-                    <div class="stat-number" id="total-exams">0</div>
-                    <div class="stat-label">Total Exams</div>
-                </div>
-                <!-- Future stats -->
-                <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModal()">
-                    <div class="stat-number" id="results-pending-count">-</div>
-                    <div class="stat-label">Results Pending / Flags</div>
-                </div>
+        <!-- My Exams Section Header -->
+        <div class="section-header">
+            <h3 class="section-title">My Exams</h3>
+            <!-- Mobile: Show Create button here -->
+            <div class="mobile-only">
+                <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
             </div>
+        </div>
 
-            <!-- My Exams Section Header -->
-            <div class="section-header">
-                <h3 class="section-title">My Exams</h3>
-                <!-- Mobile: Show Create button here -->
-                <div class="mobile-only">
-                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
-                </div>
+        <!-- Exams Grid -->
+        <div id="exams-grid" class="exam-grid">
+            <!-- Javascript will populate this -->
+            <div class="empty-state">
+                <div class="empty-state-icon">📝</div>
+                <p>No exams found. Create your first exam to get started.</p>
             </div>
+        </div>
 
-            <!-- Exams Grid -->
-            <div id="exams-grid" class="exam-grid">
-                <!-- Javascript will populate this -->
-                <div class="empty-state">
-                    <div class="empty-state-icon">📝</div>
-                    <p>No exams found. Create your first exam to get started.</p>
-                </div>
+        <!-- Archived Exams Section -->
+        <div id="archived-section" style="margin-top: 30px; display: none;">
+            <div class="section-header" style="cursor: pointer;" onclick="toggleArchivedSection()">
+                <h3 class="section-title">
+                    <span id="archive-toggle-icon">▶</span>
+                    Archived Exams
+                    <span id="archived-count" style="font-size: 0.9rem; color: var(--light-text);">(0)</span>
+                </h3>
             </div>
-
-            <!-- Archived Exams Section -->
-            <div id="archived-section" style="margin-top: 30px; display: none;">
-                <div class="section-header" style="cursor: pointer;" onclick="toggleArchivedSection()">
-                    <h3 class="section-title">
-                        <span id="archive-toggle-icon">▶</span>
-                        Archived Exams
-                        <span id="archived-count" style="font-size: 0.9rem; color: var(--light-text);">(0)</span>
-                    </h3>
-                </div>
-                <div id="archived-grid" class="exam-grid" style="display: none;">
-                    <!-- Archived exams will be populated here -->
-                </div>
+            <div id="archived-grid" class="exam-grid" style="display: none;">
+                <!-- Archived exams will be populated here -->
             </div>
-        </main>
+        </div>
+    </main>
     </div>
 
     <!-- Extensions Modal -->
@@ -2234,8 +2271,6 @@
             }
         };
 
-        // Initialize connection monitoring
-        setupConnectionMonitoring();
 
         // Credentials Dropdown Functions
         window.toggleCredentialsDropdown = function () {
@@ -2313,7 +2348,6 @@
                 if (navDisplay) navDisplay.textContent = `👤 ${user.username}`;
             }
         });
-
         // Initialize connection monitoring
         setupConnectionMonitoring();
     </script>
