@@ -7,6 +7,7 @@
     <meta name="client-id" content="seatos">
     <title>Admin Dashboard - CBT</title>
     <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="manifest" href="../manifest.json">
     <style>
         .admin-container {
@@ -106,94 +107,6 @@
             margin: 0;
         }
 
-        /* Credentials Dropdown */
-        .credentials-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .dropdown-btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 15px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            color: white;
-            cursor: pointer;
-            font-weight: 600;
-            backdrop-filter: blur(5px);
-            transition: all 0.2s;
-        }
-
-        .dropdown-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: white;
-        }
-
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: calc(100% + 10px);
-            background: white;
-            min-width: 220px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-            padding: 8px 0;
-            z-index: 4000;
-            border: 1px solid var(--border-color);
-            animation: slideUp 0.2s ease-out;
-        }
-
-        .dropdown-content.show {
-            display: block;
-        }
-
-        .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 18px;
-            text-decoration: none;
-            color: var(--text-color);
-            cursor: pointer;
-            font-size: 0.95rem;
-            transition: background 0.2s;
-            border: none;
-            background: transparent;
-            width: 100%;
-            text-align: left;
-            font-weight: 500;
-        }
-
-        .dropdown-item:hover {
-            background: var(--inner-background);
-            color: var(--primary-color);
-        }
-
-        .dropdown-item.danger {
-            color: var(--error-color);
-        }
-
-        .dropdown-divider {
-            height: 1px;
-            background: var(--border-color);
-            margin: 8px 0;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
 
         .section {
             background: white;
@@ -1254,36 +1167,6 @@
             }
         }
 
-        // Credentials Dropdown Functions
-        window.toggleCredentialsDropdown = function () {
-            const content = document.getElementById('credentials-dropdown-content');
-            content.classList.toggle('show');
-
-            // Close when clicking outside
-            const closeHandler = (e) => {
-                if (!e.target.closest('.credentials-dropdown')) {
-                    content.classList.remove('show');
-                    document.removeEventListener('click', closeHandler);
-                }
-            };
-
-            if (content.classList.contains('show')) {
-                setTimeout(() => document.addEventListener('click', closeHandler), 10);
-            }
-        };
-
-        // Change Username Functions
-        window.openChangeUsernameModal = function () {
-            document.getElementById('change-username-modal').style.display = 'flex';
-            const user = dataService.getCurrentUser();
-            if (user) {
-                document.getElementById('new-username').value = user.username || '';
-            }
-            document.getElementById('username-error').style.display = 'none';
-            // Close dropdown if open
-            const content = document.getElementById('credentials-dropdown-content');
-            if (content) content.classList.remove('show');
-        };
 
         window.closeChangeUsernameModal = function () {
             document.getElementById('change-username-modal').style.display = 'none';

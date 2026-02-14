@@ -205,46 +205,29 @@
             </div>
             <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
                 <!-- Dark mode toggle will be injected here by utils.js -->
-                <<<<<<< HEAD <div class="credentials-dropdown">
+                <div class="credentials-dropdown">
                     <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
                         <span id="nav-user-display"
                             style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">👤
                             Account</span>
                         <span style="font-size: 0.8rem; opacity: 0.6;">▼</span>
-                        =======
-                        <button onclick="openChangePasswordModal()" class="btn"
-                            style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
-                            title="Change Password">
-                            🔑 <span class="desktop-text">Password</span>
-                        </button>
-                        <div class="dropdown" style="position: relative;">
-                            <button onclick="toggleCredentialsDropdown()" class="btn"
-                                style="color: var(--secondary-color); border: 1px solid #eee; background: transparent; display: flex; align-items: center; gap: 5px;"
-                                title="Change Credentials">
-                                🔐 <span class="desktop-text">Credentials</span> ▼
-                                >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
-                            </button>
-                            <div id="credentials-dropdown-content" class="dropdown-content">
-                                <div
-                                    style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                                    Settings</div>
-                                <button class="dropdown-item" onclick="openChangeUsernameModal()">
-                                    <span>🆔 Change Username</span>
-                                </button>
-                                <button class="dropdown-item" onclick="openChangePasswordModal()">
-                                    <span>🔑 Change Password</span>
-                                </button>
-                                <div class="dropdown-divider"></div>
-                                <button class="dropdown-item danger" onclick="auth.logout()">
-                                    <span>🚪 Logout</span>
-                                </button>
-                            </div>
-                        </div>
-                        <<<<<<< HEAD=======<button onclick="auth.logout()" class="btn"
-                            style="color: var(--accent-color); border: 1px solid #eee; background: transparent;">🚪
-                            Logout
                     </button>
-                    >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
+                    <div id="credentials-dropdown-content" class="dropdown-content">
+                        <div
+                            style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                            Settings</div>
+                        <button class="dropdown-item" onclick="openChangeUsernameModal()">
+                            <span>🆔 Change Username</span>
+                        </button>
+                        <button class="dropdown-item" onclick="openChangePasswordModal()">
+                            <span>🔑 Change Password</span>
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item danger" onclick="auth.logout()">
+                            <span>🚪 Logout</span>
+                        </button>
+                    </div>
+                </div>
             </div>
             <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
         </header>
@@ -261,113 +244,92 @@
 
                 <div class="mobile-actions"
                     style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                    <<<<<<< HEAD <button onclick="openChangeUsernameModal()" class="btn btn-outline"
+                    <button onclick="openChangeUsernameModal()" class="btn btn-outline"
                         style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
                         <span>🆔 Change Username</span>
-                        </button>
-                        =======
-                        >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
-                        <button onclick="openChangePasswordModal()" class="btn btn-outline"
-                            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                            <span>🔑 Change Password</span>
-                        </button>
-                        <<<<<<< HEAD=======<div style="position: relative;">
-                            <button onclick="toggleMobileCredentialsDropdown()" class="btn btn-outline"
-                                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                                <span>🔐 Change Credentials ▼</span>
-                            </button>
-                            <div id="mobile-credentials-dropdown"
-                                style="display: none; margin-top: 5px; background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-                                <button onclick="openChangePasswordModal(); toggleMobileCredentialsDropdown();"
-                                    class="btn"
-                                    style="width: 100%; padding: 12px; border: none; border-bottom: 1px solid #f0f0f0; background: transparent; text-align: left;">
-                                    🔑 Change Password
-                                </button>
-                                <button onclick="openChangeUsernameModal(); toggleMobileCredentialsDropdown();"
-                                    class="btn"
-                                    style="width: 100%; padding: 12px; border: none; background: transparent; text-align: left;">
-                                    👤 Change Username
-                                </button>
-                            </div>
+                    </button>
+                    <button onclick="openChangePasswordModal()" class="btn btn-outline"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
+                        <span>🔑 Change Password</span>
+                    </button>
+                    <button onclick="auth.logout()" class="btn danger"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; margin-top: 10px;">
+                        <span>🚪 Logout</span>
+                    </button>
                 </div>
-                >>>>>>> 95ca8c08ed19ba6caf53c27d60a952e90f48f39e
-                <button onclick="auth.logout()" class="btn btn-outline"
-                    style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; color: var(--accent-color); border-color: var(--accent-color);">
-                    <span>🚪 Logout</span>
-                </button>
-            </div>
 
-            <div class="mobile-filter-group">
-                <label>Filter Subject:</label>
-                <select id="mobile-subject-filter" class="form-control">
-                    <option value="All">All Subjects</option>
-                </select>
-            </div>
-        </div>
-    </div>
-
-
-    <main class="main-content" style="display: block;">
-
-        <div class="tabs">
-            <div class="tab-group">
-                <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">
-                    <span class="tab-icon">📝</span>
-                    <span class="tab-text">Available Exams</span>
-                    <span class="badge" id="available-count">0</span>
-                </button>
-                <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">
-                    <span class="tab-icon">✅</span>
-                    <span class="tab-text">Resolved Flags</span>
-                    <span class="badge" id="resolved-count">0</span>
-                </button>
-                <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">
-                    <span class="tab-icon">📚</span>
-                    <span class="tab-text">Completed History</span>
-                    <span class="badge" id="history-count">0</span>
-                </button>
-            </div>
-            <div class="desktop-filter">
-                <select id="desktop-subject-filter" class="form-control" style="padding: 5px 10px; font-size: 0.9rem;">
-                    <option value="All">All Subjects</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Available Exams -->
-        <div id="available-exams-section">
-            <div class="section-header">
-                <h3 class="section-title">Ready to take</h3>
-            </div>
-            <div id="available-grid" class="exam-grid">
-                <!-- Dynamic -->
-                <div class="empty-state">
-                    <div class="loader"></div>
+                <div class="mobile-filter-group">
+                    <label>Filter Subject:</label>
+                    <select id="mobile-subject-filter" class="form-control">
+                        <option value="All">All Subjects</option>
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- Resolved Flags -->
-        <div id="resolved-exams-section" style="display: none;">
-            <div class="section-header">
-                <h3 class="section-title" style="color: #28a745;">✅ Resolved Flags</h3>
-            </div>
-            <div id="resolved-grid" class="exam-grid">
-                <!-- Dynamic -->
-            </div>
-        </div>
 
-        <!-- Completed Exams -->
-        <div id="completed-exams-section" style="display: none;">
-            <div class="section-header">
-                <h3 class="section-title">History</h3>
-            </div>
-            <div id="completed-grid" class="exam-grid">
-                <!-- Dynamic -->
-            </div>
-        </div>
+        <main class="main-content" style="display: block;">
 
-    </main>
+            <div class="tabs">
+                <div class="tab-group">
+                    <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">
+                        <span class="tab-icon">📝</span>
+                        <span class="tab-text">Available Exams</span>
+                        <span class="badge" id="available-count">0</span>
+                    </button>
+                    <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">
+                        <span class="tab-icon">✅</span>
+                        <span class="tab-text">Resolved Flags</span>
+                        <span class="badge" id="resolved-count">0</span>
+                    </button>
+                    <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">
+                        <span class="tab-icon">📚</span>
+                        <span class="tab-text">Completed History</span>
+                        <span class="badge" id="history-count">0</span>
+                    </button>
+                </div>
+                <div class="desktop-filter">
+                    <select id="desktop-subject-filter" class="form-control"
+                        style="padding: 5px 10px; font-size: 0.9rem;">
+                        <option value="All">All Subjects</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Available Exams -->
+            <div id="available-exams-section">
+                <div class="section-header">
+                    <h3 class="section-title">Ready to take</h3>
+                </div>
+                <div id="available-grid" class="exam-grid">
+                    <!-- Dynamic -->
+                    <div class="empty-state">
+                        <div class="loader"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resolved Flags -->
+            <div id="resolved-exams-section" style="display: none;">
+                <div class="section-header">
+                    <h3 class="section-title" style="color: #28a745;">✅ Resolved Flags</h3>
+                </div>
+                <div id="resolved-grid" class="exam-grid">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <!-- Completed Exams -->
+            <div id="completed-exams-section" style="display: none;">
+                <div class="section-header">
+                    <h3 class="section-title">History</h3>
+                </div>
+                <div id="completed-grid" class="exam-grid">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+        </main>
     </div>
 
     <!-- Exam Instructions Modal -->
@@ -572,36 +534,6 @@
     </div>
 
     <script>
-        // Credentials Dropdown Functions
-        window.toggleCredentialsDropdown = function () {
-            const content = document.getElementById('credentials-dropdown-content');
-            content.classList.toggle('show');
-
-            // Close when clicking outside
-            const closeHandler = (e) => {
-                if (!e.target.closest('.credentials-dropdown')) {
-                    content.classList.remove('show');
-                    document.removeEventListener('click', closeHandler);
-                }
-            };
-
-            if (content.classList.contains('show')) {
-                setTimeout(() => document.addEventListener('click', closeHandler), 10);
-            }
-        };
-
-        // Change Username Functions
-        window.openChangeUsernameModal = function () {
-            document.getElementById('change-username-modal').style.display = 'flex';
-            const user = dataService.getCurrentUser();
-            if (user) {
-                document.getElementById('new-username').value = user.username || '';
-            }
-            document.getElementById('username-error').style.display = 'none';
-            // Close dropdown if open
-            const content = document.getElementById('credentials-dropdown-content');
-            if (content) content.classList.remove('show');
-        };
 
         window.closeChangeUsernameModal = function () {
             document.getElementById('change-username-modal').style.display = 'none';
