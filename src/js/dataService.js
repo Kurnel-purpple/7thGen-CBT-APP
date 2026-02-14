@@ -779,4 +779,85 @@ class DataService {
 
 // Global instance
 window.dataService = new DataService();
-export default window.dataService;
+
+/**
+ * Helper to update local IndexedDB cache based on actions
+ * This ensures the dashboard doesn't need to refetch data
+ */
+DataService.prototype._updateLocalCache = async function (type, action, item) {
+    try {
+        const db = await this.getDB();
+        const tx = db.transaction('store', 'readwrite');
+        const store = tx.objectStore('store');
+
+        // Find all cached items that might need updating
+        const request = store.openCursor();
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                const { cacheKey, data: rawData } = cursor.value;
+
+                // Only handle list-type caches for now
+                if (cacheKey.includes('?')) {
+                    const isWrapped = rawData && rawData.data;
+                    let data = isWrapped ? rawData.data : rawData;
+
+                    if (!Array.isArray(data)) {
+                        cursor.continue();
+                        return;
+                    }
+
+                    let shouldUpdate = false;
+
+                    if (type === 'exam') {
+                        if (action === 'update' || action === 'create') {
+                            const index = data.findIndex(e => e.id === item.id);
+                            if (index !== -1) {
+                                data[index] = { ...data[index], ...item };
+                                shouldUpdate = true;
+                            } else if (action === 'create') {
+                                data.unshift(item);
+                                shouldUpdate = true;
+                            }
+                        } else if (action === 'delete') {
+                            const index = data.findIndex(e => e.id === item);
+                            if (index !== -1) {
+                                data.splice(index, 1);
+                                shouldUpdate = true;
+                            }
+                        }
+                    } else if (type === 'result') {
+                        if (action === 'create' || action === 'update') {
+                            const index = data.findIndex(e => e.id === item.id);
+                            if (index !== -1) {
+                                data[index] = { ...data[index], ...item };
+                                shouldUpdate = true;
+                            } else {
+                                // Add if matches but wasn't in list (e.g. status changed to completed)
+                                data.unshift(item);
+                                shouldUpdate = true;
+                            }
+                        }
+                    }
+
+                    if (shouldUpdate) {
+                        // Re-wrap if needed
+                        let finalData = isWrapped ? { ...rawData, data: data } : data;
+
+                        cursor.update({
+                            cacheKey: cacheKey,
+                            data: finalData,
+                            cachedAt: Date.now()
+                        });
+                        console.log(`✅ Cache updated for ${cacheKey}`);
+                    }
+                }
+
+                cursor.continue();
+            }
+        };
+    } catch (err) {
+        console.warn('Failed to update local cache:', err);
+    }
+};
