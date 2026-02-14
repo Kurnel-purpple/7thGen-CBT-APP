@@ -63,8 +63,7 @@ const takeExam = {
         takeExam.resultId = params.get('resultId');
 
         if (!examId) {
-            alert('No exam specified');
-            window.location.href = 'student-dashboard.html';
+            takeExam.showAlert('Error', 'No exam specified', () => window.location.href = 'student-dashboard.html');
             return;
         }
 
@@ -121,16 +120,14 @@ const takeExam = {
 
             // Check if exam is accessible (not archived, scheduled time passed)
             if (exam.status === 'archived') {
-                alert('This exam has been archived and is no longer available.');
-                window.location.href = 'student-dashboard.html';
+                takeExam.showAlert('Archived', 'This exam has been archived and is no longer available.', () => window.location.href = 'student-dashboard.html');
                 return;
             }
 
             if (exam.scheduledDate && new Date(exam.scheduledDate) > new Date()) {
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const scheduledStr = new Date(exam.scheduledDate).toLocaleDateString('en-US', options);
-                alert(`This exam is not yet available. It will be accessible on ${scheduledStr}.`);
-                window.location.href = 'student-dashboard.html';
+                takeExam.showAlert('Not Yet Available', `This exam is not yet available. It will be accessible on ${scheduledStr}.`, () => window.location.href = 'student-dashboard.html');
                 return;
             }
 
@@ -149,8 +146,7 @@ const takeExam = {
                     .filter(([k, v]) => v && typeof v === 'object' && v.status === 'resolved' && new Date(v.deadline) > now); // Only active deadlines
 
                 if (resolvedFlags.length === 0) {
-                    alert('No active resolved flags to review.');
-                    window.location.href = 'student-dashboard.html';
+                    takeExam.showAlert('No Issues', 'No active resolved flags to review.', () => window.location.href = 'student-dashboard.html');
                     return;
                 }
 
@@ -214,8 +210,7 @@ const takeExam = {
 
         } catch (err) {
             console.error(err);
-            alert('Error loading exam: ' + err.message);
-            window.location.href = 'student-dashboard.html';
+            takeExam.showAlert('Error', 'Error loading exam: ' + err.message, () => window.location.href = 'student-dashboard.html');
         }
     },
 
@@ -277,8 +272,7 @@ const takeExam = {
             const durationMin = remainMs / (1000 * 60);
 
             if (durationMin <= 0) {
-                alert('Review time expired.');
-                window.location.href = 'student-dashboard.html';
+                takeExam.showAlert('Time Expired', 'Review time expired.', () => window.location.href = 'student-dashboard.html');
                 return;
             }
 
@@ -287,7 +281,7 @@ const takeExam = {
                 el.textContent = '⏱ ' + timeStr;
                 el.style.color = 'red';
             }, () => {
-                alert('Time is up for review! Submitting updates.');
+                takeExam.showNotice('Time is up for review! Submitting updates.', 'warning');
                 takeExam.submit();
             });
             takeExam.timer.start();
@@ -326,7 +320,7 @@ const takeExam = {
                 el.classList.add('timer-warning');
             }
         }, () => {
-            alert('Time is up! Submitting your exam automatically.');
+            takeExam.showNotice('Time is up! Submitting your exam automatically.', 'warning');
             takeExam.submit();
         });
         takeExam.timer.start();
@@ -846,7 +840,7 @@ const takeExam = {
             const existingResult = results.find(r => r.id === takeExam.resultId);
 
             if (!existingResult) {
-                alert('Error: Could not find existing result');
+                takeExam.showNotice('Error: Could not find existing result', 'error');
                 return;
             }
 
@@ -1045,16 +1039,17 @@ const takeExam = {
                 }
 
                 if (!allAccepted) {
-                    alert('CRITICAL WARNING:\nYour answers were submitted, but the "Flag Status" did not update in the database.\n\nThis means the exam will stay in "Action Required".\n\nPlease screenshot this and tell your teacher.');
+                    takeExam.showNotice('Warning: Flag status update verification failed. Please screenshot this and tell your teacher.', 'error');
                 } else {
-                    alert(`Answers Updated!\nScore: ${score}/${totalPoints} Points (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);
+                    takeExam.showResultModal('Answers Updated!', 'Your review answers have been successfully updated.', score, totalPoints, percentage, passed);
                 }
             } else {
                 await dataService.saveResult(resultData);
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
-                alert(`Exam Submitted!\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
+                const passed = percentage >= takeExam.exam.passScore;
+                takeExam.showResultModal('Exam Submitted!', 'You have successfully completed the exam.', score, totalPoints, percentage, passed);
             }
-            window.location.href = 'student-dashboard.html';
+            // window.location.href = 'student-dashboard.html'; // REMOVED - Handled by modal button
         } catch (err) {
             console.error('Submission error:', err);
 
@@ -1062,8 +1057,7 @@ const takeExam = {
             if (err.message === 'Saved Offline') {
                 // Successfully queued for later sync
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
-                alert(`📱 Exam Saved Offline!\n\nYour answers have been saved locally and will sync automatically when you're back online.\n\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
-                window.location.href = 'student-dashboard.html';
+                takeExam.showResultModal('Exam Saved Offline!', 'Your answers have been saved locally and will sync automatically when you\'re back online.', score, totalPoints, percentage, undefined, true);
                 return;
             }
 
@@ -1086,8 +1080,7 @@ const takeExam = {
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
 
-                alert(`📱 Exam Saved Offline!\n\nNetwork issue detected. Your answers have been saved locally and will sync automatically when you're back online.\n\nScore: ${score}/${totalPoints} Points (${percentage}%)`);
-                window.location.href = 'student-dashboard.html';
+                takeExam.showResultModal('Saved Offline', 'Network issue detected. Your answers have been saved locally.', score, totalPoints, percentage, undefined, true);
                 return;
             }
 
@@ -1103,6 +1096,65 @@ const takeExam = {
             // Show user-friendly error with retry option
             takeExam.showNotice(`⚠️ Submission issue: ${err.message}. Your answers are saved - tap Submit to retry.`, 'error');
         }
+    },
+
+    showAlert: (title, message, onOk) => {
+        const modal = document.getElementById('alert-modal');
+        if (!modal) { window.alert(message); if (onOk) onOk(); return; }
+
+        document.getElementById('alert-title').textContent = title || 'Notice';
+        document.getElementById('alert-message').textContent = message;
+
+        const btn = document.getElementById('alert-btn');
+        // Clear previous listeners by replacing the node (or just reassign onclick since we don't rely on addEventListener)
+        btn.onclick = () => {
+            modal.style.display = 'none';
+            if (onOk) onOk();
+        };
+
+        modal.style.display = 'flex';
+    },
+
+    showResultModal: (title, message, score, totalPoints, percentage, passed, isOffline = false) => {
+        const modal = document.getElementById('result-modal');
+        if (!modal) {
+            alert(`${title}\n${message}\nScore: ${score}/${totalPoints} (${percentage}%)`);
+            window.location.href = 'student-dashboard.html';
+            return;
+        }
+
+        document.getElementById('result-title').textContent = title;
+        document.getElementById('result-message').innerHTML = message;
+
+        document.getElementById('result-score').textContent = `${percentage}%`;
+        document.getElementById('result-points').textContent = `${Math.round(score * 10) / 10} / ${totalPoints} Points`;
+
+        const statusEl = document.getElementById('result-status');
+        const iconEl = document.getElementById('result-icon');
+        const container = document.getElementById('result-score-container');
+
+        // Reset styles and classes
+        container.style.border = 'none';
+
+        if (passed !== undefined && !isOffline) {
+            statusEl.textContent = passed ? 'PASSED' : 'FAILED';
+            statusEl.style.color = passed ? 'var(--success-color)' : 'var(--accent-color)';
+            statusEl.style.backgroundColor = passed ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)';
+            statusEl.style.display = 'inline-block';
+            iconEl.textContent = passed ? '🎉' : '📝';
+        } else if (isOffline) {
+            statusEl.textContent = 'SAVED OFFLINE';
+            statusEl.style.color = '#e67e22'; // Orange
+            statusEl.style.backgroundColor = 'rgba(230, 126, 34, 0.1)';
+            statusEl.style.display = 'inline-block';
+            iconEl.textContent = '📱';
+            container.style.border = '2px dashed #f39c12';
+        } else {
+            statusEl.style.display = 'none';
+            iconEl.textContent = '✅';
+        }
+
+        modal.style.display = 'flex';
     },
 
     // Helper to show notices (offline mode, errors, etc.)

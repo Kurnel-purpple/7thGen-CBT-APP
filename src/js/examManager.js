@@ -956,7 +956,7 @@ const examManager = {
                 numQDiv.innerHTML = `
                     <label style="font-weight: 600; display: block; margin-bottom: 8px;">Number of Questions</label>
                     <select class="form-control" style="width: 80px;">
-                        ${Array.from({length: 100}, (_, i) => i + 1).map(n => `<option value="${n}" ${q.numSubQuestions === n ? 'selected' : ''}>${n}</option>`).join('')}
+                        ${Array.from({ length: 100 }, (_, i) => i + 1).map(n => `<option value="${n}" ${q.numSubQuestions === n ? 'selected' : ''}>${n}</option>`).join('')}
                     </select>
                 `;
                 numQDiv.querySelector('select').onchange = (e) => {
@@ -984,14 +984,14 @@ const examManager = {
                 q.subQuestions = q.subQuestions || [];
                 q.subQuestions.forEach((subQ, idx) => {
                     const subQDiv = document.createElement('div');
-                    subQDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 10px; gap: 10px;';
+                    subQDiv.className = 'sub-question-row';
                     subQDiv.innerHTML = `
-                        <span style="font-weight: 600; min-width: 90px;">Question ${subQ.number}:</span>
-                        <div style="display: flex; gap: 8px;">
+                        <span class="sub-question-label">Question ${subQ.number}:</span>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                             ${['A', 'B', 'C', 'D', 'E'].map(opt => `
-                                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 8px; border-radius: 4px; ${subQ.correctAnswer === opt ? 'background: var(--success-color); color: white;' : 'background: var(--card-bg);'}">
-                                    <input type="radio" name="subq_${subQ.id}" value="${opt}" ${subQ.correctAnswer === opt ? 'checked' : ''} style="cursor: pointer;">
-                                    <span>${opt}</span>
+                                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); ${subQ.correctAnswer === opt ? 'background: var(--success-color); color: white; border-color: var(--success-color);' : 'background: var(--card-bg);'}">
+                                    <input type="radio" name="subq_${subQ.id}" value="${opt}" ${subQ.correctAnswer === opt ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;">
+                                    <span style="font-weight: 600;">${opt}</span>
                                 </label>
                             `).join('')}
                         </div>

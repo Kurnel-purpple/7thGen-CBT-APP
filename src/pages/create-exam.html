@@ -168,6 +168,9 @@
                 flex: 1;
                 text-align: center;
                 margin-right: 0 !important;
+                padding: 6px 4px !important;
+                font-size: 0.8rem !important;
+                min-width: 0;
             }
 
             /* Footer Actions Mobile */
@@ -203,6 +206,34 @@
             }
         }
 
+        /* Sub-question responsive layout */
+        .sub-question-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .sub-question-label {
+            font-weight: 600;
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 480px) {
+            .sub-question-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .sub-question-label {
+                margin-bottom: 4px;
+                min-width: auto;
+            }
+        }
+
         /* Quill Editor Styles */
         #import-editor {
             height: 300px;
@@ -223,6 +254,44 @@
 
         .ql-container {
             border-radius: 0 0 6px 6px;
+        }
+    </style>
+    <style>
+        /* Mobile specific overrides inside style tag to ensure specificity */
+        /* Mobile specific overrides inside style tag to ensure specificity */
+        @media (max-width: 600px) {
+            .section-header-questions .actions {
+                flex-wrap: wrap;
+                /* Allow wrapping */
+                gap: 8px;
+            }
+
+            .section-header-questions .actions .btn {
+                flex: 1 1 40%;
+                /* First two buttons share the row */
+                text-align: center;
+                margin-right: 0 !important;
+                padding: 6px 2px !important;
+                font-size: 0.75rem !important;
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                box-shadow: none !important;
+                border-radius: 6px !important;
+                height: 32px !important;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Force "Add Question" (last button) to new row and full width */
+            .section-header-questions .actions .btn:last-child {
+                flex-basis: 100%;
+                width: 100%;
+                margin-top: 0;
+                /* Gap handles spacing */
+            }
         }
     </style>
 </head>
@@ -426,12 +495,14 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light-text);">
-                    Paste your questions below. You can copy & paste from MS Word, including text with shapes/images.<br>
+                    Paste your questions below. You can copy & paste from MS Word, including text with
+                    shapes/images.<br>
                     Format:<br>
                     1. Question text...<br>
                     (a) Option A<br>
                     (b) Option B...<br>
-                    <em>Note: Images and shapes will be preserved in the editor but will be converted to text-only for parsing.</em>
+                    <em>Note: Images and shapes will be preserved in the editor but will be converted to text-only for
+                        parsing.</em>
                 </p>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="import-points" style="font-weight: 600;">Points per Question (Objective Only)</label>
@@ -560,6 +631,7 @@
     </script>
 
 
+    <script src="../js/idb.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../js/auth.js"></script>

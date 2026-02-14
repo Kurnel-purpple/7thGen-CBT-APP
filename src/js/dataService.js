@@ -278,15 +278,29 @@ class DataService {
 
     // --- Exams ---
 
-    async getExams(filters = {}) {
-        const cacheKey = `exams_${JSON.stringify(filters)}`;
+    // --- Exams ---
 
-        // Check cache for dashboard queries
-        if (filters.studentDashboard && this.queryCache.has(cacheKey)) {
-            const cached = this.queryCache.get(cacheKey);
-            if (Date.now() - cached.timestamp < this.CACHE_TTL) {
-                console.log('📋 Serving exams from cache');
-                return cached.data;
+    async getExams(filters = {}) {
+        // Exclude forceRefresh from cache key so we update the same cache entry
+        const { forceRefresh, ...cacheFilters } = filters;
+        const cacheKey = `exams_${JSON.stringify(cacheFilters)}`;
+
+        // 1. Try IDB Cache first
+        if (window.idb && !forceRefresh) {
+            try {
+                const cached = await window.idb.getDashboardCache(cacheKey);
+                // If we have cache, return it immediately! 
+                // We rely on manual updates (create/edit) to keep it fresh, 
+                // or the user can manually refresh if they suspect desync.
+                if (cached && cached.data && cached.data.length > 0) {
+                    console.log('📦 Serving exams from IDB cache');
+
+                    // Optional: Trigger background refresh if cache is too old (e.g. > 1 hour)
+                    // But for now, we prioritize speed as requested.
+                    return cached.data;
+                }
+            } catch (e) {
+                console.warn('IDB Cache read error:', e);
             }
         }
 
@@ -317,43 +331,53 @@ class DataService {
             }
 
             const exams = await this.pb.collection('exams').getFullList(options);
-
             const mappedData = exams.map(e => this._mapExam(e));
 
-            // Cache dashboard queries
-            if (filters.studentDashboard) {
-                this.queryCache.set(cacheKey, {
-                    data: mappedData,
-                    timestamp: Date.now()
-                });
+            // 2. Save to IDB
+            if (window.idb) {
+                // Save the list for this specific query
+                await window.idb.saveDashboardCache(cacheKey, mappedData);
+                // Save individual exams to the object store for getExamById
+                await window.idb.saveExams(mappedData);
             }
 
             return mappedData;
         } catch (error) {
+            // Fallback to cache even if empty/old on network error
+            if (window.idb) {
+                try {
+                    const cached = await window.idb.getDashboardCache(cacheKey);
+                    if (cached) return cached.data;
+                } catch (e) { /* ignore */ }
+            }
             throw error;
         }
     }
 
     async getExamById(id) {
+        // 1. Try IDB first
+        if (window.idb) {
+            try {
+                const cachedExam = await window.idb.getExam(id);
+                if (cachedExam) {
+                    console.log(`📦 Serving exam ${id} from IDB`);
+                    return cachedExam;
+                }
+            } catch (e) { console.warn(e); }
+        }
+
         try {
             const exam = await this.pb.collection('exams').getOne(id);
             const mappedExam = this._mapExam(exam);
 
-            // Cache the exam
-            const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
-            cache[id] = mappedExam;
-            localStorage.setItem('cbt_exam_cache', JSON.stringify(cache));
+            // 2. Save to IDB
+            if (window.idb) {
+                await window.idb.saveExam(mappedExam);
+            }
 
             return mappedExam;
         } catch (err) {
-            if (!navigator.onLine || err.message === 'Failed to fetch') {
-                const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
-                if (cache[id]) {
-                    console.warn(`Serving exam ${id} from cache.`);
-                    return cache[id];
-                }
-            }
-            return null;
+            throw err;
         }
     }
 
@@ -390,7 +414,16 @@ class DataService {
             };
 
             const created = await this.pb.collection('exams').create(data);
-            return this._mapExam(created);
+            const mappedExam = this._mapExam(created);
+
+            // 3. Update Cache Manually
+            if (window.idb) {
+                await window.idb.saveExam(mappedExam);
+                // Smart Update: Add to teacher's dashboard list
+                await this._updateDashboardCacheList(mappedExam, 'add');
+            }
+
+            return mappedExam;
         } catch (error) {
             throw error;
         }
@@ -413,7 +446,15 @@ class DataService {
             if (updates.scrambleQuestions !== undefined) data.scramble_questions = updates.scrambleQuestions;
 
             const updated = await this.pb.collection('exams').update(id, data);
-            return this._mapExam(updated);
+            const mappedExam = this._mapExam(updated);
+
+            // Update Cache Manually
+            if (window.idb) {
+                await window.idb.saveExam(mappedExam);
+                await this._updateDashboardCacheList(mappedExam, 'update');
+            }
+
+            return mappedExam;
         } catch (error) {
             throw error;
         }
@@ -422,9 +463,80 @@ class DataService {
     async deleteExam(id) {
         try {
             await this.pb.collection('exams').delete(id);
+
+            // Remove from Cache
+            if (window.idb) {
+                await window.idb.deleteExam(id);
+                await this._updateDashboardCacheList({ id, createdBy: this.getCurrentUser()?.id }, 'delete'); // Need createdBy to find key? Or just try common keys
+            }
+
             return true;
         } catch (error) {
             throw error;
+        }
+    }
+
+    /**
+     * Helper to manually update dashboard lists in cache
+     * This avoids needing to re-fetch the whole list
+     */
+    async _updateDashboardCacheList(exam, action) {
+        if (!window.idb) return;
+
+        // Construct potential keys. 
+        // The Teacher Dashboard usually queries by { teacherId: ... }
+        // The Student Dashboard queries by { studentDashboard: true, targetClass: ... }
+
+        // 1. Teacher Cache Update
+        if (exam.createdBy) {
+            const teacherKey = `exams_${JSON.stringify({ teacherId: exam.createdBy })}`;
+            await this._performCacheListUpdate(teacherKey, exam, action);
+        }
+
+        // 2. Student Dashboard Cache Update (if exam is active/published)
+        if (exam.targetClass) {
+            // We might have multiple keys depending on how filters are combined.
+            // This is a "best effort" update.
+            const studentKey = `exams_${JSON.stringify({ studentDashboard: true, targetClass: exam.targetClass })}`;
+            // Also "All" classes
+            const studentKeyAll = `exams_${JSON.stringify({ studentDashboard: true, targetClass: 'All' })}`;
+
+            await this._performCacheListUpdate(studentKey, exam, action, true); // true = prevent adding drafts to student view
+            await this._performCacheListUpdate(studentKeyAll, exam, action, true);
+        }
+    }
+
+    async _performCacheListUpdate(key, exam, action, isStudentView = false) {
+        try {
+            const cached = await window.idb.getDashboardCache(key);
+            if (cached && cached.data) {
+                let list = cached.data;
+                const index = list.findIndex(e => e.id === exam.id);
+
+                if (action === 'add') {
+                    if (isStudentView && exam.status !== 'active') return; // Don't add drafts to student
+                    if (index === -1) {
+                        list.unshift(exam); // Add to top
+                    }
+                } else if (action === 'update') {
+                    if (index !== -1) {
+                        if (isStudentView && exam.status !== 'active') {
+                            list.splice(index, 1); // Remove if no longer active
+                        } else {
+                            list[index] = exam; // Update
+                        }
+                    } else if (isStudentView && exam.status === 'active') {
+                        list.unshift(exam); // Add if now active
+                    }
+                } else if (action === 'delete') {
+                    if (index !== -1) list.splice(index, 1);
+                }
+
+                await window.idb.saveDashboardCache(key, list);
+                console.log(`🔄 Smart-updated cache for ${key}`);
+            }
+        } catch (e) {
+            console.warn('Cache manual update failed', e);
         }
     }
 
@@ -465,24 +577,38 @@ class DataService {
 
         try {
             // Try to find existing result first
+            let result;
             try {
                 const existing = await this.pb.collection('results').getFirstListItem(
                     `exam_id="${resultData.examId}" && student_id="${resultData.studentId}"`
                 );
                 // Update existing
                 const updated = await this.pb.collection('results').update(existing.id, data);
-                return this._mapResult(updated);
+                result = this._mapResult(updated);
             } catch (notFoundErr) {
                 // Create new
                 const created = await this.pb.collection('results').create(data);
-                return this._mapResult(created);
+                result = this._mapResult(created);
             }
+
+            // Update IDB Results Cache
+            if (window.idb) {
+                await window.idb.saveResults([result]);
+            }
+            return result;
+
         } catch (err) {
             if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
                 const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
                 data._local_id = Date.now();
                 pending.push(data);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
+
+                // Also save to IDB Pending
+                if (window.idb) {
+                    await window.idb.queuePendingSubmission(data);
+                }
+
                 throw new Error('Saved Offline');
             }
             throw err;
@@ -514,6 +640,20 @@ class DataService {
     }
 
     async getResults(filters = {}) {
+        // Exclude forceRefresh from cache key
+        const { forceRefresh, ...cacheFilters } = filters;
+        const cacheKey = `results_${JSON.stringify(cacheFilters)}`;
+
+        // 1. Try IDB Cache
+        if (window.idb && !forceRefresh) {
+            try {
+                const cached = await window.idb.getDashboardCache(cacheKey);
+                if (cached && cached.data && cached.data.length > 0) {
+                    return cached.data;
+                }
+            } catch (e) { }
+        }
+
         try {
             let filterString = '';
 
@@ -528,8 +668,8 @@ class DataService {
 
             const options = {
                 filter: filterString,
-                sort: '-submitted_at',  // This is a custom field, not PocketBase's built-in
-                expand: 'student_id' // Get student info
+                sort: '-submitted_at',
+                expand: 'student_id'
             };
 
             if (filters.studentDashboard) {
@@ -537,8 +677,21 @@ class DataService {
             }
 
             const results = await this.pb.collection('results').getFullList(options);
-            return results.map(r => this._mapResult(r));
+            const mappedResults = results.map(r => this._mapResult(r));
+
+            // 2. Save to IDB
+            if (window.idb) {
+                await window.idb.saveDashboardCache(cacheKey, mappedResults);
+                await window.idb.saveResults(mappedResults);
+            }
+
+            return mappedResults;
         } catch (error) {
+            // Fallback
+            if (window.idb) {
+                const cached = await window.idb.getDashboardCache(cacheKey);
+                if (cached) return cached.data;
+            }
             throw error;
         }
     }

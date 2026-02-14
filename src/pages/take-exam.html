@@ -99,7 +99,51 @@
         </div>
     </div>
 
-    <!-- PocketBase SDK -->
+    <!-- Result Modal -->
+    <div id="result-modal" class="modal"
+        style="display: none; z-index: 10001; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
+        <div class="modal-content"
+            style="text-align: center; padding: 30px; max-width: 400px; width: 90%; background: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div id="result-icon" style="font-size: 4rem; margin-bottom: 20px;">🎉</div>
+            <h3 id="result-title" style="margin-bottom: 10px; font-size: 1.5rem; color: var(--text-color);">Exam
+                Submitted!</h3>
+            <p id="result-message" style="margin-bottom: 25px; color: var(--light-text); line-height: 1.5;">You have
+                successfully completed the exam.</p>
+
+            <div id="result-score-container"
+                style="background: var(--inner-bg); padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                <div
+                    style="font-size: 0.85rem; font-weight: 600; letter-spacing: 1px; color: var(--light-text); margin-bottom: 5px; text-transform: uppercase;">
+                    Your Score</div>
+                <div id="result-score"
+                    style="font-size: 3rem; font-weight: 800; color: var(--primary-color); line-height: 1;">0%</div>
+                <div id="result-points"
+                    style="font-size: 1rem; color: var(--text-color); margin-top: 5px; opacity: 0.8;">0 / 0 Points</div>
+                <div id="result-status"
+                    style="margin-top: 10px; font-weight: bold; text-transform: uppercase; font-size: 1.1rem; padding: 5px 15px; border-radius: 20px; display: inline-block; background: rgba(0,0,0,0.05);">
+                    PASSED</div>
+            </div>
+
+            <button class="btn btn-primary" onclick="window.location.href='student-dashboard.html'"
+                style="width: 100%; padding: 14px; font-size: 1.1rem; border-radius: 8px; font-weight: 600;">Return to
+                Dashboard</button>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alert-modal" class="modal"
+        style="display: none; z-index: 10002; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
+        <div class="modal-content"
+            style="max-width: 400px; width: 90%; text-align: center; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <h3 id="alert-title" style="margin-bottom: 10px; color: var(--text-color);">Notice</h3>
+            <p id="alert-message" style="margin-bottom: 20px; color: var(--light-text); line-height: 1.5;"></p>
+            <button class="btn btn-primary" id="alert-btn"
+                onclick="document.getElementById('alert-modal').style.display='none'"
+                style="min-width: 100px;">OK</button>
+        </div>
+    </div>
     <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
     <!-- Configuration System -->
     <script type="module">

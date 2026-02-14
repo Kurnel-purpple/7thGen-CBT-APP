@@ -375,8 +375,7 @@
         <main class="main-content" style="display: block;">
             <div class="section-header desktop-only">
                 <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
-                    onclick="prepareDevice()">💾
-                    Prepare Device for Offline</button>
+                    onclick="prepareDevice()">💾 Prepare Device for Offline</button>
                 <div style="display: flex; gap: 10px;">
                     <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
                 </div>
@@ -412,118 +411,38 @@
                 </div>
             </div>
 
-            <!-- Mobile School ID Input -->
-            <div style="margin: 15px 0; padding: 10px; background: var(--inner-bg); border-radius: 8px;">
-                <label style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 5px; display: block;">School
-                    ID</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="mobile-teacher-school-id" placeholder="Enter school ID"
-                        style="flex: 1; padding: 8px 10px; font-size: 0.9rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color);">
-                    <button onclick="saveTeacherSchoolId(true)" class="btn btn-primary"
-                        style="padding: 8px 15px; font-size: 0.85rem;">Save</button>
+            <!-- My Exams Section Header -->
+            <div class="section-header">
+                <h3 class="section-title">My Exams</h3>
+                <!-- Mobile: Show Create button here -->
+                <div class="mobile-only">
+                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
                 </div>
-                <small style="color: var(--light-text); font-size: 0.75rem; margin-top: 5px; display: block;">Get
-                    this from your admin</small>
             </div>
 
-            <!-- Mobile Messages Button -->
-            <button class="btn"
-                onclick="openMessagesSection(); document.getElementById('mobile-menu').classList.remove('show');"
-                style="width: 100%; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                🔔 Messages from Admin
-                <span id="mobile-messages-badge" style="
-                        display: none;
-                        background: #e74c3c;
-                        color: white;
-                        font-size: 0.75rem;
-                        font-weight: bold;
-                        min-width: 20px;
-                        height: 20px;
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    ">0</span>
-            </button>
+            <!-- Exams Grid -->
+            <div id="exams-grid" class="exam-grid">
+                <!-- Javascript will populate this -->
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p>No exams found. Create your first exam to get started.</p>
+                </div>
+            </div>
 
-            <button class="btn btn-primary"
-                style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
-                onclick="prepareDevice()">💾 Prepare Device for Offline</button>
-    </div>
-    </div>
-
-    <main class="main-content" style="display: block;">
-        <div class="section-header desktop-only">
-            <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
-                onclick="prepareDevice()">💾
-                Prepare Device for Offline</button>
-            <div style="display: flex; gap: 10px;">
-                <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
+            <!-- Archived Exams Section -->
+            <div id="archived-section" style="margin-top: 30px; display: none;">
+                <div class="section-header" style="cursor: pointer;" onclick="toggleArchivedSection()">
+                    <h3 class="section-title">
+                        <span id="archive-toggle-icon">▶</span>
+                        Archived Exams
+                        <span id="archived-count" style="font-size: 0.9rem; color: var(--light-text);">(0)</span>
+                    </h3>
+                </div>
+                <div id="archived-grid" class="exam-grid" style="display: none;">
+                    <!-- Archived exams will be populated here -->
+                </div>
             </div>
-        </div>
-
-        <!-- Admin Messages Section -->
-        <div id="messages-section" style="display: none; margin-bottom: 20px;">
-            <div class="section-header" style="cursor: pointer;" onclick="toggleMessagesSection()">
-                <h3 class="section-title" style="display: flex; align-items: center; gap: 10px;">
-                    📬 Messages from Admin
-                    <span id="unread-count"
-                        style="background: #e74c3c; color: white; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px;">0</span>
-                </h3>
-                <span id="messages-toggle-icon" style="font-size: 1.2rem;">▼</span>
-            </div>
-            <div id="messages-container"
-                style="background: var(--card-bg); border-radius: 10px; padding: 15px; border: 1px solid var(--border-color);">
-                <!-- Messages will be loaded here -->
-                <p style="color: var(--light-text); text-align: center;">Loading messages...</p>
-            </div>
-        </div>
-
-        <!-- Stats Row (Desktop Only) -->
-        <div class="dashboard-grid desktop-only">
-            <div class="stat-card">
-                <div class="stat-number" id="total-exams">0</div>
-                <div class="stat-label">Total Exams</div>
-            </div>
-            <!-- Future stats -->
-            <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModal()">
-                <div class="stat-number" id="results-pending-count">-</div>
-                <div class="stat-label">Results Pending / Flags</div>
-            </div>
-        </div>
-
-        <!-- My Exams Section Header -->
-        <div class="section-header">
-            <h3 class="section-title">My Exams</h3>
-            <!-- Mobile: Show Create button here -->
-            <div class="mobile-only">
-                <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
-            </div>
-        </div>
-
-        <!-- Exams Grid -->
-        <div id="exams-grid" class="exam-grid">
-            <!-- Javascript will populate this -->
-            <div class="empty-state">
-                <div class="empty-state-icon">📝</div>
-                <p>No exams found. Create your first exam to get started.</p>
-            </div>
-        </div>
-
-        <!-- Archived Exams Section -->
-        <div id="archived-section" style="margin-top: 30px; display: none;">
-            <div class="section-header" style="cursor: pointer;" onclick="toggleArchivedSection()">
-                <h3 class="section-title">
-                    <span id="archive-toggle-icon">▶</span>
-                    Archived Exams
-                    <span id="archived-count" style="font-size: 0.9rem; color: var(--light-text);">(0)</span>
-                </h3>
-            </div>
-            <div id="archived-grid" class="exam-grid" style="display: none;">
-                <!-- Archived exams will be populated here -->
-            </div>
-        </div>
-    </main>
+        </main>
     </div>
 
     <!-- Extensions Modal -->
@@ -788,6 +707,7 @@
     </script>
 
 
+    <script src="../js/idb.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../js/auth.js"></script>
@@ -1167,7 +1087,13 @@
             // Load Admin Messages
             await loadAdminMessages(user.id);
 
-            // Load Data
+            // Load Data using Cache-First Strategy
+            await loadDashboardData();
+
+            // Initialize Secret Delete
+            if (window.initSecretDelete) window.initSecretDelete();
+
+            /* Old Logic Disabled
             try {
                 // Fetch Exams and Results (for stats) in parallel
                 // We use getResults to aggregate flags.
@@ -1303,6 +1229,7 @@
             } catch (err) {
                 console.error('Failed to load exams', err);
             }
+            */
         });
 
         // --- Archive Logic ---
@@ -1846,6 +1773,85 @@
             renderFlagReviewList(filterExamId);
         }
 
+        // --- Dashboard Data Loading Strategy (Cache-then-Network) ---
+        // Using globally defined cachedExams/cachedResults (see Flag Review section)
+
+        async function loadDashboardData() {
+            const user = dataService.getCurrentUser();
+            if (!user) return;
+
+            // 1. Load from IDB Cache Immediately (UI Speed)
+            if (window.idb) {
+                try {
+                    const [cExams, cResults] = await Promise.all([
+                        window.idb.getDashboardCache(`exams_${JSON.stringify({ teacherId: user.id })}`),
+                        window.idb.getDashboardCache('results_all')
+                    ]);
+
+                    if (cExams && cExams.data) {
+                        cachedExams = cExams.data;
+                        updateDashboardStats(cachedExams, cachedResults || []);
+                    }
+                    if (cResults && cResults.data) {
+                        cachedResults = cResults.data;
+                        updateDashboardStats(cachedExams || [], cachedResults);
+                    }
+                } catch (e) {
+                    console.warn('Cache load error:', e);
+                }
+            }
+
+            // 2. Fetch Fresh Data from Network (Background Update)
+            try {
+                // If we have no cache, show loading state
+                const grid = document.getElementById('exams-grid');
+                if (cachedExams.length === 0 && grid) {
+                    grid.innerHTML = '<div class="loader"></div>';
+                }
+
+                console.log('🌐 Fetching fresh dashboard data...');
+                const [exams, results] = await Promise.all([
+                    dataService.getExams({ teacherId: user.id, forceRefresh: true }),
+                    dataService.getResults({ forceRefresh: true })
+                ]);
+
+                cachedExams = exams;
+                cachedResults = results;
+
+                // 3. Update Cache (implicitly done by dataService but good to be explicit for dashboard specific keys if needed)
+                if (window.idb) {
+                    await window.idb.saveDashboardCache('results_all', { data: results, timestamp: Date.now() });
+                }
+
+                updateDashboardStats(exams, results);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+
+                // If offline and we have cache, we are good.
+                if (cachedExams.length > 0) {
+                    // showToast('You are offline. Showing cached data.', 'info'); 
+                    const el = document.getElementById('connection-status');
+                    if (el) {
+                        el.textContent = '🔴 Offline';
+                        el.style.backgroundColor = '#f8d7da';
+                        el.style.color = '#721c24';
+                    }
+                } else if (!navigator.onLine) {
+                    const grid = document.getElementById('exams-grid');
+                    if (grid) grid.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📡</div>
+                            <h3>You are offline</h3>
+                            <p>No cached data available. Please connect to the internet.</p>
+                        </div>
+                    `;
+                } else {
+                    alert('Failed to load dashboard: ' + error.message);
+                }
+            }
+        }
+
         // Helper to update main dashboard counters without full reload
         function updateDashboardStats(exams, allResults) {
             // Count distinct STUDENTS with active flags (not total flags)
@@ -1868,71 +1874,133 @@
             const mobileTotalEl = document.getElementById('mobile-total-exams');
             if (mobileTotalEl) mobileTotalEl.textContent = activeExams.length;
 
-            // Also update totals per exam if we want to be thorough, but rebuilding grid is heavy.
-            // We can just rebuild the grid since we have exams and results.
             const grid = document.getElementById('exams-grid');
-            if (activeExams.length > 0 && grid) {
-                // Helper function to render exam card (matches DOMContentLoaded logic)
-                const renderExamCard = (exam, isArchived = false) => {
-                    const examResults = allResults.filter(r => r.examId === exam.id);
-                    const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
-                    const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
-                    const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
+            if (!grid) return;
 
-                    // Format scheduled date if exists
-                    let scheduleInfo = '';
-                    if (exam.scheduledDate) {
-                        const schedDate = new Date(exam.scheduledDate);
-                        const now = new Date();
-                        const isPast = schedDate < now;
-                        const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                        scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.85rem;">📅 ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
-                    }
+            // Helper to generate Card HTML
+            const getCardHTML = (exam, isArchived = false) => {
+                const examResults = allResults.filter(r => r.examId === exam.id);
+                const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
+                const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
+                const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
 
-                    const scrambleIndicator = exam.scrambleQuestions
-                        ? '<span title="Questions scrambled" style="font-size: 0.85rem;">🔀</span>'
-                        : '';
+                let scheduleInfo = '';
+                if (exam.scheduledDate) {
+                    const schedDate = new Date(exam.scheduledDate);
+                    const now = new Date();
+                    const isPast = schedDate < now;
+                    const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                    scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.85rem;">📅 ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
+                }
 
-                    return `
-                    <div class="exam-card" ${isArchived ? 'style="opacity: 0.7;"' : ''}>
-                        <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
-                            <span class="exam-subject">${exam.subject || 'General'}</span>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                ${scrambleIndicator}
-                                <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
-                                <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
-                                <span title="Flagged - Click to review" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')">🔴 ${redCount}</span>
-                            </div>
-                        </div>
-                        <div class="exam-card-body">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                                <h4 class="exam-title" style="margin: 0;">${exam.title}</h4>
-                                ${scheduleInfo}
-                            </div>
-                            <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                                    <span>⏱ ${exam.duration}m</span>
-                                    <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
-                                    <span>🏫 ${exam.targetClass || 'All Classes'}</span>
-                                </div>
-                                ${isArchived
-                            ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}')">📤 Restore</button>`
-                            : `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--light-text); background: transparent; border: 1px solid #e0e0e0;" onclick="window.archiveExam('${exam.id}')">📥 Archive</button>`
-                        }
-                            </div>
-                        </div>
-                        <div class="exam-card-footer">
-                            <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
-                            ${!isArchived ? `<button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>` : ''}
-                            <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
+                const scrambleIndicator = exam.scrambleQuestions
+                    ? '<span title="Questions scrambled" style="font-size: 0.85rem;">🔀</span>'
+                    : '';
+
+                return `
+                    <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
+                        <span class="exam-subject">${exam.subject || 'General'}</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            ${scrambleIndicator}
+                            <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
+                            <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
+                            <span title="Flagged - Click to review" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')">🔴 ${redCount}</span>
                         </div>
                     </div>
-                    `;
-                };
+                    <div class="exam-card-body">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                            <h4 class="exam-title" style="margin: 0;">${exam.title}</h4>
+                            ${scheduleInfo}
+                        </div>
+                        <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <span>⏱ ${exam.duration}m</span>
+                                <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
+                                <span>🏫 ${exam.targetClass || 'All Classes'}</span>
+                            </div>
+                            ${isArchived
+                        ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}')">📤 Restore</button>`
+                        : `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--light-text); background: transparent; border: 1px solid #e0e0e0;" onclick="window.archiveExam('${exam.id}')">📥 Archive</button>`
+                    }
+                        </div>
+                    </div>
+                    <div class="exam-card-footer">
+                        <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
+                        ${!isArchived ? `<button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>` : ''}
+                        <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
+                    </div>
+                `;
+            };
 
-                // Re-render active exams only
-                grid.innerHTML = activeExams.map(exam => renderExamCard(exam, false)).join('');
+            // Smart Update:
+            // 1. Mark all existing cards
+            const currentCards = Array.from(grid.children);
+            const existingIds = new Set(currentCards.map(c => c.getAttribute('data-exam-id')));
+            const newIds = new Set(activeExams.map(e => e.id));
+
+            // 2. Remove cards for exams that are no longer active/exist
+            currentCards.forEach(card => {
+                const id = card.getAttribute('data-exam-id');
+                if (!newIds.has(id)) {
+                    card.remove();
+                }
+            });
+
+            // 3. Update existing or Append new
+            activeExams.forEach(exam => {
+                let card = grid.querySelector(`.exam-card[data-exam-id="${exam.id}"]`);
+
+                if (card) {
+                    // Update content
+                    card.innerHTML = getCardHTML(exam, false);
+                    card.setAttribute('data-exam-title', exam.title); // Update title just in case
+                } else {
+                    // Create new
+                    card = document.createElement('div');
+                    card.className = 'exam-card';
+                    card.setAttribute('data-exam-id', exam.id);
+                    card.setAttribute('data-exam-title', exam.title);
+                    card.innerHTML = getCardHTML(exam, false);
+                    // Prepend to top (assuming sort order) or append
+                    grid.prepend(card);
+                }
+            });
+
+            // If grid is empty
+            if (activeExams.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <h3>No Exams Created Yet</h3>
+                        <p>Create your first exam to get started.</p>
+                        <button class="btn btn-primary" onclick="location.href='create-exam.html'">+ Create Exam</button>
+                    </div>
+                `;
+            } else {
+                // Remove empty state if present
+                const empty = grid.querySelector('.empty-state');
+                if (empty) empty.remove();
             }
+
+            // Also handle archived grid (simpler: just rebuild)
+            const archivedGrid = document.getElementById('archived-grid');
+            const archivedExams = exams.filter(e => e.status === 'archived');
+            if (archivedGrid) {
+                if (archivedExams.length > 0) {
+                    document.getElementById('archived-section').style.display = 'block';
+                    document.getElementById('archived-count').textContent = `(${archivedExams.length})`;
+                    archivedGrid.innerHTML = archivedExams.map(exam => `
+                        <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}" style="opacity: 0.7;">
+                            ${getCardHTML(exam, true)}
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('archived-section').style.display = 'none';
+                }
+            }
+
+            // Re-bind secret delete events (since we might have added new cards)
+            if (window.initSecretDelete) window.initSecretDelete();
         }
 
         window.closeFlagReviewModal = () => {

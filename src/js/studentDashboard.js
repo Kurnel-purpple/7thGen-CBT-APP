@@ -159,7 +159,7 @@ const studentDashboard = {
         }
     },
 
-loadData: async () => {
+    loadData: async () => {
         const userId = studentDashboard.user.id;
         const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
 
@@ -167,15 +167,15 @@ loadData: async () => {
         let serverResults = [];
         let isUsingCache = false;
 
-try {
+        try {
             // Attempt to fetch from server with optimizations
             [exams, serverResults] = await Promise.all([
-                dataService.getExams({ 
+                dataService.getExams({
                     status: 'active',
                     studentDashboard: true // Use optimized query
                 }),
                 userId
-                    ? dataService.getResults({ 
+                    ? dataService.getResults({
                         studentId: userId,
                         studentDashboard: true // Use optimized query
                     })
@@ -316,7 +316,41 @@ try {
         studentDashboard.populateSubjectFilters();
         studentDashboard.renderAvailable();
         studentDashboard.renderResolved();
+
         studentDashboard.renderCompleted();
+
+        // --- Background Update (stale-while-revalidate) ---
+        if (navigator.onLine) {
+            setTimeout(async () => {
+                try {
+                    console.log('🔄 Checking for fresh dashboard data...');
+                    const [freshExams, freshResults] = await Promise.all([
+                        dataService.getExams({ status: 'active', studentDashboard: true, forceRefresh: true }),
+                        userId ? dataService.getResults({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
+                    ]);
+
+                    // Update Cache with FRESH data
+                    if (window.idb) {
+                        await window.idb.saveExams(freshExams);
+                        await window.idb.saveDashboardCache('exams_list', { data: freshExams, timestamp: Date.now() });
+                        if (freshResults.length > 0) {
+                            await window.idb.saveResults(freshResults);
+                            await window.idb.saveDashboardCache(`results_${userId}`, { data: freshResults, timestamp: Date.now() });
+                        }
+                    }
+
+                    // Update UI with fresh data
+                    studentDashboard.results = [...mappedPending, ...freshResults];
+                    studentDashboard.exams = freshExams;
+
+                    studentDashboard.populateSubjectFilters();
+                    studentDashboard.renderAvailable();
+                    studentDashboard.renderResolved();
+                    studentDashboard.renderCompleted();
+
+                } catch (e) { console.warn('Background refresh failed', e); }
+            }, 1500);
+        }
 
         // Trigger preload of ready exams for offline use
         studentDashboard.preloadExamsForOffline();

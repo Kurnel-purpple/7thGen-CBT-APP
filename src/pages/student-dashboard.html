@@ -212,7 +212,7 @@
                             Account</span>
                         <span style="font-size: 0.8rem; opacity: 0.6;">▼</span>
                     </button>
-                    <div id="credentials-dropdown-content" class="dropdown-content">
+                    <div id="credentials-dropdown" class="dropdown-content">
                         <div
                             style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
                             Settings</div>
@@ -535,14 +535,67 @@
 
     <script>
 
+        // Dropdown Logic
+        window.toggleCredentialsDropdown = function () {
+            const dropdown = document.getElementById('credentials-dropdown');
+            if (!dropdown) return;
+
+            const isShown = dropdown.classList.contains('show');
+            if (!isShown) {
+                dropdown.classList.add('show');
+                // Use a slight delay to avoid the current click closing it immediately
+                setTimeout(() => {
+                    document.addEventListener('click', closeCredentialsDropdownOutside);
+                }, 10);
+            } else {
+                closeDropdown();
+            }
+        };
+
+        function closeDropdown() {
+            const dropdown = document.getElementById('credentials-dropdown');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+                document.removeEventListener('click', closeCredentialsDropdownOutside);
+            }
+        }
+
+        function closeCredentialsDropdownOutside(event) {
+            const dropdown = document.getElementById('credentials-dropdown');
+            const button = event.target.closest('.credentials-dropdown');
+            if (!button && dropdown && dropdown.classList.contains('show')) {
+                closeDropdown();
+            }
+        }
+
+        // Change Username Logic
+        window.openChangeUsernameModal = function () {
+            const modal = document.getElementById('change-username-modal');
+            if (!modal) return;
+
+            modal.style.display = 'flex';
+            const input = document.getElementById('new-username');
+            if (input) {
+                input.value = dataService.getUsername();
+                input.focus();
+            }
+            const errorEl = document.getElementById('username-error');
+            if (errorEl) errorEl.style.display = 'none';
+        };
+
         window.closeChangeUsernameModal = function () {
-            document.getElementById('change-username-modal').style.display = 'none';
+            const modal = document.getElementById('change-username-modal');
+            if (modal) modal.style.display = 'none';
         };
 
         window.submitUsernameChange = async function () {
-            const newUsername = document.getElementById('new-username').value.trim();
+            const newUsernameInput = document.getElementById('new-username');
             const errorEl = document.getElementById('username-error');
             const submitBtn = document.getElementById('submit-username-btn');
+
+            if (!newUsernameInput || !errorEl || !submitBtn) return;
+
+            const newUsername = newUsernameInput.value.trim();
 
             if (!newUsername) {
                 errorEl.textContent = 'Username cannot be empty';
@@ -552,18 +605,24 @@
 
             try {
                 submitBtn.disabled = true;
+                const originalText = submitBtn.textContent;
                 submitBtn.textContent = 'Updating...';
                 errorEl.style.display = 'none';
 
                 await dataService.updateUsername(newUsername);
 
-                alert('Username updated successfully!');
-
-                // Update nav display if needed
+                // Update nav display
                 const navDisplay = document.getElementById('nav-user-display');
                 if (navDisplay) navDisplay.textContent = `👤 ${newUsername}`;
 
+                // Update studentDashboard name
+                const userNameEl = document.getElementById('user-name');
+                if (userNameEl) userNameEl.textContent = newUsername;
+
+                alert('Username updated successfully!');
                 closeChangeUsernameModal();
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             } catch (err) {
                 errorEl.textContent = err.message || 'Failed to update username';
                 errorEl.style.display = 'block';
@@ -575,24 +634,28 @@
         // Update nav display initially
         document.addEventListener('DOMContentLoaded', () => {
             const user = dataService.getCurrentUser();
-            if (user && user.username) {
+            if (user && (user.username || user.name)) {
                 const navDisplay = document.getElementById('nav-user-display');
-                if (navDisplay) navDisplay.textContent = `👤 ${user.username}`;
+                if (navDisplay) navDisplay.textContent = `👤 ${user.username || user.name}`;
             }
         });
 
         // Change Password Functions
         window.openChangePasswordModal = function () {
-            document.getElementById('change-password-modal').style.display = 'flex';
-            document.getElementById('current-password').value = '';
-            document.getElementById('new-password').value = '';
-            document.getElementById('confirm-new-password').value = '';
-            const errorEl = document.getElementById('password-error');
-            if (errorEl) errorEl.style.display = 'none';
+            const modal = document.getElementById('change-password-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.getElementById('current-password').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('confirm-new-password').value = '';
+                const errorEl = document.getElementById('password-error');
+                if (errorEl) errorEl.style.display = 'none';
+            }
         };
 
         window.closeChangePasswordModal = function () {
-            document.getElementById('change-password-modal').style.display = 'none';
+            const modal = document.getElementById('change-password-modal');
+            if (modal) modal.style.display = 'none';
         };
 
         window.togglePasswordVisibility = function (inputId, button) {
@@ -607,11 +670,17 @@
         };
 
         window.submitPasswordChange = async function () {
-            const oldPass = document.getElementById('current-password').value;
-            const newPass = document.getElementById('new-password').value;
-            const confirmPass = document.getElementById('confirm-new-password').value;
+            const oldPassInput = document.getElementById('current-password');
+            const newPassInput = document.getElementById('new-password');
+            const confirmPassInput = document.getElementById('confirm-new-password');
             const errorEl = document.getElementById('password-error');
             const submitBtn = document.getElementById('submit-password-btn');
+
+            if (!oldPassInput || !newPassInput || !confirmPassInput || !errorEl || !submitBtn) return;
+
+            const oldPass = oldPassInput.value;
+            const newPass = newPassInput.value;
+            const confirmPass = confirmPassInput.value;
 
             if (!oldPass || !newPass || !confirmPass) {
                 errorEl.textContent = 'Please fill in all fields';
@@ -633,6 +702,7 @@
 
             try {
                 submitBtn.disabled = true;
+                const originalText = submitBtn.textContent;
                 submitBtn.textContent = 'Updating...';
                 errorEl.style.display = 'none';
 
@@ -645,106 +715,6 @@
                 errorEl.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Update Password';
-            }
-        };
-
-        // Credentials Dropdown Functions
-        window.toggleCredentialsDropdown = function () {
-            const dropdown = document.getElementById('credentials-dropdown');
-            if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-                dropdown.style.display = 'block';
-                document.addEventListener('click', closeCredentialsDropdownOutside);
-            } else {
-                dropdown.style.display = 'none';
-                document.removeEventListener('click', closeCredentialsDropdownOutside);
-            }
-        };
-
-        function closeCredentialsDropdownOutside(event) {
-            const dropdown = document.getElementById('credentials-dropdown');
-            const button = event.target.closest('.dropdown');
-            if (!button && dropdown.style.display === 'block') {
-                dropdown.style.display = 'none';
-                document.removeEventListener('click', closeCredentialsDropdownOutside);
-            }
-        }
-
-        window.toggleMobileCredentialsDropdown = function () {
-            const dropdown = document.getElementById('mobile-credentials-dropdown');
-            dropdown.style.display = dropdown.style.display === 'none' || dropdown.style.display === '' ? 'block' : 'none';
-        };
-
-        // Change Username Functions
-        window.openChangeUsernameModal = async function () {
-            document.getElementById('change-username-modal').style.display = 'flex';
-            document.getElementById('new-username').value = '';
-            document.getElementById('username-current-password').value = '';
-            document.getElementById('username-error').style.display = 'none';
-            document.getElementById('username-success').style.display = 'none';
-
-            // Load and display current username
-            try {
-                const currentUsername = dataService.getUsername();
-                document.getElementById('current-username-display').value = currentUsername;
-            } catch (err) {
-                console.error('Failed to get username:', err);
-                document.getElementById('current-username-display').value = 'Loading...';
-            }
-        };
-
-        window.closeChangeUsernameModal = function () {
-            document.getElementById('change-username-modal').style.display = 'none';
-        };
-
-        window.submitUsernameChange = async function () {
-            const newUsername = document.getElementById('new-username').value.trim();
-            const currentPassword = document.getElementById('username-current-password').value;
-            const errorEl = document.getElementById('username-error');
-            const successEl = document.getElementById('username-success');
-            const submitBtn = document.getElementById('submit-username-btn');
-
-            if (!newUsername || !currentPassword) {
-                errorEl.textContent = 'Please fill in all fields';
-                errorEl.style.display = 'block';
-                successEl.style.display = 'none';
-                return;
-            }
-
-            if (newUsername.length < 3) {
-                errorEl.textContent = 'Username must be at least 3 characters';
-                errorEl.style.display = 'block';
-                successEl.style.display = 'none';
-                return;
-            }
-
-            if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
-                errorEl.textContent = 'Username can only contain letters, numbers, underscores, and hyphens';
-                errorEl.style.display = 'block';
-                successEl.style.display = 'none';
-                return;
-            }
-
-            try {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Updating...';
-                errorEl.style.display = 'none';
-                successEl.style.display = 'none';
-
-                await dataService.changeUsername(newUsername, currentPassword);
-
-                successEl.textContent = 'Username updated successfully!';
-                successEl.style.display = 'block';
-                document.getElementById('current-username-display').value = newUsername;
-
-                setTimeout(() => {
-                    closeChangeUsernameModal();
-                }, 2000);
-            } catch (err) {
-                errorEl.textContent = err.message || 'Failed to change username';
-                errorEl.style.display = 'block';
-                successEl.style.display = 'none';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Update Username';
             }
         };
     </script>

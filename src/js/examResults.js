@@ -97,6 +97,80 @@ const examResults = {
             examResults.renderTable();
             examResults.renderCards(); // Add card rendering for mobile
 
+            // Background Refresh (stale-while-revalidate)
+            if (navigator.onLine) {
+                setTimeout(async () => {
+                    try {
+                        console.log('🔄 Checking for fresh results...');
+                        const [freshExam, freshResults] = await Promise.all([
+                            dataService.getExamById(examId), // Refresh exam too? maybe not needed but safer
+                            dataService.getResults({ examId: examId, forceRefresh: true })
+                        ]);
+
+                        // Process Fresh Results (Duplicate logic from above for now)
+                        // TODO: Refactor into helper
+                        examResults.results = freshResults.map(r => {
+                            let calculatedPoints = 0;
+                            let totalPossible = 0;
+
+                            freshExam.questions.forEach(q => {
+                                const qPoints = parseFloat(q.points) || 0.5;
+                                totalPossible += qPoints;
+
+                                if (q.type === 'theory') {
+                                    const theoryScore = r.theoryScores && r.theoryScores[q.id] ? parseFloat(r.theoryScores[q.id]) : 0;
+                                    calculatedPoints += theoryScore;
+                                } else if (q.type === 'fill_blank') {
+                                    const answer = r.answers[q.id];
+                                    if (answer && q.correctAnswer && answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                                        calculatedPoints += qPoints;
+                                    }
+                                } else if (q.type === 'match') {
+                                    const answer = r.answers[q.id];
+                                    if (answer) {
+                                        let allCorrect = true;
+                                        q.pairs.forEach((pair, idx) => {
+                                            if (answer[idx] !== pair.right) allCorrect = false;
+                                        });
+                                        if (allCorrect) calculatedPoints += qPoints;
+                                    }
+                                } else if (q.type === 'image_multi') {
+                                    const answer = r.answers[q.id];
+                                    if (answer && q.subQuestions) {
+                                        let correctCount = 0;
+                                        q.subQuestions.forEach(subQ => {
+                                            if (answer[subQ.id] === subQ.correctAnswer) {
+                                                correctCount++;
+                                            }
+                                        });
+                                        const pointsPerSubQ = qPoints / q.subQuestions.length;
+                                        calculatedPoints += correctCount * pointsPerSubQ;
+                                    }
+                                } else {
+                                    const answer = r.answers[q.id];
+                                    if (q.options) {
+                                        const correctOpt = q.options.find(o => o.isCorrect);
+                                        if (answer && correctOpt && correctOpt.id === answer) {
+                                            calculatedPoints += qPoints;
+                                        }
+                                    }
+                                }
+                            });
+
+                            const passScore = freshExam.passScore || 50;
+                            const isPassed = r.score >= passScore;
+
+                            return { ...r, points: calculatedPoints, totalPoints: totalPossible, passed: isPassed };
+                        });
+
+                        examResults.renderStats();
+                        examResults.renderTable();
+                        examResults.renderCards();
+
+                    } catch (e) { console.warn('Background refresh failed', e); }
+                }, 1000);
+            }
+
         } catch (err) {
             console.error(err);
             alert('Error loading data');
