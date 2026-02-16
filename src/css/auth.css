@@ -191,7 +191,7 @@
     background: white !important;
     color: #667eea !important;
     padding: 8px 20px !important;
-    border-radius: 25px !important;
+    border-radius: var(--btn-border-radius) !important;
     font-weight: 600 !important;
     text-decoration: none;
     transition: all 0.3s ease;
@@ -233,5 +233,77 @@
 
     .download-banner {
         padding: 15px 20px 15px;
+    }
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--neu-bg);
+    width: 90%;
+    max-width: 400px;
+    border-radius: 20px;
+    box-shadow: var(--neu-shadow-out);
+    overflow: hidden;
+    animation: slideUp 0.4s ease-out;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--secondary-color);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--light-text);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-body p {
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: var(--light-text);
+    line-height: 1.5;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
     }
 }

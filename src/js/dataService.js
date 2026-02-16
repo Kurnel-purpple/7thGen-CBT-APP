@@ -122,6 +122,7 @@ class DataService {
 
             const userObj = {
                 id: authData.record.id,
+                profileId: profile?.id,
                 email: authData.record.email,
                 username: authData.record.username,
                 role: profile?.role || authData.record.role || 'student',
@@ -130,6 +131,7 @@ class DataService {
                 schoolVersion: profile?.school_version || authData.record.school_version,
                 _pb_user: authData.record
             };
+
 
             localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
             return userObj;
@@ -259,22 +261,119 @@ class DataService {
         }
     }
 
-    async getUsers(role) {
+    /**
+     * Update user profile fields (updates both users and profiles collections)
+     */
+    async updateProfile(updates) {
         try {
-            let filter = '';
-            if (role) {
-                filter = `role="${role}"`;
+            if (!this.pb.authStore.isValid) {
+                throw new Error('Not authenticated');
+            }
+
+            const userId = this.pb.authStore.model.id;
+
+            // 1. Update users collection (central identity)
+            const userData = {};
+            if (updates.schoolVersion !== undefined) userData.school_version = updates.schoolVersion;
+            if (updates.full_name !== undefined) userData.full_name = updates.full_name;
+            if (updates.role !== undefined) userData.role = updates.role;
+            if (updates.class_level !== undefined) userData.class_level = updates.class_level;
+
+            const updatedUser = await this.pb.collection('users').update(userId, userData);
+
+            // 2. Update/Create profiles collection (used for admin/teacher lists)
+            try {
+                // Prepare profile data
+                const profileData = {
+                    user: userId
+                };
+                if (updates.schoolVersion !== undefined) profileData.school_version = updates.schoolVersion;
+                if (updates.full_name !== undefined) profileData.full_name = updates.full_name;
+                if (updates.role !== undefined) profileData.role = updates.role;
+                if (updates.class_level !== undefined) profileData.class_level = updates.class_level;
+
+                // Check if profile exists
+                try {
+                    const profile = await this.pb.collection('profiles').getFirstListItem(`user="${userId}"`);
+                    await this.pb.collection('profiles').update(profile.id, profileData);
+                } catch (findErr) {
+                    // Profile doesn't exist, CREATE it
+                    // Ensure role and full_name are included if missing from updates
+                    if (!profileData.role) profileData.role = updatedUser.role || 'teacher';
+                    if (!profileData.full_name) profileData.full_name = updatedUser.full_name;
+
+                    await this.pb.collection('profiles').create(profileData);
+                    console.log('Created missing profile for user:', userId);
+                }
+            } catch (profileErr) {
+                console.error('Profile sync failed:', profileErr.message);
+                // We don't throw here to ensure the user update is still considered successful
+            }
+
+            // 3. Update local metadata cache
+            const cached = this.getCurrentUser();
+            if (cached) {
+                if (updates.schoolVersion !== undefined) cached.schoolVersion = updates.schoolVersion;
+                if (updates.full_name !== undefined) cached.name = updates.full_name;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
+            }
+
+            return updatedUser;
+        } catch (error) {
+            console.error('updateProfile error:', error);
+            throw new Error(error.message || 'Failed to update profile');
+        }
+    }
+
+
+
+    async getUsers(filters = {}) {
+        try {
+            let filterString = '';
+            if (filters.role) {
+                filterString = `role="${filters.role}"`;
+            }
+            if (filters.schoolVersion) {
+                if (filterString) filterString += ' && ';
+                filterString += `school_version="${filters.schoolVersion}"`;
             }
 
             const users = await this.pb.collection('profiles').getFullList({
-                filter: filter
+                filter: filterString
             });
 
             return users;
         } catch (error) {
+            console.error('getUsers error:', error);
             throw error;
         }
     }
+
+    /**
+     * Subscribe to profile updates
+     */
+    async subscribeToProfiles(callback) {
+        try {
+            return await this.pb.collection('profiles').subscribe('*', (e) => {
+                callback(e);
+            });
+        } catch (error) {
+            console.error('Subscription error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Unsubscribe from profile updates
+     */
+    async unsubscribeFromProfiles() {
+        try {
+            await this.pb.collection('profiles').unsubscribe('*');
+        } catch (error) {
+            console.error('Unsubscribe error:', error);
+        }
+    }
+
 
     // --- Exams ---
 
@@ -893,10 +992,15 @@ class DataService {
                 if (filterString) filterString += ' && ';
                 filterString += `from_id="${filters.fromId}"`;
             }
+            if (filters.toId) {
+                if (filterString) filterString += ' && ';
+                filterString += `to_id="${filters.toId}"`;
+            }
             if (filters.schoolVersion) {
                 if (filterString) filterString += ' && ';
                 filterString += `school_version="${filters.schoolVersion}"`;
             }
+
 
             const messages = await this.pb.collection('messages').getFullList({
                 filter: filterString,
@@ -928,7 +1032,146 @@ class DataService {
             throw error;
         }
     }
+
+    /**
+     * Subscribe to messages
+     */
+    async subscribeToMessages(callback) {
+        try {
+            return await this.pb.collection('messages').subscribe('*', (e) => {
+                callback(e);
+            });
+        } catch (error) {
+            console.error('Message subscription error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Unsubscribe from messages
+     */
+    async unsubscribeFromMessages() {
+        try {
+            await this.pb.collection('messages').unsubscribe('*');
+        } catch (error) {
+            console.error('Message unsubscribe error:', error);
+        }
+    }
+
+    /**
+
+     * Step 1: Request a reset code
+     * Generates a 6-digit code and sends it to the school admin
+     */
+    async requestPasswordReset(username) {
+        try {
+            // Use admin identity to bypass permission restrictions on profile search
+            const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
+            const ADMIN_PASS = "Finest1709";
+            const adminPb = new PocketBase(this.pb.baseUrl);
+            await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
+
+            // 1. Find the user record
+            // We search across users collection first since it's the source of truth for username/email
+            let userRecord;
+            try {
+                userRecord = await adminPb.collection('users').getFirstListItem(
+                    `username="${username}" || email="${username}@${this.PROXY_DOMAIN}" || full_name="${username}"`
+                );
+            } catch (e) {
+                adminPb.authStore.clear();
+                throw new Error('User not found. Please check your Student ID / Username.');
+            }
+
+            // 2. Get the profile to send message properly
+            const profile = await adminPb.collection('profiles').getFirstListItem(`user="${userRecord.id}"`);
+
+            // 3. Generate 6-digit code
+            const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+            // 4. Find the admin for this school version
+            const schoolVersion = profile.school_version;
+            const admins = await adminPb.collection('profiles').getFullList({
+                filter: `role="admin" && school_version="${schoolVersion}"`
+            });
+
+            if (admins.length === 0) {
+                const globalAdmins = await adminPb.collection('profiles').getFullList({
+                    filter: 'role="admin"',
+                    perPage: 1
+                });
+                if (globalAdmins.length > 0) admins.push(globalAdmins[0]);
+            }
+
+            // 5. Send message(s) to admin(s)
+            // Note: We use the adminPb to bypass authentication for sending the "System" message
+            for (const admin of admins) {
+                await adminPb.collection('messages').create({
+                    from_id: userRecord.id,
+                    to_id: admin.user || admin.id,
+                    message: `🗝️ PASSWORD RESET REQUEST\nUser: ${username}\nReset Code: ${resetCode}\nSchool: ${schoolVersion}`,
+                    school_version: schoolVersion,
+                    read: false
+                });
+            }
+
+            // 6. Store code locally for verification
+            const resetInfo = {
+                username: username,
+                code: resetCode,
+                expires: Date.now() + (30 * 60 * 1000)
+            };
+            localStorage.setItem(`cbt_reset_${username}`, JSON.stringify(resetInfo));
+
+            adminPb.authStore.clear();
+            return { success: true, schoolVersion };
+        } catch (error) {
+            console.error('Request reset error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Step 2: Verify code and update password
+     */
+    async verifyAndResetPassword(username, enteredCode, newPassword) {
+        try {
+            const stored = localStorage.getItem(`cbt_reset_${username}`);
+            if (!stored) throw new Error('No active reset request found.');
+
+            const resetInfo = JSON.parse(stored);
+            if (Date.now() > resetInfo.expires) throw new Error('Reset code has expired.');
+            if (resetInfo.code !== enteredCode) throw new Error('Invalid reset code.');
+
+            // Perform update using system admin
+            const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
+            const ADMIN_PASS = "Finest1709";
+
+            const adminPb = new PocketBase(this.pb.baseUrl);
+            await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
+
+            // Find the user record ID safely
+            const user = await adminPb.collection('users').getFirstListItem(
+                `username="${username}" || email="${username}@${this.PROXY_DOMAIN}" || full_name="${username}"`
+            );
+
+            // Update the password
+            await adminPb.collection('users').update(user.id, {
+                password: newPassword,
+                passwordConfirm: newPassword
+            });
+
+
+            localStorage.removeItem(`cbt_reset_${username}`);
+            adminPb.authStore.clear();
+            return true;
+        } catch (error) {
+            console.error('Verify reset error:', error);
+            throw error;
+        }
+    }
 }
+
 
 // Global instance
 window.dataService = new DataService();

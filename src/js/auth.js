@@ -107,8 +107,91 @@ const auth = {
     }
 };
 
+// Forgot Password Flow Helpers
+window.openForgotPasswordModal = () => {
+    const modal = document.getElementById('forgot-password-modal');
+    if (modal) modal.classList.add('show');
+};
+
+window.closeModal = (id) => {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('show');
+};
+
+window.handleRequestReset = async () => {
+    const usernameInput = document.getElementById('reset-username');
+    const errorDiv = document.getElementById('reset-error-1');
+    const btn = document.getElementById('request-reset-btn');
+    const username = usernameInput.value.trim();
+
+    if (!username) {
+        errorDiv.textContent = 'Please enter your username.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    errorDiv.style.display = 'none';
+
+    try {
+        await dataService.requestPasswordReset(username);
+        // Move to step 2
+        window.closeModal('forgot-password-modal');
+        const verifyModal = document.getElementById('verify-reset-modal');
+        if (verifyModal) verifyModal.classList.add('show');
+        // Pre-fill username if needed
+        localStorage.setItem('pending_reset_user', username);
+    } catch (err) {
+        errorDiv.textContent = err.message || 'Failed to request reset.';
+        errorDiv.style.display = 'block';
+        btn.textContent = '🚀 Request Reset Code';
+        btn.disabled = false;
+    }
+};
+
+window.handleVerifyReset = async () => {
+    const codeInput = document.getElementById('reset-code');
+    const passInput = document.getElementById('reset-new-password');
+    const errorDiv = document.getElementById('reset-error-2');
+    const btn = document.getElementById('verify-reset-btn');
+
+    const code = codeInput.value.trim();
+    const newPassword = passInput.value.trim();
+    const username = localStorage.getItem('pending_reset_user');
+
+    if (!code || code.length !== 6) {
+        errorDiv.textContent = 'Please enter the 6-digit code.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        errorDiv.textContent = 'Password must be at least 6 characters.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+    errorDiv.style.display = 'none';
+
+    try {
+        await dataService.verifyAndResetPassword(username, code, newPassword);
+        alert('✅ Password updated successfully! You can now log in.');
+        window.closeModal('verify-reset-modal');
+        localStorage.removeItem('pending_reset_user');
+    } catch (err) {
+        errorDiv.textContent = err.message || 'Failed to update password.';
+        errorDiv.style.display = 'block';
+        btn.textContent = '✅ Update Password';
+        btn.disabled = false;
+    }
+};
+
 // Auto-init if in browser
 if (typeof window !== 'undefined') {
+
     window.auth = auth;
     // Wait for DOM
     document.addEventListener('DOMContentLoaded', auth.init);

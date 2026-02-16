@@ -50,12 +50,72 @@
                         <button type="submit" class="btn btn-primary btn-block">🔐 Sign In</button>
                     </form>
 
-                    <div class="auth-footer">
+                    <div class="auth-footer" style="margin-top: 15px;">
+                        <p><a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot Password?</a></p>
                         <p>Don't have an account? <a href="pages/register.html">Sign Up</a></p>
-
                     </div>
                 </div>
             </div>
+
+            <!-- Forgot Password Modal Step 1: Username -->
+            <div id="forgot-password-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Forgot Password</h3>
+                        <button onclick="closeModal('forgot-password-modal')" class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Enter your <strong>Student ID</strong> or <strong>Username</strong>. A reset code will be
+                            sent to your school administrator.</p>
+                        <div id="reset-error-1" class="error-message" style="display: none; margin-bottom: 10px;"></div>
+                        <div class="form-group">
+                            <label>Username / Student ID</label>
+                            <input type="text" id="reset-username" class="form-control" placeholder="e.g. JMS123">
+                        </div>
+                        <button onclick="handleRequestReset()" class="btn btn-primary btn-block" id="request-reset-btn">
+                            🚀 Request Reset Code
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forgot Password Modal Step 2: Verify & Change -->
+            <div id="verify-reset-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Reset Your Password</h3>
+                        <button onclick="closeModal('verify-reset-modal')" class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Get the <strong>6-digit code</strong> from your school administrator and enter it below along
+                            with your new password.</p>
+                        <div id="reset-error-2" class="error-message" style="display: none; margin-bottom: 10px;"></div>
+
+                        <div class="form-group">
+                            <label>6-Digit Reset Code</label>
+                            <input type="text" id="reset-code" class="form-control" placeholder="000000" maxlength="6"
+                                style="text-align: center; font-size: 1.5rem; letter-spacing: 5px; font-weight: bold;">
+                        </div>
+
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <div class="password-input-container">
+                                <input type="password" id="reset-new-password" class="form-control"
+                                    placeholder="Min 6 characters">
+                                <button type="button" class="password-toggle-btn"
+                                    onclick="togglePassword('reset-new-password', this)">
+                                    <span class="eye-icon">👁️</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onclick="handleVerifyReset()" class="btn btn-primary btn-block" id="verify-reset-btn">
+                            ✅ Update Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </main>
 
         <!-- Download Desktop App Banner (only shows on web, not in Electron) -->

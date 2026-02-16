@@ -298,6 +298,26 @@
             color: var(--light-text);
         }
 
+        .message-item.received {
+            border-left: 3px solid var(--success-color);
+        }
+
+        .message-item.reset-request {
+            border-left: 3px solid var(--accent-color);
+            background-color: #fff9fa;
+        }
+
+        .message-item.reset-request .message-content {
+            font-family: monospace;
+            white-space: pre-wrap;
+            color: var(--accent-color);
+            background: #fff0f1;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+
         .message-item .message-content {
             color: var(--text-color);
             line-height: 1.5;
@@ -819,6 +839,34 @@
 
             document.getElementById('admin-welcome').textContent = `Welcome, ${currentUser.name}`;
 
+            // Resolve Admin Profile ID
+            if (!currentUser.profileId) {
+                try {
+                    // Try to finding existing profile
+                    const profile = await dataService.pb.collection('profiles').getFirstListItem(`user="${currentUser.id}"`);
+                    if (profile) {
+                        currentUser.profileId = profile.id;
+                        localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
+                    }
+                } catch (e) {
+                    // Create if missing
+                    try {
+                        const newProfile = await dataService.pb.collection('profiles').create({
+                            user: currentUser.id,
+                            full_name: currentUser.name || 'Admin',
+                            role: 'admin',
+                            school_version: currentUser.schoolVersion || ''
+                        });
+                        currentUser.profileId = newProfile.id;
+                        localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
+                        console.log('✅ Created Admin Profile:', newProfile.id);
+                    } catch (createErr) {
+                        console.error('Failed to resolve/create admin profile:', createErr);
+                    }
+                }
+            }
+
+
             // Pre-fill the school ID if admin has one saved
             if (currentUser.schoolVersion) {
                 document.getElementById('school-id-input').value = currentUser.schoolVersion;
@@ -829,6 +877,17 @@
             // Load message history
             await loadMessageHistory();
 
+            // Setup teacher select listener
+            document.getElementById('teacher-select').addEventListener('change', (e) => {
+                const hint = document.getElementById('teacher-count-hint');
+                if (e.target.value === 'ALL_TEACHERS') {
+                    hint.textContent = `This will send to all ${allTeachers.length} teachers in ${currentVersion}.`;
+                    hint.style.display = 'block';
+                } else {
+                    hint.style.display = 'none';
+                }
+            });
+
             // Allow pressing Enter to load
             document.getElementById('school-id-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -836,6 +895,7 @@
                 }
             });
         }
+
 
         async function handleLoadSchool() {
             const input = document.getElementById('school-id-input');
@@ -869,13 +929,23 @@
 
         async function loadData() {
             try {
-                // Load all teachers for this version
-                const allUsers = await dataService.getUsers();
-                allTeachers = allUsers.filter(u => u.role === 'teacher' && u.school_version === currentVersion);
-                allStudents = allUsers.filter(u => u.role === 'student');
+                // Load only teachers and students for this version
+                // This is more efficient than loading all users and filtering locally
+                const teachersResult = await dataService.getUsers({
+                    role: 'teacher',
+                    schoolVersion: currentVersion
+                });
 
-                // Populate teacher dropdown (keep All Teachers option at top)
+                allTeachers = teachersResult;
+
+                // For students, we might still want all or filter by school if applicable
+                // For now, let's keep all students or filter if needed
+                allStudents = await dataService.getUsers({ role: 'student' });
+
+                // Populate teacher dropdown
                 const teacherSelect = document.getElementById('teacher-select');
+                const currentSelected = teacherSelect.value;
+
                 teacherSelect.innerHTML = `
                     <option value="">Choose a teacher...</option>
                     <option value="ALL_TEACHERS" style="font-weight: bold;">📢 All Teachers (${allTeachers.length})</option>
@@ -883,27 +953,30 @@
                 allTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.id;
-                    option.textContent = teacher.full_name;
+                    option.textContent = teacher.full_name || teacher.username;
                     teacherSelect.appendChild(option);
                 });
 
-                // Show/hide hint when All Teachers is selected
-                teacherSelect.addEventListener('change', () => {
-                    const hint = document.getElementById('teacher-count-hint');
-                    if (teacherSelect.value === 'ALL_TEACHERS') {
-                        hint.textContent = `This will send to all ${allTeachers.length} teachers in ${currentVersion}.`;
-                        hint.style.display = 'block';
-                    } else {
-                        hint.style.display = 'none';
-                    }
-                });
+                // Restore selection if teacher still exists
+                if (currentSelected && allTeachers.some(t => t.id === currentSelected)) {
+                    teacherSelect.value = currentSelected;
+                } else if (currentSelected === 'ALL_TEACHERS') {
+                    teacherSelect.value = 'ALL_TEACHERS';
+                }
 
                 // Load all exams
                 allExams = await dataService.getExams();
 
                 // Filter exams by teachers in this version
+                // Match by either profile ID or user ID since createdBy might store either
                 const teacherIds = allTeachers.map(t => t.id);
-                allExams = allExams.filter(exam => teacherIds.includes(exam.createdBy));
+                const teacherUserIds = allTeachers.map(t => t.user).filter(id => !!id);
+
+                allExams = allExams.filter(exam =>
+                    teacherIds.includes(exam.createdBy) ||
+                    teacherUserIds.includes(exam.createdBy)
+                );
+
 
                 // Update stats
                 const activeExams = allExams.filter(e => e.status === 'active').length;
@@ -912,11 +985,67 @@
                 // Display exams
                 displayExams(allExams);
 
+                // Setup real-time subscription for TEACHER RECOGNITION
+                setupRealTimeUpdates();
+
             } catch (error) {
                 console.error('Error loading data:', error);
-                alert('Failed to load data: ' + error.message);
+                // alert('Failed to load data: ' + error.message);
             }
         }
+
+        let isSubscribed = false;
+        async function setupRealTimeUpdates() {
+            if (isSubscribed) return;
+
+            try {
+                await dataService.subscribeToProfiles(async (e) => {
+                    console.log('🔔 Real-time profile update:', e.action, e.record);
+
+                    const profile = e.record;
+                    // Case-insensitive comparison and handling potential missing school_version
+                    const schoolMatch = profile.school_version &&
+                        currentVersion &&
+                        profile.school_version.trim().toLowerCase() === currentVersion.trim().toLowerCase();
+
+                    const roleMatch = profile.role === 'teacher';
+                    const isRelevant = roleMatch && schoolMatch;
+
+                    // Check if this teacher WAS in our list (for departures)
+                    const wasInList = allTeachers.some(t => t.id === profile.id || (t.user === profile.user && !!profile.user));
+
+                    if (isRelevant || (e.action === 'update' && wasInList)) {
+                        console.log('🔄 Refreshing teacher list due to real-time update');
+                        // Refresh data to update UI and stats
+                        await loadData();
+
+                        // Show a small notification for additions
+                        if (isRelevant && (e.action === 'create' || !wasInList)) {
+                            showToast(`Teacher Recognized: ${profile.full_name || 'New Teacher'}`);
+                        }
+                    } else {
+                        console.log('Skipping update: Not relevant to current school version');
+                    }
+                });
+
+                isSubscribed = true;
+            } catch (err) {
+                console.warn('Real-time subscription failed:', err);
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = 'position: fixed; bottom: 80px; left: 20px; background: var(--primary-color); color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s;';
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
 
         function updateStats(teachers, exams, active, students) {
             document.getElementById('stat-teachers').textContent = teachers;
@@ -939,8 +1068,10 @@
             }
 
             container.innerHTML = exams.map(exam => {
-                const teacher = allTeachers.find(t => t.id === exam.createdBy);
-                const teacherName = teacher ? teacher.full_name : 'Unknown Teacher';
+                // Try finding teacher by Profile ID first, then by User ID
+                const teacher = allTeachers.find(t => t.id === exam.createdBy || t.user === exam.createdBy);
+                // Fallback to username if full_name is missing, or "Unknown Teacher"
+                const teacherName = teacher ? (teacher.full_name || teacher.username || 'Teacher') : 'Unknown Teacher';
 
                 let statusClass = 'status-draft';
                 if (exam.status === 'active') statusClass = 'status-active';
@@ -1019,17 +1150,34 @@
                     // Send to each teacher
                     for (let i = 0; i < allTeachers.length; i++) {
                         const teacher = allTeachers[i];
+                        const targetUserId = teacher.user || teacher.id; // Fallback only if user is missing
+
                         sendBtn.textContent = `Sending... ${i + 1}/${allTeachers.length}`;
 
                         try {
                             await dataService.sendMessage({
                                 fromId: currentUser.id,
-                                toId: teacher.id,
+                                toId: targetUserId,
                                 message: message,
                                 schoolVersion: currentVersion
                             });
                             successCount++;
+
+                            // Add to local history for display
+                            const messageObj = {
+                                id: Date.now() + i, // Fake ID for UI
+                                from: currentUser.name,
+                                fromId: currentUser.id,
+                                to: teacher.full_name || 'Teacher',
+                                toId: targetUserId,
+                                message: message,
+                                timestamp: new Date().toISOString(),
+                                schoolVersion: currentVersion
+                            };
+                            messageHistory.push(messageObj);
+
                         } catch (err) {
+
                             console.error(`Failed to send to ${teacher.full_name}:`, err);
                             failCount++;
                         }
@@ -1042,22 +1190,48 @@
                         alert(`Sent to ${successCount} teachers. Failed: ${failCount}`);
                     }
 
+                    // Update History UI
+                    displayMessageHistory();
+
                 } else {
                     // Single teacher message
                     sendBtn.textContent = 'Sending...';
                     const teacher = allTeachers.find(t => t.id === teacherId);
+                    const targetUserId = teacher?.user || teacherId;
 
                     const messageData = {
                         fromId: currentUser.id,
-                        toId: teacherId,
+                        toId: targetUserId,
                         message: message,
                         schoolVersion: currentVersion
                     };
 
+
                     try {
-                        await dataService.sendMessage(messageData);
+                        console.log('Sending message payload:', messageData);
+                        const createdMsg = await dataService.sendMessage(messageData);
                         alert(`Message sent to ${teacher?.full_name || 'teacher'}!`);
+
+                        // Add to history
+                        const messageObj = {
+                            id: createdMsg?.id || Date.now(),
+                            from: currentUser.name,
+                            fromId: currentUser.profileId || currentUser.id,
+                            to: teacher?.full_name || 'Teacher',
+                            toId: teacherId,
+                            message: message,
+                            timestamp: new Date().toISOString(),
+                            schoolVersion: currentVersion
+                        };
+                        messageHistory.push(messageObj);
+
+                        // Re-sort and Display History
+                        displayMessageHistory();
+
                     } catch (dbError) {
+                        console.error('Full Database Error:', dbError);
+                        if (dbError.data) console.error('Validation Errors:', dbError.data);
+
                         console.warn('Database save failed, using localStorage:', dbError);
                         const messageObj = {
                             id: Date.now(),
@@ -1070,7 +1244,9 @@
                             schoolVersion: currentVersion
                         };
                         messageHistory.push(messageObj);
-                        localStorage.setItem('admin_messages', JSON.stringify(messageHistory));
+                        localStorage.setItem('admin_messages', JSON.stringify(messageHistory)); // Backup
+                        displayMessageHistory(); // Update UI
+
                         alert(`Message sent! (Saved locally)`);
                     }
                 }
@@ -1079,9 +1255,6 @@
                 messageText.value = '';
                 teacherSelect.value = '';
                 document.getElementById('teacher-count-hint').style.display = 'none';
-
-                // Reload message history
-                await loadMessageHistory();
 
             } catch (error) {
                 console.error('Error sending message:', error);
@@ -1092,25 +1265,70 @@
             }
         }
 
+
         async function loadMessageHistory() {
             try {
-                // Try to load from database first
-                const dbMessages = await dataService.getMessages({
-                    fromId: currentUser.id,
+                // Fetch both sent and received messages
+                const userId = currentUser.id;
+
+                // Fetch messages SENT BY admin
+                const sentMessages = await dataService.getMessages({
+                    fromId: userId,
                     schoolVersion: currentVersion
                 });
 
-                // Transform database messages to display format
-                messageHistory = dbMessages.map(msg => ({
+                // Fetch messages SENT TO admin
+                const receivedMessages = await dataService.getMessages({
+                    toId: userId,
+                    schoolVersion: currentVersion
+                });
+
+                // Map and combine
+                const mappedSent = sentMessages.map(msg => ({
                     id: msg.id,
-                    from: currentUser.name,
-                    fromId: msg.from_id,
-                    to: msg.to?.full_name || 'Unknown',
+                    from: 'Me',
+                    fromId: userId,
+                    to: msg.expand?.to_id?.full_name || 'Teacher',
                     toId: msg.to_id,
                     message: msg.message,
                     timestamp: msg.created_at,
-                    schoolVersion: msg.school_version
+                    schoolVersion: msg.school_version,
+                    isSent: true
                 }));
+
+                const mappedReceived = receivedMessages.map(msg => ({
+                    id: msg.id,
+                    from: msg.expand?.from_id?.full_name || 'User',
+                    fromId: msg.from_id,
+                    to: 'Me',
+                    toId: userId,
+                    message: msg.message,
+                    timestamp: msg.created_at,
+                    schoolVersion: msg.school_version,
+                    isSent: false
+                }));
+
+                const mappedDbMessages = [...mappedSent, ...mappedReceived];
+
+
+                // Merge with local storage (failed sends)
+                const stored = localStorage.getItem('admin_messages');
+                let localMessages = [];
+                if (stored) {
+                    try {
+                        localMessages = JSON.parse(stored);
+                    } catch (e) {
+                        console.warn('Bad local message history', e);
+                    }
+                }
+
+                // Keep local messages that are NOT in DB (by ID check or if ID is numeric/timestamp)
+                // DB IDs are strings, Local IDs are numbers (timestamps) or matching strings if they were saved?
+                // Actually, if we saved locally AFTER DB failure, it has a numeric ID.
+                const dbIds = new Set(mappedDbMessages.map(m => m.id));
+                const uniqueLocal = localMessages.filter(m => !dbIds.has(m.id) && typeof m.id === 'number');
+
+                messageHistory = [...mappedDbMessages, ...uniqueLocal];
 
                 displayMessageHistory();
             } catch (error) {
@@ -1123,6 +1341,7 @@
                 }
             }
         }
+
 
         function displayMessageHistory() {
             const container = document.getElementById('message-history-container');
@@ -1146,17 +1365,19 @@
             container.innerHTML = versionMessages.map(msg => {
                 const date = new Date(msg.timestamp);
                 const formattedDate = date.toLocaleString();
+                const isReset = msg.message.includes('PASSWORD RESET REQUEST');
 
                 return `
-                    <div class="message-item">
+                    <div class="message-item ${msg.isSent ? 'sent' : 'received'} ${isReset ? 'reset-request' : ''}">
                         <div class="message-header">
-                            <span class="message-to">To: ${msg.to}</span>
+                            <span class="message-direction">${msg.isSent ? '📤 To: ' + msg.to : '📥 From: ' + msg.from}</span>
                             <span class="message-date">${formattedDate}</span>
                         </div>
-                        <div class="message-content">${msg.message}</div>
+                        <div class="message-content">${msg.message.replace(/\n/g, '<br>')}</div>
                     </div>
                 `;
             }).join('');
+
         }
 
         function handleLogout() {

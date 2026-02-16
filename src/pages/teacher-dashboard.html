@@ -734,33 +734,15 @@
             }
 
             try {
-                const user = dataService.getCurrentUser();
-                if (!user) {
-                    alert('Not logged in');
-                    return;
-                }
+                // Show loading state
+                const btn = isMobile ?
+                    document.querySelector('.mobile-actions button[onclick^="saveTeacherSchoolId"]') :
+                    document.querySelector('.user-menu button[onclick^="saveTeacherSchoolId"]');
 
-                // Update profile in database using dataService's Supabase client
-                try {
-                    // Access Supabase client through dataService
-                    if (dataService._getSupabase) {
-                        const sb = dataService._getSupabase();
-                        const { error } = await sb
-                            .from('profiles')
-                            .update({ school_version: schoolId })
-                            .eq('id', user.id);
+                const originalText = btn ? btn.textContent : 'Save';
+                if (btn) btn.textContent = '⏳ ...';
 
-                        if (error) {
-                            console.warn('Failed to update profile in database:', error.message);
-                        }
-                    }
-                } catch (dbErr) {
-                    console.warn('Database update skipped:', dbErr.message);
-                }
-
-                // Update local storage (always do this)
-                user.schoolVersion = schoolId;
-                localStorage.setItem('cbt_user_meta', JSON.stringify(user));
+                await dataService.updateProfile({ schoolVersion: schoolId });
 
                 // Sync both inputs
                 const desktopInput = document.getElementById('teacher-school-id');
@@ -770,20 +752,24 @@
 
                 // Show success feedback
                 const successMsg = document.createElement('div');
-                successMsg.textContent = '✓ School ID saved!';
-                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold;';
+                successMsg.textContent = '✓ School ID saved and shared with Admin!';
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s;';
                 document.body.appendChild(successMsg);
+
+                if (btn) btn.textContent = originalText;
+
                 setTimeout(() => {
                     successMsg.style.opacity = '0';
                     successMsg.style.transition = 'opacity 0.3s';
                     setTimeout(() => successMsg.remove(), 300);
-                }, 2000);
+                }, 2500);
 
             } catch (err) {
                 console.error('Error saving school ID:', err);
                 alert('Failed to save: ' + err.message);
             }
         };
+
 
         // Admin Messages Functions
         let messagesExpanded = true;
@@ -796,7 +782,7 @@
             const mobileBadge = document.getElementById('mobile-messages-badge');
 
             // Hide section by default - only show if there are messages
-            section.style.display = 'none';
+            // section.style.display = 'none'; // Keep section state if already loaded
 
             try {
                 // Fetch messages sent to this teacher
@@ -844,7 +830,7 @@
                             ">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                     <span style="font-weight: 600; color: var(--text-color);">
-                                        ${isUnread ? '🔴 New' : '✅ Read'} - From: ${msg.from?.full_name || 'Admin'}
+                                        ${isUnread ? '🔴 New' : '✅ Read'} - From: ${msg.expand?.from_id?.full_name || 'Admin'}
                                     </span>
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span style="font-size: 0.85rem; color: var(--light-text);">${formattedDate}</span>
@@ -861,18 +847,31 @@
                         `;
                     }).join('');
                 } else {
-                    // No messages - keep section hidden and hide all badges
+                    // No messages
+                    section.style.display = 'none'; // Keep section hidden by default
+                    if (unreadBadge) unreadBadge.style.display = 'none';
+                    if (bellBadge) bellBadge.style.display = 'none';
+                    if (mobileBadge) mobileBadge.style.display = 'none';
+
+                    // IMPORTANT: Update container so if user opens it manually (via bell), they see "No messages" instead of "Loading..."
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: var(--light-text);">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">📭</div>
+                            <p>No messages from admin</p>
+                        </div>
+                    `;
+
                     section.style.display = 'none';
                     unreadBadge.style.display = 'none';
                     if (bellBadge) bellBadge.style.display = 'none';
                     if (mobileBadge) mobileBadge.style.display = 'none';
                 }
+
+                // Setup real-time messaging
+                setupMessageSubscription(teacherId);
+
             } catch (error) {
                 console.error('Error loading messages:', error);
-                // Show error state with details
-                unreadBadge.style.display = 'none';
-                if (bellBadge) bellBadge.style.display = 'none';
-                if (mobileBadge) mobileBadge.style.display = 'none';
                 container.innerHTML = `
                     <div style="text-align: center; padding: 20px; color: var(--light-text);">
                         <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
@@ -882,6 +881,35 @@
                 `;
             }
         }
+
+        let isMessageSubscribed = false;
+        async function setupMessageSubscription(teacherId) {
+            if (isMessageSubscribed) return;
+
+            try {
+                await dataService.subscribeToMessages(async (e) => {
+                    if (e.action === 'create' && e.record.to_id === teacherId) {
+                        console.log('📬 New message received real-time!');
+                        await loadAdminMessages(teacherId);
+
+                        // Small alert for new message
+                        const toast = document.createElement('div');
+                        toast.textContent = '📩 New message from Admin!';
+                        toast.style.cssText = 'position: fixed; bottom: 80px; left: 20px; background: #e67e22; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s;';
+                        document.body.appendChild(toast);
+                        setTimeout(() => {
+                            toast.style.opacity = '0';
+                            toast.style.transition = 'opacity 0.3s';
+                            setTimeout(() => toast.remove(), 300);
+                        }, 3000);
+                    }
+                });
+                isMessageSubscribed = true;
+            } catch (err) {
+                console.warn('Message subscription failed:', err);
+            }
+        }
+
 
         // Function to open messages section when bell is clicked
         window.openMessagesSection = function () {
@@ -915,7 +943,7 @@
                 // Refresh messages
                 const user = dataService.getCurrentUser();
                 if (user) {
-                    await loadAdminMessages(user.id);
+                    await loadAdminMessages(user.profileId || user.id);
                 }
             } catch (error) {
                 console.error('Error marking message as read:', error);
@@ -939,13 +967,14 @@
                 // Refresh to update counters
                 const user = dataService.getCurrentUser();
                 if (user) {
-                    setTimeout(() => loadAdminMessages(user.id), 400);
+                    setTimeout(() => loadAdminMessages(user.profileId || user.id), 400);
                 }
             } catch (error) {
                 console.error('Error deleting message:', error);
                 alert('Failed to delete message: ' + error.message);
             }
         };
+
 
         // Connection Monitoring
         function setupConnectionMonitoring() {
@@ -1022,16 +1051,50 @@
             }
             document.getElementById('user-name').textContent = user.name;
 
+            // Resolving Teacher ID (Profile ID vs User ID)
+            // Admin sends to Profile ID, so we must prefer that.
+            let teacherId = user.profileId;
+
+            if (!teacherId) {
+                try {
+                    // Try to fetch profile if not in local metadata
+                    const profile = await dataService.pb.collection('profiles').getFirstListItem(`user="${user.id}"`);
+                    if (profile) {
+                        teacherId = profile.id;
+                        // Optional: Update local user meta to avoid future lookups
+                        user.profileId = profile.id;
+                        localStorage.setItem('cbt_user_meta', JSON.stringify(user));
+                        console.log('✅ Resolved missing profile ID:', teacherId);
+                    }
+                } catch (e) {
+                    console.log('⚠️ Could not resolve profile ID, falling back to User ID:', user.id);
+                    teacherId = user.id;
+                }
+            }
+
             // Set app subtitle from config (if available)
             const appSubtitle = document.getElementById('app-subtitle');
             if (appSubtitle && window.configLoader) {
                 const config = window.configLoader.getConfig();
-                if (config && config.client) {
-                    // Update both desktop and mobile text
-                    const desktopText = appSubtitle.querySelector('.desktop-text');
-                    if (desktopText) desktopText.textContent = config.client.name;
+                if (config.appName) {
+                    appSubtitle.innerHTML = `<span class="desktop-text">${config.appName} TD</span><span class="mobile-text">TD</span>`;
                 }
             }
+
+            // Initialize Components
+            // Initialize Components
+            // renderExtensionsList expects arguments (exam, results), so we shouldn't call it blindly on init
+            // It will be called when opening the modal or loading data
+            if (window.loadAndRenderFlags) window.loadAndRenderFlags();
+
+
+            // Load Admin Messages (Important: Uses User ID for database relations)
+            await loadAdminMessages(user.id);
+
+            // Load Data using Cache-First Strategy
+            await loadDashboardData();
+
+
 
             // Mobile Menu
             const mName = document.getElementById('mobile-user-name');
@@ -1085,10 +1148,11 @@
             }
 
             // Load Admin Messages
-            await loadAdminMessages(user.id);
+            await loadAdminMessages(teacherId);
 
             // Load Data using Cache-First Strategy
             await loadDashboardData();
+
 
             // Initialize Secret Delete
             if (window.initSecretDelete) window.initSecretDelete();
