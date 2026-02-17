@@ -225,24 +225,89 @@ class DataService {
                 throw new Error('Not authenticated');
             }
 
-            // Validate username
-            if (!newUsername || newUsername.length < 3) {
+            // 0. Get current state
+            const cached = this.getCurrentUser();
+            const userId = this.pb.authStore.model.id;
+            const oldUsername = this.pb.authStore.model.username || cached?.username;
+            const oldEmail = this.pb.authStore.model.email || cached?.email;
+
+            // 1. Normalize input
+            // If user typed an email (e.g. name@school.cbt), extract just the name part for the username field
+            let normalizedUsername = newUsername.trim();
+            if (normalizedUsername.includes('@')) {
+                normalizedUsername = normalizedUsername.split('@')[0];
+            }
+
+            // Validate normalized username
+            if (!normalizedUsername || normalizedUsername.length < 3) {
                 throw new Error('Username must be at least 3 characters');
             }
 
-            if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
-                throw new Error('Username can only contain letters, numbers, underscores, and hyphens');
+            if (!/^[a-zA-Z0-9._-]+$/.test(normalizedUsername)) {
+                throw new Error('Username can only contain letters, numbers, dots, underscores, and hyphens');
             }
 
-            // Update both username and email (for login consistency)
-            const newEmail = `${newUsername}@${this.PROXY_DOMAIN}`;
-            const updatedUser = await this.pb.collection('users').update(this.pb.authStore.model.id, {
-                username: newUsername,
+            const newEmail = this._generateEmail(normalizedUsername);
+
+            // 2. Skip if no changes
+            if (normalizedUsername === oldUsername && newEmail === oldEmail) {
+                console.log('Username/Email unchanged, skipping API call');
+                return { username: oldUsername, email: oldEmail };
+            }
+
+            // 3. Update user record
+            const updatedUser = await this.pb.collection('users').update(userId, {
+                username: normalizedUsername,
                 email: newEmail
             });
 
-            // Update local metadata cache
-            const cached = this.getCurrentUser();
+            // 4. Sync Profile record (Very Important for lists/admin)
+            try {
+                const profileData = {
+                    full_name: updatedUser.full_name || cached?.name || normalizedUsername,
+                    role: updatedUser.role || cached?.role || 'teacher'
+                };
+
+                // Try updating profile by ID (userId)
+                try {
+                    await this.pb.collection('profiles').update(userId, profileData);
+                } catch (e) {
+                    // Fallback to search if ID doesn't match
+                    try {
+                        const profile = await this.pb.collection('profiles').getFirstListItem(`user="${userId}"`);
+                        await this.pb.collection('profiles').update(profile.id, profileData);
+                    } catch (findErr) {
+                        // Create profile if missing
+                        await this.pb.collection('profiles').create({
+                            ...profileData,
+                            user: userId,
+                            id: userId
+                        });
+                    }
+                }
+            } catch (profileErr) {
+                console.warn('Profile sync during username change failed:', profileErr.message);
+            }
+
+            // 5. Migrate Legacy Exams (Data Healing)
+            if (oldUsername || oldEmail) {
+                try {
+                    const legacyExams = await this.pb.collection('exams').getFullList({
+                        filter: `created_by="${oldUsername}" || created_by="${oldEmail}"`
+                    });
+
+                    for (const exam of legacyExams) {
+                        await this.pb.collection('exams').update(exam.id, {
+                            created_by: userId
+                        });
+                        console.log(`Migrated exam ${exam.id} to new stable ID`);
+                    }
+                } catch (migrationErr) {
+                    console.error('Exam migration failed:', migrationErr);
+                }
+            }
+
+            // 6. Update local metadata cache
             if (cached) {
                 cached.username = updatedUser.username;
                 cached.email = updatedUser.email;
@@ -251,12 +316,16 @@ class DataService {
 
             return updatedUser;
         } catch (error) {
+            console.error('Username update failed:', error);
+
+            // Helpful error messages for uniqueness constraints
             if (error.status === 400 && error.data?.data?.username) {
-                throw new Error('This username is already taken. Please choose another.');
+                throw new Error(`The username "${newUsername}" is already taken by another account.`);
             }
             if (error.status === 400 && error.data?.data?.email) {
-                throw new Error('This username variant is already taken.');
+                throw new Error(`The identity "${newUsername}" (or a variant of it) is already taken by another account.`);
             }
+
             throw new Error(error.message || 'Failed to update username');
         }
     }
@@ -292,18 +361,31 @@ class DataService {
                 if (updates.role !== undefined) profileData.role = updates.role;
                 if (updates.class_level !== undefined) profileData.class_level = updates.class_level;
 
-                // Check if profile exists
+                // Try updating directly using userId as ID first (common pattern in this app)
                 try {
-                    const profile = await this.pb.collection('profiles').getFirstListItem(`user="${userId}"`);
-                    await this.pb.collection('profiles').update(profile.id, profileData);
-                } catch (findErr) {
-                    // Profile doesn't exist, CREATE it
-                    // Ensure role and full_name are included if missing from updates
-                    if (!profileData.role) profileData.role = updatedUser.role || 'teacher';
-                    if (!profileData.full_name) profileData.full_name = updatedUser.full_name;
+                    await this.pb.collection('profiles').update(userId, profileData);
+                    console.log('Updated profile by direct ID');
+                } catch (updateErr) {
+                    // If direct ID update fails, search for the profile by user field
+                    try {
+                        const profile = await this.pb.collection('profiles').getFirstListItem(`user="${userId}"`);
+                        await this.pb.collection('profiles').update(profile.id, profileData);
+                        console.log('Updated profile by search');
+                    } catch (findErr) {
+                        // Profile truly doesn't exist, CREATE it
+                        if (!profileData.role) profileData.role = updatedUser.role || 'teacher';
+                        if (!profileData.full_name) profileData.full_name = updatedUser.full_name;
 
-                    await this.pb.collection('profiles').create(profileData);
-                    console.log('Created missing profile for user:', userId);
+                        try {
+                            // Try creating with userId as the record ID to ensure 1:1 uniqueness
+                            await this.pb.collection('profiles').create({ ...profileData, id: userId });
+                            console.log('Created profile with fixed ID');
+                        } catch (createErr) {
+                            // Fallback to auto-generated ID if the above fails (e.g. ID format mismatch)
+                            await this.pb.collection('profiles').create(profileData);
+                            console.log('Created profile with auto ID');
+                        }
+                    }
                 }
             } catch (profileErr) {
                 console.error('Profile sync failed:', profileErr.message);
@@ -339,10 +421,23 @@ class DataService {
             }
 
             const users = await this.pb.collection('profiles').getFullList({
-                filter: filterString
+                filter: filterString,
+                sort: '-created' // Get newest first
             });
 
-            return users;
+            // Deduplicate by User ID to ensure each physical user is only counted once
+            const uniqueUsers = [];
+            const seenUserIds = new Set();
+
+            for (const user of users) {
+                const userId = user.user || user.id; // Fallback to record ID if user link missing
+                if (!seenUserIds.has(userId)) {
+                    uniqueUsers.push(user);
+                    seenUserIds.add(userId);
+                }
+            }
+
+            return uniqueUsers;
         } catch (error) {
             console.error('getUsers error:', error);
             throw error;
@@ -412,7 +507,18 @@ class DataService {
 
             if (filters.teacherId) {
                 if (filterString) filterString += ' && ';
-                filterString += `created_by="${filters.teacherId}"`;
+
+                // For better compatibility with migrated data:
+                // Search by User ID (preferred), or try to match current username/email
+                // as some legacy records might use them instead of the UUID.
+                let teacherFilter = `created_by="${filters.teacherId}"`;
+
+                const currentUser = this.getCurrentUser();
+                if (currentUser && currentUser.id === filters.teacherId) {
+                    teacherFilter = `(created_by="${filters.teacherId}" || created_by="${currentUser.username}" || created_by="${currentUser.email}")`;
+                }
+
+                filterString += teacherFilter;
             }
 
             if (filters.targetClass) {
@@ -1064,58 +1170,90 @@ class DataService {
      * Generates a 6-digit code and sends it to the school admin
      */
     async requestPasswordReset(username) {
+        console.log('🔄 PASSWORD RESET: Starting for', username);
         try {
-            // Use admin identity to bypass permission restrictions on profile search
+            const adminPb = new PocketBase(this.pb.baseUrl);
             const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
             const ADMIN_PASS = "Finest1709";
-            const adminPb = new PocketBase(this.pb.baseUrl);
+
+            console.log('🔄 PASSWORD RESET: Authenticating admin...');
             await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
 
             // 1. Find the user record
-            // We search across users collection first since it's the source of truth for username/email
+            console.log('🔄 PASSWORD RESET: Searching for user record...');
             let userRecord;
             try {
                 userRecord = await adminPb.collection('users').getFirstListItem(
                     `username="${username}" || email="${username}@${this.PROXY_DOMAIN}" || full_name="${username}"`
                 );
+                console.log('✅ PASSWORD RESET: Found user', userRecord.id, userRecord.username);
             } catch (e) {
+                console.error('❌ PASSWORD RESET: User search failed', e.message);
                 adminPb.authStore.clear();
                 throw new Error('User not found. Please check your Student ID / Username.');
             }
 
-            // 2. Get the profile to send message properly
-            const profile = await adminPb.collection('profiles').getFirstListItem(`user="${userRecord.id}"`);
+            // 2. Get the profile
+            console.log('🔄 PASSWORD RESET: Fetching profile for user', userRecord.id);
+            let profile;
+            try {
+                profile = await adminPb.collection('profiles').getFirstListItem(`user="${userRecord.id}"`);
+                console.log('✅ PASSWORD RESET: Found profile', profile.id, 'School:', profile.school_version);
+            } catch (e) {
+                console.error('❌ PASSWORD RESET: Profile search failed', e.message);
+                // We proceed anyway but school version might be missing
+                profile = { school_version: '' };
+            }
 
-            // 3. Generate 6-digit code
+            // 3. Generate code
             const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-            // 4. Find the admin for this school version
-            const schoolVersion = profile.school_version;
-            const admins = await adminPb.collection('profiles').getFullList({
-                filter: `role="admin" && school_version="${schoolVersion}"`
-            });
+            // 4. Find the admin(s)
+            console.log('🔄 PASSWORD RESET: Locating administrators...');
+            let admins = [];
+            try {
+                const schoolVersion = (profile.school_version || '').trim();
+                if (schoolVersion) {
+                    admins = await adminPb.collection('profiles').getFullList({
+                        filter: `role="admin" && school_version="${schoolVersion}"`
+                    });
+                }
+
+                if (admins.length === 0) {
+                    console.log('⚠️ PASSWORD RESET: No direct school admin found, falling back to global...');
+                    const globalAdmins = await adminPb.collection('profiles').getFullList({
+                        filter: 'role="admin"',
+                        perPage: 3
+                    });
+                    admins = globalAdmins;
+                }
+                console.log(`✅ PASSWORD RESET: Found ${admins.length} target admin(s)`);
+            } catch (e) {
+                console.warn('⚠️ PASSWORD RESET: Admin search error', e.message);
+            }
 
             if (admins.length === 0) {
-                const globalAdmins = await adminPb.collection('profiles').getFullList({
-                    filter: 'role="admin"',
-                    perPage: 1
-                });
-                if (globalAdmins.length > 0) admins.push(globalAdmins[0]);
+                throw new Error('No administrator found to receive the reset code.');
             }
 
-            // 5. Send message(s) to admin(s)
-            // Note: We use the adminPb to bypass authentication for sending the "System" message
+            // 5. Send message(s)
+            console.log('🔄 PASSWORD RESET: Creating notification messages...');
             for (const admin of admins) {
-                await adminPb.collection('messages').create({
-                    from_id: userRecord.id,
-                    to_id: admin.user || admin.id,
-                    message: `🗝️ PASSWORD RESET REQUEST\nUser: ${username}\nReset Code: ${resetCode}\nSchool: ${schoolVersion}`,
-                    school_version: schoolVersion,
-                    read: false
-                });
+                try {
+                    await adminPb.collection('messages').create({
+                        from_id: userRecord.id,
+                        to_id: admin.user || admin.id,
+                        message: `🗝️ PASSWORD RESET REQUEST\nUser: ${username}\nReset Code: ${resetCode}\nSchool: ${profile.school_version || 'Unknown'}`,
+                        school_version: profile.school_version || '',
+                        read: false
+                    });
+                    console.log('✅ PASSWORD RESET: Message sent to admin', admin.id);
+                } catch (msgErr) {
+                    console.error('❌ PASSWORD RESET: Failed to send message to admin', admin.id, msgErr.message);
+                }
             }
 
-            // 6. Store code locally for verification
+            // 6. Store locally
             const resetInfo = {
                 username: username,
                 code: resetCode,
@@ -1124,9 +1262,9 @@ class DataService {
             localStorage.setItem(`cbt_reset_${username}`, JSON.stringify(resetInfo));
 
             adminPb.authStore.clear();
-            return { success: true, schoolVersion };
+            return { success: true };
         } catch (error) {
-            console.error('Request reset error:', error);
+            console.error('❌ PASSWORD RESET: Final error', error);
             throw error;
         }
     }
