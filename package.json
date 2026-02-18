@@ -18,7 +18,11 @@
     "build:all": "electron-builder --win --mac --linux",
     "build:portable": "electron-builder --win portable",
     "release": "electron-builder --win --publish always",
-    "test": "echo \"No tests configured\" && exit 0"
+    "test": "echo \"No tests configured\" && exit 0",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap sync android && npx cap open android",
+    "cap:ios": "npx cap sync ios && npx cap open ios",
+    "cap:build:android": "npx cap sync android"
   },
   "keywords": [
     "cbt",
@@ -33,6 +37,10 @@
     "nodemon": "^3.1.11"
   },
   "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0",
     "dotenv": "^17.2.3",
     "electron-updater": "^6.3.9"
   },

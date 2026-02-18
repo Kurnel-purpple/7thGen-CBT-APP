@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gen7 CBT Exam</string>
+    <string name="title_activity_main">Gen7 CBT Exam</string>
+    <string name="package_name">com.gen7cbt.examapp</string>
+    <string name="custom_url_scheme">com.gen7cbt.examapp</string>
+</resources>
