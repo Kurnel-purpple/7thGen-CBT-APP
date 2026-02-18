@@ -97,7 +97,7 @@ const examManager = {
     handleMediaFiles: (files) => {
         Array.from(files).forEach(file => {
             if (!file.type.startsWith('image/')) {
-                alert(`${file.name} is not an image file.`);
+                Utils.showAlert('Invalid File', `${file.name} is not an image file.`);
                 return;
             }
 
@@ -241,8 +241,8 @@ const examManager = {
         }
     },
 
-    removeMedia: (mediaId) => {
-        if (confirm('Remove this media?')) {
+    removeMedia: async (mediaId) => {
+        if (await Utils.showConfirm('Remove Media', 'Remove this media?')) {
             // Remove from any question it was attached to
             const media = examManager.uploadedMedia.find(m => m.id === mediaId);
             if (media && media.assignedToQuestion) {
@@ -364,7 +364,7 @@ const examManager = {
         try {
             const exam = await dataService.getExamById(id);
             if (!exam) {
-                alert('Exam not found');
+                await Utils.showAlert('Error', 'Exam not found');
                 window.location.href = 'teacher-dashboard.html';
                 return;
             }
@@ -438,7 +438,7 @@ const examManager = {
             examManager.renderQuestions();
         } catch (err) {
             console.error(err);
-            alert('Error loading exam');
+            await Utils.showAlert('Error', 'Error loading exam');
         }
     },
 
@@ -463,10 +463,10 @@ const examManager = {
         }, 100);
     },
 
-    removeQuestion: (id) => {
+    removeQuestion: async (id) => {
         // Ensure String comparison
         const targetId = String(id);
-        if (confirm('Are you sure you want to remove this question?')) {
+        if (await Utils.showConfirm('Remove Question', 'Are you sure you want to remove this question?')) {
             examManager.questions = examManager.questions.filter(q => String(q.id) !== targetId);
             examManager.renderQuestions();
         }
@@ -537,11 +537,11 @@ const examManager = {
         if (importPointsInput) importPointsInput.value = '0.5';
     },
 
-    processBulkImport: () => {
+    processBulkImport: async () => {
         // Get plain text from Quill editor (strips HTML, keeps only text content)
         const text = examManager.quillEditor ? examManager.quillEditor.getText() : '';
         if (!text.trim()) {
-            alert('Please paste some text.');
+            await Utils.showAlert('Empty Input', 'Please paste some text.');
             return;
         }
 
@@ -553,10 +553,23 @@ const examManager = {
         // We handle both "Double Newline" blocks AND "Single Line" blocks if they look like questions
         const blocks = text.split(/\n\s*\n/);
         let addedCount = 0;
+        let forceTheoryMode = false; // Tracks whether we've passed a "THEORY" marker
 
         blocks.forEach(block => {
             block = block.trim();
             if (!block) return;
+
+            // Check if this block is the THEORY marker
+            // Supports "THEORY", "THEORY:", "THEORY SECTION", "--- THEORY ---" etc.
+            if (/^\s*[-=]*\s*THEORY\s*[-=:]*\s*$/i.test(block) && block.toUpperCase().includes('THEORY')) {
+                // Only activate if the word THEORY is in all caps in the original text
+                const theoryLine = block.replace(/[-=:\s]/g, '');
+                if (theoryLine === 'THEORY') {
+                    forceTheoryMode = true;
+                    console.log('📝 THEORY marker detected - subsequent questions will be theory type');
+                    return; // Skip this block, it's just a marker
+                }
+            }
 
             const lines = block.split('\n');
             let qText = '';
@@ -624,7 +637,16 @@ const examManager = {
 
             // Create question based on whether options were found
             if (qText) {
-                if (options.length > 0) {
+                if (forceTheoryMode) {
+                    // THEORY marker was encountered - force theory type
+                    examManager.questions.push({
+                        id: Utils.generateId(),
+                        type: 'theory',
+                        text: qText,
+                        points: 0
+                    });
+                    addedCount++;
+                } else if (options.length > 0) {
                     // Objective question (MCQ) - has options
                     examManager.questions.push({
                         id: Utils.generateId(),
@@ -651,9 +673,9 @@ const examManager = {
         if (addedCount > 0) {
             examManager.renderQuestions();
             examManager.closeImportModal();
-            alert(`Successfully imported ${addedCount} questions.`);
+            await Utils.showAlert('Success', `Successfully imported ${addedCount} questions.`);
         } else {
-            alert('Could not detect any valid questions. Please check the format.\n\nSupported formats:\n1. Objective Questions (with options):\n   Question text\n   (a) Option 1\n   (b) Option 2\n\n2. Theory Questions (without options):\n   Question text only\n\n3. Inline format:\n   Question... (A) Opt1 (B) Opt2');
+            await Utils.showAlert('Import Error', 'Could not detect any valid questions. Please check the format.\n\nSupported formats:\n1. Objective Questions (with options):\n   Question text\n   (a) Option 1\n   (b) Option 2\n\n2. Theory Questions (without options):\n   Question text only\n\n3. Inline format:\n   Question... (A) Opt1 (B) Opt2');
         }
     },
 
@@ -1036,7 +1058,7 @@ const examManager = {
 
         // Validation
         if (examManager.questions.length === 0) {
-            alert("Please add at least one question.");
+            await Utils.showAlert('Missing Questions', 'Please add at least one question.');
             return;
         }
 
@@ -1063,39 +1085,40 @@ const examManager = {
 
         // Validate Questions
         let valid = true;
-        examManager.questions.forEach((q, i) => {
+        for (let i = 0; i < examManager.questions.length; i++) {
+            const q = examManager.questions[i];
             if (!q.text.trim()) {
-                alert(`Question ${i + 1} is missing text.`);
+                await Utils.showAlert('Validation Error', `Question ${i + 1} is missing text.`);
                 valid = false;
-                return;
+                break;
             }
             if (q.type === 'mcq' || q.type === 'image_mcq') {
                 if (q.options.some(o => !o.text.trim())) {
-                    alert(`Question ${i + 1} has empty options.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} has empty options.`);
                     valid = false;
-                    return;
+                    break;
                 }
                 if (!q.options.some(o => o.isCorrect)) {
-                    alert(`Question ${i + 1} has no correct answer selected.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} has no correct answer selected.`);
                     valid = false;
-                    return;
+                    break;
                 }
             } else if (q.type === 'fill_blank') {
                 if (!q.correctAnswer || !q.correctAnswer.trim()) {
-                    alert(`Question ${i + 1} is missing a correct answer.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} is missing a correct answer.`);
                     valid = false;
-                    return;
+                    break;
                 }
             } else if (q.type === 'match') {
                 if (!q.pairs || q.pairs.length < 2) {
-                    alert(`Question ${i + 1} needs at least 2 pairs.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} needs at least 2 pairs.`);
                     valid = false;
-                    return;
+                    break;
                 }
                 if (q.pairs.some(p => !p.left.trim() || !p.right.trim())) {
-                    alert(`Question ${i + 1} has empty matching items.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} has empty matching items.`);
                     valid = false;
-                    return;
+                    break;
                 }
             } else if (q.type === 'theory') {
                 // Theory questions only need text, no validation for options/answers
@@ -1103,25 +1126,25 @@ const examManager = {
             } else if (q.type === 'image_multi') {
                 // Picture Comprehension validation
                 if (!q.image) {
-                    alert(`Question ${i + 1} (Picture Comprehension) needs an image.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} (Picture Comprehension) needs an image.`);
                     valid = false;
-                    return;
+                    break;
                 }
                 if (!q.subQuestions || q.subQuestions.length === 0) {
-                    alert(`Question ${i + 1} (Picture Comprehension) needs at least one sub-question.`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} (Picture Comprehension) needs at least one sub-question.`);
                     valid = false;
-                    return;
+                    break;
                 }
                 // Check that all sub-questions have correct answers selected
                 const missingAnswers = q.subQuestions.filter(sq => !sq.correctAnswer);
                 if (missingAnswers.length > 0) {
                     const qNumbers = missingAnswers.map(sq => sq.number).join(', ');
-                    alert(`Question ${i + 1} (Picture Comprehension) is missing correct answers for sub-question(s): ${qNumbers}`);
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} (Picture Comprehension) is missing correct answers for sub-question(s): ${qNumbers}`);
                     valid = false;
-                    return;
+                    break;
                 }
             }
-        });
+        }
 
         if (!valid) return;
 
@@ -1187,7 +1210,7 @@ const examManager = {
                 submitBtn.textContent = originalBtnText;
                 submitBtn.style.opacity = '1';
             }
-            alert('Failed to save exam: ' + err.message);
+            await Utils.showAlert('Error', 'Failed to save exam: ' + err.message);
         }
     }
 };

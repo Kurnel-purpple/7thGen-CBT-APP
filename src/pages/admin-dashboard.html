@@ -19,9 +19,9 @@
         .admin-header {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
@@ -36,11 +36,12 @@
         }
 
         .admin-controls {
-            background: white;
+            background: var(--card-bg);
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 30px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
         }
 
         .control-group {
@@ -79,11 +80,14 @@
         }
 
         .stat-card {
-            background: white;
+            background: var(--card-bg);
             padding: 25px;
             border-radius: 15px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             border-left: 4px solid var(--primary-color);
+            border-right: 1px solid var(--border-color);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             transition: transform 0.3s, box-shadow 0.3s;
         }
 
@@ -109,11 +113,12 @@
 
 
         .section {
-            background: white;
+            background: var(--card-bg);
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 30px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
         }
 
         .section-header {
@@ -137,7 +142,7 @@
         }
 
         .exam-card {
-            background: var(--inner-background);
+            background: var(--inner-bg);
             padding: 20px;
             border-radius: 10px;
             border: 1px solid var(--border-color);
@@ -147,6 +152,72 @@
         .exam-card:hover {
             border-color: var(--primary-color);
             box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Collapsible Groups Styling */
+        .collapsible-group {
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--card-bg);
+        }
+
+        .collapsible-header {
+            padding: 15px 20px;
+            background: var(--inner-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+            border-bottom: 1px solid transparent;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(var(--primary-rgb, 74, 144, 200), 0.05);
+        }
+
+        .collapsible-header.active {
+            border-bottom-color: var(--border-color);
+        }
+
+        .collapsible-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .collapsible-header .toggle-icon {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+            opacity: 0.5;
+        }
+
+        .collapsible-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            display: none;
+            padding: 15px;
+        }
+
+        .collapsible-content.active {
+            display: block;
+        }
+
+        .group-count {
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
         }
 
         .exam-card-header {
@@ -207,7 +278,7 @@
         }
 
         .message-form {
-            background: var(--inner-background);
+            background: var(--inner-bg);
             padding: 20px;
             border-radius: 10px;
         }
@@ -267,7 +338,7 @@
         }
 
         .message-history {
-            background: var(--inner-background);
+            background: var(--inner-bg);
             padding: 20px;
             border-radius: 10px;
             max-height: 500px;
@@ -275,7 +346,7 @@
         }
 
         .message-item {
-            background: white;
+            background: var(--card-bg);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 10px;
@@ -304,7 +375,7 @@
 
         .message-item.reset-request {
             border-left: 3px solid var(--accent-color);
-            background-color: #fff9fa;
+            background-color: var(--inner-bg);
         }
 
         .message-item.reset-request .message-content {
@@ -531,6 +602,7 @@
             padding-bottom: 80px;
         }
 
+
         /* Ensure exam grid allows scrolling */
         .exam-grid {
             max-height: none;
@@ -542,48 +614,378 @@
             max-height: none;
             overflow: visible;
         }
+
+        /* Mobile Layout & Menu Styles */
+        .mobile-only {
+            display: none !important;
+        }
+
+        .hamburger-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 80%;
+            max-width: 350px;
+            height: 100vh;
+            background: var(--card-bg);
+            z-index: 2000;
+            transition: transform 0.3s ease, visibility 0.3s;
+            transform: translateX(100%);
+            visibility: hidden;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .mobile-menu.active {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+            backdrop-filter: blur(2px);
+        }
+
+        .mobile-menu-overlay.active {
+            display: block;
+        }
+
+        /* Ensure overlay never shows on desktop */
+        @media (min-width: 769px) {
+            .mobile-menu-overlay {
+                display: none !important;
+            }
+        }
+
+        .mobile-stats-compact {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card-mini {
+            background: var(--inner-bg);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .stat-card-mini h4 {
+            margin: 0;
+            font-size: 0.7rem;
+            color: var(--light-text);
+            text-transform: uppercase;
+        }
+
+        .stat-card-mini .val {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-top: 4px;
+        }
+
+        .header-loader-mobile {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .header-loader-mobile input {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+        }
+
+        .header-loader-mobile button {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none !important;
+            }
+
+            .mobile-only {
+                display: flex !important;
+            }
+
+            .admin-header h1 {
+                font-size: 1.4rem;
+            }
+
+            .admin-header p {
+                font-size: 0.8rem;
+            }
+
+            .admin-header {
+                padding: 15px;
+                border-radius: 0;
+                margin-bottom: 15px;
+            }
+
+            /* Responsive Header Styling */
+            .responsive-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .responsive-header .header-main {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .responsive-header .header-title {
+                margin: 0;
+                font-size: 1.1rem;
+            }
+
+            .responsive-header .header-sub {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: auto;
+                gap: 15px;
+            }
+
+            .badge {
+                padding: 2px 10px;
+                border-radius: 20px;
+                font-size: 0.75rem;
+                font-weight: bold;
+                display: inline-block;
+            }
+
+            .badge-primary {
+                background: var(--primary-color);
+                color: white;
+            }
+
+            .view-link {
+                color: var(--primary-color);
+                font-weight: bold;
+                font-size: 0.85rem;
+            }
+
+            @media (max-width: 500px) {
+                .responsive-header .header-main {
+                    width: 100%;
+                    justify-content: space-between;
+                    margin-bottom: 5px;
+                }
+
+                .responsive-header .header-sub {
+                    width: 100%;
+                    justify-content: space-between;
+                    border-top: 1px solid rgba(0, 0, 0, 0.05);
+                    padding-top: 10px;
+                }
+
+                #exams-list-modal .modal-header {
+                    flex-direction: column !important;
+                    align-items: flex-start !important;
+                    gap: 15px !important;
+                    padding: 20px 15px !important;
+                }
+
+                #exams-list-modal .modal-header>div:last-child {
+                    width: 100%;
+                    justify-content: space-between;
+                    display: flex;
+                }
+
+                #exams-list-modal #exam-filter {
+                    flex: 1;
+                    max-width: 200px;
+                }
+
+                #exams-modal-container {
+                    padding: 15px !important;
+                }
+
+                .exam-card {
+                    padding: 15px !important;
+                }
+
+                .exam-card-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 10px;
+                }
+
+                /* Fix for overflowing teacher groups and sections */
+                .admin-container {
+                    padding: 10px !important;
+                }
+
+                .section {
+                    padding: 15px !important;
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                    overflow: hidden;
+                    /* Contain children */
+                }
+
+                .exam-grid {
+                    grid-template-columns: 1fr !important;
+                    width: 100%;
+                }
+
+                .collapsible-group {
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                /* Ensure responsive headers fit within narrower padding */
+                .responsive-header {
+                    padding: 10px !important;
+                }
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="admin-container">
+        <!-- Mobile Menu Overlay -->
+        <div id="mobile-menu-overlay" class="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="mobile-menu mobile-only">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 style="margin: 0; font-size: 1.2rem; color: var(--text-color);">📱 Menu</h2>
+                <button class="close-btn" onclick="toggleMobileMenu()"
+                    style="background: none; border: none; font-size: 1.8rem;">&times;</button>
+            </div>
+
+            <!-- Mini Stats in Menu -->
+            <div class="mobile-stats-compact">
+                <div class="stat-card-mini">
+                    <h4>Teachers</h4>
+                    <div class="val" id="stat-teachers-m">0</div>
+                </div>
+                <div class="stat-card-mini">
+                    <h4>Exams</h4>
+                    <div class="val" id="stat-exams-m">0</div>
+                </div>
+                <div class="stat-card-mini">
+                    <h4>Active</h4>
+                    <div class="val" id="stat-active-m">0</div>
+                </div>
+                <div class="stat-card-mini">
+                    <h4>Students</h4>
+                    <div class="val" id="stat-students-m">0</div>
+                </div>
+            </div>
+
+            <div class="dropdown-divider"></div>
+
+            <!-- Credentials & Theme in Menu -->
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                <button class="btn btn-outline" onclick="toggleTheme()"
+                    style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
+                    🌓 Toggle Theme
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item" onclick="toggleMobileMenu(); openChangeUsernameModal();">
+                    🆔 Change Username
+                </button>
+                <button class="dropdown-item" onclick="toggleMobileMenu(); openChangePasswordModal();">
+                    🔑 Change Password
+                </button>
+                <button class="dropdown-item danger" onclick="toggleMobileMenu(); handleLogout();"
+                    style="margin-top: 10px; border: 1px solid var(--accent-color); border-radius: 8px;">
+                    🚪 Logout Account
+                </button>
+            </div>
+        </div>
+
         <!-- Header -->
         <div class="admin-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1>🔐 Admin Dashboard</h1>
-                    <p id="admin-welcome">Welcome, Admin</p>
-                </div>
-                <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
-                    <button class="theme-toggle" onclick="toggleTheme()"
-                        style="position: static; transform: none; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">🌓</button>
+            <div style="display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                        <h1 id="admin-name" style="margin: 0; font-size: 1.8rem; letter-spacing: -0.5px;">👤 Admin</h1>
+                        <p class="desktop-only" style="margin: 0; opacity: 0.8; font-size: 0.9rem; margin-top: 2px;">🛡️
+                            Dashboard</p>
+                    </div>
 
-                    <div class="credentials-dropdown">
-                        <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
-                            <span id="nav-user-display">👤 Account</span>
-                            <span style="font-size: 0.7rem; opacity: 0.8;">▼</span>
-                        </button>
-                        <div id="credentials-dropdown-content" class="dropdown-content">
-                            <div
-                                style="padding: 10px 18px; font-size: 0.7rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">
-                                Admin Settings</div>
-                            <button class="dropdown-item" onclick="openChangeUsernameModal()">
-                                <span>🆔 Change Username</span>
+                    <!-- Desktop Header Actions -->
+                    <div class="desktop-only" style="display: flex; gap: 12px; align-items: center;">
+                        <button class="theme-toggle" onclick="toggleTheme()"
+                            style="position: static; transform: none; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">🌓</button>
+
+                        <div class="credentials-dropdown">
+                            <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
+                                <span id="nav-user-display">👤 Account</span>
+                                <span style="font-size: 0.7rem; opacity: 0.8;">▼</span>
                             </button>
-                            <button class="dropdown-item" onclick="openChangePasswordModal()">
-                                <span>🔑 Change Password</span>
-                            </button>
-                            <div class="dropdown-divider"></div>
-                            <button class="dropdown-item danger" onclick="handleLogout()">
-                                <span>🚪 Logout</span>
-                            </button>
+                            <div id="credentials-dropdown-content" class="dropdown-content">
+                                <div
+                                    style="padding: 10px 18px; font-size: 0.7rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">
+                                    Admin Settings</div>
+                                <button class="dropdown-item" onclick="openChangeUsernameModal()">
+                                    <span>🆔 Change Username</span>
+                                </button>
+                                <button class="dropdown-item" onclick="openChangePasswordModal()">
+                                    <span>🔑 Change Password</span>
+                                </button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item danger" onclick="handleLogout()">
+                                    <span>🚪 Logout</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Mobile Menu Trigger -->
+                    <button class="hamburger-btn mobile-only" onclick="toggleMobileMenu()">
+                        ☰
+                    </button>
+                </div>
+
+                <!-- Header Loader (Mobile Only) -->
+                <div class="mobile-only header-loader-mobile">
+                    <input type="text" id="school-id-input-m" class="form-control" placeholder="School ID (e.g. SEATOS)"
+                        style="flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                    <button class="btn btn-primary" onclick="handleLoadSchool('m')" id="load-school-btn-m"
+                        style="background: white; color: var(--primary-color);">
+                        🔍 Load
+                    </button>
                 </div>
             </div>
         </div>
-        <!-- Admin Controls -->
-        <div class="admin-controls">
+
+        <!-- Admin Controls (Desktop) -->
+        <div class="admin-controls desktop-only">
             <div class="control-group">
                 <label for="school-id-input">School ID</label>
                 <div style="display: flex; gap: 10px;">
@@ -599,8 +1001,8 @@
             </div>
         </div>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
+        <!-- Statistics (Desktop) -->
+        <div class="stats-grid desktop-only">
             <div class="stat-card">
                 <h3>Total Teachers</h3>
                 <p class="value" id="stat-teachers">0</p>
@@ -621,19 +1023,17 @@
 
         <!-- All Exams Section -->
         <div class="section">
-            <div class="section-header">
-                <h2>📚 All Exams</h2>
-                <div>
-                    <select id="exam-filter" onchange="filterExams()"
-                        style="padding: 8px 12px; border-radius: 6px; border: 2px solid var(--border-color);">
-                        <option value="all">All Exams</option>
-                        <option value="active">Active Only</option>
-                        <option value="draft">Drafts Only</option>
-                        <option value="archived">Archived Only</option>
-                    </select>
+            <div class="section-header responsive-header" onclick="openExamsModal('all')"
+                style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'"
+                onmouseout="this.style.opacity='1'">
+                <div class="header-main">
+                    <h2>📚 All Exams</h2>
+                    <span class="badge badge-primary">View All</span>
                 </div>
+                <div class="header-action">Click to see all exams ➔</div>
             </div>
-            <div id="exams-container" class="exam-grid">
+            <div id="exams-teacher-list" class="exam-grid">
+                <!-- Teacher list summary will be here -->
                 <div class="empty-state">
                     <div class="empty-state-icon">📋</div>
                     <p>Select a school version to view exams</p>
@@ -685,7 +1085,7 @@
     </div>
 
     <!-- Change Password Modal -->
-    <div id="change-password-modal" class="modal" style="display: none; z-index: 3000;">
+    <div id="change-password-modal" class="modal" style="display: none; z-index: 4000;">
         <div class="modal-content"
             style="max-width: 400px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div class="modal-header"
@@ -731,11 +1131,11 @@
                 </div>
 
                 <div id="password-error"
-                    style="color: #e74c3c; font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px; display: none; background: #fff5f5; padding: 10px; border-radius: 6px; border: 1px solid #fed7d7;">
+                    style="color: var(--accent-color); font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px; display: none; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 6px; border: 1px solid var(--accent-color);">
                 </div>
             </div>
             <div class="modal-footer"
-                style="padding: 15px 24px; background: var(--inner-background); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
+                style="padding: 15px 24px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
                 <button class="btn"
                     style="background: transparent; border: 1px solid var(--border-color); color: var(--light-text);"
                     onclick="closeChangePasswordModal()">Cancel</button>
@@ -746,7 +1146,7 @@
     </div>
 
     <!-- Change Username Modal -->
-    <div id="change-username-modal" class="modal" style="display: none; z-index: 3000;">
+    <div id="change-username-modal" class="modal" style="display: none; z-index: 4000;">
         <div class="modal-content"
             style="max-width: 400px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div class="modal-header"
@@ -767,15 +1167,136 @@
                         style="width: 100%; border-radius: 8px;">
                 </div>
 
+
+                <div id="username-success" style="color: #27ae60; font-size: 0.85rem; margin-top: 10px; display: none;">
+                </div>
                 <div id="username-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;">
                 </div>
             </div>
             <div class="modal-footer"
-                style="padding: 20px 24px; background: var(--inner-background); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
+                style="padding: 20px 24px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
                 <button class="btn btn-outline" onclick="closeChangeUsernameModal()"
                     style="padding: 10px 20px; border-radius: 8px;">Cancel</button>
                 <button id="submit-username-btn" class="btn btn-primary" onclick="submitUsernameChange()"
                     style="padding: 10px 25px; border-radius: 8px; font-weight: 600;">Update Username</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule & Duration Modal -->
+    <div id="schedule-modal" class="modal" style="display: none; z-index: 4000;">
+        <div class="modal-content"
+            style="max-width: 420px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="modal-header"
+                style="background: var(--primary-color); color: white; padding: 20px; margin-bottom: 0; border: none;">
+                <h3 style="margin: 0; color: white;">📅 Schedule & Duration</h3>
+                <span class="close-btn" onclick="closeScheduleModal()"
+                    style="color: white; opacity: 0.8;">&times;</span>
+            </div>
+            <div style="padding: 24px; background: var(--card-bg);">
+                <input type="hidden" id="schedule-exam-id">
+
+                <div class="control-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">
+                        ⏱️ Exam Duration (minutes)</label>
+                    <input type="number" id="schedule-duration" class="form-control" min="1" max="600"
+                        placeholder="e.g. 30" style="width: 100%; border-radius: 8px;">
+                    <small style="color: var(--light-text); font-size: 0.75rem;">Between 1 and 600 minutes</small>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 20px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">
+                        📅 Scheduled Date & Time</label>
+                    <input type="datetime-local" id="schedule-date" class="form-control"
+                        style="width: 100%; border-radius: 8px;">
+                    <small style="color: var(--light-text); font-size: 0.75rem;">Leave empty to make the exam
+                        immediately available</small>
+                </div>
+
+                <div id="schedule-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;">
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 20px 24px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
+                <button class="btn btn-outline" onclick="closeScheduleModal()"
+                    style="padding: 10px 20px; border-radius: 8px;">Cancel</button>
+                <button id="schedule-submit-btn" class="btn btn-primary" onclick="submitScheduleChanges()"
+                    style="padding: 10px 25px; border-radius: 8px; font-weight: 600;">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="alert-modal" class="modal" style="display: none; z-index: 5000;">
+        <div class="modal-content"
+            style="max-width: 400px; margin: 30vh auto; width: 90%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); text-align: center;">
+            <div class="modal-header"
+                style="background: var(--primary-color); color: white; padding: 15px; margin-bottom: 0; border: none; justify-content: center;">
+                <h3 id="alert-title" style="margin: 0; color: white;">Notice</h3>
+            </div>
+            <div style="padding: 30px 20px; background: var(--card-bg);">
+                <p id="alert-message" style="margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-color);">
+                </p>
+            </div>
+            <div
+                style="padding: 15px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: center;">
+                <button id="alert-ok-btn" class="btn btn-primary"
+                    style="padding: 8px 30px; min-width: 100px;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirm-modal" class="modal" style="display: none; z-index: 5000;">
+        <div class="modal-content"
+            style="max-width: 400px; margin: 30vh auto; width: 90%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); text-align: center;">
+            <div class="modal-header"
+                style="background: #e67e22; color: white; padding: 15px; margin-bottom: 0; border: none; justify-content: center;">
+                <h3 id="confirm-title" style="margin: 0; color: white;">Confirm Action</h3>
+            </div>
+            <div style="padding: 30px 20px; background: var(--card-bg);">
+                <p id="confirm-message" style="margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-color);">
+                </p>
+            </div>
+            <div
+                style="padding: 15px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: center; gap: 15px;">
+                <button id="confirm-no-btn" class="btn btn-secondary"
+                    style="padding: 8px 25px; min-width: 100px; background: #95a5a6;">Cancel</button>
+                <button id="confirm-yes-btn" class="btn btn-primary"
+                    style="padding: 8px 25px; min-width: 100px; background: #e67e22;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exams List Modal -->
+    <div id="exams-list-modal" class="modal" style="display: none; z-index: 3000;">
+        <div class="modal-content"
+            style="max-width: 900px; margin: 5vh auto; width: 95%; height: 90vh; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); display: flex; flex-direction: column;">
+            <div class="modal-header"
+                style="background: var(--primary-color); color: white; padding: 15px 25px; margin-bottom: 0; border: none; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 id="exams-modal-title" style="margin: 0; color: white;">📚 Exam List</h3>
+                    <p id="exams-modal-subtitle" style="margin: 0; font-size: 0.8rem; opacity: 0.8;"></p>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <select id="exam-filter" onchange="filterExams()"
+                        style="padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; cursor: pointer; font-size: 0.85rem; outline: none;">
+                        <option value="all">All Status</option>
+                        <option value="active">✅ Active Only</option>
+                        <option value="draft">📝 Drafts Only</option>
+                        <option value="archived">📦 Archived Only</option>
+                    </select>
+                    <span class="close-btn" onclick="closeExamsModal()"
+                        style="color: white; opacity: 0.8; font-size: 2rem; cursor: pointer;">&times;</span>
+                </div>
+            </div>
+            <div id="exams-modal-container"
+                style="padding: 25px; overflow-y: auto; flex: 1; background: var(--card-bg);">
+                <!-- Exams will be rendered here -->
+            </div>
+            <div class="modal-footer"
+                style="padding: 15px 25px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; flex-shrink: 0;">
+                <button class="btn btn-primary" onclick="closeExamsModal()" style="padding: 8px 25px;">Close</button>
             </div>
         </div>
     </div>
@@ -809,6 +1330,64 @@
             updateThemeButton(savedTheme);
         }
 
+        // Mobile Menu Toggle
+        window.toggleMobileMenu = function () {
+            const menu = document.getElementById('mobile-menu');
+            const overlay = document.getElementById('mobile-menu-overlay');
+            if (menu && overlay) {
+                const isActive = menu.classList.contains('active');
+                if (isActive) {
+                    menu.classList.remove('active');
+                    overlay.classList.remove('active');
+                } else {
+                    menu.classList.add('active');
+                    overlay.classList.add('active');
+                }
+            }
+        }
+
+        // Synchronize School Loaders
+        window.handleLoadSchool = async function (source) {
+            const inputId = source === 'm' ? 'school-id-input-m' : 'school-id-input';
+            const loadBtnId = source === 'm' ? 'load-school-btn-m' : 'load-school-btn';
+            const input = document.getElementById(inputId);
+            const loadBtn = document.getElementById(loadBtnId);
+            const schoolId = input.value.trim();
+
+            if (!schoolId) {
+                showAlert('Missing Info', 'Please enter a School ID');
+                return;
+            }
+
+            // Sync other input
+            const otherId = source === 'm' ? 'school-id-input' : 'school-id-input-m';
+            const otherEl = document.getElementById(otherId);
+            if (otherEl) otherEl.value = schoolId;
+
+            currentVersion = schoolId;
+            if (loadBtn) {
+                loadBtn.disabled = true;
+                loadBtn.textContent = 'Loading...';
+            }
+
+            try {
+                await loadData();
+                // Save the school ID for next time
+                if (currentUser) {
+                    currentUser.schoolVersion = schoolId;
+                    localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showAlert('Error', 'Failed to load data: ' + error.message);
+            } finally {
+                if (loadBtn) {
+                    loadBtn.disabled = false;
+                    loadBtn.textContent = '🔍 Load';
+                }
+            }
+        }
+
         function toggleTheme() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -832,12 +1411,14 @@
             currentUser = dataService.getCurrentUser();
 
             if (!currentUser || currentUser.role !== 'admin') {
-                alert('Access denied. Admin privileges required.');
+                await showAlert('Access Denied', '🛡️ Admin privileges required to access this area.');
                 window.location.href = '../index.html';
                 return;
             }
 
-            document.getElementById('admin-welcome').textContent = `Welcome, ${currentUser.name}`;
+            document.getElementById('admin-name').textContent = `👤 ${currentUser.name || 'Admin'}`;
+            const navDisplay = document.getElementById('nav-user-display');
+            if (navDisplay) navDisplay.textContent = `👤 ${currentUser.username || 'Account'}`;
 
             // Resolve Admin Profile ID
             if (!currentUser.profileId) {
@@ -888,44 +1469,23 @@
                 }
             });
 
-            // Allow pressing Enter to load
+            // Allow pressing Enter to load (Desktop)
             document.getElementById('school-id-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     handleLoadSchool();
                 }
             });
-        }
 
-
-        async function handleLoadSchool() {
-            const input = document.getElementById('school-id-input');
-            const loadBtn = document.getElementById('load-school-btn');
-            const schoolId = input.value.trim();
-
-            if (!schoolId) {
-                alert('Please enter a School ID');
-                return;
-            }
-
-            currentVersion = schoolId;
-            loadBtn.disabled = true;
-            loadBtn.textContent = 'Loading...';
-
-            try {
-                await loadData();
-                // Save the school ID for next time
-                if (currentUser) {
-                    currentUser.schoolVersion = schoolId;
-                    localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
+            // Allow pressing Enter to load (Mobile)
+            document.getElementById('school-id-input-m').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleLoadSchool('m');
                 }
-            } catch (error) {
-                console.error('Error loading data:', error);
-                alert('Failed to load data: ' + error.message);
-            } finally {
-                loadBtn.disabled = false;
-                loadBtn.textContent = '🔍 Load';
-            }
+            });
         }
+
+
+
 
         async function loadData() {
             try {
@@ -1048,14 +1608,28 @@
 
 
         function updateStats(teachers, exams, active, students) {
-            document.getElementById('stat-teachers').textContent = teachers;
-            document.getElementById('stat-exams').textContent = exams;
-            document.getElementById('stat-active').textContent = active;
-            document.getElementById('stat-students').textContent = students;
+            // Update Desktop Stats
+            const dTeachers = document.getElementById('stat-teachers');
+            if (dTeachers) dTeachers.textContent = teachers;
+            const dExams = document.getElementById('stat-exams');
+            if (dExams) dExams.textContent = exams;
+            const dActive = document.getElementById('stat-active');
+            if (dActive) dActive.textContent = active;
+            const dStudents = document.getElementById('stat-students');
+            if (dStudents) dStudents.textContent = students;
+
+            // Update Mobile Stats
+            document.getElementById('stat-teachers-m').textContent = teachers;
+            document.getElementById('stat-exams-m').textContent = exams;
+            document.getElementById('stat-active-m').textContent = active;
+            document.getElementById('stat-students-m').textContent = students;
         }
 
+        // Global state for current view in modal
+        let currentModalTeacherId = 'all';
+
         function displayExams(exams) {
-            const container = document.getElementById('exams-container');
+            const container = document.getElementById('exams-teacher-list');
 
             if (exams.length === 0) {
                 container.innerHTML = `
@@ -1067,45 +1641,310 @@
                 return;
             }
 
-            container.innerHTML = exams.map(exam => {
-                // Try finding teacher by Profile ID first, then by User ID
+            // Group exams by teacher to show teacher summaries
+            const groupedExams = {};
+            exams.forEach(exam => {
                 const teacher = allTeachers.find(t => t.id === exam.createdBy || t.user === exam.createdBy);
-                // Fallback to username if full_name is missing, or "Unknown Teacher"
+                const teacherName = teacher ? (teacher.full_name || teacher.username || 'Teacher') : 'Unknown Teacher';
+                const teacherId = teacher ? teacher.id : 'unknown';
+
+                if (!groupedExams[teacherId]) {
+                    groupedExams[teacherId] = {
+                        id: teacherId,
+                        name: teacherName,
+                        count: 0
+                    };
+                }
+                groupedExams[teacherId].count++;
+            });
+
+            container.innerHTML = Object.values(groupedExams).map(group => `
+                <div class="collapsible-group" style="cursor: pointer; transition: all 0.2s; border-radius: 8px;" 
+                     onclick="openExamsModal('${group.id}')"
+                     onmouseover="this.style.borderColor='var(--primary-color)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
+                     onmouseout="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none'">
+                    <div class="collapsible-header responsive-header" style="background: var(--inner-bg); border: none;">
+                        <h3 class="header-title">👨‍🏫 ${group.name}</h3>
+                        <div class="header-sub">
+                            <span class="group-count">${group.count} ${group.count === 1 ? 'Exam' : 'Exams'}</span>
+                            <span class="view-link">View ➔</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.openExamsModal = function (teacherId) {
+            currentModalTeacherId = teacherId;
+            const modal = document.getElementById('exams-list-modal');
+            const titleEl = document.getElementById('exams-modal-title');
+            const subtitleEl = document.getElementById('exams-modal-subtitle');
+
+            // Set title based on selection
+            if (teacherId === 'all') {
+                titleEl.textContent = '📚 All School Exams';
+                subtitleEl.textContent = `Viewing all exams for version: ${currentVersion}`;
+            } else {
+                const teacher = allTeachers.find(t => t.id === teacherId);
+                const teacherName = teacher ? (teacher.full_name || teacher.username) : 'Teacher';
+                titleEl.textContent = `👨‍🏫 Exams by ${teacherName}`;
+                subtitleEl.textContent = `Exams published in ${currentVersion}`;
+            }
+
+            // Reset filter to 'all' when opening
+            document.getElementById('exam-filter').value = 'all';
+
+            modal.style.display = 'flex';
+            filterExams(); // Initial render in modal
+        };
+
+        window.closeExamsModal = function () {
+            document.getElementById('exams-list-modal').style.display = 'none';
+        };
+
+        window.filterExams = function () {
+            const statusFilter = document.getElementById('exam-filter').value;
+
+            let filtered = allExams;
+
+            // First filter by teacher if necessary
+            if (currentModalTeacherId !== 'all') {
+                filtered = filtered.filter(e => {
+                    const teacher = allTeachers.find(t => t.id === e.createdBy || t.user === e.createdBy);
+                    return teacher && teacher.id === currentModalTeacherId;
+                });
+            }
+
+            // Then filter by status
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(e => e.status === statusFilter);
+            }
+
+            displayExamsInModal(filtered);
+        };
+
+        function displayExamsInModal(exams) {
+            const container = document.getElementById('exams-modal-container');
+
+            if (exams.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>No exams match the current filters</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                    ${exams.map(exam => {
+                const teacher = allTeachers.find(t => t.id === exam.createdBy || t.user === exam.createdBy);
                 const teacherName = teacher ? (teacher.full_name || teacher.username || 'Teacher') : 'Unknown Teacher';
 
                 let statusClass = 'status-draft';
                 if (exam.status === 'active') statusClass = 'status-active';
                 if (exam.status === 'archived') statusClass = 'status-archived';
 
+                const scheduledInfo = exam.scheduledDate
+                    ? `<span>📅 ${new Date(exam.scheduledDate).toLocaleString()}</span>`
+                    : '';
+
                 return `
-                    <div class="exam-card">
-                        <div class="exam-card-header">
-                            <div>
-                                <h3 class="exam-title">${exam.title}</h3>
-                                <div class="exam-meta">
-                                    <span>👨‍🏫 ${teacherName}</span>
-                                    <span>📚 ${exam.subject}</span>
-                                    <span>🎯 ${exam.targetClass}</span>
-                                    <span>⏱️ ${exam.duration} min</span>
-                                    <span>❓ ${exam.questions.length} questions</span>
+                            <div class="exam-card" id="exam-card-${exam.id}">
+                                <div class="exam-card-header">
+                                    <div>
+                                        <h3 class="exam-title">${exam.title}</h3>
+                                        <div class="exam-meta">
+                                            <span>👨‍🏫 ${teacherName}</span>
+                                            <span>📚 ${exam.subject}</span>
+                                            <span>🎯 ${exam.targetClass}</span>
+                                            <span>⏱️ ${exam.duration} min</span>
+                                            <span>❓ ${exam.questions.length} questions</span>
+                                            ${scheduledInfo}
+                                        </div>
+                                    </div>
+                                    <span class="status-badge ${statusClass}">${exam.status}</span>
+                                </div>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                                    <select id="status-${exam.id}" onchange="changeExamStatus('${exam.id}', this.value)" 
+                                        style="padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.85rem; cursor: pointer; background: var(--card-bg); color: var(--text-color);">
+                                        <option value="active" ${exam.status === 'active' ? 'selected' : ''}>✅ Active</option>
+                                        <option value="draft" ${exam.status === 'draft' ? 'selected' : ''}>📝 Draft</option>
+                                        <option value="archived" ${exam.status === 'archived' ? 'selected' : ''}>📦 Archived</option>
+                                    </select>
+                                    <select id="class-${exam.id}" onchange="changeExamClass('${exam.id}', this.value)"
+                                        style="padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.85rem; cursor: pointer; background: var(--card-bg); color: var(--text-color);">
+                                        <option value="All" ${exam.targetClass === 'All' ? 'selected' : ''}>🎯 All Classes</option>
+                                        ${getClassOptions(exam.targetClass)}
+                                    </select>
+                                    <button onclick="openScheduleModal('${exam.id}', ${exam.duration}, '${exam.scheduledDate || ''}')" 
+                                        style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.85rem;">
+                                        📅 Schedule
+                                    </button>
                                 </div>
                             </div>
-                            <span class="status-badge ${statusClass}">${exam.status}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                        `;
+            }).join('')}
+                </div>
+            `;
         }
 
-        function filterExams() {
-            const filter = document.getElementById('exam-filter').value;
-            let filtered = allExams;
+        // Generate class options for the dropdown
+        function getClassOptions(currentClass) {
+            const classes = [
+                'JSS 1', 'JSS 2', 'JSS 3',
+                'SS 1', 'SS 2', 'SS 3',
+                'Primary 1', 'Primary 2', 'Primary 3',
+                'Primary 4', 'Primary 5', 'Primary 6',
+                'Grade 1', 'Grade 2', 'Grade 3',
+                'Grade 4', 'Grade 5', 'Grade 6',
+                'Grade 7', 'Grade 8', 'Grade 9',
+                'Grade 10', 'Grade 11', 'Grade 12'
+            ];
+            return classes.map(c =>
+                `<option value="${c}" ${currentClass === c ? 'selected' : ''}>${c}</option>`
+            ).join('');
+        }
 
-            if (filter !== 'all') {
-                filtered = allExams.filter(e => e.status === filter);
+        // Admin: Change exam status (active/draft/archived)
+        async function changeExamStatus(examId, newStatus) {
+            try {
+                await dataService.updateExam(examId, { status: newStatus });
+                // Update local data
+                const exam = allExams.find(e => e.id === examId);
+                if (exam) exam.status = newStatus;
+
+                // Update stats
+                const activeExams = allExams.filter(e => e.status === 'active').length;
+                updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
+
+                showToast(`Exam status changed to "${newStatus}"`);
+
+                // If a modal is open, refresh the modal view too
+                if (document.getElementById('exams-list-modal').style.display === 'flex') {
+                    filterExams();
+                }
+
+                displayExams(allExams); // Refresh main summary list
+            } catch (err) {
+                console.error('Failed to change exam status:', err);
+                showAlert('Error', 'Failed to change exam status: ' + err.message);
+            }
+        }
+
+        // Admin: Change exam target class
+        async function changeExamClass(examId, newClass) {
+            try {
+                await dataService.updateExam(examId, { targetClass: newClass });
+                // Update local data
+                const exam = allExams.find(e => e.id === examId);
+                if (exam) exam.targetClass = newClass;
+
+                showToast(`Exam class changed to "${newClass}"`);
+                // If a modal is open, refresh the modal view too
+                if (document.getElementById('exams-list-modal').style.display === 'flex') {
+                    filterExams();
+                }
+            } catch (err) {
+                console.error('Failed to change exam class:', err);
+                showAlert('Error', 'Failed to change exam class: ' + err.message);
+            }
+        }
+
+        // Admin: Open schedule/duration modal
+        function openScheduleModal(examId, currentDuration, currentSchedule) {
+            const modal = document.getElementById('schedule-modal');
+            document.getElementById('schedule-exam-id').value = examId;
+            document.getElementById('schedule-duration').value = currentDuration || 30;
+
+            const dateInput = document.getElementById('schedule-date');
+            if (currentSchedule && currentSchedule !== 'undefined' && currentSchedule !== '') {
+                try {
+                    // Convert to local datetime format for the input
+                    const d = new Date(currentSchedule);
+                    if (!isNaN(d.getTime())) {
+                        dateInput.value = d.toISOString().slice(0, 16);
+                    } else {
+                        dateInput.value = '';
+                    }
+                } catch (e) {
+                    dateInput.value = '';
+                }
+            } else {
+                dateInput.value = '';
             }
 
-            displayExams(filtered);
+            document.getElementById('schedule-error').style.display = 'none';
+            modal.style.display = 'flex';
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('schedule-modal').style.display = 'none';
+        }
+
+        async function submitScheduleChanges() {
+            const examId = document.getElementById('schedule-exam-id').value;
+            const durationVal = document.getElementById('schedule-duration').value;
+            const dateVal = document.getElementById('schedule-date').value;
+            const errorEl = document.getElementById('schedule-error');
+            const submitBtn = document.getElementById('schedule-submit-btn');
+
+            const duration = parseInt(durationVal);
+            if (isNaN(duration) || duration < 1 || duration > 600) {
+                errorEl.textContent = 'Duration must be between 1 and 600 minutes.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            let scheduledDate = '';
+            if (dateVal.trim()) {
+                const d = new Date(dateVal.trim());
+                if (isNaN(d.getTime())) {
+                    errorEl.textContent = 'Invalid date/time. Please use the date picker.';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                scheduledDate = d.toISOString();
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+                errorEl.style.display = 'none';
+
+                await dataService.updateExam(examId, {
+                    duration: duration,
+                    scheduledDate: scheduledDate
+                });
+
+                // Update local data
+                const exam = allExams.find(e => e.id === examId);
+                if (exam) {
+                    exam.duration = duration;
+                    exam.scheduledDate = scheduledDate;
+                }
+
+                const msg = scheduledDate
+                    ? `Updated: ${duration} min, scheduled for ${new Date(scheduledDate).toLocaleString()}`
+                    : `Updated: ${duration} min, available immediately`;
+                showToast(msg);
+
+                // If a modal is open, refresh the modal view too
+                if (document.getElementById('exams-list-modal').style.display === 'flex') {
+                    filterExams();
+                }
+
+                displayExams(allExams);
+                closeScheduleModal();
+            } catch (err) {
+                console.error('Failed to update schedule:', err);
+                errorEl.textContent = 'Failed to update: ' + err.message;
+                errorEl.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
         }
 
         async function sendMessage() {
@@ -1117,12 +1956,12 @@
             const message = messageText.value.trim();
 
             if (!teacherId) {
-                alert('Please select a teacher');
+                showAlert('Missing Info', 'Please select a teacher');
                 return;
             }
 
             if (!message) {
-                alert('Please enter a message');
+                showAlert('Empty Message', 'Please enter a message');
                 return;
             }
 
@@ -1132,11 +1971,11 @@
                 // Handle bulk messaging to all teachers
                 if (teacherId === 'ALL_TEACHERS') {
                     if (allTeachers.length === 0) {
-                        alert('No teachers loaded. Please load a school first.');
+                        showAlert('Error', 'No teachers loaded. Please load a school first.');
                         return;
                     }
 
-                    const confirmBulk = confirm(`Send this message to ALL ${allTeachers.length} teachers in ${currentVersion}?`);
+                    const confirmBulk = await showConfirm('⚠️ Bulk Message', `Send this message to ALL ${allTeachers.length} teachers in ${currentVersion}?`);
                     if (!confirmBulk) {
                         sendBtn.disabled = false;
                         return;
@@ -1185,9 +2024,9 @@
 
                     // Show results
                     if (failCount === 0) {
-                        alert(`✅ Message sent to all ${successCount} teachers!`);
+                        showAlert('Success', `✅ Message sent to all ${successCount} teachers!`);
                     } else {
-                        alert(`Sent to ${successCount} teachers. Failed: ${failCount}`);
+                        showAlert('Partial Success', `Sent to ${successCount} teachers. Failed: ${failCount}`);
                     }
 
                     // Update History UI
@@ -1210,7 +2049,7 @@
                     try {
                         console.log('Sending message payload:', messageData);
                         const createdMsg = await dataService.sendMessage(messageData);
-                        alert(`Message sent to ${teacher?.full_name || 'teacher'}!`);
+                        showAlert('Message Sent', `Message sent to ${teacher?.full_name || 'teacher'}!`);
 
                         // Add to history
                         const messageObj = {
@@ -1247,7 +2086,7 @@
                         localStorage.setItem('admin_messages', JSON.stringify(messageHistory)); // Backup
                         displayMessageHistory(); // Update UI
 
-                        alert(`Message sent! (Saved locally)`);
+                        showAlert('Saved Offline', `Message sent! (Saved locally)`);
                     }
                 }
 
@@ -1258,7 +2097,7 @@
 
             } catch (error) {
                 console.error('Error sending message:', error);
-                alert('Failed to send message: ' + error.message);
+                showAlert('Error', 'Failed to send message: ' + error.message);
             } finally {
                 sendBtn.disabled = false;
                 sendBtn.textContent = '📤 Send Message';
@@ -1359,29 +2198,58 @@
                 return;
             }
 
-            // Sort by timestamp, newest first
-            versionMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            // Group messages by contact
+            const groupedMessages = {};
+            versionMessages.forEach(msg => {
+                const contactId = msg.isSent ? msg.toId : msg.fromId;
+                const contactName = msg.isSent ? msg.to : msg.from;
 
-            container.innerHTML = versionMessages.map(msg => {
-                const date = new Date(msg.timestamp);
-                const formattedDate = date.toLocaleString();
-                const isReset = msg.message.includes('PASSWORD RESET REQUEST');
+                if (!groupedMessages[contactId]) {
+                    groupedMessages[contactId] = {
+                        name: contactName,
+                        messages: []
+                    };
+                }
+                groupedMessages[contactId].messages.push(msg);
+            });
+
+            container.innerHTML = Object.entries(groupedMessages).map(([contactId, group]) => {
+                const groupId = `msg-group-${contactId}`;
+                // Sort messages within group by timestamp, newest first
+                group.messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                const messagesHtml = group.messages.map(msg => {
+                    const date = new Date(msg.timestamp);
+                    const formattedDate = date.toLocaleString();
+                    const isReset = msg.message.includes('PASSWORD RESET REQUEST');
+
+                    return `
+                        <div class="message-item ${msg.isSent ? 'sent' : 'received'} ${isReset ? 'reset-request' : ''}" style="margin-bottom: 10px;">
+                            <div class="message-header">
+                                <span class="message-direction">${msg.isSent ? '📤 Sent' : '📥 Received'}</span>
+                                <span class="message-date">${formattedDate}</span>
+                            </div>
+                            <div class="message-content">${msg.message.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    `;
+                }).join('');
 
                 return `
-                    <div class="message-item ${msg.isSent ? 'sent' : 'received'} ${isReset ? 'reset-request' : ''}">
-                        <div class="message-header">
-                            <span class="message-direction">${msg.isSent ? '📤 To: ' + msg.to : '📥 From: ' + msg.from}</span>
-                            <span class="message-date">${formattedDate}</span>
+                    <div class="collapsible-group">
+                        <div class="collapsible-header" data-group="${groupId}" onclick="toggleGroup('${groupId}')">
+                            <h3>👤 ${group.name} <span class="group-count">${group.messages.length}</span></h3>
+                            <span class="toggle-icon">▼</span>
                         </div>
-                        <div class="message-content">${msg.message.replace(/\n/g, '<br>')}</div>
+                        <div id="${groupId}" class="collapsible-content">
+                            ${messagesHtml}
+                        </div>
                     </div>
                 `;
             }).join('');
-
         }
 
-        function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
+        async function handleLogout() {
+            if (await showConfirm('🚪 Logout', 'Are you sure you want to logout?')) {
                 auth.logout();
             }
         }
@@ -1409,7 +2277,7 @@
 
                 await dataService.updateUsername(newUsername);
 
-                alert('Username updated successfully!');
+                await showAlert('Success', 'Username updated successfully!');
 
                 // Update nav display if needed
                 const navDisplay = document.getElementById('nav-user-display');
@@ -1421,6 +2289,16 @@
                 errorEl.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Update Username';
+            }
+        };
+
+        // UI Helpers
+        window.toggleGroup = function (groupId) {
+            const header = document.querySelector(`.collapsible-header[data-group="${groupId}"]`);
+            const content = document.getElementById(groupId);
+            if (header && content) {
+                header.classList.toggle('active');
+                content.classList.toggle('active');
             }
         };
 
@@ -1490,7 +2368,7 @@
 
                 await dataService.updatePassword(oldPass, newPass);
 
-                alert('Password updated successfully! Please login again with your new password.');
+                await showAlert('Success', 'Password updated successfully! Please login again with your new password.');
                 auth.logout();
             } catch (err) {
                 errorEl.textContent = err.message || 'Failed to update password';
@@ -1522,7 +2400,6 @@
         window.openChangeUsernameModal = async function () {
             document.getElementById('change-username-modal').style.display = 'flex';
             document.getElementById('new-username').value = '';
-            document.getElementById('username-current-password').value = '';
             document.getElementById('username-error').style.display = 'none';
             document.getElementById('username-success').style.display = 'none';
 
@@ -1542,13 +2419,12 @@
 
         window.submitUsernameChange = async function () {
             const newUsername = document.getElementById('new-username').value.trim();
-            const currentPassword = document.getElementById('username-current-password').value;
             const errorEl = document.getElementById('username-error');
             const successEl = document.getElementById('username-success');
             const submitBtn = document.getElementById('submit-username-btn');
 
-            if (!newUsername || !currentPassword) {
-                errorEl.textContent = 'Please fill in all fields';
+            if (!newUsername) {
+                errorEl.textContent = 'Please enter a username';
                 errorEl.style.display = 'block';
                 successEl.style.display = 'none';
                 return;
@@ -1561,8 +2437,8 @@
                 return;
             }
 
-            if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
-                errorEl.textContent = 'Username can only contain letters, numbers, underscores, and hyphens';
+            if (!/^[a-zA-Z0-9._-]+$/.test(newUsername)) {
+                errorEl.textContent = 'Username can only contain letters, numbers, dots, underscores, and hyphens';
                 errorEl.style.display = 'block';
                 successEl.style.display = 'none';
                 return;
@@ -1574,7 +2450,7 @@
                 errorEl.style.display = 'none';
                 successEl.style.display = 'none';
 
-                await dataService.changeUsername(newUsername, currentPassword);
+                await dataService.updateUsername(newUsername);
 
                 successEl.textContent = 'Username updated successfully!';
                 successEl.style.display = 'block';
@@ -1591,6 +2467,42 @@
                 submitBtn.textContent = 'Update Username';
             }
         };
+        window.showAlert = function (title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('alert-modal');
+                document.getElementById('alert-title').innerHTML = title || 'Notice';
+                document.getElementById('alert-message').innerHTML = message;
+
+                const okBtn = document.getElementById('alert-ok-btn');
+                okBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve();
+                };
+                modal.style.display = 'flex';
+            });
+        };
+
+        window.showConfirm = function (title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                document.getElementById('confirm-title').innerHTML = title || 'Confirm';
+                document.getElementById('confirm-message').innerHTML = message;
+
+                const yesBtn = document.getElementById('confirm-yes-btn');
+                const noBtn = document.getElementById('confirm-no-btn');
+
+                yesBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(true);
+                };
+                noBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    resolve(false);
+                };
+                modal.style.display = 'flex';
+            });
+        };
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);
     </script>

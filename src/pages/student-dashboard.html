@@ -521,6 +521,7 @@
                         style="width: 100%;">
                 </div>
 
+
                 <div id="username-error" style="color: #e74c3c; font-size: 0.85rem; margin-top: 10px; display: none;">
                 </div>
             </div>
@@ -619,7 +620,7 @@
                 const userNameEl = document.getElementById('user-name');
                 if (userNameEl) userNameEl.textContent = newUsername;
 
-                alert('Username updated successfully!');
+                await Utils.showAlert('Success', 'Username updated successfully!');
                 closeChangeUsernameModal();
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;
@@ -708,7 +709,7 @@
 
                 await dataService.updatePassword(oldPass, newPass);
 
-                alert('Password updated successfully! Please login again with your new password.');
+                await Utils.showAlert('Success', 'Password updated successfully! Please login again with your new password.');
                 auth.logout();
             } catch (err) {
                 errorEl.textContent = err.message || 'Failed to update password';

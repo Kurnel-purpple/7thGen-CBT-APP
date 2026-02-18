@@ -144,6 +144,184 @@ const Utils = {
 
         // Add title attribute for accessibility
         logo.setAttribute('title', `Go to ${user.role === 'teacher' ? 'Teacher' : 'Student'} Dashboard`);
+    },
+
+    /**
+     * Show a custom alert modal
+     * @param {string} title 
+     * @param {string} message 
+     * @returns {Promise}
+     */
+    showAlert: (title, message) => {
+        Utils._ensureModalHtml();
+        return new Promise((resolve) => {
+            const modal = document.getElementById('utils-alert-modal');
+            document.getElementById('utils-alert-title').innerHTML = title || 'Notice';
+            document.getElementById('utils-alert-message').innerHTML = message;
+
+            const okBtn = document.getElementById('utils-alert-ok-btn');
+            okBtn.onclick = () => {
+                modal.style.display = 'none';
+                resolve();
+            };
+            modal.style.display = 'flex';
+        });
+    },
+
+    /**
+     * Show a custom confirm modal
+     * @param {string} title 
+     * @param {string} message 
+     * @returns {Promise<boolean>}
+     */
+    showConfirm: (title, message) => {
+        Utils._ensureModalHtml();
+        return new Promise((resolve) => {
+            const modal = document.getElementById('utils-confirm-modal');
+            document.getElementById('utils-confirm-title').innerHTML = title || 'Confirm';
+            document.getElementById('utils-confirm-message').innerHTML = message;
+
+            const yesBtn = document.getElementById('utils-confirm-yes-btn');
+            const noBtn = document.getElementById('utils-confirm-no-btn');
+
+            yesBtn.onclick = () => {
+                modal.style.display = 'none';
+                resolve(true);
+            };
+            noBtn.onclick = () => {
+                modal.style.display = 'none';
+                resolve(false);
+            };
+            modal.style.display = 'flex';
+        });
+    },
+
+    /**
+     * Show a toast notification
+     * @param {string} message 
+     * @param {string} type - 'info', 'success', 'warning', 'error'
+     */
+    showToast: (message, type = 'info') => {
+        const toast = document.createElement('div');
+        toast.className = `utils-toast utils-toast-${type}`;
+
+        const icons = {
+            info: 'ℹ️',
+            success: '✅',
+            warning: '⚠️',
+            error: '❌'
+        };
+
+        const colors = {
+            info: 'var(--primary-color, #4a90c8)',
+            success: '#27ae60',
+            warning: '#f39c12',
+            error: '#e74c3c'
+        };
+
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: white;
+            color: #333;
+            padding: 15px 25px;
+            border-radius: 12px;
+            z-index: 10000;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            border-left: 6px solid ${colors[type]};
+            transform: translateX(-120%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+        `;
+
+        toast.innerHTML = `
+            <span style="font-size: 1.2rem;">${icons[type]}</span>
+            <span style="flex: 1;">${message}</span>
+        `;
+
+        document.body.appendChild(toast);
+
+        // Force reflow
+        toast.offsetHeight;
+
+        // Slide in
+        toast.style.transform = 'translateX(0)';
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(-120%)';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 400);
+        }, 4000);
+    },
+
+    /**
+     * Internal: Ensure modal HTML exists in document
+     * @private
+     */
+    _ensureModalHtml: () => {
+        if (document.getElementById('utils-alert-modal')) return;
+
+        const modalHtml = `
+            <div id="utils-alert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
+                    <div style="background: var(--primary-color, #4a90c8); color: white; padding: 20px; text-align: center;">
+                        <h3 id="utils-alert-title" style="margin: 0; font-size: 1.2rem;">Notice</h3>
+                    </div>
+                    <div style="padding: 30px 24px; text-align: center; color: #333;">
+                        <p id="utils-alert-message" style="margin: 0; line-height: 1.6; font-size: 1rem;"></p>
+                    </div>
+                    <div style="padding: 15px 24px 24px; display: flex; justify-content: center;">
+                        <button id="utils-alert-ok-btn" style="background: var(--primary-color, #4a90c8); color: white; border: none; padding: 12px 40px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">OK</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="utils-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
+                    <div style="background: #e67e22; color: white; padding: 20px; text-align: center;">
+                        <h3 id="utils-confirm-title" style="margin: 0; font-size: 1.2rem;">Confirm Action</h3>
+                    </div>
+                    <div style="padding: 30px 24px; text-align: center; color: #333;">
+                        <p id="utils-confirm-message" style="margin: 0; line-height: 1.6; font-size: 1rem;"></p>
+                    </div>
+                    <div style="padding: 15px 24px 24px; display: flex; justify-content: center; gap: 12px;">
+                        <button id="utils-confirm-no-btn" style="background: #95a5a6; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Cancel</button>
+                        <button id="utils-confirm-yes-btn" style="background: #e67e22; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Confirm</button>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                @keyframes utils-pop {
+                    0% { transform: scale(0.9); opacity: 0; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                [data-theme="dark"] #utils-alert-modal > div,
+                [data-theme="dark"] #utils-confirm-modal > div {
+                    background: #2c3e50 !important;
+                }
+                [data-theme="dark"] #utils-alert-message,
+                [data-theme="dark"] #utils-confirm-message {
+                    color: #ecf0f1 !important;
+                }
+            </style>
+        `;
+
+        const div = document.createElement('div');
+        div.innerHTML = modalHtml;
+        document.body.appendChild(div);
+
+        // Add hover effects
+        const buttons = div.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.onmouseenter = () => btn.style.opacity = '0.9';
+            btn.onmouseleave = () => btn.style.opacity = '1';
+        });
     }
 };
 

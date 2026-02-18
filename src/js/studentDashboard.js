@@ -824,6 +824,21 @@ const studentDashboard = {
             const totalPoints = result.totalPoints || 100;
             const points = result.points !== undefined ? result.points : Math.round((result.score / 100) * totalPoints);
 
+            // Check if exam has theory questions that need grading
+            const hasTheoryQuestions = exam.questions && exam.questions.some(q => q.type === 'theory');
+            const theoryScores = result.theoryScores || {};
+            const theoryQuestionIds = hasTheoryQuestions ? exam.questions.filter(q => q.type === 'theory').map(q => q.id) : [];
+            const gradedCount = theoryQuestionIds.filter(id => theoryScores[id] !== undefined).length;
+            const allTheoryGraded = theoryQuestionIds.length > 0 && gradedCount === theoryQuestionIds.length;
+            const pendingGrading = hasTheoryQuestions && !allTheoryGraded;
+
+            // Theory grading badge
+            const theoryBadge = hasTheoryQuestions ? (
+                pendingGrading
+                    ? `<div style="margin-top:6px; font-size:0.8rem; color: var(--accent-color);">⏳ Theory: ${gradedCount}/${theoryQuestionIds.length} graded</div>`
+                    : `<div style="margin-top:6px; font-size:0.8rem; color: var(--success-color);">✅ Theory graded</div>`
+            ) : '';
+
             return `
             <div class="exam-card" style="opacity: 0.8;">
                 <div class="exam-card-header">
@@ -838,6 +853,7 @@ const studentDashboard = {
                         <span>Score: ${points}/${totalPoints} Points</span>
                         <span>${Utils.formatDate(result.submittedAt)}</span>
                     </div>
+                    ${theoryBadge}
                 </div>
                 <div class="exam-card-footer">
                     <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%;">👁️ View Details</button>
@@ -847,11 +863,11 @@ const studentDashboard = {
         }).join('');
     },
 
-    startExam: (examId) => {
+    startExam: async (examId) => {
         // Find the exam data
         const exam = studentDashboard.exams.find(e => e.id === examId);
         if (!exam) {
-            alert('Exam not found');
+            await Utils.showAlert('Not Found', 'Exam not found');
             return;
         }
 

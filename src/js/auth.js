@@ -71,13 +71,13 @@ const auth = {
         }
     },
 
-    showError: (msg) => {
+    showError: async (msg) => {
         const errorDiv = document.getElementById('login-error');
         if (errorDiv) {
             errorDiv.textContent = msg;
             errorDiv.style.display = 'block';
         } else {
-            alert(msg);
+            await Utils.showAlert('Notice', msg);
         }
     },
 
@@ -178,7 +178,7 @@ window.handleVerifyReset = async () => {
 
     try {
         await dataService.verifyAndResetPassword(username, code, newPassword);
-        alert('✅ Password updated successfully! You can now log in.');
+        await Utils.showAlert('Success', '✅ Password updated successfully! You can now log in.');
         window.closeModal('verify-reset-modal');
         localStorage.removeItem('pending_reset_user');
     } catch (err) {

@@ -131,6 +131,16 @@ const takeExam = {
                 return;
             }
 
+            // Scramble sub-questions for image_multi (picture comprehension) questions
+            // This must happen BEFORE the scrambleQuestions check so it applies regardless
+            if (exam.scrambleQuestions) {
+                exam.questions.forEach(q => {
+                    if (q.type === 'image_multi' && q.subQuestions && q.subQuestions.length > 1) {
+                        q.subQuestions = takeExam.scrambleArray([...q.subQuestions], user.id + q.id);
+                    }
+                });
+            }
+
             if (takeExam.mode === 'resolve') {
                 if (!takeExam.resultId) throw new Error('No Result ID for Resolution Mode');
                 // Fetch existing result
@@ -787,9 +797,9 @@ const takeExam = {
         }
     },
 
-    showSubmitModal: () => {
+    showSubmitModal: async () => {
         if (takeExam.mode === 'resolve') {
-            if (!confirm('Update your answers for the flagged questions?')) return;
+            if (!(await Utils.showConfirm('Update Answers', 'Update your answers for the flagged questions?'))) return;
             takeExam.submit();
             return;
         }
@@ -1099,27 +1109,17 @@ const takeExam = {
     },
 
     showAlert: (title, message, onOk) => {
-        const modal = document.getElementById('alert-modal');
-        if (!modal) { window.alert(message); if (onOk) onOk(); return; }
-
-        document.getElementById('alert-title').textContent = title || 'Notice';
-        document.getElementById('alert-message').textContent = message;
-
-        const btn = document.getElementById('alert-btn');
-        // Clear previous listeners by replacing the node (or just reassign onclick since we don't rely on addEventListener)
-        btn.onclick = () => {
-            modal.style.display = 'none';
+        Utils.showAlert(title, message).then(() => {
             if (onOk) onOk();
-        };
-
-        modal.style.display = 'flex';
+        });
     },
 
     showResultModal: (title, message, score, totalPoints, percentage, passed, isOffline = false) => {
         const modal = document.getElementById('result-modal');
         if (!modal) {
-            alert(`${title}\n${message}\nScore: ${score}/${totalPoints} (${percentage}%)`);
-            window.location.href = 'student-dashboard.html';
+            Utils.showAlert(title, `${message}\nScore: ${score}/${totalPoints} (${percentage}%)`).then(() => {
+                window.location.href = 'student-dashboard.html';
+            });
             return;
         }
 

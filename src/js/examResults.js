@@ -10,7 +10,7 @@ const examResults = {
         const examId = params.get('examId');
 
         if (!examId) {
-            alert('No Exam ID');
+            await Utils.showAlert('Error', 'No Exam ID');
             window.location.href = 'teacher-dashboard.html';
             return;
         }
@@ -173,7 +173,7 @@ const examResults = {
 
         } catch (err) {
             console.error(err);
-            alert('Error loading data');
+            await Utils.showAlert('Error', 'Error loading data');
         }
     },
 
@@ -255,9 +255,9 @@ const examResults = {
         `).join('');
     },
 
-    exportCSV: () => {
+    exportCSV: async () => {
         if (examResults.results.length === 0) {
-            alert('No data to export');
+            await Utils.showAlert('No Data', 'No data to export');
             return;
         }
 

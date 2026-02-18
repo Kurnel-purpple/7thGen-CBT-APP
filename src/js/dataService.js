@@ -95,8 +95,15 @@ class DataService {
         const email = this._generateEmail(identifier);
 
         try {
-            // Authenticate with PocketBase
-            const authData = await this.pb.collection('users').authWithPassword(email, password);
+            // Try authenticating with the raw identifier first (matches PocketBase username field)
+            // Then fall back to email format for legacy accounts
+            let authData;
+            try {
+                authData = await this.pb.collection('users').authWithPassword(identifier.trim(), password);
+            } catch (firstErr) {
+                // If raw username failed, try as email format
+                authData = await this.pb.collection('users').authWithPassword(email, password);
+            }
 
             if (!authData.record) {
                 throw new Error('Login failed: No user data returned');
@@ -229,10 +236,8 @@ class DataService {
             const cached = this.getCurrentUser();
             const userId = this.pb.authStore.model.id;
             const oldUsername = this.pb.authStore.model.username || cached?.username;
-            const oldEmail = this.pb.authStore.model.email || cached?.email;
 
             // 1. Normalize input
-            // If user typed an email (e.g. name@school.cbt), extract just the name part for the username field
             let normalizedUsername = newUsername.trim();
             if (normalizedUsername.includes('@')) {
                 normalizedUsername = normalizedUsername.split('@')[0];
@@ -247,37 +252,49 @@ class DataService {
                 throw new Error('Username can only contain letters, numbers, dots, underscores, and hyphens');
             }
 
-            const newEmail = this._generateEmail(normalizedUsername);
-
             // 2. Skip if no changes
-            if (normalizedUsername === oldUsername && newEmail === oldEmail) {
-                console.log('Username/Email unchanged, skipping API call');
-                return { username: oldUsername, email: oldEmail };
+            if (normalizedUsername === oldUsername) {
+                console.log('Username unchanged, skipping API call');
+                return { username: oldUsername };
             }
 
-            // 3. Update user record
+            // 3. Pre-check: Verify the new username isn't taken by ANOTHER user
+            try {
+                const existingUser = await this.pb.collection('users').getFirstListItem(
+                    `username="${normalizedUsername}" && id!="${userId}"`
+                );
+                if (existingUser) {
+                    throw new Error(`The username "${normalizedUsername}" is already taken by another account.`);
+                }
+            } catch (checkErr) {
+                // 404 = no conflict found, that's good - proceed
+                if (checkErr.status !== 404 && checkErr.message.includes('already taken')) {
+                    throw checkErr;
+                }
+            }
+
+            // 4. Update ONLY the username field (not email)
+            // This avoids PocketBase's oldPassword requirement for email changes.
+            // Login will still work because PocketBase's authWithPassword matches
+            // against both username and email fields.
             const updatedUser = await this.pb.collection('users').update(userId, {
-                username: normalizedUsername,
-                email: newEmail
+                username: normalizedUsername
             });
 
-            // 4. Sync Profile record (Very Important for lists/admin)
+            // 5. Sync Profile record
             try {
                 const profileData = {
                     full_name: updatedUser.full_name || cached?.name || normalizedUsername,
                     role: updatedUser.role || cached?.role || 'teacher'
                 };
 
-                // Try updating profile by ID (userId)
                 try {
                     await this.pb.collection('profiles').update(userId, profileData);
                 } catch (e) {
-                    // Fallback to search if ID doesn't match
                     try {
                         const profile = await this.pb.collection('profiles').getFirstListItem(`user="${userId}"`);
                         await this.pb.collection('profiles').update(profile.id, profileData);
                     } catch (findErr) {
-                        // Create profile if missing
                         await this.pb.collection('profiles').create({
                             ...profileData,
                             user: userId,
@@ -289,11 +306,11 @@ class DataService {
                 console.warn('Profile sync during username change failed:', profileErr.message);
             }
 
-            // 5. Migrate Legacy Exams (Data Healing)
-            if (oldUsername || oldEmail) {
+            // 6. Migrate Legacy Exams (Data Healing)
+            if (oldUsername) {
                 try {
                     const legacyExams = await this.pb.collection('exams').getFullList({
-                        filter: `created_by="${oldUsername}" || created_by="${oldEmail}"`
+                        filter: `created_by="${oldUsername}"`
                     });
 
                     for (const exam of legacyExams) {
@@ -307,10 +324,9 @@ class DataService {
                 }
             }
 
-            // 6. Update local metadata cache
+            // 7. Update local metadata cache
             if (cached) {
                 cached.username = updatedUser.username;
-                cached.email = updatedUser.email;
                 localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
             }
 
@@ -318,12 +334,8 @@ class DataService {
         } catch (error) {
             console.error('Username update failed:', error);
 
-            // Helpful error messages for uniqueness constraints
             if (error.status === 400 && error.data?.data?.username) {
                 throw new Error(`The username "${newUsername}" is already taken by another account.`);
-            }
-            if (error.status === 400 && error.data?.data?.email) {
-                throw new Error(`The identity "${newUsername}" (or a variant of it) is already taken by another account.`);
             }
 
             throw new Error(error.message || 'Failed to update username');
@@ -928,19 +940,39 @@ class DataService {
             submittedAt: dbResult.submitted_at,
             studentName: studentName,
             flags: dbResult.flags || {},
-            status: status
+            status: status,
+            theoryScores: (dbResult.flags && dbResult.flags._theoryScores) ? dbResult.flags._theoryScores : {}
         };
     }
 
     async updateResult(resultId, updates) {
         try {
             const data = {};
-            if (updates.flags !== undefined) data.flags = updates.flags;
             if (updates.score !== undefined) data.score = updates.score;
             if (updates.totalPoints !== undefined) data.total_points = updates.totalPoints;
             if (updates.answers !== undefined) data.answers = updates.answers;
             if (updates.passScore !== undefined) data.pass_score = updates.passScore;
             if (updates.passed !== undefined) data.passed = updates.passed;
+
+            // Handle theoryScores: store inside flags object
+            if (updates.theoryScores !== undefined || updates.flags !== undefined) {
+                // Fetch current flags to merge
+                let currentFlags = {};
+                try {
+                    const existing = await this.pb.collection('results').getOne(resultId);
+                    currentFlags = existing.flags || {};
+                } catch (e) {
+                    console.warn('Could not fetch current flags for merge:', e);
+                }
+
+                if (updates.flags !== undefined) {
+                    currentFlags = { ...currentFlags, ...updates.flags };
+                }
+                if (updates.theoryScores !== undefined) {
+                    currentFlags._theoryScores = updates.theoryScores;
+                }
+                data.flags = currentFlags;
+            }
 
             const updated = await this.pb.collection('results').update(resultId, data);
             return this._mapResult(updated);

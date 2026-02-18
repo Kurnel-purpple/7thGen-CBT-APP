@@ -12,7 +12,7 @@ const resultsController = {
         const resultId = params.get('id');
 
         if (!resultId) {
-            alert('No result ID specified');
+            await Utils.showAlert('Error', 'No result ID specified');
             window.history.back();
             return;
         }
@@ -31,7 +31,7 @@ const resultsController = {
 
             // Access Check
             if (user.role === 'student' && result.studentId !== user.id) {
-                alert('Unauthorized Access');
+                await Utils.showAlert('Unauthorized', 'Unauthorized Access');
                 window.location.href = '../index.html';
                 return;
             }
@@ -52,7 +52,7 @@ const resultsController = {
 
         } catch (err) {
             console.error(err);
-            alert('Error loading result');
+            await Utils.showAlert('Error', 'Error loading result');
             window.history.back();
         }
     },
@@ -114,7 +114,7 @@ const resultsController = {
     saveTheoryScores: async () => {
         const user = dataService.getCurrentUser();
         if (user.role !== 'teacher') {
-            alert('Only teachers can grade theory questions');
+            await Utils.showAlert('Access Denied', 'Only teachers can grade theory questions');
             return;
         }
 
@@ -177,14 +177,14 @@ const resultsController = {
                 passed: passed
             });
 
-            alert(`Theory scores saved!\nNew Total: ${totalPoints.toFixed(1)}/${totalPossible.toFixed(1)} (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);
+            await Utils.showAlert('Success', `Theory scores saved!\nNew Total: ${totalPoints.toFixed(1)}/${totalPossible.toFixed(1)} (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);
 
             // Reload to show updated scores
             location.reload();
 
         } catch (err) {
             console.error(err);
-            alert('Failed to save theory scores: ' + err.message);
+            await Utils.showAlert('Error', 'Failed to save theory scores: ' + err.message);
         }
     },
 
@@ -304,7 +304,7 @@ const resultsController = {
 
                 // Check if this theory question has already been graded
                 const hasBeenGraded = currentScore > 0 || (result.theoryScores && result.theoryScores[q.id] !== undefined);
-                
+
                 // Show grading input only for teachers
                 const gradingHtml = user && user.role === 'teacher' ? `
                     <div style="margin-top:15px; padding:12px; background:var(--card-bg); border:1px solid ${hasBeenGraded ? 'var(--success-color)' : 'var(--accent-color)'}; border-radius:6px;">

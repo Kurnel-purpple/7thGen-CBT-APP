@@ -165,7 +165,7 @@
         let teacherTapTimer = null;
         let isAdminMode = false;
 
-        function toggleRole(role) {
+        async function toggleRole(role) {
             // Triple-tap detection for admin mode
             if (role === 'teacher') {
                 teacherTapCount++;
@@ -196,7 +196,7 @@
                     document.querySelector('[data-role="teacher"]').textContent = 'Admin';
                     document.querySelector('[data-role="teacher"]').style.color = '#dc143c';
 
-                    alert('🔐 Admin Mode Activated!\nYou can now register as an administrator.');
+                    await Utils.showAlert('🔐 Admin Mode', '🔐 Admin Mode Activated!\nYou can now register as an administrator.');
                     teacherTapCount = 0;
                     return;
                 }
@@ -270,12 +270,12 @@
             const errorDiv = document.getElementById('register-error');
 
             if (role === 'student' && !classLevel) {
-                alert('Please select a class.');
+                await Utils.showAlert('Selection Missing', 'Please select a class.');
                 return;
             }
 
             if (role === 'admin' && !adminSchoolVersion) {
-                alert('Please specify the School ID.');
+                await Utils.showAlert('Selection Missing', 'Please specify the School ID.');
                 return;
             }
 
@@ -302,7 +302,7 @@
                 };
 
                 await dataService.registerUser(userData);
-                alert('Account created successfully! Please login.');
+                await Utils.showAlert('Success', 'Account created successfully! Please login.');
                 window.location.href = '../index.html';
 
             } catch (err) {
