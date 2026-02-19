@@ -208,46 +208,72 @@
             return 'unknown';
         }
 
-        const RELEASES_BASE = 'https://github.com/Kurnel-purpple/7thGen-CBT-APP/releases/latest';
+        const GITHUB_API = 'https://api.github.com/repos/Kurnel-purpple/7thGen-CBT-APP/releases/latest';
+        const RELEASES_FALLBACK = 'https://github.com/Kurnel-purpple/7thGen-CBT-APP/releases/latest';
 
         const PLATFORM_CONFIG = {
             windows: {
                 icon: '🖥️',
                 label: 'Download for Windows',
-                href: RELEASES_BASE,
+                // Matches: Gen7.CBT.Exam.Setup.x.x.x.exe
+                assetMatch: (name) => /\.exe$/i.test(name) && /setup/i.test(name),
                 text: '📥 Get the full desktop experience on Windows'
             },
             mac: {
                 icon: '🍎',
                 label: 'Download for Mac',
-                href: RELEASES_BASE,
+                // Matches: Gen7.CBT.Exam-x.x.x-arm64.dmg or similar .dmg
+                assetMatch: (name) => /\.dmg$/i.test(name),
                 text: '📥 Get the full desktop experience on macOS'
+            },
+            android: {
+                icon: '🤖',
+                label: 'Download for Android',
+                // Matches: app-debug.apk or similar .apk
+                assetMatch: (name) => /\.apk$/i.test(name),
+                text: '📲 Get the Android app for a better experience'
             },
             ios: {
                 icon: '📱',
                 label: 'Add to Home Screen',
-                href: null, // handled by PWA install prompt
+                assetMatch: null, // PWA only
                 text: '📲 Install the app — tap Share → Add to Home Screen'
-            },
-            android: {
-                icon: '🤖',
-                label: 'Install App',
-                href: null, // handled by PWA install prompt / Play Store later
-                text: '📲 Install the app — tap the menu → Add to Home Screen'
             },
             linux: {
                 icon: '🐧',
                 label: 'Download for Linux',
-                href: RELEASES_BASE,
+                assetMatch: (name) => /\.AppImage$/i.test(name) || /\.deb$/i.test(name),
                 text: '📥 Get the full desktop experience on Linux'
             },
             unknown: {
                 icon: '⬇️',
                 label: 'Download App',
-                href: RELEASES_BASE,
+                assetMatch: null,
                 text: '📥 Get the app for a better offline experience'
             }
         };
+
+        // Cache the resolved download URLs so we don't call the API repeatedly
+        let resolvedDownloadUrls = null;
+
+        async function fetchLatestReleaseAssets() {
+            // Return cached result if available
+            if (resolvedDownloadUrls) return resolvedDownloadUrls;
+
+            try {
+                const resp = await fetch(GITHUB_API);
+                if (!resp.ok) throw new Error('API error');
+                const data = await resp.json();
+                resolvedDownloadUrls = (data.assets || []).map(a => ({
+                    name: a.name,
+                    url: a.browser_download_url
+                }));
+                return resolvedDownloadUrls;
+            } catch (err) {
+                console.warn('[Download Banner] Could not fetch release assets:', err.message);
+                return null;
+            }
+        }
 
         // Store PWA install prompt event
         let deferredInstallPrompt = null;
@@ -256,7 +282,7 @@
             deferredInstallPrompt = e;
         });
 
-        function showDownloadBanner() {
+        async function showDownloadBanner() {
             const banner = document.getElementById('download-banner');
             if (!banner) return;
 
@@ -286,12 +312,29 @@
             if (btn) {
                 btn.textContent = config.icon + ' ' + config.label;
 
-                if (config.href) {
-                    // Desktop: direct link to GitHub release
-                    btn.href = config.href;
-                    btn.onclick = null;
-                } else {
-                    // Mobile: trigger PWA install prompt
+                if (config.assetMatch) {
+                    // Desktop/Android: find the correct asset from the latest release
+                    const assets = await fetchLatestReleaseAssets();
+                    let directUrl = null;
+
+                    if (assets) {
+                        const match = assets.find(a => config.assetMatch(a.name));
+                        if (match) directUrl = match.url;
+                    }
+
+                    if (directUrl) {
+                        // Direct download — clicking immediately starts the file download
+                        btn.href = directUrl;
+                        btn.removeAttribute('target');
+                        btn.onclick = null;
+                    } else {
+                        // Fallback to releases page if no matching asset found
+                        btn.href = RELEASES_FALLBACK;
+                        btn.target = '_blank';
+                        btn.onclick = null;
+                    }
+                } else if (platform === 'ios' || platform === 'android') {
+                    // Mobile PWA install prompt (fallback for Android if no APK)
                     btn.href = '#';
                     btn.onclick = async (e) => {
                         e.preventDefault();
@@ -301,13 +344,17 @@
                             if (outcome === 'accepted') dismissDownloadBanner();
                             deferredInstallPrompt = null;
                         } else {
-                            // Fallback: show manual instructions
                             alert(platform === 'ios'
                                 ? 'To install: tap the Share button (□↑) at the bottom of Safari, then tap "Add to Home Screen"'
                                 : 'To install: tap the browser menu (⋮) and select "Add to Home Screen" or "Install App"'
                             );
                         }
                     };
+                } else {
+                    // Unknown platform — link to releases page
+                    btn.href = RELEASES_FALLBACK;
+                    btn.target = '_blank';
+                    btn.onclick = null;
                 }
             }
 
