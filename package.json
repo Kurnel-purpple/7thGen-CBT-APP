@@ -1,6 +1,6 @@
 {
   "name": "cbt-exam-app",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "CBT Exam Software - Offline-capable exam platform",
   "main": "main.js",
   "author": {
