@@ -1327,8 +1327,6 @@
         // --- Secret Delete Logic ---
         let deleteExamId = null;
         let deleteExamTitle = null;
-        let longPressTimer = null;
-        const LONG_PRESS_DURATION = 800; // ms
 
         // Initialize secret delete event listeners after cards render
         window.initSecretDelete = () => {
@@ -1346,29 +1344,54 @@
                     openDeleteModal(examId, examTitle);
                 });
 
-                // Mobile: Long Press
+                // Mobile: Triple Tap (3 taps within 1.5s)
+                let tapCount = 0;
+                let tapTimer = null;
+                const TAP_WINDOW = 1500; // ms - window to complete 3 taps
+                let touchMoved = false;
+
                 card.addEventListener('touchstart', (e) => {
                     // Prevent if touching a button
                     if (e.target.closest('button') || e.target.closest('a')) return;
-
-                    longPressTimer = setTimeout(() => {
-                        // Vibrate if supported (mobile feedback)
-                        if (navigator.vibrate) navigator.vibrate(50);
-                        openDeleteModal(examId, examTitle);
-                    }, LONG_PRESS_DURATION);
+                    touchMoved = false;
                 }, { passive: true });
 
-                card.addEventListener('touchend', () => {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
-                    }
-                });
-
                 card.addEventListener('touchmove', () => {
-                    if (longPressTimer) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
+                    touchMoved = true;
+                    // Reset tap count on move (scrolling)
+                    tapCount = 0;
+                    if (tapTimer) {
+                        clearTimeout(tapTimer);
+                        tapTimer = null;
+                    }
+                }, { passive: true });
+
+                card.addEventListener('touchend', (e) => {
+                    // Ignore if the touch moved (scroll/swipe) or if a button was tapped
+                    if (touchMoved) return;
+                    if (e.target.closest('button') || e.target.closest('a')) return;
+
+                    tapCount++;
+
+                    // Reset the timer on each tap
+                    if (tapTimer) clearTimeout(tapTimer);
+                    tapTimer = setTimeout(() => {
+                        tapCount = 0;
+                        tapTimer = null;
+                    }, TAP_WINDOW);
+
+                    if (tapCount === 2) {
+                        // Haptic feedback on 2nd tap as subtle warning
+                        if (navigator.vibrate) navigator.vibrate(30);
+                    }
+
+                    if (tapCount >= 3) {
+                        // Triple tap reached — open delete modal
+                        tapCount = 0;
+                        clearTimeout(tapTimer);
+                        tapTimer = null;
+                        if (navigator.vibrate) navigator.vibrate(50);
+                        openDeleteModal(examId, examTitle);
                     }
                 });
             });
@@ -1915,8 +1938,8 @@
             const mpEl = document.getElementById('mobile-results-pending-count');
             if (mpEl) mpEl.textContent = pendingCount;
 
-            // Filter to only show ACTIVE exams (not archived)
-            const activeExams = exams.filter(e => e.status !== 'archived');
+            // Filter to only show ACTIVE exams (not archived or deleted)
+            const activeExams = exams.filter(e => e.status !== 'archived' && e.status !== 'deleted');
 
             // Update total exams count (only active)
             const totalExamsEl = document.getElementById('total-exams');

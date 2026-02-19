@@ -517,6 +517,12 @@ class DataService {
                 filterString += `status="${filters.status}"`;
             }
 
+            // Always exclude soft-deleted exams (those with _deleted flag in extensions)
+            if (!filters.includeDeleted) {
+                if (filterString) filterString += ' && ';
+                filterString += 'extensions._deleted!=true';
+            }
+
             if (filters.teacherId) {
                 if (filterString) filterString += ' && ';
 
@@ -679,12 +685,24 @@ class DataService {
 
     async deleteExam(id) {
         try {
-            await this.pb.collection('exams').delete(id);
+            // Soft-delete: Mark exam as archived with _deleted flag in extensions.
+            // We use 'archived' status (a valid PocketBase select value) and store
+            // _deleted: true in extensions JSON field to distinguish from manual archival.
+            // This preserves all student results for admin reporting and cumulative records.
+            const existing = await this.pb.collection('exams').getOne(id);
+            const extensions = existing.extensions || {};
+            extensions._deleted = true;
+            extensions._deletedAt = new Date().toISOString();
 
-            // Remove from Cache
+            await this.pb.collection('exams').update(id, {
+                status: 'archived',
+                extensions: extensions
+            });
+
+            // Remove from teacher's dashboard cache
             if (window.idb) {
                 await window.idb.deleteExam(id);
-                await this._updateDashboardCacheList({ id, createdBy: this.getCurrentUser()?.id }, 'delete'); // Need createdBy to find key? Or just try common keys
+                await this._updateDashboardCacheList({ id, createdBy: this.getCurrentUser()?.id }, 'delete');
             }
 
             return true;
@@ -921,10 +939,15 @@ class DataService {
             status = dbResult.flags._status;
         }
 
-        // Get student name from expanded relation
+        // Get student name from expanded relation (check multiple possible fields)
         let studentName = 'Unknown';
         if (dbResult.expand && dbResult.expand.student_id) {
-            studentName = dbResult.expand.student_id.full_name;
+            const expanded = dbResult.expand.student_id;
+            studentName = expanded.full_name || expanded.name || expanded.username || 'Unknown';
+        }
+        // Fallback: check if the flags contain student name (saved during submission)
+        if (studentName === 'Unknown' && dbResult.flags && dbResult.flags._studentName) {
+            studentName = dbResult.flags._studentName;
         }
 
         return {

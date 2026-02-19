@@ -216,6 +216,19 @@
                         <div
                             style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
                             Settings</div>
+                        <div style="padding: 8px 16px;">
+                            <label
+                                style="font-size: 0.75rem; color: var(--light-text); display: block; margin-bottom: 4px;">🏫
+                                School ID</label>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="student-school-id" class="form-control"
+                                    placeholder="e.g. SEATOS2026"
+                                    style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border-radius: 6px;">
+                                <button class="btn btn-primary" onclick="saveStudentSchoolId()"
+                                    style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px;">Save</button>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
                         <button class="dropdown-item" onclick="openChangeUsernameModal()">
                             <span>🆔 Change Username</span>
                         </button>
@@ -244,6 +257,18 @@
 
                 <div class="mobile-actions"
                     style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--inner-bg); border-radius: 12px; border: 1px solid var(--border-color);">
+                        <label style="font-size: 0.8rem; color: var(--light-text); font-weight: 600;">🏫 School
+                            ID</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="mobile-student-school-id" class="form-control"
+                                placeholder="e.g. SEATOS2026"
+                                style="flex: 1; padding: 8px 12px; font-size: 0.9rem; border-radius: 8px;">
+                            <button class="btn btn-primary" onclick="saveStudentSchoolId('mobile')"
+                                style="padding: 8px 14px; font-size: 0.85rem;">Save</button>
+                        </div>
+                    </div>
                     <button onclick="openChangeUsernameModal()" class="btn btn-outline"
                         style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
                         <span>🆔 Change Username</span>
@@ -632,14 +657,62 @@
             }
         };
 
-        // Update nav display initially
+        // Update nav display and pre-fill School ID
         document.addEventListener('DOMContentLoaded', () => {
             const user = dataService.getCurrentUser();
             if (user && (user.username || user.name)) {
                 const navDisplay = document.getElementById('nav-user-display');
                 if (navDisplay) navDisplay.textContent = `👤 ${user.username || user.name}`;
             }
+
+            // Pre-fill School ID from saved profile
+            if (user && user.schoolVersion) {
+                const desktopInput = document.getElementById('student-school-id');
+                const mobileInput = document.getElementById('mobile-student-school-id');
+                if (desktopInput) desktopInput.value = user.schoolVersion;
+                if (mobileInput) mobileInput.value = user.schoolVersion;
+            }
+
+            // Sync desktop <-> mobile school ID inputs
+            const desktopInput = document.getElementById('student-school-id');
+            const mobileInput = document.getElementById('mobile-student-school-id');
+            if (desktopInput) desktopInput.addEventListener('input', () => { if (mobileInput) mobileInput.value = desktopInput.value; });
+            if (mobileInput) mobileInput.addEventListener('input', () => { if (desktopInput) desktopInput.value = mobileInput.value; });
         });
+
+        // Save School ID
+        window.saveStudentSchoolId = async function (source) {
+            const inputId = source === 'mobile' ? 'mobile-student-school-id' : 'student-school-id';
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            const schoolId = input.value.trim().toUpperCase();
+            if (!schoolId) {
+                Utils.showToast('Please enter a School ID', 'error');
+                return;
+            }
+
+            try {
+                await dataService.updateProfile({ schoolVersion: schoolId });
+
+                // Update local cache
+                const cached = dataService.getCurrentUser();
+                if (cached) {
+                    cached.schoolVersion = schoolId;
+                    localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
+                }
+
+                // Sync inputs
+                const desktopInput = document.getElementById('student-school-id');
+                const mobileInput = document.getElementById('mobile-student-school-id');
+                if (desktopInput) desktopInput.value = schoolId;
+                if (mobileInput) mobileInput.value = schoolId;
+
+                Utils.showToast('School ID saved successfully!', 'success');
+            } catch (err) {
+                Utils.showToast('Failed to save School ID: ' + err.message, 'error');
+            }
+        };
 
         // Change Password Functions
         window.openChangePasswordModal = function () {

@@ -44,6 +44,27 @@
             border: 1px solid var(--border-color);
         }
 
+        .admin-nav-link {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .admin-nav-link:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .admin-nav-link:active {
+            transform: translateY(0);
+        }
+
         .control-group {
             margin-bottom: 20px;
         }
@@ -615,6 +636,187 @@
             overflow: visible;
         }
 
+        /* Results Table Styles */
+        #results-table {
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #results-table th {
+            position: sticky;
+            top: 0;
+        }
+
+        #results-table td {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #general-results-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 10px;
+        }
+
+        [data-theme="dark"] #results-table {
+            border-color: #0f3460;
+        }
+
+        [data-theme="dark"] #results-table td {
+            border-color: #0f3460;
+        }
+
+        /* Mobile Result Cards */
+        #results-cards-container {
+            display: none;
+        }
+
+        #results-cards-container.active {
+            display: block;
+        }
+
+        #results-table {
+            display: none !important;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: box-shadow 0.2s;
+        }
+
+        .result-card:active {
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .result-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-card-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-color);
+            line-height: 1.2;
+        }
+
+        .result-card-class {
+            font-size: 0.75rem;
+            color: var(--light-text);
+            margin-top: 2px;
+        }
+
+        .result-card-avg {
+            text-align: right;
+        }
+
+        .result-card-avg-value {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+
+        .result-card-avg-label {
+            font-size: 0.65rem;
+            color: var(--light-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-card-scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 8px;
+        }
+
+        .result-card-score-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--inner-bg);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .result-card-subject {
+            color: var(--text-color);
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 80px;
+        }
+
+        .result-card-score-value {
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .result-card-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+
+        .result-card-total {
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        [data-theme="dark"] .result-card {
+            background: #16213e;
+            border-color: #0f3460;
+        }
+
+        [data-theme="dark"] .result-card-score-item {
+            background: #1a1a2e;
+        }
+
+        @media (max-width: 768px) {
+
+            #general-results-section .section-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #general-results-section .section-header>div {
+                flex-direction: column;
+            }
+
+            #general-results-section .section-header select,
+            #general-results-section .section-header input,
+            #general-results-section .section-header button {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .result-card-scores {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .result-card-scores {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Mobile Layout & Menu Styles */
         .mobile-only {
             display: none !important;
@@ -908,6 +1110,24 @@
 
             <div class="dropdown-divider"></div>
 
+            <!-- Nav Links in Menu -->
+            <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                <button class="dropdown-item" onclick="toggleMobileMenu(); scrollToSection('exams-section');"
+                    style="font-size: 1rem;">
+                    📚 Exams
+                </button>
+                <button class="dropdown-item" onclick="toggleMobileMenu(); scrollToSection('messaging-section');"
+                    style="font-size: 1rem;">
+                    💬 Messages
+                </button>
+                <button class="dropdown-item" onclick="toggleMobileMenu(); scrollToSection('general-results-section');"
+                    style="font-size: 1rem;">
+                    📊 Results
+                </button>
+            </div>
+
+            <div class="dropdown-divider"></div>
+
             <!-- Credentials & Theme in Menu -->
             <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
                 <button class="btn btn-outline" onclick="toggleTheme()"
@@ -982,6 +1202,12 @@
                     </button>
                 </div>
             </div>
+            <!-- Section Nav Links (Desktop) -->
+            <div class="desktop-only" style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                <button onclick="scrollToSection('exams-section')" class="admin-nav-link">📚 Exams</button>
+                <button onclick="scrollToSection('messaging-section')" class="admin-nav-link">💬 Messages</button>
+                <button onclick="scrollToSection('general-results-section')" class="admin-nav-link">📊 Results</button>
+            </div>
         </div>
 
         <!-- Admin Controls (Desktop) -->
@@ -1022,6 +1248,7 @@
         </div>
 
         <!-- All Exams Section -->
+        <div id="exams-section"></div>
         <div class="section">
             <div class="section-header responsive-header" onclick="openExamsModal('all')"
                 style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'"
@@ -1042,6 +1269,7 @@
         </div>
 
         <!-- Messaging Section -->
+        <div id="messaging-section"></div>
         <div class="section">
             <div class="section-header">
                 <h2>💬 Teacher Messaging</h2>
@@ -1077,6 +1305,65 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- General Results Section -->
+        <div class="section" id="general-results-section">
+            <div class="section-header"
+                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <h2>📊 General Results</h2>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <select id="results-class-filter" class="form-control"
+                        style="padding: 8px 12px; font-size: 0.85rem; min-width: 140px;"
+                        onchange="filterGeneralResults()">
+                        <option value="All">All Classes</option>
+                    </select>
+                    <input type="text" id="results-search" class="form-control" placeholder="🔍 Search student..."
+                        style="padding: 8px 12px; font-size: 0.85rem; min-width: 180px;"
+                        oninput="filterGeneralResults()">
+                    <button class="btn btn-primary" onclick="loadGeneralResults()" id="load-results-btn"
+                        style="padding: 8px 16px; font-size: 0.85rem;">
+                        🔄 Load Results
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportResultsToExcel()" id="export-btn"
+                        style="padding: 8px 16px; font-size: 0.85rem;" disabled>
+                        📥 Export to Excel
+                    </button>
+                </div>
+            </div>
+            <div id="general-results-container" style="overflow-x: auto; margin-top: 15px;">
+                <div class="empty-state" id="results-empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p>Load a school to view cumulative student results</p>
+                </div>
+                <!-- Desktop: Table view -->
+                <table id="results-table"
+                    style="width: 100%; border-collapse: collapse; display: none; font-size: 0.9rem;">
+                    <thead id="results-thead" style="position: sticky; top: 0; z-index: 1;">
+                        <tr style="background: var(--primary-color); color: white;">
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">#
+                            </th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">
+                                Student Name</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">
+                                Class</th>
+                            <th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap;">
+                                Total</th>
+                            <th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap;">
+                                Average</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody"></tbody>
+                </table>
+                <!-- Mobile: Card view -->
+                <div id="results-cards-container"></div>
+            </div>
+            <div id="results-summary" style="margin-top: 15px; display: none;">
+                <p style="font-size: 0.85rem; color: var(--light-text);">
+                    Showing <strong id="results-showing-count">0</strong> students across <strong
+                        id="results-exam-count">0</strong> exams
+                </p>
             </div>
         </div>
 
@@ -1345,6 +1632,14 @@
                 }
             }
         }
+
+        // Section Navigation
+        window.scrollToSection = function (sectionId) {
+            const el = document.getElementById(sectionId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
 
         // Synchronize School Loaders
         window.handleLoadSchool = async function (source) {
@@ -2503,9 +2798,384 @@
             });
         };
 
+        // ═══════════════════════════════════════════════════
+        // GENERAL RESULTS SECTION
+        // ═══════════════════════════════════════════════════
+        let allResultsData = []; // Raw aggregated data
+        let filteredResultsData = []; // After filter/search
+        let resultExamColumns = []; // List of exam info for columns
+
+        window.loadGeneralResults = async function () {
+            const loadBtn = document.getElementById('load-results-btn');
+            const emptyState = document.getElementById('results-empty-state');
+            const table = document.getElementById('results-table');
+            const summary = document.getElementById('results-summary');
+            const exportBtn = document.getElementById('export-btn');
+
+            if (!currentVersion || allExams.length === 0) {
+                showAlert('No Data', 'Please load a school first before viewing results.');
+                return;
+            }
+
+            loadBtn.disabled = true;
+            loadBtn.textContent = '⏳ Loading...';
+
+            try {
+                // Fetch results for each exam in parallel
+                const examIds = allExams.map(e => e.id);
+                const resultPromises = examIds.map(examId =>
+                    dataService.getResults({ examId, forceRefresh: true }).catch(() => [])
+                );
+                const resultsArrays = await Promise.all(resultPromises);
+
+                // Build exam column info (only exams that have results)
+                resultExamColumns = [];
+                const examResultsMap = {}; // examId -> results[]
+
+                examIds.forEach((examId, idx) => {
+                    const results = resultsArrays[idx];
+                    if (results && results.length > 0) {
+                        examResultsMap[examId] = results;
+                        const exam = allExams.find(e => e.id === examId);
+                        resultExamColumns.push({
+                            id: examId,
+                            title: exam ? exam.title : 'Unknown Exam',
+                            subject: exam ? exam.subject : '',
+                            targetClass: exam ? exam.targetClass : '',
+                            totalPoints: results[0]?.totalPoints || 0
+                        });
+                    }
+                });
+
+                // Collect all unique student IDs from results
+                const allStudentIds = new Set();
+                for (const results of Object.values(examResultsMap)) {
+                    for (const result of results) {
+                        allStudentIds.add(result.studentId);
+                    }
+                }
+
+                // Fetch profiles for student name and class resolution
+                let profileMap = {}; // userId -> { fullName, targetClass }
+                try {
+                    // Use allStudents if already loaded, otherwise fetch fresh
+                    let profiles = allStudents && allStudents.length > 0 ? allStudents : [];
+                    if (profiles.length === 0 && currentVersion) {
+                        profiles = await dataService.getUsers({ role: 'student', schoolVersion: currentVersion });
+                    }
+                    for (const p of profiles) {
+                        const userId = p.user || p.id;
+                        profileMap[userId] = {
+                            fullName: p.full_name || p.name || p.username || 'Unknown',
+                            targetClass: p.target_class || p.class || ''
+                        };
+                        // Also map by profile record ID in case student_id is a profile ID
+                        if (p.id && p.id !== userId) {
+                            profileMap[p.id] = profileMap[userId];
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch student profiles for name resolution:', e);
+                }
+
+                // Aggregate: studentId -> { name, class, scores: { examId: score } }
+                const studentMap = {};
+
+                for (const [examId, results] of Object.entries(examResultsMap)) {
+                    for (const result of results) {
+                        const sid = result.studentId;
+                        if (!studentMap[sid]) {
+                            // Resolve name: profile > result expand > fallback
+                            let studentName = 'Unknown';
+                            let studentClass = 'N/A';
+
+                            if (profileMap[sid]) {
+                                studentName = profileMap[sid].fullName || studentName;
+                                studentClass = profileMap[sid].targetClass || studentClass;
+                            }
+                            // If profile didn't provide a name, use result-level name
+                            if (studentName === 'Unknown' && result.studentName && result.studentName !== 'Unknown') {
+                                studentName = result.studentName;
+                            }
+                            // If class still N/A, try to use the exam's target class
+                            if (studentClass === 'N/A') {
+                                const exam = allExams.find(e => e.id === examId);
+                                if (exam && exam.targetClass) {
+                                    studentClass = exam.targetClass;
+                                }
+                            }
+
+                            studentMap[sid] = {
+                                name: studentName,
+                                className: studentClass,
+                                scores: {}
+                            };
+                        }
+                        studentMap[sid].scores[examId] = {
+                            score: result.score || 0,
+                            totalPoints: result.totalPoints || 0,
+                            passed: result.passed
+                        };
+                    }
+                }
+
+                // Convert to array sorted by name
+                allResultsData = Object.entries(studentMap).map(([sid, data]) => ({
+                    studentId: sid,
+                    name: data.name,
+                    className: data.className,
+                    scores: data.scores
+                })).sort((a, b) => a.name.localeCompare(b.name));
+
+                // Populate class filter from student classes + exam target classes
+                const classFilter = document.getElementById('results-class-filter');
+                const classesFromStudents = allResultsData.map(s => s.className).filter(c => c && c !== 'N/A');
+                const classesFromExams = allExams.map(e => e.targetClass).filter(Boolean);
+                const uniqueClasses = [...new Set([...classesFromStudents, ...classesFromExams])].sort();
+                classFilter.innerHTML = '<option value="All">All Classes</option>';
+                uniqueClasses.forEach(cls => {
+                    classFilter.innerHTML += `<option value="${cls}">${cls}</option>`;
+                });
+
+                // Render
+                filterGeneralResults();
+
+                emptyState.style.display = 'none';
+                table.style.display = 'none';
+                const cardsContainer = document.getElementById('results-cards-container');
+                if (cardsContainer) cardsContainer.classList.add('active');
+                summary.style.display = 'block';
+                exportBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Error loading general results:', error);
+                showAlert('Error', 'Failed to load results: ' + error.message);
+            } finally {
+                loadBtn.disabled = false;
+                loadBtn.textContent = '🔄 Load Results';
+            }
+        };
+
+        window.filterGeneralResults = function () {
+            const classFilter = document.getElementById('results-class-filter').value;
+            const searchQuery = document.getElementById('results-search').value.trim().toLowerCase();
+
+            filteredResultsData = allResultsData.filter(student => {
+                // Class filter
+                if (classFilter !== 'All' && student.className !== classFilter) return false;
+                // Search filter
+                if (searchQuery && !student.name.toLowerCase().includes(searchQuery)) return false;
+                return true;
+            });
+
+            renderResultsTable();
+            renderResultsCards();
+        };
+
+        // ── Desktop Table Renderer ──
+        function renderResultsTable() {
+            const thead = document.getElementById('results-thead');
+            const tbody = document.getElementById('results-tbody');
+
+            // Build header row
+            let headerHtml = `
+                <tr style="background: var(--primary-color); color: white;">
+                    <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">#</th>
+                    <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">Student Name</th>
+                    <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">Class</th>
+            `;
+            resultExamColumns.forEach(exam => {
+                headerHtml += `<th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${exam.title} (${exam.subject})">${exam.subject || exam.title}</th>`;
+            });
+            headerHtml += `
+                    <th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; background: rgba(255,255,255,0.1);">Total</th>
+                    <th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; background: rgba(255,255,255,0.1);">Average</th>
+                </tr>
+            `;
+            thead.innerHTML = headerHtml;
+
+            // Build body rows
+            let bodyHtml = '';
+            filteredResultsData.forEach((student, index) => {
+                let total = 0;
+                let examCount = 0;
+                const rowBg = index % 2 === 0 ? 'var(--card-bg)' : 'var(--inner-bg)';
+
+                let rowHtml = `
+                    <tr style="background: ${rowBg}; transition: background 0.2s;" onmouseover="this.style.background='rgba(74,144,200,0.08)'" onmouseout="this.style.background='${rowBg}'">
+                        <td style="padding: 10px; font-weight: 600; color: var(--light-text);">${index + 1}</td>
+                        <td style="padding: 10px; font-weight: 500;">${student.name}</td>
+                        <td style="padding: 10px; color: var(--light-text);">${student.className}</td>
+                `;
+
+                resultExamColumns.forEach(exam => {
+                    const scoreData = student.scores[exam.id];
+                    if (scoreData) {
+                        const pct = exam.totalPoints > 0 ? Math.round((scoreData.score / scoreData.totalPoints) * 100) : 0;
+                        const color = scoreData.passed ? '#28a745' : (pct >= 40 ? '#ffc107' : '#dc3545');
+                        rowHtml += `<td style="padding: 10px; text-align: center; font-weight: 500; color: ${color};">${scoreData.score}/${scoreData.totalPoints}</td>`;
+                        total += scoreData.score;
+                        examCount++;
+                    } else {
+                        rowHtml += `<td style="padding: 10px; text-align: center; color: var(--light-text);">—</td>`;
+                    }
+                });
+
+                const avg = examCount > 0 ? (total / examCount).toFixed(1) : '—';
+                rowHtml += `
+                        <td style="padding: 10px; text-align: center; font-weight: 700; color: var(--primary-color);">${total}</td>
+                        <td style="padding: 10px; text-align: center; font-weight: 600;">${avg}</td>
+                    </tr>
+                `;
+                bodyHtml += rowHtml;
+            });
+
+            if (filteredResultsData.length === 0) {
+                bodyHtml = `<tr><td colspan="${resultExamColumns.length + 5}" style="padding: 40px; text-align: center; color: var(--light-text);">No results match your filters</td></tr>`;
+            }
+
+            tbody.innerHTML = bodyHtml;
+
+            // Update summary
+            document.getElementById('results-showing-count').textContent = filteredResultsData.length;
+            document.getElementById('results-exam-count').textContent = resultExamColumns.length;
+        }
+
+        // ── Primary Cards Renderer (used on all viewports) ──
+        function renderResultsCards() {
+            const container = document.getElementById('results-cards-container');
+            if (!container) return;
+
+            if (filteredResultsData.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: var(--light-text);">
+                        <div style="font-size: 3rem; opacity: 0.3; margin-bottom: 10px;">🔍</div>
+                        <p>No students match your search</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let cardsHtml = '';
+
+            filteredResultsData.forEach((student, index) => {
+                let total = 0;
+                let examCount = 0;
+
+                // Build subject score items
+                let scoresHtml = '';
+                resultExamColumns.forEach(exam => {
+                    const scoreData = student.scores[exam.id];
+                    if (scoreData) {
+                        const pct = scoreData.totalPoints > 0 ? Math.round((scoreData.score / scoreData.totalPoints) * 100) : 0;
+                        const color = scoreData.passed ? '#28a745' : (pct >= 40 ? '#ffc107' : '#dc3545');
+                        scoresHtml += `
+                            <div class="result-card-score-item">
+                                <span class="result-card-subject" title="${exam.title}">${exam.subject || exam.title}</span>
+                                <span class="result-card-score-value" style="color: ${color};">${scoreData.score}/${scoreData.totalPoints}</span>
+                            </div>
+                        `;
+                        total += scoreData.score;
+                        examCount++;
+                    }
+                });
+
+                // Skip students with no scores at all
+                if (examCount === 0) return;
+
+                const avg = (total / examCount).toFixed(1);
+
+                cardsHtml += `
+                    <div class="result-card">
+                        <div class="result-card-header">
+                            <div>
+                                <div class="result-card-name"><span style="color: var(--light-text); font-weight: 400; font-size: 0.85rem;">${index + 1}.</span> ${student.name}</div>
+                                <div class="result-card-class">📚 ${student.className} &middot; ${examCount} subject${examCount !== 1 ? 's' : ''}</div>
+                            </div>
+                            <div class="result-card-avg">
+                                <div class="result-card-avg-value">${avg}</div>
+                                <div class="result-card-avg-label">Average</div>
+                            </div>
+                        </div>
+                        <div class="result-card-scores">
+                            ${scoresHtml}
+                        </div>
+                        <div class="result-card-footer">
+                            <span style="color: var(--light-text);">Total:</span>
+                            <span class="result-card-total">${total}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = cardsHtml;
+        }
+
+        window.exportResultsToExcel = function () {
+            if (!filteredResultsData || filteredResultsData.length === 0) {
+                showAlert('No Data', 'No results to export. Please load results first.');
+                return;
+            }
+
+            // Check if XLSX library is loaded
+            if (typeof XLSX === 'undefined') {
+                showAlert('Error', 'Excel export library not loaded. Please check your internet connection and refresh.');
+                return;
+            }
+
+            // Build export data
+            const headers = ['#', 'Student Name', 'Class'];
+            resultExamColumns.forEach(exam => {
+                headers.push(`${exam.subject || exam.title}`);
+            });
+            headers.push('Total', 'Average');
+
+            const rows = filteredResultsData.map((student, index) => {
+                const row = [index + 1, student.name, student.className];
+                let total = 0;
+                let examCount = 0;
+
+                resultExamColumns.forEach(exam => {
+                    const scoreData = student.scores[exam.id];
+                    if (scoreData) {
+                        row.push(`${scoreData.score}/${scoreData.totalPoints}`);
+                        total += scoreData.score;
+                        examCount++;
+                    } else {
+                        row.push('—');
+                    }
+                });
+
+                const avg = examCount > 0 ? (total / examCount).toFixed(1) : '—';
+                row.push(total, avg);
+                return row;
+            });
+
+            // Create workbook
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+            // Style the header row width
+            ws['!cols'] = headers.map((h, i) => ({
+                wch: i === 0 ? 5 : i === 1 ? 25 : i === 2 ? 15 : 15
+            }));
+
+            const wb = XLSX.utils.book_new();
+            const sheetName = `Results_${currentVersion || 'School'}`.substring(0, 31);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+            // Export
+            const filename = `Student_Results_${currentVersion || 'School'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, filename);
+
+            showToast(`📥 Exported ${filteredResultsData.length} student results to Excel`);
+        };
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);
     </script>
+
+    <!-- SheetJS Library for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     </div>
 </body>
 
