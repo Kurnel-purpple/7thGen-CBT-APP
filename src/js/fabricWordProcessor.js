@@ -716,11 +716,51 @@ const FabricWordProcessor = (() => {
             shapeSelect.style.background = '';
         });
 
-        // Double-click for text editing
+        // Double-tap implementation (Mobile & Desktop) to highlight word and show handles
+        let lastTapTime = 0;
+        let lastTapTarget = null;
+        canvas.on('mouse:down', (opt) => {
+            const target = opt.target;
+            if (target && isTextObject(target)) {
+                const now = Date.now();
+                if (target === lastTapTarget && (now - lastTapTime) < 400) {
+                    // Double tap detected!
+                    target.enterEditing();
+
+                    // Highlight the specific word that was tapped
+                    try {
+                        const ptrPos = target.getSelectionStartFromPointer(opt.e);
+                        target.selectWord(ptrPos);
+                        // Force focus on the hidden textarea to trigger mobile OS selection handles
+                        if (target.hiddenTextarea) {
+                            target.hiddenTextarea.focus();
+                        }
+                    } catch (e) {
+                        target.selectAll();
+                    }
+
+                    canvas.renderAll();
+                    lastTapTime = 0; // reset so 3rd tap doesn't trigger again
+                    lastTapTarget = null;
+                } else {
+                    lastTapTime = now;
+                    lastTapTarget = target;
+                }
+            } else {
+                lastTapTime = 0;
+                lastTapTarget = null;
+            }
+        });
+
+        // Backup double-click for desktop (in case mouse:down logic was preempted)
         canvas.on('mouse:dblclick', (opt) => {
             const target = opt.target;
-            if (target && (target.type === 'i-text' || target.type === 'textbox')) {
+            if (target && isTextObject(target)) {
                 target.enterEditing();
+                try {
+                    const ptrPos = target.getSelectionStartFromPointer(opt.e);
+                    target.selectWord(ptrPos);
+                } catch (e) { }
                 canvas.renderAll();
             }
         });
