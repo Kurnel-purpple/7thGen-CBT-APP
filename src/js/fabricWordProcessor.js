@@ -727,19 +727,21 @@ const FabricWordProcessor = (() => {
                     // Double tap detected!
                     target.enterEditing();
 
-                    // Highlight the specific word that was tapped
-                    try {
-                        const ptrPos = target.getSelectionStartFromPointer(opt.e);
-                        target.selectWord(ptrPos);
-                        // Force focus on the hidden textarea to trigger mobile OS selection handles
-                        if (target.hiddenTextarea) {
-                            target.hiddenTextarea.focus();
+                    // Highlight the specific word that was tapped (with a slight delay to override Fabric's default cursor placement)
+                    setTimeout(() => {
+                        try {
+                            const ptrPos = target.getSelectionStartFromPointer(opt.e);
+                            target.selectWord(ptrPos);
+                            // Force focus on the hidden textarea to trigger mobile OS selection handles
+                            if (target.hiddenTextarea) {
+                                target.hiddenTextarea.focus();
+                            }
+                        } catch (e) {
+                            target.selectAll();
                         }
-                    } catch (e) {
-                        target.selectAll();
-                    }
+                        canvas.renderAll();
+                    }, 50);
 
-                    canvas.renderAll();
                     lastTapTime = 0; // reset so 3rd tap doesn't trigger again
                     lastTapTarget = null;
                 } else {
