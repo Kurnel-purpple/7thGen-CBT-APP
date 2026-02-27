@@ -230,10 +230,14 @@ const FabricWordProcessor = (() => {
             redoStack.push(canvas.toJSON());
             const prevState = undoStack.pop();
             ignoreStateChange = true;
-            canvas.loadFromJSON(prevState).then(() => {
+            const onComplete = () => {
                 canvas.renderAll();
                 ignoreStateChange = false;
-            });
+            };
+            const res = canvas.loadFromJSON(prevState, onComplete);
+            if (res && typeof res.then === 'function') {
+                res.then(onComplete).catch(onComplete);
+            }
         }
 
         function redo() {
@@ -241,10 +245,14 @@ const FabricWordProcessor = (() => {
             undoStack.push(canvas.toJSON());
             const nextState = redoStack.pop();
             ignoreStateChange = true;
-            canvas.loadFromJSON(nextState).then(() => {
+            const onComplete = () => {
                 canvas.renderAll();
                 ignoreStateChange = false;
-            });
+            };
+            const res = canvas.loadFromJSON(nextState, onComplete);
+            if (res && typeof res.then === 'function') {
+                res.then(onComplete).catch(onComplete);
+            }
         }
 
         // Save state on object modifications
@@ -428,7 +436,9 @@ const FabricWordProcessor = (() => {
             reader.onload = (evt) => {
                 const imgEl = new Image();
                 imgEl.onload = () => {
-                    const fabricImg = new fabric.FabricImage(imgEl, {
+                    // v6: fabric.Image, v7: fabric.FabricImage
+                    const FabricImg = fabric.FabricImage || fabric.Image;
+                    const fabricImg = new FabricImg(imgEl, {
                         left: 50,
                         top: 50,
                     });
@@ -772,7 +782,7 @@ const FabricWordProcessor = (() => {
             loadJSON(json) {
                 return new Promise((resolve) => {
                     ignoreStateChange = true;
-                    canvas.loadFromJSON(json).then(() => {
+                    const onComplete = () => {
                         canvas.renderAll();
                         ignoreStateChange = false;
                         undoStack.length = 0;
@@ -791,10 +801,15 @@ const FabricWordProcessor = (() => {
                             }
                         }
                         resolve();
-                    }).catch(() => {
+                    };
+                    const onError = () => {
                         ignoreStateChange = false;
                         resolve();
-                    });
+                    };
+                    const res = canvas.loadFromJSON(json, onComplete);
+                    if (res && typeof res.then === 'function') {
+                        res.then(onComplete).catch(onError);
+                    }
                 });
             },
 

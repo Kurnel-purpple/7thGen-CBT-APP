@@ -501,6 +501,26 @@
         </div>
     </div>
 
+    <!-- Pending Students Modal (In-Progress) -->
+    <div id="pending-students-modal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 3000;">
+        <div
+            style="background: var(--card-bg); padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; z-index: 3001;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--text-color);">🟡 In-Progress Students</h3>
+                <span style="cursor: pointer; font-size: 1.5rem; color: var(--light-text);"
+                    onclick="closePendingStudentsModal()">&times;</span>
+            </div>
+            <p id="pending-exam-title" style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 15px;"></p>
+            <div id="pending-students-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <p>Loading...</p>
+            </div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button class="btn btn-outline" onclick="closePendingStudentsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Question Modal (Mini) -->
     <div id="edit-question-modal" class="modal" style="z-index: 2200;">
         <div class="modal-content"
@@ -1226,7 +1246,7 @@
                             <div class="exam-card-icons">
                                 ${scrambleIndicator}
                                 <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
-                                <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
+                                <span title="In Progress - Click to manage" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openPendingStudentsModal('${exam.id}')">🟡 ${yellowCount}</span>
                                 <span title="Flagged - Click to review" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')">🔴 ${redCount}</span>
                             </div>
                         </div>
@@ -1594,6 +1614,108 @@
 
         // Expose removeExtension to window for onclick
         window.removeExtension = removeExtension;
+
+        // --- Pending Students (In-Progress) Modal Logic ---
+        let currentPendingExamId = null;
+
+        window.openPendingStudentsModal = async (examId) => {
+            currentPendingExamId = examId;
+            const modal = document.getElementById('pending-students-modal');
+            const list = document.getElementById('pending-students-list');
+            const titleEl = document.getElementById('pending-exam-title');
+
+            modal.style.display = 'flex';
+            list.innerHTML = '<p style="color: var(--light-text);">Loading in-progress students...</p>';
+
+            try {
+                const exam = await dataService.getExamById(examId);
+                titleEl.textContent = exam ? `Exam: ${exam.title}` : '';
+
+                const results = await dataService.getResults({ examId: examId });
+                const inProgress = results.filter(r => r.status === 'in-progress');
+
+                if (inProgress.length === 0) {
+                    list.innerHTML = '<p style="color: var(--light-text); text-align: center; padding: 20px;">No in-progress students for this exam.</p>';
+                    return;
+                }
+
+                list.innerHTML = inProgress.map(r => {
+                    const startedAt = r.flags && r.flags._started_at
+                        ? new Date(r.flags._started_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : 'Unknown';
+
+                    return `
+                    <div style="background: var(--inner-bg); padding: 12px 15px; border-radius: 8px; border-left: 4px solid #f0ad4e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-color);">${r.studentName || 'Unknown Student'}</div>
+                                <div style="font-size: 0.8rem; color: var(--light-text); margin-top: 2px;">Started: ${startedAt}</div>
+                            </div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button class="btn" style="font-size: 0.75rem; padding: 4px 10px; background: var(--success-color); color: white; border: none; border-radius: 4px;"
+                                    onclick="grantRetake('${r.id}', '${r.studentName || 'this student'}')">
+                                    🔄 Grant Retake
+                                </button>
+                                <button class="btn" style="font-size: 0.75rem; padding: 4px 10px; background: var(--primary-color); color: white; border: none; border-radius: 4px;"
+                                    onclick="grantPendingExtension('${examId}')">
+                                    ⏱️ Extension
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+
+            } catch (e) {
+                console.error('Error loading pending students:', e);
+                list.innerHTML = '<p style="color: var(--accent-color);">Error loading data. Please try again.</p>';
+            }
+        };
+
+        window.closePendingStudentsModal = () => {
+            document.getElementById('pending-students-modal').style.display = 'none';
+            currentPendingExamId = null;
+        };
+
+        window.grantRetake = async (resultId, studentName) => {
+            const confirmed = await Utils.showConfirm(
+                'Grant Retake',
+                `Are you sure you want to allow ${studentName} to retake this exam?\n\nThis will remove their in-progress attempt and the exam will reappear in their Available Exams.`
+            );
+            if (!confirmed) return;
+
+            try {
+                await dataService.deleteResult(resultId);
+
+                // Show success toast
+                const toast = document.createElement('div');
+                toast.textContent = `✓ Retake granted for ${studentName}`;
+                toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--success-color); color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; animation: fadeIn 0.3s;';
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, 2500);
+
+                // Refresh the modal list
+                if (currentPendingExamId) {
+                    openPendingStudentsModal(currentPendingExamId);
+                }
+
+                // Refresh exam cards to update yellow count
+                if (typeof loadExams === 'function') loadExams();
+            } catch (e) {
+                console.error('Failed to grant retake:', e);
+                await Utils.showAlert('Error', 'Failed to grant retake: ' + e.message);
+            }
+        };
+
+        window.grantPendingExtension = (examId) => {
+            // Close pending modal and open extensions modal
+            closePendingStudentsModal();
+            window.openExtensionsModal(examId);
+        };
 
         // Offline Prep Logic
         let messageModalCallback = null;
@@ -1976,7 +2098,7 @@
                         <div style="display: flex; gap: 8px; align-items: center;">
                             ${scrambleIndicator}
                             <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
-                            <span title="In Progress" style="font-size: 0.9rem;">🟡 ${yellowCount}</span>
+                            <span title="In Progress - Click to manage" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openPendingStudentsModal('${exam.id}')">🟡 ${yellowCount}</span>
                             <span title="Flagged - Click to review" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')">🔴 ${redCount}</span>
                         </div>
                     </div>

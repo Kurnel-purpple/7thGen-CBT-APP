@@ -1008,6 +1008,17 @@ class DataService {
         }
     }
 
+    // Delete a result record (used for granting retakes)
+    async deleteResult(resultId) {
+        try {
+            await this.pb.collection('results').delete(resultId);
+            return true;
+        } catch (error) {
+            console.error('Failed to delete result:', error);
+            throw error;
+        }
+    }
+
     // --- Offline Prep ---
 
     async prepareOfflineData(teacherId) {

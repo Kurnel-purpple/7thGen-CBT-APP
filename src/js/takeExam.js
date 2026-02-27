@@ -561,7 +561,7 @@ const takeExam = {
                     backgroundColor: '#ffffff',
                 });
 
-                canvas.loadFromJSON(json).then(() => {
+                const onComplete = () => {
                     // Constrain any Textbox to canvas width so text wraps instead of shrinking
                     canvas.getObjects().forEach(obj => {
                         if (obj.type === 'textbox') {
@@ -584,10 +584,17 @@ const takeExam = {
                         canvas.setDimensions({ height: fitHeight });
                     }
                     canvas.renderAll();
-                }).catch(err => {
+                };
+
+                const onError = (err) => {
                     console.warn('Failed to load canvas JSON:', err);
                     mount.innerHTML = '<p style="padding: 10px; color: var(--light-text);">Could not render question content</p>';
-                });
+                };
+
+                const res = canvas.loadFromJSON(json, onComplete);
+                if (res && typeof res.then === 'function') {
+                    res.then(onComplete).catch(onError);
+                }
             } catch (e) {
                 console.warn('Error rendering canvas:', e);
             }

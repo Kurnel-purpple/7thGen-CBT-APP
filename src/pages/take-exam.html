@@ -157,7 +157,8 @@
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../js/timer.js"></script>
-    <script src="../../node_modules/fabric/dist/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/6.6.1/fabric.min.js"></script>
+    <script>if (typeof fabric === 'undefined') { document.write('<script src="../../node_modules/fabric/dist/index.js"><\/script>'); }</script>
     <script src="../js/fabricWordProcessor.js"></script>
     <script src="../js/takeExam.js"></script>
 </body>
