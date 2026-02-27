@@ -1363,6 +1363,82 @@ class DataService {
             throw error;
         }
     }
+
+    /**
+     * Recover Username by full name + password verification
+     * Looks up user by full_name, then verifies password by attempting auth.
+     * Returns the username without maintaining the login session.
+     */
+    async recoverUsername(fullName, password) {
+        console.log('🔄 USERNAME RECOVERY: Starting for', fullName);
+        try {
+            const adminPb = new PocketBase(this.pb.baseUrl);
+            const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
+            const ADMIN_PASS = "Finest1709";
+
+            console.log('🔄 USERNAME RECOVERY: Authenticating admin...');
+            await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
+
+            // 1. Search for users by full_name (case-insensitive search)
+            console.log('🔄 USERNAME RECOVERY: Searching for user by name...');
+            let userRecord;
+            try {
+                // Try exact match first
+                userRecord = await adminPb.collection('users').getFirstListItem(
+                    `full_name="${fullName}"`
+                );
+            } catch (e) {
+                // Try case-insensitive / partial match via profiles
+                try {
+                    const profile = await adminPb.collection('profiles').getFirstListItem(
+                        `full_name~"${fullName}"`
+                    );
+                    if (profile && profile.user) {
+                        userRecord = await adminPb.collection('users').getOne(profile.user);
+                    }
+                } catch (e2) {
+                    adminPb.authStore.clear();
+                    throw new Error('No account found with that name. Please check your full name and try again.');
+                }
+            }
+
+            if (!userRecord) {
+                adminPb.authStore.clear();
+                throw new Error('No account found with that name. Please check your full name and try again.');
+            }
+
+            console.log('✅ USERNAME RECOVERY: Found user', userRecord.id, userRecord.username);
+
+            // 2. Verify password by attempting authentication
+            const verifyPb = new PocketBase(this.pb.baseUrl);
+            try {
+                // Try authenticating with the found user's email/username + provided password
+                const authIdentifier = userRecord.email || userRecord.username;
+                await verifyPb.collection('users').authWithPassword(authIdentifier, password);
+                verifyPb.authStore.clear(); // Don't keep this session
+            } catch (authErr) {
+                // Also try with username directly
+                try {
+                    await verifyPb.collection('users').authWithPassword(userRecord.username, password);
+                    verifyPb.authStore.clear();
+                } catch (authErr2) {
+                    adminPb.authStore.clear();
+                    throw new Error('The password you entered does not match this account. Please check your password.');
+                }
+            }
+
+            // 3. Password verified — return the username
+            const recoveredUsername = userRecord.username || userRecord.email.split('@')[0];
+
+            adminPb.authStore.clear();
+            console.log('✅ USERNAME RECOVERY: Success! Username:', recoveredUsername);
+            return { username: recoveredUsername };
+
+        } catch (error) {
+            console.error('❌ USERNAME RECOVERY: Error', error);
+            throw error;
+        }
+    }
 }
 
 

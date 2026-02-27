@@ -457,7 +457,10 @@ const resultsController = {
             <div class="result-item ${isCorrect === null ? 'theory' : (isCorrect ? 'correct' : 'incorrect')}">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:10px;">
                     <div style="display:flex; align-items:center; gap:10px; flex:1;">
-                        <strong>Q${i + 1}. ${q.text}</strong>
+                        ${q.canvasImage
+                    ? `<strong>Q${i + 1}.</strong> <img src="${q.canvasImage}" style="max-width:100%; border-radius:6px; display:block; margin-top:6px;" alt="Question content" />`
+                    : `<strong>Q${i + 1}. ${q.text}</strong>`
+                }
                         ${isFlagged ? '<span title="Flagged by student" style="font-size:1.2rem;">🚩</span>' : ''}
                         ${q.type === 'theory' ? '<span style="font-size:0.75rem; color:var(--accent-color); margin-left:8px;">(THEORY)</span>' : ''}
                         ${q.type === 'image_multi' ? '<span style="font-size:0.75rem; color:var(--primary-color); margin-left:8px;">(PICTURE COMPREHENSION)</span>' : ''}

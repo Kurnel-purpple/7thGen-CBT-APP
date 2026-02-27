@@ -107,17 +107,58 @@ const auth = {
     }
 };
 
-// Forgot Password Flow Helpers
+// Forgot Password / Username Flow Helpers
+
+// Tab Switching
+window.switchForgotTab = (tab) => {
+    const passwordTab = document.getElementById('forgot-tab-password');
+    const usernameTab = document.getElementById('forgot-tab-username');
+    const passwordContent = document.getElementById('forgot-password-content');
+    const usernameContent = document.getElementById('forgot-username-content');
+
+    if (tab === 'password') {
+        passwordTab.classList.add('active');
+        usernameTab.classList.remove('active');
+        passwordContent.classList.add('active');
+        usernameContent.classList.remove('active');
+    } else {
+        usernameTab.classList.add('active');
+        passwordTab.classList.remove('active');
+        usernameContent.classList.add('active');
+        passwordContent.classList.remove('active');
+    }
+};
+
 window.openForgotPasswordModal = () => {
     const modal = document.getElementById('forgot-password-modal');
-    if (modal) modal.classList.add('show');
+    if (modal) {
+        modal.classList.add('show');
+        switchForgotTab('password');
+    }
+};
+
+window.openForgotUsernameModal = () => {
+    const modal = document.getElementById('forgot-password-modal');
+    if (modal) {
+        modal.classList.add('show');
+        switchForgotTab('username');
+    }
 };
 
 window.closeModal = (id) => {
     const modal = document.getElementById(id);
     if (modal) modal.classList.remove('show');
+    // Clear results/errors when closing
+    const recoveryResult = document.getElementById('username-recovery-result');
+    if (recoveryResult) {
+        recoveryResult.style.display = 'none';
+        recoveryResult.innerHTML = '';
+    }
+    const recoveryError = document.getElementById('username-recovery-error');
+    if (recoveryError) recoveryError.style.display = 'none';
 };
 
+// Forgot Password Step 1: Request Reset Code
 window.handleRequestReset = async () => {
     const usernameInput = document.getElementById('reset-username');
     const errorDiv = document.getElementById('reset-error-1');
@@ -145,11 +186,12 @@ window.handleRequestReset = async () => {
     } catch (err) {
         errorDiv.textContent = err.message || 'Failed to request reset.';
         errorDiv.style.display = 'block';
-        btn.textContent = '🚀 Request Reset Code';
-        btn.disabled = false;
     }
+    btn.textContent = '🚀 Request Reset Code';
+    btn.disabled = false;
 };
 
+// Forgot Password Step 2: Verify & Reset
 window.handleVerifyReset = async () => {
     const codeInput = document.getElementById('reset-code');
     const passInput = document.getElementById('reset-new-password');
@@ -187,6 +229,58 @@ window.handleVerifyReset = async () => {
         btn.textContent = '✅ Update Password';
         btn.disabled = false;
     }
+};
+
+// Forgot Username: Recover Username by full name + password
+window.handleRecoverUsername = async () => {
+    const fullNameInput = document.getElementById('recovery-fullname');
+    const passwordInput = document.getElementById('recovery-password');
+    const errorDiv = document.getElementById('username-recovery-error');
+    const resultDiv = document.getElementById('username-recovery-result');
+    const btn = document.getElementById('recover-username-btn');
+
+    const fullName = fullNameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!fullName) {
+        errorDiv.textContent = 'Please enter your full name.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (!password) {
+        errorDiv.textContent = 'Please enter your password to verify your identity.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+    errorDiv.style.display = 'none';
+    resultDiv.style.display = 'none';
+
+    try {
+        const result = await dataService.recoverUsername(fullName, password);
+
+        if (result && result.username) {
+            resultDiv.innerHTML = `
+                <div class="username-result-box">
+                    <div class="found-label">✅ Your username is:</div>
+                    <div class="found-username">${result.username}</div>
+                    <div class="found-hint">Use this username to log in with your password.</div>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+        } else {
+            errorDiv.textContent = 'Could not find a matching account. Please check your full name.';
+            errorDiv.style.display = 'block';
+        }
+    } catch (err) {
+        errorDiv.textContent = err.message || 'Failed to recover username.';
+        errorDiv.style.display = 'block';
+    }
+    btn.textContent = '🔍 Find My Username';
+    btn.disabled = false;
 };
 
 // Auto-init if in browser

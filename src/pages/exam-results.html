@@ -226,7 +226,10 @@
 
             <div class="section-header">
                 <h2 id="exam-title">Exam Results</h2>
-                <div class="filter-controls">
+                <div class="filter-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button id="save-all-theory-btn" class="btn"
+                        style="display:none; background: var(--success-color, #2ecc71); color: white; border: none;"
+                        onclick="examResults.saveAllManualTheoryScores()">💾 Save All Theory Scores</button>
                     <button class="btn" onclick="examResults.exportCSV()">Export CSV</button>
                 </div>
             </div>

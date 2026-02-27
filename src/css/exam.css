@@ -182,6 +182,9 @@
     padding: 40px;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .q-text-display {
@@ -192,6 +195,31 @@
     overflow-wrap: break-word;
     white-space: pre-wrap;
     max-width: 100%;
+    overflow: hidden;
+}
+
+.q-text-display img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Read-only canvas mounts (student take-exam) */
+.readonly-canvas-mount {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Fabric word processor responsive containment - only on wrapper, NOT on canvas */
+.wp-container {
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.wp-canvas-wrapper {
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .options-list {
@@ -312,13 +340,26 @@
     }
 
     .question-area {
-        padding: 20px;
+        padding: 12px;
         overflow-y: visible;
-        /* Let body scroll on mobile */
+        overflow-x: hidden;
     }
 
     .question-card {
-        padding: 20px;
+        padding: 15px;
+        overflow: hidden;
+    }
+
+    .q-text-display {
+        font-size: 1rem;
+        overflow: hidden;
+    }
+
+    /* Ensure canvas never exceeds mobile screen */
+    .readonly-canvas-mount,
+    .wp-canvas-wrapper {
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .exam-footer {

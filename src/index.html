@@ -51,30 +51,80 @@
                     </form>
 
                     <div class="auth-footer" style="margin-top: 15px;">
-                        <p><a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot Password?</a></p>
+                        <p><a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot Password?</a> · <a
+                                href="javascript:void(0)" onclick="openForgotUsernameModal()">Forgot Username?</a></p>
                         <p>Don't have an account? <a href="pages/register.html">Sign Up</a></p>
                     </div>
                 </div>
             </div>
 
-            <!-- Forgot Password Modal Step 1: Username -->
+            <!-- Forgot Password / Username Modal (Tabbed) -->
             <div id="forgot-password-modal" class="modal">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3>Forgot Password</h3>
+                        <h3 id="forgot-modal-title">Account Recovery</h3>
                         <button onclick="closeModal('forgot-password-modal')" class="close-btn">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <p>Enter your <strong>Student ID</strong> or <strong>Username</strong>. A reset code will be
-                            sent to your school administrator.</p>
-                        <div id="reset-error-1" class="error-message" style="display: none; margin-bottom: 10px;"></div>
-                        <div class="form-group">
-                            <label>Username / Student ID</label>
-                            <input type="text" id="reset-username" class="form-control" placeholder="e.g. JMS123">
+                        <!-- Tab Switcher -->
+                        <div class="forgot-tabs">
+                            <button class="forgot-tab-btn active" onclick="switchForgotTab('password')"
+                                id="forgot-tab-password">
+                                🔑 Forgot Password
+                            </button>
+                            <button class="forgot-tab-btn" onclick="switchForgotTab('username')"
+                                id="forgot-tab-username">
+                                🆔 Forgot Username
+                            </button>
                         </div>
-                        <button onclick="handleRequestReset()" class="btn btn-primary btn-block" id="request-reset-btn">
-                            🚀 Request Reset Code
-                        </button>
+
+                        <!-- Tab 1: Forgot Password -->
+                        <div class="forgot-tab-content active" id="forgot-password-content">
+                            <p>Enter your <strong>Student ID</strong> or <strong>Username</strong>. A reset code will be
+                                sent to your school administrator.</p>
+                            <div id="reset-error-1" class="error-message" style="display: none; margin-bottom: 10px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Username / Student ID</label>
+                                <input type="text" id="reset-username" class="form-control" placeholder="e.g. JMS123">
+                            </div>
+                            <button onclick="handleRequestReset()" class="btn btn-primary btn-block"
+                                id="request-reset-btn">
+                                🚀 Request Reset Code
+                            </button>
+                        </div>
+
+                        <!-- Tab 2: Forgot Username -->
+                        <div class="forgot-tab-content" id="forgot-username-content">
+                            <div class="info-callout">
+                                <strong>💡 Tip:</strong> If you remember your password but forgot your username/Student
+                                ID,
+                                enter your <strong>full name</strong> and <strong>password</strong> below to recover it.
+                            </div>
+                            <div id="username-recovery-error" class="error-message"
+                                style="display: none; margin-bottom: 10px;"></div>
+                            <div class="form-group">
+                                <label>Your Full Name</label>
+                                <input type="text" id="recovery-fullname" class="form-control"
+                                    placeholder="e.g. John Smith">
+                            </div>
+                            <div class="form-group">
+                                <label>Your Password</label>
+                                <div class="password-input-container">
+                                    <input type="password" id="recovery-password" class="form-control"
+                                        placeholder="Enter your password">
+                                    <button type="button" class="password-toggle-btn"
+                                        onclick="togglePassword('recovery-password', this)">
+                                        <span class="eye-icon">👁️</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <button onclick="handleRecoverUsername()" class="btn btn-primary btn-block"
+                                id="recover-username-btn">
+                                🔍 Find My Username
+                            </button>
+                            <div id="username-recovery-result" style="display: none;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -150,6 +200,7 @@
     <script src="js/utils.js"></script>
     <script src="js/dataService.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/activityWatcher.js"></script>
     <script>
         // Global function for password toggle
         function togglePassword(inputId, button) {

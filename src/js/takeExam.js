@@ -507,7 +507,11 @@ const takeExam = {
                 ` : ''}
 
                 <div class="q-text-display">
-                    ${q.text}
+                    ${q.canvasJSON
+                    ? `<div class="readonly-canvas-mount" data-canvas-json='${JSON.stringify(q.canvasJSON).replace(/'/g, "&#39;")}' style="background: #fff; border: 1px solid var(--border-color, #eee); border-radius: 6px; overflow: hidden;"></div>`
+                    : q.canvasImage
+                        ? `<img src="${q.canvasImage}" style="max-width:100%; border-radius:6px;" alt="Question content" />`
+                        : q.text}
                 </div>
 
                 <div class="options-list">
@@ -519,12 +523,75 @@ const takeExam = {
 
         container.innerHTML = htmlContent;
 
+        // Render read-only Fabric.js canvases for questions with canvasJSON
+        setTimeout(() => {
+            takeExam.renderReadOnlyCanvases();
+        }, 100);
+
         document.getElementById('prev-btn').style.display = 'none';
         document.getElementById('next-btn').style.display = 'none';
         document.getElementById('submit-btn').style.display = 'inline-block';
         if (takeExam.mode === 'resolve') {
             document.getElementById('submit-btn').textContent = 'Update Answers';
         }
+    },
+
+    // Render read-only Fabric canvases for student exam view
+    renderReadOnlyCanvases: () => {
+        if (typeof fabric === 'undefined') return;
+
+        document.querySelectorAll('.readonly-canvas-mount').forEach(mount => {
+            try {
+                const jsonStr = mount.getAttribute('data-canvas-json');
+                if (!jsonStr) return;
+                const json = JSON.parse(jsonStr);
+
+                // Create canvas element
+                const canvasEl = document.createElement('canvas');
+                mount.innerHTML = '';
+                mount.appendChild(canvasEl);
+
+                // Get the available container width
+                const containerWidth = mount.clientWidth || mount.parentElement.clientWidth || 300;
+
+                // Use StaticCanvas - completely read-only, no interaction
+                const canvas = new fabric.StaticCanvas(canvasEl, {
+                    width: containerWidth,
+                    height: 150,
+                    backgroundColor: '#ffffff',
+                });
+
+                canvas.loadFromJSON(json).then(() => {
+                    // Constrain any Textbox to canvas width so text wraps instead of shrinking
+                    canvas.getObjects().forEach(obj => {
+                        if (obj.type === 'textbox') {
+                            const maxW = containerWidth - obj.left - 10;
+                            if (obj.width > maxW && maxW > 50) {
+                                obj.set('width', maxW);
+                            }
+                        }
+                    });
+
+                    // Auto-fit height to content
+                    const objects = canvas.getObjects();
+                    if (objects.length > 0) {
+                        let maxBottom = 0;
+                        objects.forEach(o => {
+                            const b = o.getBoundingRect();
+                            if (b.top + b.height > maxBottom) maxBottom = b.top + b.height;
+                        });
+                        const fitHeight = Math.max(maxBottom + 20, 60);
+                        canvas.setDimensions({ height: fitHeight });
+                    }
+                    canvas.renderAll();
+                }).catch(err => {
+                    console.warn('Failed to load canvas JSON:', err);
+                    mount.innerHTML = '<p style="padding: 10px; color: var(--light-text);">Could not render question content</p>';
+                });
+            } catch (e) {
+                console.warn('Error rendering canvas:', e);
+            }
+        });
     },
 
     toggleFlag: (qId, index, isChecked) => {

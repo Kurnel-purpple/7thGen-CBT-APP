@@ -2128,12 +2128,13 @@
                     const qIndex = exam.questions.findIndex(q => q.id == qId);
                     const question = (qIndex >= 0) ? exam.questions[qIndex] : null;
                     const qText = question ? question.text : 'Question not found (ID ' + qId + ')';
+                    const qImage = question ? question.canvasImage : null;
                     const displayIndex = (qIndex >= 0) ? qIndex + 1 : '?';
 
                     html += `
                     <div class="flag-item">
                         <div class="flag-header" style="font-weight: bold; margin-bottom: 5px; color: #cc0000;">Flagged Question #${displayIndex}</div>
-                        <div style="margin-bottom: 8px; font-style: italic;">"${qText}"</div>
+                        <div style="margin-bottom: 8px; font-style: italic;">${qImage ? `<img src="${qImage}" style="max-width:100%; border-radius:6px;" alt="Question content" />` : `"${qText}"`}</div>
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
                             <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="openEditQuestion('${exam.id}', ${qIndex})">✏️ Edit Question</button>
                             <button class="btn btn-primary" style="font-size: 0.8rem; background-color: #2ecc71; border-color: #2ecc71;" onclick="resolveFlag('${result.id}', '${qId}')">✔ Resolve</button>

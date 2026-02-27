@@ -9,6 +9,8 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
+    <!-- Fabric.js Canvas Library (local from node_modules) -->
+    <script src="../../node_modules/fabric/dist/index.js"></script>
     <!-- Quill.js Rich Text Editor -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
@@ -41,7 +43,11 @@
         .btn-cancel {
             color: #c62828 !important;
             border: 1px solid #ef5350 !important;
-            background-color: transparent;
+            background-color: white !important;
+        }
+
+        [data-theme="dark"] .btn-cancel {
+            background-color: black !important;
         }
 
         .btn-cancel:hover {
@@ -68,6 +74,31 @@
             color: var(--accent-color);
         }
 
+        /* Global Header Structure for Create Exam */
+        .main-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            height: auto !important;
+        }
+
+        .header-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 0;
+        }
+
+        .logo h1 {
+            margin: 0;
+        }
+
         @media (max-width: 600px) {
             .mobile-text {
                 display: inline;
@@ -77,35 +108,8 @@
                 display: none;
             }
 
-            /* Mobile Header Layout - Two Rows */
-            /* Mobile Header Layout - Two Rows as Blocks */
-            .main-header {
-                display: block !important;
-                padding: 12px 15px;
-                height: auto;
-            }
-
-            /* First Row Container */
-            .header-top-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                width: 100%;
-                margin-bottom: 10px;
-            }
-
-            /* Logo Group (Left Side) */
-            .logo {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                margin-bottom: 0;
-                /* Reset margins since we use header-top-row now */
-            }
-
             .logo h1 {
                 font-size: 1.1rem;
-                margin: 0;
             }
 
             /* Back button (Right Side) */
@@ -255,20 +259,16 @@
         .ql-container {
             border-radius: 0 0 6px 6px;
         }
-    </style>
-    <style>
-        /* Mobile specific overrides inside style tag to ensure specificity */
+
         /* Mobile specific overrides inside style tag to ensure specificity */
         @media (max-width: 600px) {
             .section-header-questions .actions {
                 flex-wrap: wrap;
-                /* Allow wrapping */
                 gap: 8px;
             }
 
             .section-header-questions .actions .btn {
                 flex: 1 1 40%;
-                /* First two buttons share the row */
                 text-align: center;
                 margin-right: 0 !important;
                 padding: 6px 2px !important;
@@ -285,12 +285,92 @@
                 justify-content: center;
             }
 
-            /* Force "Add Question" (last button) to new row and full width */
             .section-header-questions .actions .btn:last-child {
                 flex-basis: 100%;
                 width: 100%;
                 margin-top: 0;
-                /* Gap handles spacing */
+            }
+        }
+
+        /* Sticky Actions & Scroll Button */
+        .sticky-actions {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            display: flex;
+            gap: 12px;
+            z-index: 3000;
+            background: transparent;
+            padding: 12px 0;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            align-items: center;
+            transition: transform 0.3s ease;
+        }
+
+        .sticky-actions:hover {
+            transform: translateY(-5px);
+        }
+
+        .scroll-action-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .scroll-action-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            background-color: var(--primary-hover);
+        }
+
+        .scroll-action-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.5);
+        }
+
+        /* Ensure main content has padding at bottom */
+        .main-content {
+            padding-bottom: 120px !important;
+            scroll-behavior: smooth;
+        }
+
+        @media (max-width: 600px) {
+            .sticky-actions {
+                bottom: 20px;
+                left: 0;
+                width: 100%;
+                box-sizing: border-box;
+                padding: 10px 15px;
+                gap: 8px;
+            }
+
+            .sticky-actions .btn {
+                flex: 1;
+                padding: 12px 15px !important;
+                font-size: 0.95rem !important;
+            }
+
+            .scroll-action-btn {
+                bottom: 80px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
             }
         }
     </style>
@@ -307,33 +387,56 @@
                     <h1 class="logo-text">Create New Exam</h1>
                 </div>
 
-                <!-- Right: Back Button -->
-                <a href="teacher-dashboard.html" class="btn btn-outline btn-back-dashboard mobile-only"
-                    aria-label="Back to Dashboard">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                <!-- Desktop user menu -->
+                <div class="user-menu desktop-only" style="margin-left: auto;">
+                    <span id="user-desktop-name" style="margin-right: 15px; font-weight:bold;">Teacher</span>
+                </div>
+
+                <!-- Right: Mobile Menu Button -->
+                <button id="mobile-menu-btn" class="hamburger-btn mobile-only" style="margin-left: auto;">☰</button>
+            </div>
+
+            <!-- Second Row: Back Button (left) + Actions (right) -->
+            <div class="secondary-row"
+                style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 10px;">
+                <a href="teacher-dashboard.html" class="btn btn-outline" aria-label="Back to Dashboard"
+                    style="display: flex; align-items: center; gap: 5px; height: 36px; padding: 0 10px; background: transparent; border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="19" y1="12" x2="5" y2="12"></line>
                         <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
+                    <span class="desktop-text">Back</span>
                 </a>
-            </div>
-
-            <!-- Desktop user menu -->
-            <div class="user-menu desktop-only">
-                <span id="user-desktop-name" style="margin-right: 15px; font-weight:bold;">Teacher</span>
-                <a href="teacher-dashboard.html" class="btn btn-outline btn-back-dashboard">
-                    <span class="desktop-text">← Back to Dashboard</span>
-                </a>
-            </div>
-
-            <!-- Second Row: Teacher name (left) + Dark mode toggle (right) -->
-            <div class="mobile-user-row">
-                <button onclick="auth.logout()" class="btn-logout-mobile">
-                    <span>🚪 Logout</span>
-                </button>
-                <!-- Dark mode toggle will be injected here by utils.js -->
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="examManager.openImportModal()"
+                        style="padding: 0 12px; font-size: 0.85rem; height: 36px; display: flex; align-items: center; justify-content: center; white-space: nowrap; margin: 0;">Bulk
+                        Import</button>
+                    <button type="button" class="btn btn-primary"
+                        onclick="document.getElementById('add-question-btn').click()"
+                        style="padding: 0 12px; font-size: 0.85rem; height: 36px; display: flex; align-items: center; justify-content: center; white-space: nowrap; margin: 0;">+
+                        Add Question</button>
+                </div>
             </div>
         </header>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="mobile-menu">
+            <div class="mobile-menu-content">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
+                    <div style="font-weight: bold; font-size: 1.1rem; color: var(--text-color);">Create Exam</div>
+                    <button id="mobile-theme-toggle" class="btn"
+                        style="background: transparent; font-size: 1.2rem;">🌓</button>
+                </div>
+                <div class="mobile-actions" style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="btn" onclick="auth.logout()"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;">
+                        <span>🚪 Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <main class="main-content" style="display: block;">
             <form id="create-exam-form">
@@ -382,15 +485,13 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="exam-target-class">Target Class</label>
-                                <select id="exam-target-class" class="form-control" required>
-                                    <option value="All">All Classes</option>
-                                    <option value="JSS1">JSS 1</option>
-                                    <option value="JSS2">JSS 2</option>
-                                    <option value="JSS3">JSS 3</option>
-                                    <option value="SS1">SS 1</option>
-                                    <option value="SS2">SS 2</option>
-                                    <option value="SS3">SS 3</option>
+                                <select id="exam-target-class" class="form-control" required disabled>
+                                    <option value="">Select school level first</option>
                                 </select>
+                                <p id="class-hint"
+                                    style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px; display: none;">
+                                    Please select a school level to see available classes
+                                </p>
                             </div>
                         </div>
                         <div class="form-col">
@@ -477,13 +578,17 @@
                 </div>
 
                 <!-- Step 3: Global Actions -->
-                <div class="form-section form-actions"
-                    style="text-align: right; background: transparent; border: none; padding: 0;">
+                <div class="form-actions sticky-actions">
                     <button type="button" class="btn btn-cancel" onclick="window.history.back()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Publish Exam</button>
                 </div>
             </form>
         </main>
+
+        <!-- Scroll Action Button -->
+        <button id="scroll-action-btn" class="scroll-action-btn" onclick="toggleScroll()" title="Scroll to Bottom">
+            ↓
+        </button>
     </div>
 
     <!-- Bulk Import Modal -->
@@ -495,14 +600,10 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light-text);">
-                    Paste your questions below. You can copy & paste from MS Word, including text with
-                    shapes/images.<br>
-                    Format:<br>
-                    1. Question text...<br>
-                    (a) Option A<br>
-                    (b) Option B...<br>
-                    <em>Note: Images and shapes will be preserved in the editor but will be converted to text-only for
-                        parsing.</em>
+                    Create your question content below using the canvas editor. Add text, shapes, images, and
+                    drawings.<br>
+                    <em>Use the Text tool (T) to add typed content. You can also draw diagrams and upload
+                        images.</em>
                 </p>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="import-points" style="font-weight: 600;">Points per Question (Objective Only)</label>
@@ -512,8 +613,8 @@
                         Applies to objective questions only. Theory questions will automatically get 0 points.
                     </p>
                 </div>
-                <!-- Quill Rich Text Editor -->
-                <div id="import-editor"></div>
+                <!-- Fabric.js Canvas Editor for Import -->
+                <div id="import-canvas-mount"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn" onclick="examManager.closeImportModal()">Cancel</button>
@@ -607,9 +708,8 @@
             <div class="form-group" style="margin-top: 15px;">
                 <label
                     style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 4px; display: block;">Question
-                    Text</label>
-                <textarea class="form-control q-text auto-expand" placeholder="Enter question text" required rows="2"
-                    style="padding: 10px 12px;"></textarea>
+                    Content</label>
+                <div class="wp-mount-point" data-question-id="{id}"></div>
             </div>
             <div class="q-options-container">
                 <!-- Options injected here -->
@@ -649,7 +749,7 @@
         }
     </script>
     <script>
-        // Cascading dropdown logic for School Level -> Subject
+        // Cascading dropdown logic for School Level -> Subject and Target Class
         const subjectsByLevel = {
             secondary: [
                 'Maths',
@@ -704,25 +804,47 @@
             ]
         };
 
+        const classesByLevel = {
+            secondary: [
+                { value: 'All', text: 'All Classes' },
+                { value: 'JSS1', text: 'JSS 1' },
+                { value: 'JSS2', text: 'JSS 2' },
+                { value: 'JSS3', text: 'JSS 3' },
+                { value: 'SS1', text: 'SS 1' },
+                { value: 'SS2', text: 'SS 2' },
+                { value: 'SS3', text: 'SS 3' }
+            ],
+            primary: [
+                { value: 'All', text: 'All Classes' },
+                { value: 'Grade 4', text: 'Grade 4' },
+                { value: 'Grade 5&6', text: 'Grade 5&6' }
+            ]
+        };
+
         // Handle school level change
-        document.addEventListener('DOMContentLoaded', () => {
+        (function () {
             const schoolLevelSelect = document.getElementById('exam-school-level');
             const subjectSelect = document.getElementById('exam-subject');
             const subjectHint = document.getElementById('subject-hint');
+            const targetClassSelect = document.getElementById('exam-target-class');
+            const classHint = document.getElementById('class-hint');
 
-            if (schoolLevelSelect && subjectSelect) {
+            if (schoolLevelSelect && subjectSelect && targetClassSelect) {
                 schoolLevelSelect.addEventListener('change', function () {
                     const selectedLevel = this.value;
 
                     // Clear current options
                     subjectSelect.innerHTML = '';
+                    targetClassSelect.innerHTML = '';
 
                     if (selectedLevel && subjectsByLevel[selectedLevel]) {
-                        // Enable the subject dropdown
+                        // Enable the dropdowns
                         subjectSelect.disabled = false;
-                        subjectHint.style.display = 'none';
+                        targetClassSelect.disabled = false;
+                        if (subjectHint) subjectHint.style.display = 'none';
+                        if (classHint) classHint.style.display = 'none';
 
-                        // Add default option
+                        // Add default subject option
                         const defaultOption = document.createElement('option');
                         defaultOption.value = '';
                         defaultOption.textContent = 'Select Subject';
@@ -735,20 +857,110 @@
                             option.textContent = subject;
                             subjectSelect.appendChild(option);
                         });
+
+                        // Add target classes for the selected level
+                        if (classesByLevel[selectedLevel]) {
+                            classesByLevel[selectedLevel].forEach(cls => {
+                                const option = document.createElement('option');
+                                option.value = cls.value;
+                                option.textContent = cls.text;
+                                targetClassSelect.appendChild(option);
+                            });
+                        }
                     } else {
-                        // Disable the subject dropdown if no level selected
+                        // Disable the dropdowns if no level selected
                         subjectSelect.disabled = true;
+                        targetClassSelect.disabled = true;
+
                         const defaultOption = document.createElement('option');
                         defaultOption.value = '';
                         defaultOption.textContent = 'Select school level first';
                         subjectSelect.appendChild(defaultOption);
-                        subjectHint.style.display = 'block';
+                        if (subjectHint) subjectHint.style.display = 'block';
+
+                        const defaultClassOption = document.createElement('option');
+                        defaultClassOption.value = '';
+                        defaultClassOption.textContent = 'Select school level first';
+                        targetClassSelect.appendChild(defaultClassOption);
+                        if (classHint) classHint.style.display = 'block';
+                    }
+                });
+            }
+        })();
+    </script>
+    <script>
+        // Scroll Action functionality
+        window.toggleScroll = function () {
+            const mainContent = document.querySelector('.main-content');
+            if (!mainContent) return;
+
+            const scrollPos = mainContent.scrollTop + mainContent.clientHeight;
+            const totalHeight = mainContent.scrollHeight;
+
+            if (totalHeight - scrollPos < 100) {
+                // At bottom, scroll to top
+                mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                // Scroll to bottom
+                mainContent.scrollTo({ top: mainContent.scrollHeight, behavior: 'smooth' });
+            }
+        };
+
+        const mainContent = document.querySelector('.main-content');
+        const scrollBtn = document.getElementById('scroll-action-btn');
+
+        if (mainContent && scrollBtn) {
+            mainContent.addEventListener('scroll', () => {
+                const scrollPos = mainContent.scrollTop + mainContent.clientHeight;
+                const totalHeight = mainContent.scrollHeight;
+
+                if (totalHeight - scrollPos < 100) {
+                    // Reached bottom
+                    scrollBtn.innerHTML = '↑';
+                    scrollBtn.title = 'Scroll to Top';
+                } else {
+                    // Not at bottom
+                    scrollBtn.innerHTML = '↓';
+                    scrollBtn.title = 'Scroll to Bottom';
+                }
+            });
+        }
+    </script>
+    <script src="../js/examManager.js"></script>
+    <script src="../js/fabricWordProcessor.js"></script>
+    <script>
+        // Mobile Menu and Theme Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('show');
+                    if (mobileMenu.classList.contains('show')) {
+                        mobileMenuBtn.innerHTML = '&times;';
+                    } else {
+                        mobileMenuBtn.innerHTML = '&#9776;';
+                    }
+                });
+            }
+
+            const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
+            if (mobileThemeToggle) {
+                mobileThemeToggle.addEventListener('click', () => {
+                    const current = document.documentElement.getAttribute('data-theme');
+                    const next = current === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', next);
+                    localStorage.setItem('theme', next);
+
+                    const desktopToggle = document.getElementById('theme-toggle');
+                    if (desktopToggle) {
+                        desktopToggle.innerHTML = next === 'dark' ? '☀️' : '🌙';
                     }
                 });
             }
         });
     </script>
-    <script src="../js/examManager.js"></script>
 </body>
 
 </html>

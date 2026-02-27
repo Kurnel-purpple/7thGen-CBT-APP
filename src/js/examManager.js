@@ -321,44 +321,10 @@ const examManager = {
             document.title = 'Edit Exam - CBT Exam';
             await examManager.loadExam(examId);
         }
-
-        // Initialize Quill rich text editor for bulk import
-        examManager.initQuillEditor();
     },
 
-    // Quill editor instance for bulk import
-    quillEditor: null,
-
-    initQuillEditor: () => {
-        const editorElement = document.getElementById('import-editor');
-        if (!editorElement) return;
-
-        examManager.quillEditor = new Quill('#import-editor', {
-            theme: 'snow',
-            placeholder: 'Paste questions here... You can copy & paste from MS Word including shapes and images.',
-            modules: {
-                toolbar: [
-                    ['bold', 'italic', 'underline'],
-                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                    ['image']
-                ]
-            }
-        });
-
-        // Handle paste events to clean up formatting
-        examManager.quillEditor.root.addEventListener('paste', (e) => {
-            // Let Quill handle the paste, it will convert most content properly
-            // including images from Word
-            setTimeout(() => {
-                // Optional: Clean up excessive formatting if needed
-                const text = examManager.quillEditor.getText();
-                if (text.trim()) {
-                    // Content was pasted successfully
-                    console.log('Content pasted into Quill editor');
-                }
-            }, 0);
-        });
-    },
+    // Fabric.js canvas instance for bulk import
+    importCanvasInstance: null,
 
     loadExam: async (id) => {
         try {
@@ -378,23 +344,33 @@ const examManager = {
             // Handle school level and subject (cascading dropdown)
             const schoolLevelSelect = document.getElementById('exam-school-level');
             const subjectSelect = document.getElementById('exam-subject');
+            const targetClassSelect = document.getElementById('exam-target-class');
 
             if (schoolLevelSelect && exam.schoolLevel) {
-                schoolLevelSelect.value = exam.schoolLevel;
-                // Trigger change event to populate subjects
-                schoolLevelSelect.dispatchEvent(new Event('change'));
-                // Wait a bit for the subjects to populate, then set the subject
+                // Wait slightly for DOMContentLoaded cascading event listeners in create-exam to attach
                 setTimeout(() => {
-                    if (subjectSelect) {
-                        subjectSelect.value = exam.subject;
-                    }
-                }, 50);
-            } else if (subjectSelect) {
-                // Fallback for old exams without schoolLevel
-                subjectSelect.value = exam.subject;
-            }
+                    schoolLevelSelect.value = exam.schoolLevel;
+                    // Trigger change event to populate subjects and target classes
+                    schoolLevelSelect.dispatchEvent(new Event('change'));
 
-            document.getElementById('exam-target-class').value = exam.targetClass || 'All';
+                    // Wait for options to render, then set the subject and target class
+                    setTimeout(() => {
+                        if (subjectSelect) {
+                            subjectSelect.value = exam.subject;
+                        }
+                        if (targetClassSelect) {
+                            targetClassSelect.value = exam.targetClass || 'All';
+                        }
+                    }, 50);
+                }, 100);
+            } else {
+                if (subjectSelect) {
+                    subjectSelect.value = exam.subject;
+                }
+                if (targetClassSelect) {
+                    targetClassSelect.value = exam.targetClass || 'All';
+                }
+            }
             document.getElementById('exam-duration').value = exam.duration;
             document.getElementById('exam-pass-score').value = exam.passScore;
             document.getElementById('exam-instructions').value = exam.instructions;
@@ -448,6 +424,8 @@ const examManager = {
             id: id,
             type: 'mcq',
             text: '',
+            canvasJSON: null,
+            canvasImage: null,
             options: [
                 { id: Utils.generateId(), text: '', isCorrect: false },
                 { id: Utils.generateId(), text: '', isCorrect: false }
@@ -524,24 +502,45 @@ const examManager = {
 
     openImportModal: () => {
         document.getElementById('import-modal').style.display = 'block';
+        // Initialize Fabric.js canvas for import modal with auto-text and taller height
+        const mountEl = document.getElementById('import-canvas-mount');
+        if (mountEl && typeof FabricWordProcessor !== 'undefined') {
+            setTimeout(() => {
+                examManager.importCanvasInstance = FabricWordProcessor.create(mountEl, 'bulk-import', {
+                    height: 450,
+                    autoText: true  // Auto-create a Textbox ready for typing/pasting
+                });
+            }, 100);
+        }
     },
 
     closeImportModal: () => {
         document.getElementById('import-modal').style.display = 'none';
-        // Clear Quill editor content
-        if (examManager.quillEditor) {
-            examManager.quillEditor.setText('');
+        // Destroy canvas instance
+        if (examManager.importCanvasInstance) {
+            FabricWordProcessor.destroyInstance('bulk-import');
+            examManager.importCanvasInstance = null;
         }
+        // Clear the mount point
+        const mountEl = document.getElementById('import-canvas-mount');
+        if (mountEl) mountEl.innerHTML = '';
         // Reset import points to default
         const importPointsInput = document.getElementById('import-points');
         if (importPointsInput) importPointsInput.value = '0.5';
     },
 
     processBulkImport: async () => {
-        // Get plain text from Quill editor (strips HTML, keeps only text content)
-        const text = examManager.quillEditor ? examManager.quillEditor.getText() : '';
+        // Get text content from Fabric.js canvas text objects
+        const wp = examManager.importCanvasInstance;
+        if (!wp || wp.isEmpty()) {
+            await Utils.showAlert('Empty Canvas', 'Please add some content to the canvas. Use the Text tool (T) to type or paste your questions.');
+            return;
+        }
+
+        // Extract plain text from all text objects on the canvas
+        const text = wp.getPlainText();
         if (!text.trim()) {
-            await Utils.showAlert('Empty Input', 'Please paste some text.');
+            await Utils.showAlert('No Text Found', 'No text content found on the canvas. Use the Text tool (T) to add question text.');
             return;
         }
 
@@ -549,25 +548,32 @@ const examManager = {
         const importPointsInput = document.getElementById('import-points');
         const importPoints = importPointsInput ? parseFloat(importPointsInput.value) || 0.5 : 0.5;
 
-        // Clean text and split into blocks
-        // We handle both "Double Newline" blocks AND "Single Line" blocks if they look like questions
-        const blocks = text.split(/\n\s*\n/);
+        // ===== Enhanced text-parsing logic =====
+        // First try splitting by double newlines (standard format)
+        let blocks = text.split(/\n\s*\n/);
+
+        // If only 1 block found, try splitting by numbered lines (e.g., "1.", "2)", "3.")
+        // This handles pasted text where questions are separated by single newlines with numbers
+        if (blocks.length <= 1) {
+            const numberedSplit = text.split(/\n(?=\s*\d+[\.\)]\s)/);
+            if (numberedSplit.length > 1) {
+                blocks = numberedSplit;
+            }
+        }
         let addedCount = 0;
-        let forceTheoryMode = false; // Tracks whether we've passed a "THEORY" marker
+        let forceTheoryMode = false;
 
         blocks.forEach(block => {
             block = block.trim();
             if (!block) return;
 
             // Check if this block is the THEORY marker
-            // Supports "THEORY", "THEORY:", "THEORY SECTION", "--- THEORY ---" etc.
             if (/^\s*[-=]*\s*THEORY\s*[-=:]*\s*$/i.test(block) && block.toUpperCase().includes('THEORY')) {
-                // Only activate if the word THEORY is in all caps in the original text
                 const theoryLine = block.replace(/[-=:\s]/g, '');
                 if (theoryLine === 'THEORY') {
                     forceTheoryMode = true;
                     console.log('📝 THEORY marker detected - subsequent questions will be theory type');
-                    return; // Skip this block, it's just a marker
+                    return;
                 }
             }
 
@@ -575,30 +581,16 @@ const examManager = {
             let qText = '';
             let options = [];
 
-            // STRATEGY 1: Inline Options (Single Line or Wrap)
-            // Pattern: Look for (A)... (B)... on the same line or strictly formatted
-            // We use a regex to split: spaces + (Letter) + spaces
+            // STRATEGY 1: Inline Options
             const inlineMarkerRegex = /(\([a-dA-D]\))\s/g;
-
-            // Check if the block (joined) has multiple option markers
             const joined = lines.join(' ');
             const markersFound = joined.match(inlineMarkerRegex);
 
             if (markersFound && markersFound.length >= 2) {
-                // Parse as Inline
-                // Split by capturing regex to keep delimiters
                 const parts = joined.split(/(\([a-dA-D]\)\s)/);
-                /* 
-                   Example: "Q... (A) Opt1 (B) Opt2"
-                   Split: ["Q... ", "(A) ", "Opt1 ", "(B) ", "Opt2"]
-                   Parts[0] = Question Text
-                   Parts[1,3,5...] = Marker
-                   Parts[2,4,6...] = Content
-                */
                 qText = parts[0].trim();
 
                 for (let i = 1; i < parts.length; i += 2) {
-                    const marker = parts[i].trim(); // "(A)"
                     let content = parts[i + 1];
                     if (content) {
                         content = content.trim();
@@ -609,10 +601,8 @@ const examManager = {
                         });
                     }
                 }
-
             } else {
-                // STRATEGY 2: Multiline Parsing (Legacy/Previous Logic)
-                // Lines starting with (A) are options. Top lines are Q text.
+                // STRATEGY 2: Multiline Parsing
                 const strictOptRegex = /^\s*\(?([a-zA-Z])[\)\.]\s+(.+)$/;
                 let qLines = [];
 
@@ -626,8 +616,7 @@ const examManager = {
                         });
                     } else {
                         if (options.length === 0) {
-                            // Remove leading numbering like "1. "
-                            const clean = line.replace(/^\d+[\.\)]\s+/, '');
+                            const clean = line.replace(/^\d+[\.)\]]\s+/, '');
                             qLines.push(clean.trim());
                         }
                     }
@@ -638,31 +627,33 @@ const examManager = {
             // Create question based on whether options were found
             if (qText) {
                 if (forceTheoryMode) {
-                    // THEORY marker was encountered - force theory type
                     examManager.questions.push({
                         id: Utils.generateId(),
                         type: 'theory',
                         text: qText,
+                        canvasJSON: null,
+                        canvasImage: null,
                         points: 0
                     });
                     addedCount++;
                 } else if (options.length > 0) {
-                    // Objective question (MCQ) - has options
                     examManager.questions.push({
                         id: Utils.generateId(),
                         type: 'mcq',
                         text: qText,
+                        canvasJSON: null,
+                        canvasImage: null,
                         options: options,
                         points: importPoints
                     });
                     addedCount++;
                 } else {
-                    // Theory question - no options detected
-                    // Set to 0 points since they require manual grading
                     examManager.questions.push({
                         id: Utils.generateId(),
                         type: 'theory',
                         text: qText,
+                        canvasJSON: null,
+                        canvasImage: null,
                         points: 0
                     });
                     addedCount++;
@@ -675,11 +666,25 @@ const examManager = {
             examManager.closeImportModal();
             await Utils.showAlert('Success', `Successfully imported ${addedCount} questions.`);
         } else {
-            await Utils.showAlert('Import Error', 'Could not detect any valid questions. Please check the format.\n\nSupported formats:\n1. Objective Questions (with options):\n   Question text\n   (a) Option 1\n   (b) Option 2\n\n2. Theory Questions (without options):\n   Question text only\n\n3. Inline format:\n   Question... (A) Opt1 (B) Opt2');
+            await Utils.showAlert('Import Error', 'Could not detect any valid questions from the text on the canvas.\n\nSupported formats:\n1. Objective Questions (with options):\n   Question text\n   (a) Option 1\n   (b) Option 2\n\n2. Theory Questions (without options):\n   Question text only\n\n3. Inline format:\n   Question... (A) Opt1 (B) Opt2');
         }
     },
 
     renderQuestions: () => {
+        // Preserve canvas state from all active Fabric.js instances before destroying DOM
+        if (typeof FabricWordProcessor !== 'undefined') {
+            examManager.questions.forEach(q => {
+                const wpInstance = FabricWordProcessor.getInstance(q.id);
+                if (wpInstance && !wpInstance.isEmpty()) {
+                    q.canvasJSON = wpInstance.getJSON();
+                    q.canvasImage = wpInstance.getImage();
+                    // Extract plain text for backward compat
+                    q.text = wpInstance.getPlainText() || '[Canvas Content]';
+                }
+                // Destroy the old instance before re-render
+                FabricWordProcessor.destroyInstance(q.id);
+            });
+        }
         const container = document.getElementById('questions-container');
         const template = document.getElementById('question-template').innerHTML;
         const noQuestionsMsg = document.getElementById('no-questions-msg');
@@ -720,23 +725,38 @@ const examManager = {
                 container.appendChild(theoryHeader);
             }
 
+            let displayNumber = 1;
+            if (q.type === 'theory') {
+                displayNumber = (index - objectiveQuestions.length) + 1;
+            } else {
+                displayNumber = index + 1;
+            }
+
             let html = template
                 .replace(/{id}/g, q.id)
-                .replace(/{n}/g, index + 1);
+                .replace(/{n}/g, displayNumber);
 
             const div = document.createElement('div');
             div.innerHTML = html;
 
             // Set values
             const qEl = div.firstElementChild;
-            const qText = qEl.querySelector('.q-text');
-            qText.value = q.text;
-            qText.oninput = (e) => {
-                q.text = e.target.value;
-                examManager.autoExpand(e.target);
-            };
-            // Initial expand for loaded exams
-            setTimeout(() => examManager.autoExpand(qText), 0);
+            // Mount Fabric.js Word Processor canvas
+            const wpMount = qEl.querySelector('.wp-mount-point');
+            if (wpMount && typeof FabricWordProcessor !== 'undefined') {
+                // Defer canvas init until element is fully in DOM and rendered
+                setTimeout(() => {
+                    // Default height is 150px, auto-expands with content
+                    const wpInstance = FabricWordProcessor.create(wpMount, q.id);
+                    if (q.canvasJSON) {
+                        // Load saved canvas state (preserves formatting)
+                        wpInstance.loadJSON(q.canvasJSON);
+                    } else if (q.text && q.text.trim() && q.text !== '[Canvas Content]') {
+                        // Auto-populate canvas with plain text (e.g., from bulk import)
+                        wpInstance.addTextbox(q.text, false);
+                    }
+                }, 200);
+            }
 
             const typeSelect = qEl.querySelector('.q-type');
             typeSelect.value = q.type;
@@ -780,9 +800,11 @@ const examManager = {
                 mediaHtml += `</div>`;
                 mediaSection.innerHTML = mediaHtml;
 
-                // Insert before question text container
-                const qTextEl = qEl.querySelector('.q-text').parentNode;
-                qTextEl.parentNode.insertBefore(mediaSection, qTextEl);
+                // Insert before question content container
+                const wpMountForMedia = qEl.querySelector('.wp-mount-point');
+                if (wpMountForMedia && wpMountForMedia.parentNode) {
+                    wpMountForMedia.parentNode.insertBefore(mediaSection, wpMountForMedia);
+                }
             } else if (q.type !== 'image_multi') {
                 // No media attached - show "Add Media" button (except for Picture Comprehension which has its own image upload)
                 const addMediaSection = document.createElement('div');
@@ -793,9 +815,11 @@ const examManager = {
                     </button>
                 `;
 
-                // Insert before question text container
-                const qTextEl = qEl.querySelector('.q-text').parentNode;
-                qTextEl.parentNode.insertBefore(addMediaSection, qTextEl);
+                // Insert before question content container
+                const wpMountEl = qEl.querySelector('.wp-mount-point');
+                if (wpMountEl && wpMountEl.parentNode) {
+                    wpMountEl.parentNode.insertBefore(addMediaSection, wpMountEl);
+                }
             }
 
             // Render Options based on Type
@@ -1083,12 +1107,29 @@ const examManager = {
         const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
         const theoryInstructions = theoryInstructionsInput ? theoryInstructionsInput.value : '';
 
+        // Harvest canvas data from all Fabric.js word processor instances
+        for (const q of examManager.questions) {
+            const wpInstance = typeof FabricWordProcessor !== 'undefined' ? FabricWordProcessor.getInstance(q.id) : null;
+            if (wpInstance) {
+                if (!wpInstance.isEmpty()) {
+                    q.canvasImage = wpInstance.getImage();
+                    q.canvasJSON = wpInstance.getJSON();
+                    // Extract plain text from canvas text objects for backward compat
+                    q.text = wpInstance.getPlainText() || '[Canvas Content]';
+                } else {
+                    q.canvasImage = null;
+                    q.canvasJSON = null;
+                    q.text = '';
+                }
+            }
+        }
+
         // Validate Questions
         let valid = true;
         for (let i = 0; i < examManager.questions.length; i++) {
             const q = examManager.questions[i];
-            if (!q.text.trim()) {
-                await Utils.showAlert('Validation Error', `Question ${i + 1} is missing text.`);
+            if (!q.canvasImage && !q.text.trim()) {
+                await Utils.showAlert('Validation Error', `Question ${i + 1} is missing content. Please add text or drawings to the canvas.`);
                 valid = false;
                 break;
             }
