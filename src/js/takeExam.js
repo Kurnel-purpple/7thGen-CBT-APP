@@ -536,67 +536,19 @@ const takeExam = {
         }
     },
 
-    // Render read-only Fabric canvases for student exam view
+    // Render read-only Tiptap content for student exam view
     renderReadOnlyCanvases: () => {
-        if (typeof fabric === 'undefined') return;
+        if (!window.TiptapRenderer) return;
 
         document.querySelectorAll('.readonly-canvas-mount').forEach(mount => {
             try {
                 const jsonStr = mount.getAttribute('data-canvas-json');
                 if (!jsonStr) return;
                 const json = JSON.parse(jsonStr);
-
-                // Create canvas element
-                const canvasEl = document.createElement('canvas');
-                mount.innerHTML = '';
-                mount.appendChild(canvasEl);
-
-                // Get the available container width
-                const containerWidth = mount.clientWidth || mount.parentElement.clientWidth || 300;
-
-                // Use StaticCanvas - completely read-only, no interaction
-                const canvas = new fabric.StaticCanvas(canvasEl, {
-                    width: containerWidth,
-                    height: 150,
-                    backgroundColor: '#ffffff',
-                });
-
-                const onComplete = () => {
-                    // Constrain any Textbox to canvas width so text wraps instead of shrinking
-                    canvas.getObjects().forEach(obj => {
-                        if (obj.type === 'textbox') {
-                            const maxW = containerWidth - obj.left - 10;
-                            if (obj.width > maxW && maxW > 50) {
-                                obj.set('width', maxW);
-                            }
-                        }
-                    });
-
-                    // Auto-fit height to content
-                    const objects = canvas.getObjects();
-                    if (objects.length > 0) {
-                        let maxBottom = 0;
-                        objects.forEach(o => {
-                            const b = o.getBoundingRect();
-                            if (b.top + b.height > maxBottom) maxBottom = b.top + b.height;
-                        });
-                        const fitHeight = Math.max(maxBottom + 20, 60);
-                        canvas.setDimensions({ height: fitHeight });
-                    }
-                    canvas.renderAll();
-                };
-
-                const onError = (err) => {
-                    console.warn('Failed to load canvas JSON:', err);
-                    mount.innerHTML = '<p style="padding: 10px; color: var(--light-text);">Could not render question content</p>';
-                };
-
-                const res = canvas.loadFromJSON(json, onComplete);
-                if (res && typeof res.then === 'function') {
-                    res.then(onComplete).catch(onError);
-                }
+                window.TiptapRenderer.renderJSON(mount, json);
             } catch (e) {
-                console.warn('Error rendering canvas:', e);
+                console.warn('Error rendering question content:', e);
+                mount.innerHTML = '<p style="padding: 10px; color: var(--light-text);">Could not render question content</p>';
             }
         });
     },

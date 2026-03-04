@@ -502,23 +502,22 @@ const examManager = {
 
     openImportModal: () => {
         document.getElementById('import-modal').style.display = 'block';
-        // Initialize Fabric.js canvas for import modal with auto-text and taller height
+        document.body.classList.add('import-modal-open');
+        // Initialize Tiptap editor for import modal
         const mountEl = document.getElementById('import-canvas-mount');
-        if (mountEl && typeof FabricWordProcessor !== 'undefined') {
+        if (mountEl && window.TiptapEditor) {
             setTimeout(() => {
-                examManager.importCanvasInstance = FabricWordProcessor.create(mountEl, 'bulk-import', {
-                    height: 450,
-                    autoText: true  // Auto-create a Textbox ready for typing/pasting
-                });
+                examManager.importCanvasInstance = window.TiptapEditor.create(mountEl, 'bulk-import');
             }, 100);
         }
     },
 
     closeImportModal: () => {
         document.getElementById('import-modal').style.display = 'none';
-        // Destroy canvas instance
+        document.body.classList.remove('import-modal-open');
+        // Destroy editor instance
         if (examManager.importCanvasInstance) {
-            FabricWordProcessor.destroyInstance('bulk-import');
+            window.TiptapEditor.destroyInstance('bulk-import');
             examManager.importCanvasInstance = null;
         }
         // Clear the mount point
@@ -530,17 +529,17 @@ const examManager = {
     },
 
     processBulkImport: async () => {
-        // Get text content from Fabric.js canvas text objects
+        // Get text content from the Tiptap editor
         const wp = examManager.importCanvasInstance;
         if (!wp || wp.isEmpty()) {
-            await Utils.showAlert('Empty Canvas', 'Please add some content to the canvas. Use the Text tool (T) to type or paste your questions.');
+            await Utils.showAlert('Empty Editor', 'Please type or paste your questions into the editor above.');
             return;
         }
 
-        // Extract plain text from all text objects on the canvas
+        // Extract plain text from the editor
         const text = wp.getPlainText();
         if (!text.trim()) {
-            await Utils.showAlert('No Text Found', 'No text content found on the canvas. Use the Text tool (T) to add question text.');
+            await Utils.showAlert('No Text Found', 'No text content found. Please type or paste your questions into the editor.');
             return;
         }
 
@@ -671,10 +670,10 @@ const examManager = {
     },
 
     renderQuestions: () => {
-        // Preserve canvas state from all active Fabric.js instances before destroying DOM
-        if (typeof FabricWordProcessor !== 'undefined') {
+        // Preserve editor state from all active Tiptap instances before destroying DOM
+        if (window.TiptapEditor) {
             examManager.questions.forEach(q => {
-                const wpInstance = FabricWordProcessor.getInstance(q.id);
+                const wpInstance = window.TiptapEditor.getInstance(q.id);
                 if (wpInstance && !wpInstance.isEmpty()) {
                     q.canvasJSON = wpInstance.getJSON();
                     q.canvasImage = wpInstance.getImage();
@@ -682,7 +681,7 @@ const examManager = {
                     q.text = wpInstance.getPlainText() || '[Canvas Content]';
                 }
                 // Destroy the old instance before re-render
-                FabricWordProcessor.destroyInstance(q.id);
+                window.TiptapEditor.destroyInstance(q.id);
             });
         }
         const container = document.getElementById('questions-container');
@@ -741,18 +740,17 @@ const examManager = {
 
             // Set values
             const qEl = div.firstElementChild;
-            // Mount Fabric.js Word Processor canvas
+            // Mount Tiptap editor
             const wpMount = qEl.querySelector('.wp-mount-point');
-            if (wpMount && typeof FabricWordProcessor !== 'undefined') {
-                // Defer canvas init until element is fully in DOM and rendered
+            if (wpMount && window.TiptapEditor) {
+                // Defer init until element is fully in DOM and rendered
                 setTimeout(() => {
-                    // Default height is 150px, auto-expands with content
-                    const wpInstance = FabricWordProcessor.create(wpMount, q.id);
+                    const wpInstance = window.TiptapEditor.create(wpMount, q.id);
                     if (q.canvasJSON) {
-                        // Load saved canvas state (preserves formatting)
+                        // Load saved editor state (preserves formatting and shapes)
                         wpInstance.loadJSON(q.canvasJSON);
                     } else if (q.text && q.text.trim() && q.text !== '[Canvas Content]') {
-                        // Auto-populate canvas with plain text (e.g., from bulk import)
+                        // Auto-populate with plain text (e.g., from bulk import)
                         wpInstance.addTextbox(q.text, false);
                     }
                 }, 200);
@@ -1107,19 +1105,18 @@ const examManager = {
         const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
         const theoryInstructions = theoryInstructionsInput ? theoryInstructionsInput.value : '';
 
-        // Harvest canvas data from all Fabric.js word processor instances
+        // Harvest editor data from all Tiptap instances
         for (const q of examManager.questions) {
-            const wpInstance = typeof FabricWordProcessor !== 'undefined' ? FabricWordProcessor.getInstance(q.id) : null;
+            const wpInstance = window.TiptapEditor ? window.TiptapEditor.getInstance(q.id) : null;
             if (wpInstance) {
                 if (!wpInstance.isEmpty()) {
-                    q.canvasImage = wpInstance.getImage();
-                    q.canvasJSON = wpInstance.getJSON();
-                    // Extract plain text from canvas text objects for backward compat
-                    q.text = wpInstance.getPlainText() || '[Canvas Content]';
+                    q.canvasImage = wpInstance.getImage(); // returns null — canvasJSON is the source of truth
+                    q.canvasJSON  = wpInstance.getJSON();
+                    q.text        = wpInstance.getPlainText() || '[Canvas Content]';
                 } else {
                     q.canvasImage = null;
-                    q.canvasJSON = null;
-                    q.text = '';
+                    q.canvasJSON  = null;
+                    q.text        = '';
                 }
             }
         }
@@ -1128,8 +1125,8 @@ const examManager = {
         let valid = true;
         for (let i = 0; i < examManager.questions.length; i++) {
             const q = examManager.questions[i];
-            if (!q.canvasImage && !q.text.trim()) {
-                await Utils.showAlert('Validation Error', `Question ${i + 1} is missing content. Please add text or drawings to the canvas.`);
+            if (!q.canvasJSON && !q.canvasImage && !q.text.trim()) {
+                await Utils.showAlert('Validation Error', `Question ${i + 1} is missing content. Please add text or shapes to the editor.`);
                 valid = false;
                 break;
             }

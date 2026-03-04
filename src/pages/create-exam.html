@@ -9,9 +9,8 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
-    <!-- Fabric.js Canvas Library (CDN with local fallback for Electron) -->
-    <script src="https://cdn.jsdelivr.net/npm/fabric@7/dist/index.min.js"></script>
-    <script>if (typeof fabric === 'undefined') { document.write('<script src="../../node_modules/fabric/dist/index.js"><\/script>'); }</script>
+    <!-- Tiptap editor loaded as ES module — sets window.TiptapEditor before DOMContentLoaded -->
+    <script type="module" src="../js/tiptapEditor.js"></script>
     <!-- Quill.js Rich Text Editor -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
@@ -239,27 +238,15 @@
             }
         }
 
-        /* Quill Editor Styles */
-        #import-editor {
-            height: 300px;
-            background: white;
-            border-radius: 6px;
-        }
+        /* Bulk Import Modal — collapsible instructions arrow */
+        #import-instructions-panel > summary::-webkit-details-marker { display: none; }
+        #import-instructions-panel > summary::marker { display: none; }
+        #import-instructions-panel[open] > summary .import-toggle-icon { transform: rotate(90deg); }
 
-        .ql-editor {
-            min-height: 250px;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .ql-toolbar {
-            border-radius: 6px 6px 0 0;
-            background: #f8f9fa;
-        }
-
-        .ql-container {
-            border-radius: 0 0 6px 6px;
-        }
+        /* Bulk Import Modal — editor fills available height */
+        #import-canvas-mount .wp-container { height: 100%; display: flex; flex-direction: column; }
+        #import-canvas-mount .wp-editor-wrapper { flex: 1; }
+        #import-canvas-mount .wp-editor-wrapper .ProseMirror { min-height: 280px; }
 
         /* Mobile specific overrides inside style tag to ensure specificity */
         @media (max-width: 600px) {
@@ -372,6 +359,25 @@
                 right: 15px;
                 width: 45px;
                 height: 45px;
+            }
+
+            /* When bulk import modal is open: move sticky actions to top so they don't cover the editor */
+            body.import-modal-open .sticky-actions {
+                bottom: auto;
+                top: 8px;
+                left: 0;
+                right: 0;
+                width: 100%;
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                padding: 0 12px;
+                z-index: 1100;
+            }
+
+            body.import-modal-open .scroll-action-btn {
+                display: none;
             }
         }
     </style>
@@ -594,28 +600,40 @@
 
     <!-- Bulk Import Modal -->
     <div id="import-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 760px; width: 94%; margin: 3% auto; display: flex; flex-direction: column; max-height: 90vh;">
             <div class="modal-header">
                 <h3>Bulk Import Questions</h3>
                 <span class="close-btn" onclick="examManager.closeImportModal()">&times;</span>
             </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light-text);">
-                    Create your question content below using the canvas editor. Add text, shapes, images, and
-                    drawings.<br>
-                    <em>Use the Text tool (T) to add typed content. You can also draw diagrams and upload
-                        images.</em>
-                </p>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label for="import-points" style="font-weight: 600;">Points per Question (Objective Only)</label>
-                    <input type="number" id="import-points" class="form-control" value="0.5" min="0" step="0.5"
-                        style="width: 100px;">
-                    <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 5px;">
-                        Applies to objective questions only. Theory questions will automatically get 0 points.
-                    </p>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 0;">
+
+                <!-- Collapsible instructions -->
+                <details id="import-instructions-panel">
+                    <summary style="cursor: pointer; user-select: none; font-size: 0.88rem; color: var(--primary-color); font-weight: 600; padding: 4px 0; list-style: none; display: flex; align-items: center; gap: 6px;">
+                        <span class="import-toggle-icon" style="display: inline-block; transition: transform .2s; font-size: 0.75rem;">▶</span>
+                        Instructions &amp; Format Guide
+                    </summary>
+                    <div style="margin-top: 8px; font-size: 0.85rem; color: var(--light-text); padding: 10px 12px; background: var(--inner-bg); border-radius: 6px; border-left: 3px solid var(--primary-color);">
+                        <p style="margin: 0 0 6px;">Type or paste your questions below. Separate each question block with a <strong>blank line</strong>.</p>
+                        <strong>Objective (MCQ):</strong>
+                        <pre style="font-size: 0.78rem; margin: 4px 0 8px; background: var(--card-bg); padding: 6px 8px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap;">What is 2 + 2?
+(a) 3
+(b) 4
+(c) 5</pre>
+                        <strong>Theory:</strong>
+                        <pre style="font-size: 0.78rem; margin: 4px 0 8px; background: var(--card-bg); padding: 6px 8px; border-radius: 4px; white-space: pre-wrap;">Describe the process of photosynthesis.</pre>
+                        <p style="margin: 0; font-size: 0.8rem;"><em>Add <strong>THEORY</strong> on its own line to mark all following questions as theory.</em></p>
+                    </div>
+                </details>
+
+                <!-- Points per question (always visible) -->
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <label for="import-points" style="font-weight: 600; margin: 0; white-space: nowrap; font-size: 0.9rem;">Points per Question (Objective):</label>
+                    <input type="number" id="import-points" class="form-control" value="0.5" min="0" step="0.5" style="width: 90px; margin: 0;">
                 </div>
-                <!-- Fabric.js Canvas Editor for Import -->
-                <div id="import-canvas-mount"></div>
+
+                <!-- Tiptap editor — expands to fill remaining modal height -->
+                <div id="import-canvas-mount" style="flex: 1; min-height: 320px;"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn" onclick="examManager.closeImportModal()">Cancel</button>
@@ -928,7 +946,6 @@
         }
     </script>
     <script src="../js/examManager.js"></script>
-    <script src="../js/fabricWordProcessor.js"></script>
     <script>
         // Mobile Menu and Theme Logic
         document.addEventListener('DOMContentLoaded', () => {
