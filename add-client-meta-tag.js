@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Get client ID from command line or use default
-const clientId = process.argv[2] || 'seatos';
+const clientId = process.argv[2] || 'default';
 
 console.log(`📝 Adding client-id="${clientId}" to all HTML pages...`);
 
