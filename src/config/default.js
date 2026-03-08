@@ -6,8 +6,8 @@
 export const defaultConfig = {
     // Client Information
     client: {
-        name: "CBT Exam Software",
-        shortName: "Gen7 CBT",
+        name: "GEN7 CBT",
+        shortName: "GEN7 CBT",
         logo: "assets/drop.png", // Path to logo image
         favicon: "assets/icon.png"
     },
