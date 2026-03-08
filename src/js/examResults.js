@@ -291,7 +291,7 @@ const examResults = {
                             ${hasAppTheory ? '<span title="Theory already graded in app" style="font-size:0.75rem; color:var(--success-color);">✓ App</span>' : ''}
                         </div>
                     </td>
-                    <td style="font-weight:bold; color:var(--primary-color);">${percentage}% (${effectivePoints.toFixed(1)}/${r.totalPoints.toFixed(1)})</td>
+                    <td style="font-weight:bold; color:var(--primary-color);">${effectivePoints.toFixed(1)}/${r.totalPoints.toFixed(1)}</td>
                     <td>
                         <span class="score-pill ${isPassed ? 'pass' : 'fail'}">
                             ${isPassed ? 'PASS' : 'FAIL'}
@@ -310,7 +310,7 @@ const examResults = {
                 <tr>
                     <td>${r.studentName}</td>
                     <td>${Utils.formatDate(r.submittedAt)}</td>
-                    <td style="font-weight:bold;">${percentage}% (${effectivePoints.toFixed(1)}/${r.totalPoints.toFixed(1)})</td>
+                    <td style="font-weight:bold;">${effectivePoints.toFixed(1)}/${r.totalPoints.toFixed(1)}</td>
                     <td>
                         <span class="score-pill ${isPassed ? 'pass' : 'fail'}">
                             ${isPassed ? 'PASS' : 'FAIL'}
@@ -393,11 +393,7 @@ const examResults = {
                     ` : ''}
                     <div class="result-card-row">
                         <span class="result-card-label">${hasTheory ? 'Total Score' : 'Score'}</span>
-                        <span class="result-card-value" style="font-weight: bold;">${percentage}%</span>
-                    </div>
-                    <div class="result-card-row">
-                        <span class="result-card-label">Points</span>
-                        <span class="result-card-value">${effectivePoints.toFixed(1)} / ${r.totalPoints.toFixed(1)}</span>
+                        <span class="result-card-value" style="font-weight: bold;">${effectivePoints.toFixed(1)} / ${r.totalPoints.toFixed(1)}</span>
                     </div>
                     ${theoryInputHtml}
                 </div>

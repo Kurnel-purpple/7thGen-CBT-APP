@@ -634,6 +634,11 @@
 
                 <!-- Tiptap editor — expands to fill remaining modal height -->
                 <div id="import-canvas-mount" style="flex: 1; min-height: 320px;"></div>
+
+                <!-- Fallback textarea — shown only if Tiptap editor fails to load -->
+                <textarea id="import-textarea"
+                    placeholder="Tiptap editor unavailable. Paste your questions here instead..."
+                    style="display: none; flex: 1; min-height: 320px; width: 100%; resize: vertical; padding: 12px 14px; font-size: 14px; font-family: monospace; border: 1px solid var(--border-color, #ddd); border-radius: 8px; background: var(--card-bg, #fff); color: var(--text-color, #222); box-sizing: border-box; line-height: 1.6;"></textarea>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn" onclick="examManager.closeImportModal()">Cancel</button>
@@ -945,6 +950,7 @@
             });
         }
     </script>
+    <script src="../js/bulkImportParser.js"></script>
     <script src="../js/examManager.js"></script>
     <script>
         // Mobile Menu and Theme Logic

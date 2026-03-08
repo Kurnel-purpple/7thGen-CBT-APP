@@ -503,43 +503,54 @@ const examManager = {
     openImportModal: () => {
         document.getElementById('import-modal').style.display = 'block';
         document.body.classList.add('import-modal-open');
-        // Initialize Tiptap editor for import modal
+        // Reset both editor and fallback textarea to a clean state
         const mountEl = document.getElementById('import-canvas-mount');
-        if (mountEl && window.TiptapEditor) {
-            setTimeout(() => {
+        const ta = document.getElementById('import-textarea');
+        if (mountEl) { mountEl.style.display = ''; mountEl.innerHTML = ''; }
+        if (ta) { ta.style.display = 'none'; ta.value = ''; }
+        // Retry until TiptapEditor is ready — CDN module may still be loading on first open.
+        // If all retries fail, reveal the textarea as a fallback.
+        function tryInitEditor(attemptsLeft) {
+            if (mountEl && window.TiptapEditor) {
                 examManager.importCanvasInstance = window.TiptapEditor.create(mountEl, 'bulk-import');
-            }, 100);
+            } else if (attemptsLeft > 0) {
+                setTimeout(() => tryInitEditor(attemptsLeft - 1), 300);
+            } else {
+                // Tiptap failed to load — show plain textarea fallback
+                if (mountEl) mountEl.style.display = 'none';
+                if (ta) { ta.style.display = 'block'; ta.focus(); }
+            }
         }
+        setTimeout(() => tryInitEditor(10), 100); // retries every 300ms, up to ~3s
     },
 
     closeImportModal: () => {
         document.getElementById('import-modal').style.display = 'none';
         document.body.classList.remove('import-modal-open');
-        // Destroy editor instance
         if (examManager.importCanvasInstance) {
             window.TiptapEditor.destroyInstance('bulk-import');
             examManager.importCanvasInstance = null;
         }
-        // Clear the mount point
         const mountEl = document.getElementById('import-canvas-mount');
-        if (mountEl) mountEl.innerHTML = '';
-        // Reset import points to default
+        if (mountEl) { mountEl.innerHTML = ''; mountEl.style.display = ''; }
+        const ta = document.getElementById('import-textarea');
+        if (ta) { ta.value = ''; ta.style.display = 'none'; }
         const importPointsInput = document.getElementById('import-points');
         if (importPointsInput) importPointsInput.value = '0.5';
     },
 
     processBulkImport: async () => {
-        // Get text content from the Tiptap editor
+        // Get text from Tiptap editor if available, otherwise fallback textarea
+        let text = '';
         const wp = examManager.importCanvasInstance;
-        if (!wp || wp.isEmpty()) {
-            await Utils.showAlert('Empty Editor', 'Please type or paste your questions into the editor above.');
-            return;
+        if (wp && !wp.isEmpty()) {
+            text = wp.getPlainText();
+        } else {
+            const ta = document.getElementById('import-textarea');
+            if (ta && ta.style.display !== 'none') text = ta.value;
         }
-
-        // Extract plain text from the editor
-        const text = wp.getPlainText();
-        if (!text.trim()) {
-            await Utils.showAlert('No Text Found', 'No text content found. Please type or paste your questions into the editor.');
+        if (!text || !text.trim()) {
+            await Utils.showAlert('Empty Editor', 'Please type or paste your questions into the editor above.');
             return;
         }
 
@@ -547,116 +558,43 @@ const examManager = {
         const importPointsInput = document.getElementById('import-points');
         const importPoints = importPointsInput ? parseFloat(importPointsInput.value) || 0.5 : 0.5;
 
-        // ===== Enhanced text-parsing logic =====
-        // First try splitting by double newlines (standard format)
-        let blocks = text.split(/\n\s*\n/);
-
-        // If only 1 block found, try splitting by numbered lines (e.g., "1.", "2)", "3.")
-        // This handles pasted text where questions are separated by single newlines with numbers
-        if (blocks.length <= 1) {
-            const numberedSplit = text.split(/\n(?=\s*\d+[\.\)]\s)/);
-            if (numberedSplit.length > 1) {
-                blocks = numberedSplit;
-            }
+        // ===== BulkImportParser-based parsing =====
+        if (!window.BulkImportParser) {
+            await Utils.showAlert('Parser Error', 'Bulk import parser not loaded. Please refresh the page.');
+            return;
         }
+
+        const parsed = window.BulkImportParser.parse(text);
         let addedCount = 0;
-        let forceTheoryMode = false;
 
-        blocks.forEach(block => {
-            block = block.trim();
-            if (!block) return;
-
-            // Check if this block is the THEORY marker
-            if (/^\s*[-=]*\s*THEORY\s*[-=:]*\s*$/i.test(block) && block.toUpperCase().includes('THEORY')) {
-                const theoryLine = block.replace(/[-=:\s]/g, '');
-                if (theoryLine === 'THEORY') {
-                    forceTheoryMode = true;
-                    console.log('📝 THEORY marker detected - subsequent questions will be theory type');
-                    return;
-                }
-            }
-
-            const lines = block.split('\n');
-            let qText = '';
-            let options = [];
-
-            // STRATEGY 1: Inline Options
-            const inlineMarkerRegex = /(\([a-dA-D]\))\s/g;
-            const joined = lines.join(' ');
-            const markersFound = joined.match(inlineMarkerRegex);
-
-            if (markersFound && markersFound.length >= 2) {
-                const parts = joined.split(/(\([a-dA-D]\)\s)/);
-                qText = parts[0].trim();
-
-                for (let i = 1; i < parts.length; i += 2) {
-                    let content = parts[i + 1];
-                    if (content) {
-                        content = content.trim();
-                        options.push({
-                            id: Utils.generateId(),
-                            text: content,
-                            isCorrect: false
-                        });
-                    }
-                }
-            } else {
-                // STRATEGY 2: Multiline Parsing
-                const strictOptRegex = /^\s*\(?([a-zA-Z])[\)\.]\s+(.+)$/;
-                let qLines = [];
-
-                lines.forEach(line => {
-                    const match = line.match(strictOptRegex);
-                    if (match) {
-                        options.push({
-                            id: Utils.generateId(),
-                            text: match[2].trim(),
-                            isCorrect: false
-                        });
-                    } else {
-                        if (options.length === 0) {
-                            const clean = line.replace(/^\d+[\.)\]]\s+/, '');
-                            qLines.push(clean.trim());
-                        }
-                    }
+        parsed.forEach(q => {
+            if (q.type === 'objective' && q.options && q.options.length > 0) {
+                // Convert parser options (no id/isCorrect) to app format
+                const appOptions = q.options.map(opt => ({
+                    id: Utils.generateId(),
+                    text: opt.text,
+                    isCorrect: false
+                }));
+                examManager.questions.push({
+                    id: Utils.generateId(),
+                    type: 'mcq',
+                    text: q.text,
+                    canvasJSON: null,
+                    canvasImage: null,
+                    options: appOptions,
+                    points: importPoints
                 });
-                qText = qLines.join(' ');
-            }
-
-            // Create question based on whether options were found
-            if (qText) {
-                if (forceTheoryMode) {
-                    examManager.questions.push({
-                        id: Utils.generateId(),
-                        type: 'theory',
-                        text: qText,
-                        canvasJSON: null,
-                        canvasImage: null,
-                        points: 0
-                    });
-                    addedCount++;
-                } else if (options.length > 0) {
-                    examManager.questions.push({
-                        id: Utils.generateId(),
-                        type: 'mcq',
-                        text: qText,
-                        canvasJSON: null,
-                        canvasImage: null,
-                        options: options,
-                        points: importPoints
-                    });
-                    addedCount++;
-                } else {
-                    examManager.questions.push({
-                        id: Utils.generateId(),
-                        type: 'theory',
-                        text: qText,
-                        canvasJSON: null,
-                        canvasImage: null,
-                        points: 0
-                    });
-                    addedCount++;
-                }
+                addedCount++;
+            } else if (q.type === 'theory' && q.text.trim()) {
+                examManager.questions.push({
+                    id: Utils.generateId(),
+                    type: 'theory',
+                    text: q.text,
+                    canvasJSON: null,
+                    canvasImage: null,
+                    points: importPoints
+                });
+                addedCount++;
             }
         });
 
@@ -665,7 +603,7 @@ const examManager = {
             examManager.closeImportModal();
             await Utils.showAlert('Success', `Successfully imported ${addedCount} questions.`);
         } else {
-            await Utils.showAlert('Import Error', 'Could not detect any valid questions from the text on the canvas.\n\nSupported formats:\n1. Objective Questions (with options):\n   Question text\n   (a) Option 1\n   (b) Option 2\n\n2. Theory Questions (without options):\n   Question text only\n\n3. Inline format:\n   Question... (A) Opt1 (B) Opt2');
+            await Utils.showAlert('Import Error', 'Could not detect any valid questions.\n\nSupported formats:\n\nObjective (with options):\n1. Question text\n   (a) Option 1\n   (b) Option 2\n\n   or inline: 1. Question (a) opt1 (b) opt2\n\nTheory (no options):\n1. Question text\n   a. Sub-question\n   b. Sub-question\n      i. Detail\n      ii. Detail');
         }
     },
 
