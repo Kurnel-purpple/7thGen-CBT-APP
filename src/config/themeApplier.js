@@ -29,6 +29,7 @@ class ThemeApplier {
         this.applyFavicon();
 
         console.log('🎨 Theme applied successfully');
+        window.__appConfig = this.config;
     }
 
     /**

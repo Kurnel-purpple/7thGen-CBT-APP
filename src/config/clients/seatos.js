@@ -9,7 +9,8 @@ export const clientConfig = {
         name: "SEATOS SCHOOLS",
         shortName: "SEATOS",
         logo: "assets/clients/seatos/seatos-logo.jpeg",
-        favicon: "assets/clients/seatos/favicon.png"
+        favicon: "assets/clients/seatos/favicon.png",
+        releaseFilter: 'seatos'  // finds latest release tagged with 'seatos' (e.g. v1.3.4-seatos)
     },
 
     // Branding & Theme

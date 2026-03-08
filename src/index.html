@@ -259,7 +259,7 @@
             return 'unknown';
         }
 
-        const GITHUB_API = 'https://api.github.com/repos/Kurnel-purpple/7thGen-CBT-APP/releases/latest';
+        const GITHUB_RELEASES_BASE = 'https://api.github.com/repos/Kurnel-purpple/7thGen-CBT-APP/releases';
         const RELEASES_FALLBACK = 'https://github.com/Kurnel-purpple/7thGen-CBT-APP/releases/latest';
 
         const PLATFORM_CONFIG = {
@@ -312,10 +312,25 @@
             if (resolvedDownloadUrls) return resolvedDownloadUrls;
 
             try {
-                const resp = await fetch(GITHUB_API);
-                if (!resp.ok) throw new Error('API error');
-                const data = await resp.json();
-                resolvedDownloadUrls = (data.assets || []).map(a => ({
+                const releaseFilter = window.__appConfig?.client?.releaseFilter || null;
+
+                let assets;
+                if (!releaseFilter) {
+                    // Default: fetch the single latest release
+                    const resp = await fetch(GITHUB_RELEASES_BASE + '/latest');
+                    if (!resp.ok) throw new Error('API error');
+                    const data = await resp.json();
+                    assets = data.assets || [];
+                } else {
+                    // Client-specific: fetch releases list and find latest matching tag
+                    const resp = await fetch(GITHUB_RELEASES_BASE + '?per_page=20');
+                    if (!resp.ok) throw new Error('API error');
+                    const releases = await resp.json();
+                    const match = releases.find(r => r.tag_name.includes(releaseFilter));
+                    assets = match ? (match.assets || []) : [];
+                }
+
+                resolvedDownloadUrls = assets.map(a => ({
                     name: a.name,
                     url: a.browser_download_url
                 }));

@@ -9,7 +9,8 @@ export const defaultConfig = {
         name: "GEN7 CBT",
         shortName: "GEN7 CBT",
         logo: "assets/drop.png", // Path to logo image
-        favicon: "assets/icon.png"
+        favicon: "assets/icon.png",
+        releaseFilter: null  // null = use /releases/latest (main build)
     },
 
     // Branding & Theme
