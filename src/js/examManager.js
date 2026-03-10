@@ -3,11 +3,15 @@
  * Handles creation and editing of exams
  */
 
+// HTML escape helper (Utils has no escapeHtml method)
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const examManager = {
     questions: [],
     uploadedMedia: [], // Store uploaded images/diagrams
 
     currentExamId: null,
+
 
     // ========== MEDIA MANAGEMENT ==========
 
@@ -411,6 +415,7 @@ const examManager = {
                 }
             });
 
+            examManager.renderInstructionsList();
             examManager.renderQuestions();
         } catch (err) {
             console.error(err);
@@ -500,7 +505,16 @@ const examManager = {
         }
     },
 
-    openImportModal: () => {
+    openImportModal: async () => {
+        // Warn teacher if they're editing an already-saved exam
+        if (examManager.currentExamId) {
+            const examTitle = document.getElementById('exam-title')?.value || 'this exam';
+            const proceed = await Utils.showConfirm(
+                'Adding to Existing Exam',
+                `You are in edit mode for "${examTitle}".\n\nImported questions will be added to this exam. Do you want to continue?`
+            );
+            if (!proceed) return;
+        }
         document.getElementById('import-modal').style.display = 'block';
         document.body.classList.add('import-modal-open');
         // Reset both editor and fallback textarea to a clean state
@@ -538,6 +552,80 @@ const examManager = {
         const importPointsInput = document.getElementById('import-points');
         if (importPointsInput) importPointsInput.value = '0.5';
     },
+
+    // ========== INSTRUCTION MANAGEMENT ==========
+    // Instructions are stored as q.topInstruction on the question object itself,
+    // so they travel with the questions array through PocketBase without needing
+    // a separate DB field.
+
+    // Helper: returns sorted questions array (objective first, then theory)
+    _getSortedQuestions: () => {
+        const obj = examManager.questions.filter(q => q.type !== 'theory');
+        const th = examManager.questions.filter(q => q.type === 'theory');
+        return [...obj, ...th];
+    },
+
+    addInstruction: async () => {
+        const textEl = document.getElementById('instruction-text-input');
+        const fromEl = document.getElementById('instruction-from-input');
+        const toEl   = document.getElementById('instruction-to-input');
+        const text   = textEl?.value.trim();
+        const fromQ  = parseInt(fromEl?.value, 10);
+        const toRaw  = toEl?.value.trim();
+        const toQ    = toRaw ? parseInt(toRaw, 10) : fromQ;
+
+        const sortedQs = examManager._getSortedQuestions();
+        const totalQ   = sortedQs.length;
+
+        if (!text) {
+            await Utils.showAlert('Missing Text', 'Please enter an instruction text.');
+            return;
+        }
+        if (!fromQ || fromQ < 1 || fromQ > totalQ) {
+            await Utils.showAlert('Invalid Question #', `"From" must be between 1 and ${totalQ || '?'}.`);
+            return;
+        }
+        if (toQ < fromQ || toQ > totalQ) {
+            await Utils.showAlert('Invalid Range', `"To" must be between ${fromQ} and ${totalQ}.`);
+            return;
+        }
+
+        // Apply instruction to each question in the range
+        for (let n = fromQ; n <= toQ; n++) {
+            sortedQs[n - 1].topInstruction = text;
+        }
+
+        if (textEl) textEl.value = '';
+        if (fromEl) fromEl.value = '';
+        if (toEl)   toEl.value   = '';
+        examManager.renderInstructionsList();
+        examManager.renderQuestions();
+    },
+
+    removeInstruction: (qId) => {
+        const q = examManager.questions.find(q => q.id === qId);
+        if (q) delete q.topInstruction;
+        examManager.renderInstructionsList();
+        examManager.renderQuestions();
+    },
+
+    renderInstructionsList: () => {
+        const container = document.getElementById('instructions-list');
+        if (!container) return;
+        const sortedQs = examManager._getSortedQuestions();
+        const withInstr = sortedQs.map((q, i) => ({ q, n: i + 1 })).filter(({ q }) => q.topInstruction);
+        if (withInstr.length === 0) { container.innerHTML = ''; return; }
+        container.innerHTML = withInstr.map(({ q, n }) => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card-bg);border-radius:6px;font-size:0.85rem;border:1px solid var(--border-color);">
+                <span style="font-weight:600;white-space:nowrap;color:var(--primary-color);">Q${n}:</span>
+                <span style="flex:1;font-style:italic;">${escHtml(q.topInstruction)}</span>
+                <button type="button" class="btn" style="padding:2px 10px;font-size:0.78rem;flex-shrink:0;"
+                    onclick="examManager.removeInstruction('${q.id}')">Remove</button>
+            </div>
+        `).join('');
+    },
+
+    // ========== BULK IMPORT ==========
 
     processBulkImport: async () => {
         // Get text from Tiptap editor if available, otherwise fallback textarea
@@ -626,13 +714,16 @@ const examManager = {
         const template = document.getElementById('question-template').innerHTML;
         const noQuestionsMsg = document.getElementById('no-questions-msg');
 
+        const instructionPanel = document.getElementById('instruction-panel');
         if (examManager.questions.length === 0) {
             if (noQuestionsMsg) noQuestionsMsg.style.display = 'block';
+            if (instructionPanel) instructionPanel.style.display = 'none';
             container.innerHTML = '';
             return;
         }
 
         if (noQuestionsMsg) noQuestionsMsg.style.display = 'none';
+        if (instructionPanel) instructionPanel.style.display = 'block';
 
         // Separate objective and theory questions
         const objectiveQuestions = examManager.questions.filter(q => q.type !== 'theory');
@@ -660,6 +751,14 @@ const examManager = {
                 theoryHeader.style.cssText = 'margin: 30px 0 15px 0; padding: 10px; background: var(--inner-bg); border-left: 4px solid var(--accent-color); border-radius: 4px;';
                 theoryHeader.innerHTML = '<h3 style="margin: 0; font-size: 1.1rem; color: var(--accent-color);">Section B: Theory Questions</h3>';
                 container.appendChild(theoryHeader);
+            }
+
+            // Insert instruction banner above this question if one exists (stored on q.topInstruction)
+            if (q.topInstruction) {
+                const bannerEl = document.createElement('div');
+                bannerEl.className = 'question-instruction-banner';
+                bannerEl.innerHTML = `<span style="flex:1;">${escHtml(q.topInstruction)}</span>`;
+                container.appendChild(bannerEl);
             }
 
             let displayNumber = 1;

@@ -347,6 +347,19 @@ const takeExam = {
 
         let htmlContent = '';
 
+        // Show general exam instructions if set by teacher
+        if (takeExam.exam.instructions && takeExam.exam.instructions.trim()) {
+            const escapedInstructions = takeExam.exam.instructions
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            htmlContent += `
+                <div style="margin: 0 0 20px 0; padding: 15px 20px; background: var(--inner-bg); border-left: 4px solid var(--primary-color); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--primary-color); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">General Instructions</h4>
+                    <p style="margin: 0; font-size: 0.9rem; color: var(--text-color); line-height: 1.6;">${escapedInstructions}</p>
+                </div>
+            `;
+        }
+
         // Add section header for objective questions if there are theory questions
         if (objectiveQuestions.length > 0 && theoryQuestions.length > 0) {
             htmlContent += `
@@ -360,11 +373,24 @@ const takeExam = {
         htmlContent += sortedQuestions.map((q, index) => {
             // Add theory section header before first theory question
             let sectionHeader = '';
+
+            // Insert instruction banner if one is set on this question (stored as q.topInstruction)
+            if (q.topInstruction) {
+                sectionHeader += `
+                    <div style="margin: 14px 0 4px; padding: 10px 16px;
+                        background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(251,191,36,0.07));
+                        border-left: 4px solid #f59e0b; border-radius: 6px;
+                        font-style: italic; font-size: 0.88rem; color: var(--text-color);">
+                        ${q.topInstruction.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+                    </div>
+                `;
+            }
+
             if (index === objectiveQuestions.length && theoryQuestions.length > 0) {
                 // Get theory instructions from exam data
                 const theoryInstructions = takeExam.exam.theoryInstructions || 'Provide detailed written answers';
 
-                sectionHeader = `
+                sectionHeader += `
                     <div style="margin: 40px 0 20px 0; padding: 15px; background: var(--inner-bg); border-left: 4px solid var(--accent-color); border-radius: 4px;">
                         <h3 style="margin: 0; font-size: 1.2rem; color: var(--accent-color);">Section B: Theory Questions</h3>
                         <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: var(--light-text);">${theoryInstructions}</p>

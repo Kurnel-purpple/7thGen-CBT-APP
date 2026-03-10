@@ -469,6 +469,23 @@ window.BulkImportParser = (function () {
             text = text.slice(0, splitIdx);
         }
 
+        // ── Step 2b: Auto-number if no numbered markers exist ─────────
+        // Handles mobile/textarea scenario where teachers paste questions
+        // without numbering them. Each blank-line-separated paragraph
+        // becomes one question, numbered 1. 2. 3. etc.
+        if (!/^\s*\d+[a-z]?\.\s+/m.test(text)) {
+            const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+            if (paragraphs.length > 0) {
+                text = paragraphs.map((p, i) => `${i + 1}. ${p}`).join('\n\n');
+            }
+        }
+        if (forceTheorySection && !/^\s*\d+[a-z]?\.\s+/m.test(forceTheorySection)) {
+            const paragraphs = forceTheorySection.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+            if (paragraphs.length > 0) {
+                forceTheorySection = paragraphs.map((p, i) => `${i + 1}. ${p}`).join('\n\n');
+            }
+        }
+
         // ── Step 3: Split into question blocks ────────────────────────
         const normalBlocks = splitIntoBlocks(text);
         const theoryBlocks = forceTheorySection
