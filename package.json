@@ -18,6 +18,7 @@
     "build:all": "electron-builder --win --mac --linux",
     "build:portable": "electron-builder --win portable",
     "release": "electron-builder --win --publish always",
+    "release:client": "node scripts/release-client.js",
     "test": "echo \"No tests configured\" && exit 0",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap sync android && npx cap open android",

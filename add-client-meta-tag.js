@@ -13,6 +13,9 @@ console.log(`📝 Adding client-id="${clientId}" to all HTML pages...`);
 
 // Files to update
 const htmlFiles = [
+    'src/index.html',
+    'src/pages/admin-dashboard.html',
+    'src/pages/student-dashboard.html',
     'src/pages/teacher-dashboard.html',
     'src/pages/register.html',
     'src/pages/create-exam.html',
