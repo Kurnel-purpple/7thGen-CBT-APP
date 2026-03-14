@@ -256,8 +256,12 @@
                 <div>
                     <span class="sidebar-brand-text">Gen7 CBT</span>
                 </div>
-                <button onclick="closeSidebarMobile()" style="background:none; border:none; color:rgba(255,255,255,0.7); font-size:1.4rem; cursor:pointer; padding:4px 8px; display:none;" class="sidebar-close-btn" aria-label="Close menu">✕</button>
+                <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
             </div>
+            <!-- Tablet expand/collapse toggle -->
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Expand sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
 
             <!-- Dark Mode Toggle (icon only, no border/text) -->
             <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
@@ -471,6 +475,17 @@
             // Sync desktop toggle if utils.js created one
             var dToggle = document.getElementById('theme-toggle');
             if (dToggle) dToggle.innerHTML = next === 'dark' ? '☀️' : '🌙';
+        };
+
+        // Tablet Sidebar Expand/Collapse
+        window.toggleTabletSidebar = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            var icon = document.getElementById('sidebar-expand-icon');
+            var expanded = sidebar.classList.toggle('sidebar-expanded');
+            if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+            var polyline = icon ? icon.querySelector('polyline') : null;
+            if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
         };
 
         // Sidebar Profile Dropdown

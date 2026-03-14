@@ -1187,7 +1187,9 @@ body:has(.app-container.no-sidebar) {
     }
 
     .app-sidebar {
-        transform: translateX(-100%);
+        transform: translateX(100%);
+        left: auto;
+        right: 0;
         width: 280px;
         min-width: 280px;
     }
@@ -1209,6 +1211,17 @@ body:has(.app-container.no-sidebar) {
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .mobile-search-input {
+        flex: 1;
+        padding: 8px 14px;
+        border-radius: var(--radius-pill, 50px);
+        border: none;
+        background: var(--inner-bg);
+        color: var(--text-color);
+        font-size: 0.85rem;
+        outline: none;
     }
 
     .desktop-only {
@@ -1233,7 +1246,7 @@ body:has(.app-container.no-sidebar) {
 
     /* Show the close button inside the sidebar on mobile */
     .sidebar-close-btn {
-        display: block !important;
+        display: flex !important;
     }
 
     /* Show mobile Create Exam button */
@@ -1245,14 +1258,32 @@ body:has(.app-container.no-sidebar) {
 /* ============================================================
    RESPONSIVE — TABLET (768px – 1024px)
    ============================================================ */
+
+/* Tablet expand toggle button — hidden everywhere except tablet */
+.sidebar-expand-toggle {
+    display: none;
+}
+
 @media (min-width: 769px) and (max-width: 1024px) {
     .app-sidebar {
-        width: 64px;
-        min-width: 64px;
+        width: 80px;
+        min-width: 80px;
+        transition: width 0.25s ease;
+        overflow: visible;
+        align-items: center;
     }
 
-    .app-sidebar .sidebar-nav-label,
-    .app-sidebar .sidebar-brand-text,
+    /* Brand: center, hide subtitle */
+    .app-sidebar .sidebar-brand {
+        justify-content: center;
+        padding: 16px 8px 8px;
+    }
+
+    .app-sidebar .sidebar-brand-text {
+        font-size: 0.7rem;
+        text-align: center;
+    }
+
     .app-sidebar .sidebar-brand-subtitle,
     .app-sidebar .sidebar-profile-name,
     .app-sidebar .sidebar-profile-role,
@@ -1260,6 +1291,7 @@ body:has(.app-container.no-sidebar) {
         display: none;
     }
 
+    /* CTA button: icon only, centered */
     .app-sidebar .sidebar-cta {
         padding: 10px;
         margin: 0 8px 12px;
@@ -1270,16 +1302,77 @@ body:has(.app-container.no-sidebar) {
         display: none;
     }
 
+    /* Nav: vertical icon + small label layout (Zoom-style) */
+    .app-sidebar .sidebar-nav {
+        padding: 8px 0;
+        align-items: center;
+    }
+
     .app-sidebar .sidebar-nav-item {
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
-        padding: 10px;
+        gap: 3px;
+        padding: 10px 4px;
+        text-align: center;
+        border-radius: 8px;
+        width: auto;
+        min-width: 64px;
+    }
+
+    .app-sidebar .sidebar-nav-label {
+        display: block;
+        font-size: 0.6rem;
+        text-align: center;
+        max-width: 72px;
+        line-height: 1.2;
+    }
+
+    /* Hide elements that don't fit in collapsed sidebar */
+    .app-sidebar .sidebar-school-id {
+        display: none;
+    }
+
+    .app-sidebar .sidebar-divider {
+        width: 48px;
+        margin: 4px auto;
+    }
+
+    .app-sidebar #sidebar-theme-toggle {
+        margin: 4px auto 4px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .app-sidebar .sidebar-nav-item > span[id] {
+        display: none;
+    }
+
+    /* Profile: avatar only, centered */
+    .app-sidebar .sidebar-profile {
+        padding: 8px 0;
+    }
+
+    .app-sidebar .sidebar-profile-info {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: 8px;
+    }
+
+    .app-sidebar .sidebar-profile-info > div[style] {
+        display: none;
+    }
+
+    .app-sidebar .sidebar-profile-info > button[title="Logout"] {
+        display: none;
     }
 
     .app-main-wrapper {
-        margin-left: 64px;
+        margin-left: 80px;
+        transition: margin-left 0.25s ease;
     }
-
-    --sidebar-width: 64px;
 
     .main-header {
         padding: 0 var(--spacing-md);
@@ -1291,6 +1384,137 @@ body:has(.app-container.no-sidebar) {
 
     .mobile-only {
         display: flex !important;
+    }
+
+    /* Tablet expand toggle button */
+    .sidebar-expand-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        right: -24px;
+        width: 48px;
+        height: 48px;
+        background: var(--sidebar-bg, #1A56C4);
+        border: 1.5px solid rgba(255,255,255,0.25);
+        border-radius: 50%;
+        color: rgba(255,255,255,0.8);
+        cursor: pointer;
+        z-index: 200;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        transition: color 0.2s, background 0.2s;
+    }
+
+    .sidebar-expand-toggle:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.15);
+    }
+
+    /* Expanded state — back to full sidebar layout */
+    .app-sidebar.sidebar-expanded {
+        width: 240px;
+        min-width: 240px;
+        overflow: visible;
+        align-items: stretch;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-brand {
+        justify-content: flex-start;
+        padding: 20px 20px 16px;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-brand-text {
+        font-size: 1.2rem;
+        text-align: left;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-brand-subtitle,
+    .app-sidebar.sidebar-expanded .sidebar-profile-name,
+    .app-sidebar.sidebar-expanded .sidebar-profile-role {
+        display: block;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-cta .cta-text {
+        display: inline;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-nav {
+        padding: 8px 12px;
+        align-items: stretch;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-nav-item {
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 10px 16px;
+        text-align: left;
+        width: 100%;
+        min-width: auto;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-nav-label {
+        font-size: 0.9rem;
+        text-align: left;
+        max-width: none;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-school-id {
+        display: block;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-divider {
+        width: auto;
+        margin: 8px 16px;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-nav-item > span[id] {
+        display: inline;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-profile {
+        padding: 0;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-profile-info {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-profile-info > div[style] {
+        display: block;
+    }
+
+    .app-sidebar.sidebar-expanded .sidebar-profile-info > button[title="Logout"] {
+        display: inline-flex;
+    }
+
+    .app-main-wrapper.sidebar-expanded {
+        margin-left: 240px;
+    }
+}
+
+/* Mobile-only header (hamburger for student dashboard with no full header) */
+.mobile-header-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-header-only {
+        display: flex !important;
+        align-items: center;
+        height: 56px;
+        padding: 0 16px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
+        position: sticky;
+        top: 0;
+        z-index: 90;
     }
 }
 
@@ -1354,6 +1578,28 @@ body:has(.app-container.no-sidebar) {
 .bottom-nav-item .nav-icon {
     width: 22px;
     height: 22px;
+}
+
+.bottom-nav-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: #EA4335;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    border-radius: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.bottom-nav-badge.has-count {
+    display: flex;
 }
 
 @media (max-width: 768px) {
