@@ -1308,13 +1308,13 @@
                         <div class="exam-card-body">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; overflow: hidden;">
                                 <h4 class="exam-title" style="margin: 0; flex: 1;">${exam.title}</h4>
-                                ${scheduleInfo}
                             </div>
                             <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                                 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                                     <span>⏱ ${exam.duration}m</span>
                                     <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
                                     <span>🏫 ${exam.targetClass || 'All Classes'}</span>
+                                    ${scheduleInfo}
                                 </div>
                                 ${isArchived
                             ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}')">📤 Restore</button>`
@@ -2022,14 +2022,14 @@
 
         // --- SVG Icons for Exam Cards ---
         const cardSvg = {
-            clock:   `<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-            question:`<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-            school:  `<svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>`,
-            edit:    `<svg viewBox="0 0 24 24" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
-            chart:   `<svg viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
-            archive: `<svg viewBox="0 0 24 24" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
-            restore: `<svg viewBox="0 0 24 24" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-12.35L1 10"/></svg>`,
-            ext:     `<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>`,
+            clock:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+            question:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+            school:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>`,
+            edit:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+            chart:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+            archive: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+            restore: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-12.35L1 10"/></svg>`,
+            ext:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>`,
         };
 
         // --- Dashboard Data Loading Strategy (Cache-then-Network) ---
@@ -2171,13 +2171,13 @@
                         <div class="exam-card-body">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                                 <h4 class="exam-subject-name" style="margin: 0;">${exam.subject || 'General'}</h4>
-                                ${scheduleInfo}
                                 ${scrambleIndicator}
                             </div>
                             <div class="exam-meta" style="margin-top: 8px;">
                                 <span class="mi">${cardSvg.clock}${exam.duration}m</span>
                                 <span class="mi">${cardSvg.question}${exam.questions ? exam.questions.length : 0} Qs</span>
                                 <span class="mi">${cardSvg.school}${exam.targetClass || 'All Classes'}</span>
+                                ${scheduleInfo}
                             </div>
                             <div class="exam-card-actions">
                                 ${!isArchived ? `<button class="pill-btn" onclick="event.stopPropagation(); window.openExtensionsModal('${exam.id}')">${cardSvg.ext}Extensions</button>` : ''}
