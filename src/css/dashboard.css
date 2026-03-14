@@ -461,7 +461,7 @@
    ============================================================ */
 .student-panels {
     display: flex;
-    height: calc(100vh - 64px);
+    height: 100vh;
     overflow: hidden;
 }
 
@@ -494,6 +494,31 @@
 
 .panel-left-search::placeholder {
     color: var(--light-text);
+}
+
+/* Filter row — icon + label + select */
+.exam-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.filter-icon {
+    color: var(--light-text);
+    flex-shrink: 0;
+}
+
+.filter-label {
+    font-size: 0.78rem;
+    color: var(--light-text);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.exam-filter-row select {
+    flex: 1;
+    min-width: 0;
 }
 
 .panel-left-search:focus {
@@ -893,6 +918,15 @@
         cursor: pointer;
         padding: 8px 0;
         margin-bottom: 12px;
+    }
+
+    /* Hide panel search (moved to mobile header) and tabs (bottom nav handles it) */
+    .panel-left-search {
+        display: none;
+    }
+
+    .panel-left-header .tabs {
+        display: none !important;
     }
 }
 

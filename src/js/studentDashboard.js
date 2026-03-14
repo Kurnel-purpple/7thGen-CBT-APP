@@ -31,10 +31,6 @@ const studentDashboard = {
         const mName = document.getElementById('mobile-user-name');
         if (mName) mName.textContent = user.name;
 
-        const btn = document.getElementById('mobile-menu-btn');
-        const menu = document.getElementById('mobile-menu');
-        if (btn) btn.onclick = () => menu.classList.toggle('show');
-
         // Mobile Theme Toggle
         const mThemeBtn = document.getElementById('mobile-theme-toggle');
         if (mThemeBtn) {
@@ -84,7 +80,7 @@ const studentDashboard = {
             }
 
             if (isOnline) {
-                el.textContent = '🟢 Online';
+                el.textContent = '● Online';
                 el.style.backgroundColor = '#d4edda';
                 el.style.color = '#155724';
                 el.style.border = '1px solid #c3e6cb';
@@ -92,7 +88,7 @@ const studentDashboard = {
                 // fade out after 5s
                 setTimeout(() => { if (el) el.style.opacity = '0'; }, 5000);
             } else {
-                el.textContent = '🔴 Offline';
+                el.textContent = '● Offline';
                 el.style.backgroundColor = '#f8d7da';
                 el.style.color = '#721c24';
                 el.style.border = '1px solid #f5c6cb';
@@ -149,7 +145,7 @@ const studentDashboard = {
                 el.style.color = '#856404';
                 el.style.opacity = '1';
                 setTimeout(() => {
-                    el.textContent = '🟢 Synced';
+                    el.textContent = '● Synced';
                     el.style.backgroundColor = '#d4edda';
                     el.style.color = '#155724';
                     // Reload data to show updated results/history
@@ -395,7 +391,7 @@ const studentDashboard = {
             animation: slideDown 0.3s ease;
         `;
 
-        let html = `<span>⚠️ ${message}</span>`;
+        let html = `<span>${message}</span>`;
         if (showRetry) {
             html += `<button onclick="studentDashboard.retryLoad()" style="
                 background: #856404;
@@ -500,9 +496,18 @@ const studentDashboard = {
     },
 
     switchTab: (tab) => {
+        // Map 'flagged' to internal 'resolved' section
+        const sectionTab = tab === 'flagged' ? 'resolved' : tab;
+
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => {
             if (b.textContent.toLowerCase().includes(tab)) b.classList.add('active');
+        });
+
+        // Also update bottom nav active state
+        document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.bottom-nav-item').forEach(b => {
+            if (b.textContent.toLowerCase().includes(tab === 'available' ? 'exams' : tab)) b.classList.add('active');
         });
 
         // Hide all sections
@@ -515,7 +520,7 @@ const studentDashboard = {
         if (tab === 'available') {
             document.getElementById('available-exams-section').style.display = 'block';
             if (df) df.style.visibility = 'visible';
-        } else if (tab === 'resolved') {
+        } else if (tab === 'flagged') {
             document.getElementById('resolved-exams-section').style.display = 'block';
             if (df) df.style.visibility = 'hidden';
         } else if (tab === 'completed') {
@@ -594,7 +599,7 @@ const studentDashboard = {
 
         // --- Render Action Required Section ---
         if (actionItems.length > 0) {
-            html += `<h3 style="width:100%; color: var(--accent-color); margin-bottom: 15px;">⚠️ Action Required</h3>`;
+            html += `<h3 style="width:100%; color: var(--accent-color); margin-bottom: 15px;">Action Required</h3>`;
             html += actionItems.map(result => {
                 const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
                 const deadlines = Object.values(result.flags)
@@ -692,27 +697,26 @@ const studentDashboard = {
                 // Format scheduled date nicely
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
-                scheduleInfo = `<span style="color: var(--accent-color);">📅 ${formattedDate}</span>`;
-                actionButton = `<button class="btn" style="width: 100%; background: var(--light-text); color: white; cursor: not-allowed;" disabled>🔒 Available ${formattedDate}</button>`;
+                scheduleInfo = `<span style="color: var(--accent-color); display:inline-flex; align-items:center; gap:4px; font-size:0.72rem;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${formattedDate}</span>`;
+                actionButton = `<button class="btn" style="width: 100%; background: var(--light-text); color: white; cursor: not-allowed; display:inline-flex; align-items:center; justify-content:center; gap:6px;" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Available ${formattedDate}</button>`;
             } else {
                 actionButton = `<button class="btn btn-primary" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%;">Start Exam</button>`;
             }
 
             const qCount = exam.questions ? exam.questions.length : 0;
-            const statusDotColor = isScheduled ? 'var(--accent-color)' : 'var(--success-color)';
-            const statusLabel = isScheduled ? 'Scheduled' : 'Available';
 
             return `
             <div class="exam-list-item ${isScheduled ? 'scheduled' : ''}" data-exam-id="${exam.id}" onclick="studentDashboard.selectExam('${exam.id}', 'available')">
                 <div class="exam-list-icon">
-                    <i class="fas fa-file-alt"></i>
+                    <span style="width:36px;height:36px;border-radius:50%;background:${isScheduled ? 'var(--light-text)' : 'var(--primary-color)'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0;">${isScheduled ? 'S' : 'A'}</span>
                 </div>
-                <div class="exam-list-info">
-                    <div class="exam-list-title">${exam.title}</div>
-                    <div class="exam-list-subtitle">${exam.subject} · ${qCount} Qs · ${exam.duration}m</div>
-                </div>
-                <div class="exam-list-status">
-                    <span class="status-dot" style="background: ${statusDotColor};" title="${statusLabel}"></span>
+                <div class="exam-list-info" style="flex:1; min-width:0;">
+                    <div class="exam-list-title" style="font-size:0.95rem; font-weight:700;">${exam.subject}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="exam-list-subtitle" style="font-size:0.82rem; color:var(--light-text); font-weight:400;">${exam.title}</div>
+                        <div style="font-size:0.75rem; color:var(--light-text); white-space:nowrap; margin-left:8px;">${qCount} Qs · ${exam.duration}m</div>
+                    </div>
+                    ${scheduleInfo ? '<div style="margin-top:2px;">' + scheduleInfo + '</div>' : ''}
                 </div>
             </div>
         `}).join('');
@@ -748,6 +752,13 @@ const studentDashboard = {
         // Update Badge
         const badge = document.getElementById('resolved-count');
         if (badge) badge.textContent = resolvedItems.length;
+
+        // Update bottom nav badge
+        const bottomBadge = document.getElementById('bottom-flagged-count');
+        if (bottomBadge) {
+            bottomBadge.textContent = resolvedItems.length;
+            bottomBadge.classList.toggle('has-count', resolvedItems.length > 0);
+        }
 
         if (resolvedItems.length === 0) {
             grid.innerHTML = `
@@ -797,6 +808,13 @@ const studentDashboard = {
         // Update Badge
         const badge = document.getElementById('history-count');
         if (badge) badge.textContent = completedResults.length;
+
+        // Update bottom nav badge
+        const bottomBadge = document.getElementById('bottom-completed-count');
+        if (bottomBadge) {
+            bottomBadge.textContent = completedResults.length;
+            bottomBadge.classList.toggle('has-count', completedResults.length > 0);
+        }
 
         if (completedResults.length === 0) {
             grid.innerHTML = `
@@ -909,43 +927,58 @@ const studentDashboard = {
         const metaContent = document.getElementById('panel-meta-content');
         if (metaContent) {
             const qCount = exam.questions ? exam.questions.length : 0;
-            const takenExamIds = new Set(studentDashboard.results.filter(r => r.examId === examId).map(r => r.id));
-            const statusLabel = takenExamIds.size > 0 ? 'Completed' : 'Available';
-            const statusColor = takenExamIds.size > 0 ? 'var(--success-color)' : 'var(--primary-color)';
+            const pastAttempts = studentDashboard.results.filter(r => r.examId === examId);
+            const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
+            let statusLabel, statusColor;
+            if (tab === 'flagged') {
+                statusLabel = 'Flagged';
+                statusColor = 'var(--accent-color)';
+            } else if (tab === 'completed' || pastAttempts.length > 0) {
+                const lastResult = pastAttempts[pastAttempts.length - 1];
+                const passed = lastResult && lastResult.score >= (lastResult.passScore || 50);
+                statusLabel = passed ? 'Passed' : 'Failed';
+                statusColor = passed ? 'var(--success-color)' : 'var(--accent-color)';
+            } else if (isScheduled) {
+                statusLabel = 'Scheduled';
+                statusColor = 'var(--light-text)';
+            } else {
+                statusLabel = 'Available';
+                statusColor = 'var(--primary-color)';
+            }
 
             metaContent.innerHTML = `
                 <div class="meta-row">
-                    <i class="fas fa-calendar-alt meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                     <div class="meta-label">Term</div>
                     <div class="meta-value">${exam.term || 'N/A'}</div>
                 </div>
                 <div class="meta-row">
-                    <i class="fas fa-book meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
                     <div class="meta-label">Subject</div>
                     <div class="meta-value">${exam.subject}</div>
                 </div>
                 <div class="meta-row">
-                    <i class="fas fa-clock meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                     <div class="meta-label">Duration</div>
                     <div class="meta-value">${exam.duration} minutes</div>
                 </div>
                 <div class="meta-row">
-                    <i class="fas fa-list-ol meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
                     <div class="meta-label">Questions</div>
                     <div class="meta-value">${qCount}</div>
                 </div>
                 <div class="meta-row">
-                    <i class="fas fa-trophy meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div>
                     <div class="meta-label">Pass Mark</div>
                     <div class="meta-value">${exam.passScore || 50}%</div>
                 </div>
                 <div class="meta-row">
-                    <i class="fas fa-info-circle meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
                     <div class="meta-label">Status</div>
                     <div class="meta-value" style="color: ${statusColor}; font-weight: 600;">${statusLabel}</div>
                 </div>
                 <div class="meta-row">
-                    <i class="fas fa-users meta-icon"></i>
+                    <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
                     <div class="meta-label">Class</div>
                     <div class="meta-value">${exam.targetClass || 'All'}</div>
                 </div>
