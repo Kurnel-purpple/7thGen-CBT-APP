@@ -6,26 +6,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="seatos">
     <title>CBT Exam Software</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        // Prevent dark mode flash — apply theme before first paint
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/auth.css">
     <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
-    <div id="app" class="app-container">
-        <!-- Header is hidden on login page usually, but keeping for branding -->
-        <header class="main-header">
-            <div class="logo">
-                <h1 class="logo-text">Gen7 CBT</h1>
-            </div>
+    <div id="app" class="app-container no-sidebar">
+        <!-- Auth top brand bar -->
+        <header class="auth-topbar">
+            <span class="auth-brand">Gen7 CBT</span>
         </header>
 
-        <main id="main-content" class="main-content">
+        <main id="main-content" class="main-content auth-main">
+            <!-- Blue accent panel (desktop only) -->
+            <div class="auth-panel-left" aria-hidden="true">
+                <div class="auth-panel-content">
+                    <h2>Computer-Based Testing</h2>
+                    <p>Seamless exams, instant results, offline-ready.</p>
+                </div>
+            </div>
+
             <div class="auth-container">
                 <div class="auth-card">
                     <div class="auth-header">
                         <h2>Welcome Back</h2>
-                        <p>Sign in to your account</p>
+                        <p>Log in to your account</p>
                     </div>
 
                     <div id="login-error" class="error-message"></div>
@@ -47,13 +63,13 @@
                                 </button>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-block">🔐 Sign In</button>
+                        <button type="submit" class="btn btn-primary btn-block">🔐 Login</button>
                     </form>
 
                     <div class="auth-footer" style="margin-top: 15px;">
                         <p><a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot Password?</a> · <a
                                 href="javascript:void(0)" onclick="openForgotUsernameModal()">Forgot Username?</a></p>
-                        <p>Don't have an account? <a href="pages/register.html">Sign Up</a></p>
+                        <p>Don't have an account? <a href="pages/register.html">Register</a></p>
                     </div>
                 </div>
             </div>

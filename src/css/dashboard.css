@@ -1,24 +1,30 @@
-/* Dashboard Grid */
+/* ============================================================
+   DASHBOARD — Google Drive Inspired
+   ============================================================ */
+
+/* Dashboard Stats Grid (legacy — now in sidebar, keep for fallback) */
 .dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-md);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
     margin-bottom: var(--spacing-xl);
 }
 
 .stat-card {
     background: var(--card-bg);
     padding: var(--spacing-lg);
-    border-radius: var(--border-radius);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
     display: flex;
     flex-direction: column;
     align-items: center;
     border: 1px solid var(--border-color);
+    min-width: 200px;
 }
 
 .stat-number {
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 700;
     color: var(--primary-color);
     margin-bottom: var(--spacing-xs);
@@ -26,11 +32,13 @@
 
 .stat-label {
     color: var(--light-text);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
 }
 
-/* Exam List / Cards */
+/* ============================================================
+   SECTION HEADERS
+   ============================================================ */
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -40,142 +48,340 @@
 
 .section-title {
     font-size: 1.25rem;
-    color: var(--secondary-color);
+    font-family: var(--font-heading);
+    color: var(--text-color);
 }
 
+/* ============================================================
+   EXAM GRID (Card Layout)
+   ============================================================ */
 .exam-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: var(--spacing-md);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 40px 20px;
+    align-items: start;
 }
 
-.exam-card {
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
-    container-type: inline-size;
-    /* Enable container queries */
+/* ============================================================
+   EXAM CARDS — Folder Tab Style
+   ============================================================ */
+
+/* Wrapper gives top space for the overhanging tab */
+.card-wrap {
+    padding-top: 28px;
+    position: relative;
 }
 
-.exam-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.exam-card-header {
-    padding: var(--spacing-md);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    flex-wrap: wrap;
-    /* Allow icons to wrap below subject */
-    justify-content: space-between;
+/* ── FOLDER TAB ──
+   clip-path cuts a straight slant on the right side only
+   left side keeps its border-radius untouched
+*/
+.folder-tab {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    padding: 7px 36px 9px 14px;
+    background: var(--primary-color);
+    border-radius: 6px 0 0 0;
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 100%, 0 100%);
+    white-space: nowrap;
+    z-index: 3;
+    max-width: 85%;
+    transition: filter 0.25s ease;
 }
 
-.exam-subject {
-    font-size: 0.75rem;
+/* CSS-drawn folder icon */
+.folder-icon {
+    width: 14px;
+    height: 11px;
+    background: rgba(255,255,255,0.35);
+    border-radius: 3px 3px 2px 2px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.folder-icon::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 0;
+    width: 7px;
+    height: 5px;
+    background: rgba(255,255,255,0.35);
+    border-radius: 3px 3px 0 0;
+}
+
+/* Tab title */
+.tab-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: var(--background-color);
-    padding: 2px 8px;
-    border-radius: 4px;
-    color: var(--light-text);
+    color: rgba(255,255,255,0.85);
     white-space: nowrap;
-    /* Single row */
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
+    max-width: 140px;
 }
 
-.exam-card-icons {
+/* Status dots in tab */
+.tab-dots {
     display: flex;
-    gap: 8px;
     align-items: center;
+    gap: 6px;
     margin-left: auto;
-    /* Push to right initially */
+    flex-shrink: 0;
 }
 
-/* Center subject and icons when container is small (Subject interference) */
-@container (max-width: 320px) {
-    .exam-card-header {
-        flex-direction: column;
-        justify-content: center;
-        text-align: center;
-    }
-
-    .exam-card-icons {
-        margin-left: 0;
-        justify-content: center;
-        width: 100%;
-    }
+.tab-dot {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
 }
 
-/* Class badge with dark mode support */
-.exam-class-badge {
-    background: var(--secondary-color);
-    color: white;
-}
-
-[data-theme="dark"] .exam-class-badge {
-    color: #1a1a2e;
-    /* Dark navy/black for better contrast in dark mode */
-}
-
-.exam-status {
+.tab-dot .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    display: inline-block;
+    flex-shrink: 0;
 }
 
-.status-active .exam-status {
-    background-color: var(--success-color);
-}
+.dot-green { background: var(--success-color); }
+.dot-yellow { background: var(--warning-color); }
+.dot-red { background: var(--accent-color); }
 
-.status-draft .exam-status {
-    background-color: var(--warning-color);
-}
-
-.status-closed .exam-status {
-    background-color: var(--accent-color);
-}
-
-.exam-card-body {
-    padding: var(--spacing-md);
-}
-
-.exam-title {
-    font-size: 1.1rem;
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-color);
-    white-space: nowrap;
-    /* Maintain single row */
+/* ── CARD BODY ── */
+.exam-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0 12px 12px 12px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    display: block;
-    max-width: 100%;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+}
+
+.card-wrap:hover .exam-card {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+}
+
+.card-wrap:hover .folder-tab {
+    filter: brightness(1.08);
+}
+
+/* Gradient stripe at top of card */
+.card-stripe {
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+}
+
+/* Card Body */
+.exam-card-body {
+    padding: 16px 16px 0;
+}
+
+.exam-subject-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-color);
+    margin-bottom: 12px;
+    line-height: 1.3;
+    font-family: var(--font-heading);
 }
 
 .exam-meta {
-    font-size: 0.85rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-bottom: 14px;
+}
+
+.mi {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
     color: var(--light-text);
-    display: flex;
-    gap: var(--spacing-md);
+    font-weight: 600;
 }
 
+.mi svg {
+    width: 12px;
+    height: 12px;
+    stroke: var(--light-text);
+    fill: none;
+    flex-shrink: 0;
+    stroke-width: 2;
+}
+
+/* Middle row: Actions (Extensions + Archive) */
+.exam-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--light-text);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.pill-btn svg {
+    width: 11px;
+    height: 11px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    flex-shrink: 0;
+}
+
+.pill-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.pill-restore {
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.pill-restore:hover {
+    background: rgba(46, 204, 113, 0.1);
+}
+
+/* Card Footer: Edit + Results */
 .exam-card-footer {
-    padding: var(--spacing-md);
-    background: var(--inner-bg);
-    border-top: 1px solid var(--border-color);
     display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-sm);
+    gap: 8px;
+    padding: 10px 14px 12px;
+    background: var(--inner-bg);
 }
 
-/* Empty State */
+.foot-btn {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--light-text);
+    padding: 8px 4px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: background 0.15s, transform 0.12s, color 0.15s;
+}
+
+.foot-btn svg {
+    width: 11px;
+    height: 11px;
+    stroke: currentColor;
+    fill: none;
+    flex-shrink: 0;
+    stroke-width: 2;
+}
+
+.foot-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.foot-btn:active {
+    transform: scale(0.97);
+}
+
+/* Archived cards */
+.card-wrap.archived {
+    opacity: 0.7;
+}
+
+.card-wrap.archived .folder-tab {
+    background: var(--light-text);
+}
+
+/* ============================================================
+   DARK MODE — Folder Tab Cards
+   ============================================================ */
+[data-theme="dark"] .folder-tab {
+    background: #1557B0;
+}
+
+[data-theme="dark"] .exam-card {
+    background: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .card-stripe {
+    background: linear-gradient(90deg, #3a3a7a, var(--dm-surface, #1A1D27));
+}
+
+[data-theme="dark"] .exam-card-footer {
+    background: var(--dm-surface-2, #22263A);
+    border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .foot-btn {
+    border-color: rgba(255,255,255,0.07);
+    color: #c0c0e0;
+}
+
+[data-theme="dark"] .foot-btn:hover {
+    background: rgba(255,255,255,0.07);
+    color: #e0e0ff;
+}
+
+[data-theme="dark"] .pill-btn {
+    border-color: rgba(255,255,255,0.1);
+    color: #b0b0d0;
+}
+
+[data-theme="dark"] .pill-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .exam-card-actions {
+    border-bottom-color: rgba(255,255,255,0.07);
+}
+
+[data-theme="dark"] .card-wrap.archived .folder-tab {
+    background: var(--light-text);
+}
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
 .empty-state {
     grid-column: 1 / -1;
     text-align: center;
@@ -186,509 +392,626 @@
 .empty-state-icon {
     font-size: 3rem;
     margin-bottom: var(--spacing-sm);
+    opacity: 0.4;
+}
+
+/* ============================================================
+   TABS (Student Dashboard)
+   ============================================================ */
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: var(--font-family);
+    color: var(--light-text);
+    position: relative;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text-color);
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--primary-color);
+    border-radius: 2px 2px 0 0;
+}
+
+.badge {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    margin-left: 6px;
+    font-weight: bold;
+    vertical-align: middle;
+}
+
+.tab-btn:not(.active) .badge {
+    background: var(--light-text);
     opacity: 0.5;
 }
 
-/* Form Styles */
-.form-section {
-    background: var(--card-bg);
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-md);
-    border: 1px solid var(--border-color);
-}
-
-.form-row {
+/* ============================================================
+   THREE-PANEL LAYOUT (Student Dashboard)
+   ============================================================ */
+.student-panels {
     display: flex;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-}
-
-.form-col {
-    flex: 1;
-}
-
-/* Question Editor */
-.question-item {
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-    background: var(--inner-bg);
-}
-
-.question-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: var(--spacing-sm);
-}
-
-.answer-option {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-    background: var(--card-bg);
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-}
-
-.answer-option input[type="radio"],
-.answer-option input[type="checkbox"] {
-    margin-top: 12px;
-}
-
-.answer-option textarea.form-control {
-    flex: 1;
-    min-height: 40px;
-    height: 40px;
-    resize: none;
+    height: calc(100vh - 64px);
     overflow: hidden;
-    line-height: 1.5;
-    padding: 8px 12px;
 }
 
-/* Auto-expanding textarea style */
-.auto-expand {
-    min-height: 43px;
-    height: auto;
-    overflow-y: hidden;
-    resize: none;
-    line-height: 1.5;
-}
-
-/* Modal Styles */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    overflow: auto;
-}
-
-.modal-content {
-    background-color: var(--card-bg);
-    margin: 10% auto;
-    padding: var(--spacing-lg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    width: 80%;
-    max-width: 600px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    animation: fadeIn 0.3s;
-}
-
-.modal-header {
+/* Left Panel — Exam List */
+.panel-left {
+    width: 300px;
+    min-width: 300px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border-color);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-left-header {
+    padding: 16px;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: var(--spacing-sm);
 }
 
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-md);
-    border-top: 1px solid var(--border-color);
-    padding-top: var(--spacing-sm);
-}
-
-/* Question text in modals - ensure full visibility */
-.modal-body .question-text,
-.modal-content .question-text,
-.flag-item,
-#flag-review-body,
-#edit-q-text,
-.q-text {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    white-space: pre-wrap;
-    max-width: 100%;
-}
-
-/* Ensure question display containers don't hide text */
-.question-item .form-group,
-.question-item .q-text {
-    overflow: visible;
-    text-overflow: unset;
-    white-space: normal;
-}
-
-/* Flag review modal question text */
-.flag-item {
+.panel-left-search {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: var(--radius-pill);
     background: var(--inner-bg);
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    border-left: 4px solid var(--accent-color);
-}
-
-.flag-item div[style*="font-style: italic"] {
-    word-break: break-word;
-    line-height: 1.6;
-}
-
-/* Edit question modal textarea */
-#edit-q-text {
-    min-height: 100px;
-    resize: vertical;
-}
-
-/* Question editor input */
-.question-item input.q-text,
-.question-item input.form-control.q-text {
-    height: auto;
-    min-height: 40px;
-    padding: 10px 12px;
-}
-
-/* Add Media button styling for questions */
-.add-media-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
+    font-family: var(--font-family);
     font-size: 0.85rem;
-    background: transparent;
-    border: 1px dashed var(--primary-color);
-    color: var(--primary-color);
-    border-radius: 6px;
+    color: var(--text-color);
+}
+
+.panel-left-search::placeholder {
+    color: var(--light-text);
+}
+
+.panel-left-search:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.panel-left-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* Exam List Items */
+.exam-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s ease;
+    position: relative;
+}
+
+.exam-list-item:hover {
+    background: var(--primary-light);
+}
+
+.exam-list-item.selected {
+    background: var(--primary-light);
+    border-left: 3px solid var(--primary);
+}
+
+[data-theme="dark"] .exam-list-item:hover {
+    background: var(--dm-surface-3, #2C3150);
+}
+
+[data-theme="dark"] .exam-list-item.selected {
+    background: var(--primary-light);
+    border-left-color: var(--primary);
+}
+
+.exam-list-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    font-weight: 700;
+}
+
+[data-theme="dark"] .exam-list-icon {
+    background: var(--primary-light);
+}
+
+.exam-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.exam-list-title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.exam-list-meta,
+.exam-list-subtitle {
+    font-size: 0.78rem;
+    color: var(--light-text);
+    margin-top: 2px;
+}
+
+.exam-list-status {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.exam-list-status.available { background: var(--success-color); }
+.exam-list-status.upcoming  { background: var(--light-text); }
+.exam-list-status.attempted { background: var(--warning-color); }
+.exam-list-status.completed { background: var(--primary); }
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Group Header in list */
+.exam-list-group-header {
+    padding: 8px 16px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--light-text);
+    font-weight: 700;
+    background: var(--inner-bg);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Center Panel — Exam Detail */
+.panel-center {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--background-color);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-center-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--light-text);
+    text-align: center;
+    gap: 16px;
+}
+
+.panel-center-empty-icon {
+    font-size: 4rem;
+    opacity: 0.3;
+}
+
+.exam-detail-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.exam-detail-breadcrumb {
+    font-size: 0.85rem;
+    color: var(--light-text);
+    margin-bottom: 20px;
+}
+
+.exam-detail-instructions {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 20px;
+    line-height: 1.7;
+    color: var(--text-color);
+}
+
+.exam-detail-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.btn-start-exam {
+    padding: 14px 32px;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: var(--radius-pill);
+    background: var(--primary);
+    color: #FFFFFF;
+    border: none;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin-top: 8px;
+    box-shadow: 0 4px 14px rgba(26,115,232,0.3);
 }
 
-.add-media-btn:hover {
-    background: rgba(99, 102, 241, 0.1);
-    border-style: solid;
+.btn-start-exam:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 6px 20px rgba(26,115,232,0.4);
+    transform: translateY(-1px);
 }
 
-.close-btn {
-    color: var(--light-text);
-    font-size: 1.5rem;
-    font-weight: bold;
+.btn-practice-mode {
+    padding: 14px 24px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.close-btn:hover {
-    color: var(--accent-color);
+.btn-practice-mode:hover {
+    background: var(--primary-light);
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* Previous Attempts */
+.exam-detail-attempts {
+    margin-top: 20px;
 }
 
-/* Mobile Menu & Filter Styles */
-.hamburger-btn {
-    display: none;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: var(--text-color);
-    cursor: pointer;
-}
-
-.mobile-menu {
-    display: none;
-    position: absolute;
-    top: 60px;
-    /* Adjust based on header height */
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-    background: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
-    padding: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    animation: slideDown 0.3s ease-out;
-}
-
-.mobile-menu.show {
-    display: block;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.mobile-user-info {
-    font-weight: bold;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-color);
+.exam-detail-attempts h4 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    margin-bottom: 12px;
     color: var(--text-color);
 }
 
-.mobile-filter-group {
-    margin-bottom: 15px;
-}
-
-.mobile-filter-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 0.9rem;
-    color: var(--light-text);
-}
-
-.desktop-filter {
-    display: block;
-}
-
-.desktop-only {
+.attempt-item {
     display: flex;
-    /* Default for user-menu */
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--card-bg);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.mobile-only {
-    display: none;
-    /* Hidden on desktop by default */
+.attempt-date {
+    font-size: 0.85rem;
+    color: var(--light-text);
 }
 
-/* Responsive Adjustments */
-@media (max-width: 1024px) {
-    .desktop-only {
-        display: none !important;
+.attempt-score {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.attempt-score.pass { color: var(--success-color); }
+.attempt-score.fail { color: var(--accent-color); }
+
+/* Right Panel — Metadata */
+.panel-right {
+    width: 280px;
+    min-width: 280px;
+    background: var(--card-bg);
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+    padding: 0;
+}
+
+.panel-right-profile {
+    padding: 24px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-right-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0 auto 10px;
+}
+
+.panel-right-name {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.panel-right-meta {
+    padding: 16px 20px;
+}
+
+.meta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.meta-row:last-child {
+    border-bottom: none;
+}
+
+.meta-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.meta-label {
+    font-size: 0.75rem;
+    color: var(--light-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.meta-value {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    font-family: var(--font-heading);
+}
+
+/* ============================================================
+   MOBILE — Three-Panel
+   ============================================================ */
+@media (max-width: 768px) {
+    .student-panels {
+        height: calc(100vh - 56px - 56px); /* minus topbar and bottom nav */
     }
 
-    .mobile-only {
-        display: flex !important;
+    .panel-left {
+        width: 100%;
+        min-width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 10;
+        transition: transform 0.3s ease;
     }
 
-    .hamburger-btn {
-        display: block;
+    .panel-center {
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 9;
+        padding: 20px 16px;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
     }
 
-    .desktop-filter {
+    .panel-right {
+        width: 100%;
+        min-width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 8;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .student-panels {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .student-panels.show-center .panel-left {
+        transform: translateX(-100%);
+    }
+
+    .student-panels.show-center .panel-center {
+        transform: translateX(0);
+    }
+
+    .student-panels.show-right .panel-center {
+        transform: translateX(-100%);
+    }
+
+    .student-panels.show-right .panel-right {
+        transform: translateX(0);
+    }
+
+    .panel-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        border: none;
+        color: var(--primary);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 8px 0;
+        margin-bottom: 12px;
+    }
+}
+
+@media (min-width: 769px) {
+    .panel-back-btn {
+        display: none;
+    }
+}
+
+/* Tablet — 2 panels */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .panel-right {
         display: none;
     }
 
-    .tabs {
+    .panel-left {
+        width: 260px;
+        min-width: 260px;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE — Exam Grid
+   ============================================================ */
+@media (max-width: 768px) {
+    .exam-grid {
+        grid-template-columns: 1fr;
+        gap: 24px 12px;
+    }
+
+    .card-wrap {
+        padding-top: 24px;
+    }
+
+    .folder-tab {
+        padding: 6px 30px 7px 10px;
+        max-width: 90%;
+    }
+
+    .tab-title {
+        max-width: 100px;
+        font-size: 0.6rem;
+    }
+
+    .tab-dot {
+        font-size: 0.6rem;
+    }
+
+    .tab-dot .dot {
+        width: 7px;
+        height: 7px;
+    }
+
+    .exam-card-actions {
         flex-direction: column;
-        /* Or keep row but stack if needed? Row is fine for tabs usually */
-        align-items: flex-start;
     }
 
-    .tab-group {
+    .exam-card-actions .pill-btn {
         width: 100%;
-        display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        /* Allow scroll if too many tabs */
+        justify-content: center;
     }
 
-    /* Fix Header Layout for Mobile */
-    .main-header {
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        text-align: left !important;
-        align-items: center !important;
-    }
-
-    /* Hide Main Stats Grid on Mobile (Moved to Menu) */
     .dashboard-grid {
         display: none;
     }
 
-    /* Mobile Stats Styles */
-    .mobile-stats {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-sm);
-        margin-bottom: var(--spacing-md);
-        overflow-y: auto;
-    }
-
-    .mobile-stats .stat-card {
-        flex-direction: row;
-        justify-content: space-between;
-        padding: var(--spacing-md);
-        width: 100%;
-    }
-
-    .mobile-stats .stat-number {
-        font-size: 1.5rem;
-        margin-bottom: 0;
-    }
-
-    /* Full Height Mobile Menu with Bottom Logout */
-    .mobile-menu {
-        height: calc(100vh - 60px);
-        /* Full viewport height minus header */
-        display: none;
-        flex-direction: column;
-    }
-
-    .mobile-menu.show {
-        display: flex;
-    }
-
-    .mobile-menu-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* Push logout to bottom */
-    .mobile-menu-content button:last-child {
-        margin-top: auto;
-    }
-
-    /* Mobile User Info Row with Theme Toggle */
-    .mobile-user-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid var(--border-color);
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-    }
-
-    .mobile-user-info {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-    }
-}
-
-/* Credentials Dropdown Styling */
-.credentials-dropdown {
-    position: relative;
-    display: inline-block;
-}
-
-.dropdown-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 15px;
-    border-radius: 8px;
-    background: var(--inner-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.dropdown-btn:hover {
-    background: var(--background-color);
-    border-color: var(--primary-color);
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    background: var(--card-bg);
-    min-width: 220px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    padding: 8px 0;
-    z-index: 4000;
-    border: 1px solid var(--border-color);
-    animation: slideUp 0.2s ease-out;
-}
-
-.dropdown-content.show {
-    display: block;
-}
-
-.dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 18px;
-    text-decoration: none;
-    color: var(--text-color);
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s;
-    border: none;
-    background: transparent;
-    width: 100%;
-    text-align: left;
-    font-weight: 500;
-}
-
-.dropdown-item:hover {
-    background: var(--inner-bg);
-    color: var(--primary-color);
-}
-
-.dropdown-item.danger {
-    color: var(--accent-color);
-}
-
-.dropdown-divider {
-    height: 1px;
-    background: var(--border-color);
-    margin: 8px 0;
-}
-
-/* Responsive Text Visibility */
-.mobile-text {
-    display: none;
-}
-
-.desktop-text {
-    display: inline;
-}
-
-@media (max-width: 768px) {
-    .mobile-text {
-        display: inline;
-    }
-
-    .desktop-text {
-        display: none;
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@media (min-width: 1025px) {
     .tabs {
-        justify-content: space-between;
-        align-items: center;
+        gap: 4px;
     }
 
-    .tab-group {
-        display: flex;
-        gap: 20px;
+    .tab-btn {
+        padding: 8px 2px;
+        font-size: 0.82rem;
     }
+
+    /* Responsive tab labels */
+    .tab-text {
+        display: none;
+    }
+
+    .tab-btn {
+        padding: 10px 8px;
+    }
+}
+
+@media (min-width: 769px) {
+    .tab-icon {
+        margin-right: 6px;
+    }
+}
+
+/* ============================================================
+   MOBILE STATS (legacy)
+   ============================================================ */
+.mobile-stats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.mobile-stats .stat-card {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    width: 100%;
+}
+
+.mobile-stats .stat-number {
+    font-size: 1.5rem;
+    margin-bottom: 0;
+}
+
+/* Mobile User Row */
+.mobile-user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
 }

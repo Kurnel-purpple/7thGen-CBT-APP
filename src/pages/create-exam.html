@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="seatos">
     <title>Create Exam - CBT Exam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
@@ -399,7 +408,7 @@
 </head>
 
 <body>
-    <div class="app-container">
+    <div class="app-container no-sidebar">
         <header class="main-header">
             <!-- First Row Main Header -->
             <div class="header-top-row">
@@ -869,7 +878,9 @@
                 'Computer Studies',
                 'History',
                 'French',
-                'Speech'
+                'Speech',
+                'C.C.A',
+                'Yoruba'
             ]
         };
 

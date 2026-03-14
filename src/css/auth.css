@@ -1,30 +1,142 @@
+/* ============================================================
+   AUTH PAGES — Google Drive Inspired flat design
+   ============================================================ */
+
+/* Auth top brand bar */
+.auth-topbar {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+[data-theme="dark"] .auth-topbar {
+    background: var(--card-bg);
+    border-bottom-color: var(--border-color);
+}
+
+.auth-brand {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: -0.3px;
+}
+
+/* Main content — flex row for split layout */
+.auth-main {
+    display: flex !important;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Left decorative blue panel (desktop only) */
+.auth-panel-left {
+    flex: 1;
+    background: var(--sidebar-bg, #1A56C4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Abstract blob decoration */
+.auth-panel-left::before {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 50% 30% 60% 40% / 40% 60% 30% 50%;
+    top: -80px;
+    right: -80px;
+}
+
+.auth-panel-left::after {
+    content: '';
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 30% 60% 40% 50% / 50% 30% 60% 40%;
+    bottom: -60px;
+    left: -40px;
+}
+
+.auth-panel-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #FFFFFF;
+}
+
+.auth-panel-content h2 {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    line-height: 1.2;
+}
+
+.auth-panel-content p {
+    font-size: 1.05rem;
+    opacity: 0.85;
+    line-height: 1.6;
+}
+
+@media (min-width: 768px) {
+    .auth-panel-left {
+        display: flex;
+    }
+}
+
+/* Auth container (right side) */
 .auth-container {
     display: flex;
     flex-direction: column;
-    min-height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    overflow-y: auto;
     width: 100%;
-    padding: 20px;
-    /* Add padding to prevent touching edges */
+    flex-shrink: 0;
 }
 
+@media (min-width: 768px) {
+    .auth-container {
+        flex: 1;
+        width: auto;
+    }
+}
+
+/* Auth card — flat white */
 .auth-card {
-    background: var(--neu-bg);
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: var(--neu-shadow-out);
+    background: var(--card-bg);
+    padding: 40px 36px;
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
     width: 100%;
-    max-width: 400px;
-    animation: slideUp 0.5s ease-out;
-    margin: auto;
-    /* Safe centering */
+    max-width: 380px;
+    animation: slideUp 0.4s ease-out;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .auth-card {
+    background: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
 }
 
 @keyframes slideUp {
     from {
-        transform: translateY(20px);
+        transform: translateY(16px);
         opacity: 0;
     }
-
     to {
         transform: translateY(0);
         opacity: 1;
@@ -33,12 +145,15 @@
 
 .auth-header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 28px;
 }
 
 .auth-header h2 {
-    color: var(--secondary-color);
-    margin-bottom: 10px;
+    font-family: var(--font-heading);
+    color: var(--text-color);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 6px;
 }
 
 .auth-header p {
@@ -46,65 +161,90 @@
     font-size: 0.9rem;
 }
 
+/* Form elements */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: var(--text-color);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 .form-control {
     width: 100%;
-    padding: 15px;
-    border: none;
-    border-radius: 12px;
-    font-size: 1rem;
-    transition: all 0.3s;
-    background: var(--neu-bg);
-    box-shadow: var(--neu-shadow-inset-light);
+    padding: 12px 16px;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    font-size: 0.95rem;
+    font-family: var(--font-family);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: var(--card-bg);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-control {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border-color);
     color: var(--text-color);
 }
 
 .form-control:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 10%, transparent);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
+}
+
+[data-theme="dark"] .form-control:focus {
+    box-shadow: 0 0 0 3px rgba(77, 142, 240, 0.15);
 }
 
 .btn-block {
     display: block;
     width: 100%;
-    margin-top: 20px;
-    font-size: 1rem;
+    margin-top: 22px;
+    font-size: 0.95rem;
+    padding: 13px 20px;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
 }
 
 .auth-footer {
     margin-top: 20px;
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    color: var(--light-text);
+    line-height: 1.8;
 }
 
 .auth-footer a {
     color: var(--primary-color);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
 }
 
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Error message */
 .error-message {
     color: var(--accent-color);
-    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 20px;
-    font-size: 0.9rem;
+    background: rgba(231, 76, 60, 0.08);
+    border: 1px solid rgba(231, 76, 60, 0.2);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.88rem;
     display: none;
     text-align: center;
+    line-height: 1.5;
 }
 
+/* Password toggle */
 .password-input-container {
     position: relative;
     width: 100%;
@@ -118,17 +258,17 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
     color: var(--light-text);
 }
 
 .password-toggle-btn:hover {
-    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    background: var(--primary-light, #E8F0FE);
     color: var(--primary-color);
 }
 
@@ -137,110 +277,109 @@
 }
 
 .eye-icon {
-    font-size: 18px;
+    font-size: 16px;
     user-select: none;
 }
 
-/* Adjust form-control to accommodate the toggle button */
 .password-input-container .form-control {
-    padding-right: 50px;
+    padding-right: 48px;
 }
 
-/* Download Desktop App Banner */
+/* ============================================================
+   DOWNLOAD DESKTOP APP BANNER
+   ============================================================ */
 .download-banner {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-color);
     color: white;
     padding: 12px 20px;
     z-index: 9999;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -4px 20px rgba(26, 115, 232, 0.25);
     animation: slideUpBanner 0.5s ease-out;
 }
 
-@keyframes slideUpBanner {
-    from {
-        transform: translateY(100%);
-        opacity: 0;
-    }
+[data-theme="dark"] .download-banner {
+    background: var(--primary-dark, #1557B0);
+}
 
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+@keyframes slideUpBanner {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
 }
 
 .download-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 15px;
+    gap: 14px;
     flex-wrap: wrap;
     max-width: 1200px;
     margin: 0 auto;
 }
 
 .download-content span {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 500;
 }
 
 .download-btn {
     background: white !important;
-    color: #667eea !important;
+    color: var(--primary-color) !important;
     padding: 8px 20px !important;
-    border-radius: var(--btn-border-radius) !important;
-    font-weight: 600 !important;
+    border-radius: var(--radius-pill) !important;
+    font-weight: 700 !important;
     text-decoration: none;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .download-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transform: scale(1.04);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
 }
 
 .dismiss-btn {
     background: transparent;
     border: none;
-    color: white;
-    font-size: 1.2rem;
+    color: rgba(255,255,255,0.8);
+    font-size: 1.1rem;
     cursor: pointer;
     padding: 5px 10px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    transition: color 0.2s;
 }
 
 .dismiss-btn:hover {
-    opacity: 1;
+    color: white;
 }
 
 @media (max-width: 600px) {
     .download-content {
         flex-direction: column;
         text-align: center;
-        gap: 10px;
+        gap: 8px;
     }
 
     .dismiss-btn {
         position: absolute;
-        top: 5px;
+        top: 6px;
         right: 10px;
     }
 
     .download-banner {
-        padding: 15px 20px 15px;
+        padding: 14px 20px;
     }
 }
 
-/* Modal Styles */
+/* ============================================================
+   MODAL
+   ============================================================ */
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
@@ -249,7 +388,7 @@
     backdrop-filter: blur(4px);
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.25s ease;
 }
 
 .modal.show {
@@ -257,17 +396,23 @@
 }
 
 .modal-content {
-    background: var(--neu-bg);
+    background: var(--card-bg);
     width: 90%;
-    max-width: 400px;
-    border-radius: 20px;
-    box-shadow: var(--neu-shadow-out);
+    max-width: 420px;
+    border-radius: var(--radius-card);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
     overflow: hidden;
-    animation: slideUp 0.4s ease-out;
+    animation: slideUp 0.3s ease-out;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .modal-content {
+    background: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
 }
 
 .modal-header {
-    padding: 20px;
+    padding: 20px 24px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
@@ -276,7 +421,10 @@
 
 .modal-header h3 {
     margin: 0;
-    color: var(--secondary-color);
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-color);
 }
 
 .close-btn {
@@ -285,39 +433,54 @@
     font-size: 1.5rem;
     cursor: pointer;
     color: var(--light-text);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.close-btn:hover {
+    background: var(--inner-bg);
+    color: var(--text-color);
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 20px 24px;
 }
 
 .modal-body p {
-    margin-bottom: 15px;
+    margin-bottom: 14px;
     font-size: 0.9rem;
     color: var(--light-text);
-    line-height: 1.5;
+    line-height: 1.6;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
-/* ============================================
+/* ============================================================
    INACTIVITY WARNING OVERLAY
-   ============================================ */
+   ============================================================ */
 #inactivity-warning-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
@@ -327,14 +490,19 @@
 }
 
 .inactivity-warning-card {
-    background: var(--card-bg, #ffffff);
-    border-radius: 20px;
-    padding: 40px 35px;
+    background: var(--card-bg);
+    border-radius: var(--radius-card);
+    padding: 40px 32px;
     max-width: 380px;
     width: 90%;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     animation: slideUp 0.4s ease-out;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .inactivity-warning-card {
+    background: var(--dm-surface, #1A1D27);
 }
 
 .inactivity-icon {
@@ -344,165 +512,190 @@
 }
 
 @keyframes pulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.15);
-    }
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.12); }
 }
 
 .inactivity-title {
-    font-size: 1.4rem;
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
     font-weight: 700;
-    color: var(--text-color, #333);
+    color: var(--text-color);
     margin: 0 0 10px;
 }
 
 .inactivity-message {
-    font-size: 0.95rem;
-    color: var(--light-text, #666);
-    margin: 0 0 20px;
+    font-size: 0.92rem;
+    color: var(--light-text);
+    margin: 0 0 18px;
     line-height: 1.5;
 }
 
 .inactivity-message span {
     font-weight: 700;
-    color: var(--accent-color, #e74c3c);
-    font-size: 1.1rem;
+    color: var(--accent-color);
+    font-size: 1.05rem;
 }
 
 .inactivity-progress-bar {
     width: 100%;
-    height: 6px;
-    background: var(--border-color, #e0e0e0);
+    height: 5px;
+    background: var(--border-color);
     border-radius: 3px;
     overflow: hidden;
-    margin-bottom: 25px;
+    margin-bottom: 24px;
 }
 
 .inactivity-progress-fill {
     height: 100%;
     width: 100%;
-    background: linear-gradient(90deg, #e74c3c, #f39c12);
+    background: linear-gradient(90deg, var(--accent-color), var(--warning-color, #F9AB00));
     border-radius: 3px;
     transition: width 1s linear;
 }
 
 .inactivity-btn {
-    background: linear-gradient(135deg, var(--primary-color, #667eea), var(--secondary-color, #764ba2));
+    background: var(--primary-color);
     color: white;
     border: none;
-    padding: 14px 30px;
-    border-radius: 12px;
-    font-size: 1.05rem;
-    font-weight: 600;
+    padding: 13px 28px;
+    border-radius: var(--radius-pill);
+    font-size: 0.95rem;
+    font-family: var(--font-family);
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     width: 100%;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 14px rgba(26, 115, 232, 0.3);
 }
 
 .inactivity-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
 }
 
 .inactivity-btn:active {
     transform: translateY(0);
 }
 
-/* ============================================
+/* ============================================================
    FORGOT PASSWORD / USERNAME TAB SWITCHER
-   ============================================ */
+   ============================================================ */
 .forgot-tabs {
     display: flex;
-    gap: 0;
     margin-bottom: 20px;
-    background: var(--inner-bg, #f0f0f0);
+    background: var(--inner-bg);
     border-radius: 10px;
     padding: 4px;
+    gap: 4px;
 }
 
 .forgot-tab-btn {
     flex: 1;
-    padding: 10px 12px;
+    padding: 9px 10px;
     border: none;
     background: transparent;
-    color: var(--light-text, #888);
-    font-size: 0.85rem;
+    color: var(--light-text);
+    font-size: 0.83rem;
     font-weight: 600;
+    font-family: var(--font-family);
     cursor: pointer;
     border-radius: 8px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     text-align: center;
 }
 
 .forgot-tab-btn.active {
-    background: var(--card-bg, #ffffff);
-    color: var(--primary-color, #667eea);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: var(--card-bg);
+    color: var(--primary-color);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
 }
 
 .forgot-tab-btn:hover:not(.active) {
-    color: var(--text-color, #333);
-    background: rgba(255, 255, 255, 0.5);
+    color: var(--text-color);
 }
 
 .forgot-tab-content {
     display: none;
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.25s ease;
 }
 
 .forgot-tab-content.active {
     display: block;
 }
 
-/* Info callout for the forgot username tab */
+/* Info callout */
 .info-callout {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
-    border-left: 3px solid var(--primary-color, #667eea);
+    background: var(--primary-light, #E8F0FE);
+    border-left: 3px solid var(--primary-color);
     border-radius: 0 8px 8px 0;
     padding: 12px 14px;
-    margin-bottom: 15px;
+    margin-bottom: 16px;
     font-size: 0.85rem;
     line-height: 1.5;
-    color: var(--text-color, #333);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .info-callout {
+    background: var(--primary-light, #1E2D4A);
 }
 
 .info-callout strong {
-    color: var(--primary-color, #667eea);
+    color: var(--primary-color);
 }
 
 /* Success result box */
 .username-result-box {
-    background: linear-gradient(135deg, rgba(46, 204, 113, 0.1), rgba(39, 174, 96, 0.1));
-    border: 1px solid rgba(46, 204, 113, 0.3);
+    background: rgba(46, 204, 113, 0.08);
+    border: 1px solid rgba(46, 204, 113, 0.25);
     border-radius: 12px;
     padding: 20px;
     text-align: center;
-    margin-top: 15px;
+    margin-top: 14px;
     animation: slideUp 0.3s ease-out;
 }
 
 .username-result-box .found-label {
-    font-size: 0.85rem;
-    color: var(--light-text, #888);
+    font-size: 0.82rem;
+    color: var(--light-text);
     margin-bottom: 8px;
 }
 
 .username-result-box .found-username {
     font-size: 1.4rem;
     font-weight: 700;
-    color: var(--success-color, #2ecc71);
+    color: var(--success-color);
     margin-bottom: 10px;
     word-break: break-all;
 }
 
 .username-result-box .found-hint {
     font-size: 0.8rem;
-    color: var(--light-text, #888);
+    color: var(--light-text);
+}
+
+/* ============================================================
+   MAIN LAYOUT OVERRIDES FOR AUTH PAGES
+   ============================================================ */
+.main-footer {
+    text-align: center;
+    padding: 12px;
+    font-size: 0.78rem;
+    color: var(--light-text);
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+/* Override body overflow for auth pages */
+.app-container.no-sidebar {
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.app-container.no-sidebar .main-content {
+    flex: 1;
+    overflow: hidden;
+    padding: 0 !important;
+    max-width: none !important;
 }

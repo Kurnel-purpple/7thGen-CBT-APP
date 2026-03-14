@@ -5,7 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="seatos">
-    <title>Sign Up - CBT Exam</title>
+    <title>Register - CBT Exam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <!-- CSS -->
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
@@ -19,27 +28,29 @@
 
         .role-switch {
             display: flex;
-            background: #f0f2f5;
-            padding: 5px;
-            border-radius: 8px;
+            background: var(--inner-bg);
+            padding: 4px;
+            border-radius: 10px;
             margin-bottom: 20px;
+            gap: 4px;
         }
 
         .role-option {
             flex: 1;
             text-align: center;
-            padding: 10px;
+            padding: 9px 10px;
             cursor: pointer;
-            border-radius: 6px;
-            font-weight: 500;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
             color: var(--light-text);
             transition: all 0.2s;
         }
 
         .role-option.active {
-            background: white;
+            background: var(--card-bg);
             color: var(--primary-color);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
         }
 
         .hidden {
@@ -49,15 +60,21 @@
 </head>
 
 <body>
-    <div id="app" class="app-container">
-        <!-- Header -->
-        <header class="main-header">
-            <div class="logo">
-                <h1 class="logo-text">Gen7 CBT</h1>
-            </div>
+    <div id="app" class="app-container no-sidebar">
+        <!-- Auth top brand bar -->
+        <header class="auth-topbar">
+            <span class="auth-brand">Gen7 CBT</span>
         </header>
 
-        <main id="main-content" class="main-content">
+        <main id="main-content" class="main-content auth-main">
+            <!-- Blue accent panel (desktop only) -->
+            <div class="auth-panel-left" aria-hidden="true">
+                <div class="auth-panel-content">
+                    <h2>Join the Platform</h2>
+                    <p>Create your account to access exams, track results, and more.</p>
+                </div>
+            </div>
+
             <div class="auth-container">
                 <div class="auth-card">
                     <div class="auth-header">
@@ -134,11 +151,11 @@
                         <!-- Error Message -->
                         <div id="register-error" class="error-message" style="display: none;"></div>
 
-                        <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
+                        <button type="submit" class="btn btn-primary btn-block">Register</button>
                     </form>
 
                     <div class="auth-footer">
-                        <p>Already have an account? <a href="../index.html">Sign In</a></p>
+                        <p>Already have an account? <a href="../index.html">Login</a></p>
                     </div>
                 </div>
             </div>
@@ -312,7 +329,7 @@
                 errorDiv.textContent = err.message || 'Registration failed.';
                 errorDiv.style.display = 'block';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign Up';
+                submitBtn.textContent = 'Register';
             }
         });
     </script>

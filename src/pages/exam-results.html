@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="seatos">
     <title>Exam Results - CBT Exam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
@@ -16,44 +25,54 @@
             width: 100%;
             border-collapse: collapse;
             background: var(--card-bg);
-            border-radius: 8px;
+            border-radius: var(--radius-card);
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
         }
 
         .results-table th,
         .results-table td {
-            padding: 15px;
+            padding: 14px 16px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
             color: var(--text-color);
+            font-size: 0.9rem;
         }
 
         .results-table th {
             background: var(--inner-bg);
-            font-weight: 600;
-            color: var(--secondary-color);
+            font-weight: 700;
+            font-family: var(--font-heading);
+            color: var(--light-text);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .results-table tr:hover {
-            background: var(--inner-bg);
-            /* Or a lighter variant if possible, but inner-bg works */
+        .results-table tr:hover td {
+            background: var(--primary-light);
+        }
+
+        [data-theme="dark"] .results-table tr:hover td {
+            background: var(--dm-surface-3, #2C3150);
         }
 
         .score-pill {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: var(--font-heading);
         }
 
         .score-pill.pass {
-            background: rgba(46, 204, 113, 0.2);
+            background: rgba(46, 204, 113, 0.12);
             color: var(--success-color);
         }
 
         .score-pill.fail {
-            background: rgba(231, 76, 60, 0.2);
+            background: rgba(231, 76, 60, 0.12);
             color: var(--accent-color);
         }
 
@@ -191,32 +210,28 @@
 
             /* Dark mode support for mobile icon */
             [data-theme="dark"] .btn-back-mobile {
-                background: #1a1a1a;
-                color: #ffffff;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                background: var(--dm-surface-2, #22263A);
+                color: var(--text-color);
+                box-shadow: var(--shadow-card);
             }
 
             [data-theme="dark"] .btn-back-mobile:hover {
-                background: #000000;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                background: var(--dm-surface-3, #2C3150);
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="app-container">
+    <div class="app-container no-sidebar">
         <header class="main-header">
             <div class="logo">
-                <h1>Class Results</h1>
+                <h1 style="font-size: 1.1rem;">Class Results</h1>
             </div>
-            <div class="user-menu">
-                <!-- Desktop: Full button with text -->
-                <button onclick="window.location.href='teacher-dashboard.html'" class="btn btn-back-desktop">← Back to
-                    Dashboard</button>
-                <!-- Mobile: Clean icon only -->
-                <button onclick="window.location.href='teacher-dashboard.html'" class="btn-back-mobile"
-                    aria-label="Back to Dashboard">
+            <div class="user-menu" style="display:flex; align-items:center; gap:8px;">
+                <!-- Dark mode toggle injected by utils.js -->
+                <button onclick="window.location.href='teacher-dashboard.html'" class="btn btn-back-desktop">← Back to Dashboard</button>
+                <button onclick="window.location.href='teacher-dashboard.html'" class="btn-back-mobile topbar-icon-btn" aria-label="Back to Dashboard">
                     <i class="fas fa-arrow-left"></i>
                 </button>
             </div>

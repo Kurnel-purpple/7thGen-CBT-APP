@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="seatos">
     <title>Results - CBT Exam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
@@ -14,24 +23,26 @@
     <style>
         .result-header {
             background: var(--card-bg);
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            padding: 32px;
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
         }
 
         .score-circle {
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            background: var(--background-color);
+            background: var(--primary-light);
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 0 auto 20px;
-            font-size: 2.5rem;
-            font-weight: bold;
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-family: var(--font-heading);
             color: var(--primary-color);
             border: 4px solid var(--primary-color);
         }
@@ -40,11 +51,12 @@
 
         .result-item {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            padding: 20px 24px;
+            border-radius: var(--radius-card);
+            margin-bottom: 12px;
             border: 1px solid var(--border-color);
             color: var(--text-color);
+            box-shadow: var(--shadow-card);
         }
 
         /* ... skipping border colors ... */
@@ -88,7 +100,13 @@
         }
 
         .status-badge.theory {
-            background-color: #9b59b6;
+            background-color: var(--primary-color);
+        }
+
+        .result-header h2 {
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            font-weight: 700;
         }
 
         /* Desktop button - full button with text */
@@ -160,30 +178,28 @@
 
             /* Dark mode support for mobile icon */
             [data-theme="dark"] .btn-back-mobile {
-                background: #1a1a1a;
-                color: #ffffff;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                background: var(--dm-surface-2, #22263A);
+                color: var(--text-color);
+                box-shadow: var(--shadow-card);
             }
 
             [data-theme="dark"] .btn-back-mobile:hover {
-                background: #000000;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+                background: var(--dm-surface-3, #2C3150);
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="app-container">
+    <div class="app-container no-sidebar">
         <header class="main-header">
             <div class="logo">
-                <h1>Exam Results</h1>
+                <h1 style="font-size: 1.1rem;">Exam Results</h1>
             </div>
-            <div class="user-menu">
-                <!-- Desktop: Full button with text -->
+            <div class="user-menu" style="display:flex; align-items:center; gap:8px;">
+                <!-- Dark mode toggle injected by utils.js -->
                 <button onclick="window.history.back()" class="btn btn-back-desktop">← Back</button>
-                <!-- Mobile: Clean icon only -->
-                <button onclick="window.history.back()" class="btn-back-mobile" aria-label="Go back">
+                <button onclick="window.history.back()" class="btn-back-mobile topbar-icon-btn" aria-label="Go back">
                     <i class="fas fa-arrow-left"></i>
                 </button>
             </div>

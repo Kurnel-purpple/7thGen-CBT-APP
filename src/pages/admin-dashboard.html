@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="seatos">
     <title>Admin Dashboard - CBT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="manifest" href="../manifest.json">
@@ -17,12 +26,12 @@
         }
 
         .admin-header {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: var(--sidebar-bg);
             color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 16px 24px;
+            border-radius: var(--radius-card);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(26,86,196,0.25);
         }
 
         .admin-header h1 {
@@ -90,7 +99,7 @@
         .control-group input:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(74, 144, 200, 0.1);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
         }
 
         .stats-grid {
@@ -197,7 +206,7 @@
         }
 
         .collapsible-header:hover {
-            background: rgba(var(--primary-rgb, 74, 144, 200), 0.05);
+            background: var(--primary-light);
         }
 
         .collapsible-header.active {
@@ -319,7 +328,7 @@
         .message-form textarea:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(74, 144, 200, 0.1);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
         }
 
         .btn {
@@ -340,7 +349,7 @@
         .btn-primary:hover {
             background: var(--primary-hover);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(74, 144, 200, 0.3);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
         }
 
         .btn-primary:disabled {
@@ -403,7 +412,7 @@
             font-family: monospace;
             white-space: pre-wrap;
             color: var(--accent-color);
-            background: #fff0f1;
+            background: rgba(231, 76, 60, 0.06);
             padding: 8px;
             border-radius: 4px;
             margin-top: 5px;
@@ -480,38 +489,38 @@
             }
         }
 
-        /* Dark Mode Support */
+        /* Dark Mode Support — use design system variables */
         [data-theme="dark"] body {
-            background-color: #1a1a2e;
-            color: #eee;
+            background-color: var(--background-color);
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .admin-container {
-            background-color: #1a1a2e;
+            background-color: var(--background-color);
         }
 
         [data-theme="dark"] .admin-controls,
         [data-theme="dark"] .section,
         [data-theme="dark"] .stat-card {
-            background: #16213e;
-            border-color: #0f3460;
+            background: var(--dm-surface, #1A1D27);
+            border-color: var(--border-color);
         }
 
         [data-theme="dark"] .control-group label {
-            color: #eee;
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .control-group select,
         [data-theme="dark"] .control-group input,
         [data-theme="dark"] .form-control {
-            background: #1a1a2e;
-            border-color: #0f3460;
-            color: #eee;
+            background: var(--dm-surface-2, #22263A);
+            border-color: var(--border-color);
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .exam-card {
-            background: #1a1a2e;
-            border-color: #0f3460;
+            background: var(--dm-surface, #1A1D27);
+            border-color: var(--border-color);
         }
 
         [data-theme="dark"] .exam-card:hover {
@@ -519,64 +528,64 @@
         }
 
         [data-theme="dark"] .exam-title {
-            color: #eee;
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .exam-meta {
-            color: #aaa;
+            color: var(--light-text);
         }
 
         [data-theme="dark"] .section-header h2 {
-            color: #eee;
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .section-header {
-            border-color: #0f3460;
+            border-color: var(--border-color);
         }
 
         [data-theme="dark"] .message-form {
-            background: #1a1a2e;
+            background: var(--dm-surface-2, #22263A);
         }
 
         [data-theme="dark"] .message-form textarea {
-            background: #16213e;
-            border-color: #0f3460;
-            color: #eee;
+            background: var(--dm-surface, #1A1D27);
+            border-color: var(--border-color);
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .message-history {
-            background: #1a1a2e;
+            background: var(--dm-surface-2, #22263A);
         }
 
         [data-theme="dark"] .message-item {
-            background: #16213e;
+            background: var(--dm-surface, #1A1D27);
         }
 
         [data-theme="dark"] .message-item .message-to {
-            color: #eee;
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .message-item .message-content {
-            color: #ccc;
+            color: var(--light-text);
         }
 
         [data-theme="dark"] .status-active {
-            background: #1b4332;
-            color: #52b788;
+            background: rgba(52, 168, 83, 0.15);
+            color: var(--success-color);
         }
 
         [data-theme="dark"] .status-draft {
-            background: #4a3000;
-            color: #ffc107;
+            background: rgba(249, 171, 0, 0.15);
+            color: var(--warning-color);
         }
 
         [data-theme="dark"] .status-archived {
-            background: #333;
-            color: #999;
+            background: var(--dm-surface-3, #2C3150);
+            color: var(--light-text);
         }
 
         [data-theme="dark"] .stat-card h3 {
-            color: #aaa;
+            color: var(--light-text);
         }
 
         [data-theme="dark"] .stat-card .value {
@@ -584,7 +593,7 @@
         }
 
         [data-theme="dark"] .empty-state {
-            color: #888;
+            color: var(--light-text);
         }
 
         /* Theme Toggle Button */
@@ -659,11 +668,11 @@
         }
 
         [data-theme="dark"] #results-table {
-            border-color: #0f3460;
+            border-color: var(--border-color);
         }
 
         [data-theme="dark"] #results-table td {
-            border-color: #0f3460;
+            border-color: var(--border-color);
         }
 
         /* Mobile Result Cards */
@@ -780,12 +789,12 @@
         }
 
         [data-theme="dark"] .result-card {
-            background: #16213e;
-            border-color: #0f3460;
+            background: var(--dm-surface, #1A1D27);
+            border-color: var(--border-color);
         }
 
         [data-theme="dark"] .result-card-score-item {
-            background: #1a1a2e;
+            background: var(--dm-surface-2, #22263A);
         }
 
         @media (max-width: 768px) {
