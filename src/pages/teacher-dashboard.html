@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="default">
     <title>Teacher Dashboard - CBT Exam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
@@ -22,52 +31,43 @@
 
         .stat-card {
             flex: 0 1 auto;
-            /* Don't grow to fill */
             width: 250px;
-            /* Fixed smaller width */
-            background: transparent;
-            /* Remove BG */
-            background-color: transparent !important;
-            /* Force override */
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
-            /* Subtle border */
+            background: var(--card-bg);
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-card);
         }
 
         /* Dark Mode Modal Support */
         [data-theme="dark"] .modal-content {
-            background-color: #2d3436;
-            border-color: #444;
-            color: #eee;
+            background-color: var(--dm-surface, #1A1D27);
+            border-color: var(--border-color);
+            color: var(--text-color);
         }
 
         [data-theme="dark"] .close-btn {
-            color: #aaa;
+            color: var(--light-text);
         }
 
         [data-theme="dark"] .stat-card {
-            border-color: #444;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border-color: var(--border-color);
+            box-shadow: var(--shadow-card);
         }
 
         [data-theme="dark"] textarea,
         [data-theme="dark"] input {
-            background-color: #2d3436;
-            border-color: #555;
-            color: #fff;
+            background-color: var(--dm-surface-2, #22263A);
+            border-color: var(--border-color);
+            color: var(--text-color);
         }
 
         /* Subtle button shadows in dark mode */
         [data-theme="dark"] .btn {
-            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), -2px -2px 4px rgba(255, 255, 255, 0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         [data-theme="dark"] .btn:active {
-            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.4), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
-        }
-
-        [data-theme="dark"] .btn:active {
-            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.4), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
         }
 
         /* Credentials Dropdown */
@@ -140,11 +140,11 @@
         }
 
         .dropdown-item.danger:hover {
-            background: #fff5f5;
+            background: rgba(231, 76, 60, 0.08);
         }
 
         [data-theme="dark"] .dropdown-item.danger:hover {
-            background: #3a1c1c;
+            background: rgba(231, 76, 60, 0.15);
         }
 
         .dropdown-divider {
@@ -218,168 +218,157 @@
             resize: vertical;
             word-wrap: break-word;
         }
+
+        /* Header Create Exam button — light mode: dark border/text */
+        .header-create-exam-btn {
+            border-color: var(--text-color) !important;
+            color: var(--text-color) !important;
+            background: transparent !important;
+        }
+        .header-create-exam-btn:hover {
+            background: var(--primary-light) !important;
+            border-color: var(--primary-color) !important;
+            color: var(--primary-color) !important;
+        }
+
+        /* Header Create Exam button — dark mode: white border/text */
+        [data-theme="dark"] .header-create-exam-btn {
+            border-color: #FFFFFF !important;
+            color: #FFFFFF !important;
+            background: transparent !important;
+        }
+        [data-theme="dark"] .header-create-exam-btn:hover {
+            background: rgba(255,255,255,0.1) !important;
+        }
+
+        /* Sidebar theme toggle hover */
+        #sidebar-theme-toggle:hover {
+            color: #FFFFFF !important;
+        }
     </style>
 </head>
 
 <body>
     <div class="app-container">
-        <header class="main-header">
-            <div class="logo">
-                <!-- Logo image will be injected here by themeApplier if available -->
-                <div class="logo-text-group">
-                    <h1 id="user-name"
-                        style="font-family: 'Futura', 'Century Gothic', 'Arial Rounded MT Bold', sans-serif; font-size: 1.5rem; margin: 0; font-weight: 700;">
-                        Teacher</h1>
-                    <p id="app-subtitle" style="font-size: 0.75rem; margin: 0; opacity: 0.7; font-weight: 400;"><span
-                            class="desktop-text">Teacher Dashboard</span><span class="mobile-text">TD</span></p>
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <div class="sidebar-brand" style="justify-content: space-between;">
+                <div>
+                    <span class="sidebar-brand-text">Gen7 CBT</span>
                 </div>
+                <button onclick="closeSidebarMobile()" style="background:none; border:none; color:rgba(255,255,255,0.7); font-size:1.4rem; cursor:pointer; padding:4px 8px; display:none;" class="sidebar-close-btn" aria-label="Close menu">✕</button>
             </div>
-            <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
-                <!-- School ID Input -->
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <label for="teacher-school-id" style="font-size: 0.85rem; color: var(--light-text);">School
-                        ID:</label>
-                    <input type="text" id="teacher-school-id" placeholder="Enter school ID"
-                        style="padding: 5px 10px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px; width: 120px; background: var(--card-bg); color: var(--text-color);">
-                    <button onclick="saveTeacherSchoolId()" class="btn"
-                        style="padding: 5px 10px; font-size: 0.8rem; background: var(--accent-color); color: white; border: none;">Save</button>
-                </div>
-                <!-- Messages Notification Bell -->
-                <button id="messages-bell" onclick="openMessagesSection()"
-                    style="position: relative; background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px;"
-                    title="Messages from Admin">
-                    🔔
-                    <span id="messages-badge" style="
-                        display: none;
-                        position: absolute;
-                        top: 0;
-                        right: 0;
-                        background: #e74c3c;
-                        color: white;
-                        font-size: 0.7rem;
-                        font-weight: bold;
-                        min-width: 18px;
-                        height: 18px;
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    ">0</span>
+
+            <!-- Dark Mode Toggle (icon only, no border/text) -->
+            <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
+                <span id="sidebar-theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span>
+            </button>
+
+            <nav class="sidebar-nav">
+                <a href="teacher-dashboard.html" class="sidebar-nav-item active">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
+                    <span class="sidebar-nav-label">My Exams</span>
+                    <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="total-exams">0</span>
+                </a>
+                <button class="sidebar-nav-item" onclick="openMessagesSection(); closeSidebarMobile();">
+                    <span class="nav-icon" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span id="messages-badge" style="display:none; position:absolute; top:-4px; right:-6px; background:#e74c3c; color:white; font-size:0.6rem; font-weight:bold; min-width:14px; height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center;">0</span>
+                    </span>
+                    <span class="sidebar-nav-label">Messages</span>
                 </button>
-                <!-- Dark mode toggle will be injected here by utils.js -->
-                <div class="credentials-dropdown">
-                    <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
-                        <span id="nav-user-display"
-                            style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">👤
-                            Account</span>
-                        <span style="font-size: 0.8rem; opacity: 0.6;">▼</span>
-                    </button>
-                    <div id="credentials-dropdown-content" class="dropdown-content">
-                        <div
-                            style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                            Settings</div>
-                        <button class="dropdown-item" onclick="openChangeUsernameModal()">
-                            <span>🆔 Change Username</span>
-                        </button>
-                        <button class="dropdown-item" onclick="openChangePasswordModal()">
-                            <span>🔑 Change Password</span>
-                        </button>
-                        <div class="dropdown-divider"></div>
-                        <button class="dropdown-item danger" onclick="auth.logout()">
-                            <span>🚪 Logout</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
-        </header>
-
-        <!-- Mobile Menu -->
-        <div id="mobile-menu" class="mobile-menu">
-            <div class="mobile-menu-content">
-                <div class="mobile-user-row">
-                    <div id="mobile-user-name" style="font-weight: bold; font-size: 1.1rem; color: var(--text-color);">
-                        Teacher Dashboard</div>
-                    <button id="mobile-theme-toggle" class="btn"
-                        style="background: transparent; font-size: 1.2rem;">🌓</button>
-                </div>
-
-                <div class="mobile-actions"
-                    style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                    <button class="btn btn-outline" onclick="openChangeUsernameModal()"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                        <span>🆔 Change Username</span>
-                    </button>
-                    <button class="btn btn-outline" onclick="openChangePasswordModal()"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                        <span>🔑 Change Password</span>
-                    </button>
-                    <button class="btn danger" onclick="auth.logout()"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; margin-top: 10px;">
-                        <span>🚪 Logout</span>
-                    </button>
-                </div>
-
-                <div class="mobile-stats">
-                    <div class="stat-card">
-                        <div class="stat-number" id="mobile-total-exams">0</div>
-                        <div class="stat-label">Total Exams</div>
-                    </div>
-                    <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModalFromMobile()">
-                        <div class="stat-number" id="mobile-results-pending-count">-</div>
-                        <div class="stat-label">Results Pending / Flags</div>
-                    </div>
-                </div>
-
-                <!-- Mobile School ID Input -->
-                <div style="margin: 15px 0; padding: 10px; background: var(--inner-bg); border-radius: 8px;">
-                    <label
-                        style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 5px; display: block;">School
-                        ID</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="mobile-teacher-school-id" placeholder="Enter school ID"
-                            style="flex: 1; padding: 8px 10px; font-size: 0.9rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg); color: var(--text-color);">
-                        <button onclick="saveTeacherSchoolId(true)" class="btn btn-primary"
-                            style="padding: 8px 15px; font-size: 0.85rem;">Save</button>
-                    </div>
-                    <small style="color: var(--light-text); font-size: 0.75rem; margin-top: 5px; display: block;">Get
-                        this from your admin</small>
-                </div>
-
-                <!-- Mobile Messages Button -->
-                <button class="btn"
-                    onclick="openMessagesSection(); document.getElementById('mobile-menu').classList.remove('show');"
-                    style="width: 100%; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    🔔 Messages from Admin
-                    <span id="mobile-messages-badge" style="
-                            display: none;
-                            background: #e74c3c;
-                            color: white;
-                            font-size: 0.75rem;
-                            font-weight: bold;
-                            min-width: 20px;
-                            height: 20px;
-                            border-radius: 50%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">0</span>
+                <button class="sidebar-nav-item" onclick="openFlagReviewModal()">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+                    <span class="sidebar-nav-label">Flags &amp; Results</span>
+                    <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="results-pending-count">-</span>
                 </button>
+                <button class="sidebar-nav-item" style="background-color: rgba(46,204,113,0.15); color: rgba(255,255,255,0.9);" onclick="prepareDevice()">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                    <span class="sidebar-nav-label">Prepare Offline</span>
+                </button>
+            </nav>
 
-                <button class="btn btn-primary"
-                    style="width: 100%; margin-bottom: 10px; background-color: #2ecc71; border-color: #2ecc71;"
-                    onclick="prepareDevice()">💾 Prepare Device for Offline</button>
+            <div class="sidebar-divider"></div>
+
+            <!-- School ID in sidebar -->
+            <div style="padding: 12px 16px; overflow: hidden;">
+                <label style="font-size: 0.75rem; color: rgba(255,255,255,0.5); display: block; margin-bottom: 4px;">School ID</label>
+                <div style="display: flex; gap: 6px; min-width: 0;">
+                    <input type="text" id="teacher-school-id" placeholder="e.g. SCH2026"
+                        style="flex:1; min-width:0; padding:6px 10px; font-size:0.8rem; border-radius:6px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.08); color:#fff;">
+                    <button onclick="saveTeacherSchoolId()" class="btn" style="padding:6px 10px; font-size:0.75rem; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:6px; flex-shrink:0;">Save</button>
+                </div>
             </div>
-        </div>
+
+            <!-- Sidebar Profile (clickable with dropdown) -->
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">T</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Teacher</div>
+                        <div class="sidebar-profile-role">Teacher</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">▲</span>
+                </div>
+                <!-- Profile dropdown (pops up above) -->
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button class="dropdown-item" onclick="openChangeUsernameModal()" style="color:#fff; padding:10px 16px; font-size:0.85rem;">Change Username</button>
+                    <button class="dropdown-item" onclick="openChangePasswordModal()" style="color:#fff; padding:10px 16px; font-size:0.85rem;">Change Password</button>
+                    <div style="height:1px; background:rgba(255,255,255,0.1); margin:4px 0;"></div>
+                    <button class="dropdown-item" onclick="auth.logout()" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar overlay for mobile -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <!-- ========== MAIN WRAPPER ========== -->
+        <div class="app-main-wrapper">
+            <header class="main-header">
+                <button id="mobile-menu-btn" class="hamburger-btn" onclick="toggleSidebarMobile()">&#9776;</button>
+                <div class="logo" style="display:none !important;">
+                    <div class="logo-text-group">
+                        <h1 style="font-size:1.3rem; margin:0; font-weight:700;">Teacher</h1>
+                    </div>
+                </div>
+
+                <div class="topbar-search">
+                    <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" class="topbar-search-input" placeholder="Search exams..." id="topbar-search">
+                </div>
+
+                <div class="topbar-actions">
+                    <!-- Message bell: hidden by default, shown by JS only when unread messages exist -->
+                    <button class="topbar-icon-btn" id="messages-bell" onclick="openMessagesSection()" title="Messages" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span id="topbar-messages-badge" class="badge-dot" style="display:none;"></span>
+                    </button>
+                    <a href="create-exam.html" class="header-create-exam-btn" style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; padding:8px 16px; text-decoration:none; border-radius:8px; font-weight:700; border:1.5px solid var(--text-color); color:var(--text-color); background:transparent; transition:all 0.2s;">
+                        <span>+</span>
+                        <span>Create Exam</span>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Mobile Menu (legacy — hidden, content moved to sidebar) -->
+            <div id="mobile-menu" class="mobile-menu" style="display:none;">
+                <div class="mobile-menu-content">
+                    <div class="mobile-user-row">
+                        <div id="mobile-user-name" style="font-weight: bold; font-size: 1.1rem; color: var(--text-color);">Teacher Dashboard</div>
+                        <button id="mobile-theme-toggle" class="btn" style="background: transparent; font-size: 1.2rem;">&#127763;</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden mobile elements to preserve JS references -->
+            <div style="display:none;">
+                <span id="mobile-total-exams">0</span>
+                <span id="mobile-results-pending-count">-</span>
+                <input type="text" id="mobile-teacher-school-id">
+                <span id="mobile-messages-badge">0</span>
+            </div>
 
         <main class="main-content" style="display: block;">
-            <div class="section-header desktop-only">
-                <button class="btn btn-primary" style="background-color: #2ecc71; border-color: #2ecc71; color: white;"
-                    onclick="prepareDevice()">💾 Prepare Device for Offline</button>
-                <div style="display: flex; gap: 10px;">
-                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
-                </div>
-            </div>
 
             <!-- Admin Messages Section -->
             <div id="messages-section" style="display: none; margin-bottom: 20px;">
@@ -398,26 +387,10 @@
                 </div>
             </div>
 
-            <!-- Stats Row (Desktop Only) -->
-            <div class="dashboard-grid desktop-only">
-                <div class="stat-card">
-                    <div class="stat-number" id="total-exams">0</div>
-                    <div class="stat-label">Total Exams</div>
-                </div>
-                <!-- Future stats -->
-                <div class="stat-card" style="cursor: pointer;" onclick="openFlagReviewModal()">
-                    <div class="stat-number" id="results-pending-count">-</div>
-                    <div class="stat-label">Results Pending / Flags</div>
-                </div>
-            </div>
-
-            <!-- My Exams Section Header -->
-            <div class="section-header">
-                <h3 class="section-title">My Exams</h3>
-                <!-- Mobile: Show Create button here -->
-                <div class="mobile-only">
-                    <a href="create-exam.html" class="btn btn-primary">+ Create New Exam</a>
-                </div>
+            <!-- Quick Access Section Header -->
+            <div class="section-header" style="margin-top: 8px;">
+                <h3 class="section-title" style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; color: var(--light-text);">Quick Access</h3>
+                <span style="color: var(--light-text); font-size: 0.85rem; cursor: pointer;">See all &rsaquo;</span>
             </div>
 
             <!-- Exams Grid -->
@@ -443,7 +416,78 @@
                 </div>
             </div>
         </main>
-    </div>
+        </div><!-- /.app-main-wrapper -->
+    </div><!-- /.app-container -->
+
+    <!-- Bottom Navigation (mobile only) -->
+    <nav class="bottom-nav" role="navigation" aria-label="Mobile navigation">
+        <a href="teacher-dashboard.html" class="bottom-nav-item active">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
+            <span>Exams</span>
+        </a>
+        <button class="bottom-nav-item" onclick="openMessagesSection()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></span>
+            <span>Messages</span>
+        </button>
+        <button class="bottom-nav-item" onclick="openFlagReviewModal()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+            <span>Flags</span>
+        </button>
+        <a href="create-exam.html" class="bottom-nav-item">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+            <span>Create</span>
+        </a>
+    </nav>
+
+    <!-- Sidebar toggle script -->
+    <script>
+        window.toggleSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                if (overlay) overlay.classList.toggle('visible');
+            }
+        };
+        window.closeSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var btn = document.getElementById('mobile-menu-btn');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('visible');
+            if (btn) btn.textContent = '☰';
+        };
+
+        // Sidebar Theme Toggle
+        window.toggleThemeFromSidebar = function() {
+            var curr = document.documentElement.getAttribute('data-theme');
+            var next = curr === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            var icon = document.getElementById('sidebar-theme-icon');
+            var sunSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+            var moonSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+            if (icon) icon.innerHTML = next === 'dark' ? sunSvg : moonSvg;
+            // Sync desktop toggle if utils.js created one
+            var dToggle = document.getElementById('theme-toggle');
+            if (dToggle) dToggle.innerHTML = next === 'dark' ? '☀️' : '🌙';
+        };
+
+        // Sidebar Profile Dropdown
+        window.toggleSidebarProfileDropdown = function() {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+
+        // Close profile dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            var profile = document.querySelector('.sidebar-profile-info');
+            if (dd && dd.style.display === 'block' && profile && !profile.contains(e.target) && !dd.contains(e.target)) {
+                dd.style.display = 'none';
+            }
+        });
+    </script>
 
     <!-- Extensions Modal -->
     <div id="extensions-modal" class="modal"
@@ -811,10 +855,15 @@
                     unreadBadge.textContent = unreadCount;
                     unreadBadge.style.display = unreadCount > 0 ? 'inline' : 'none';
 
-                    // Update navbar bell badge
+                    // Update navbar bell badge + show/hide header bell
+                    const bellBtn = document.getElementById('messages-bell');
                     if (bellBadge) {
                         bellBadge.textContent = unreadCount;
                         bellBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+                    }
+                    // Show header bell only when there are unread messages
+                    if (bellBtn) {
+                        bellBtn.style.display = unreadCount > 0 ? 'flex' : 'none';
                     }
                     // Update mobile badge
                     if (mobileBadge) {
@@ -1093,10 +1142,16 @@
             }
 
             // Initialize Components
-            // Initialize Components
-            // renderExtensionsList expects arguments (exam, results), so we shouldn't call it blindly on init
-            // It will be called when opening the modal or loading data
             if (window.loadAndRenderFlags) window.loadAndRenderFlags();
+
+            // Initialize sidebar theme toggle state
+            const currentTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'light';
+            const sidebarThemeIcon = document.getElementById('sidebar-theme-icon');
+            if (sidebarThemeIcon) {
+                const sunSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+                const moonSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+                sidebarThemeIcon.innerHTML = currentTheme === 'dark' ? sunSvg : moonSvg;
+            }
 
 
             // Load Admin Messages (Important: Uses User ID for database relations)
@@ -1112,10 +1167,10 @@
             if (mName) mName.textContent = user.name;
 
             const btn = document.getElementById('mobile-menu-btn');
-            const menu = document.getElementById('mobile-menu');
             if (btn) btn.onclick = () => {
-                menu.classList.toggle('show');
-                btn.textContent = menu.classList.contains('show') ? '✕' : '☰';
+                toggleSidebarMobile();
+                const sidebar = document.getElementById('app-sidebar');
+                btn.textContent = sidebar && sidebar.classList.contains('open') ? '✕' : '☰';
             };
 
             // Mobile Theme Toggle
@@ -1875,14 +1930,11 @@
 
         // Helper function for mobile - closes menu before opening modal
         window.openFlagReviewModalFromMobile = async () => {
-            const menu = document.getElementById('mobile-menu');
             const btn = document.getElementById('mobile-menu-btn');
 
-            // Close mobile menu
-            if (menu && menu.classList.contains('show')) {
-                menu.classList.remove('show');
-                if (btn) btn.textContent = '☰';
-            }
+            // Close sidebar
+            closeSidebarMobile();
+            if (btn) btn.textContent = '☰';
 
             // Open modal
             await openFlagReviewModal();
@@ -1967,6 +2019,18 @@
             // 3. Render Modal List
             renderFlagReviewList(filterExamId);
         }
+
+        // --- SVG Icons for Exam Cards ---
+        const cardSvg = {
+            clock:   `<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+            question:`<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+            school:  `<svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>`,
+            edit:    `<svg viewBox="0 0 24 24" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+            chart:   `<svg viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+            archive: `<svg viewBox="0 0 24 24" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+            restore: `<svg viewBox="0 0 24 24" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-12.35L1 10"/></svg>`,
+            ext:     `<svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>`,
+        };
 
         // --- Dashboard Data Loading Strategy (Cache-then-Network) ---
         // Using globally defined cachedExams/cachedResults (see Flag Review section)
@@ -2072,7 +2136,7 @@
             const grid = document.getElementById('exams-grid');
             if (!grid) return;
 
-            // Helper to generate Card HTML
+            // Helper to generate Card HTML (Folder-Tab Style)
             const getCardHTML = (exam, isArchived = false) => {
                 const examResults = allResults.filter(r => r.examId === exam.id);
                 const greenCount = examResults.filter(r => r.status === 'completed' && window.countActiveFlags(r.flags) === 0).length;
@@ -2085,79 +2149,82 @@
                     const now = new Date();
                     const isPast = schedDate < now;
                     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                    scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.85rem;">📅 ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
+                    scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.75rem;">${cardSvg.clock} ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
                 }
 
                 const scrambleIndicator = exam.scrambleQuestions
-                    ? '<span title="Questions scrambled" style="font-size: 0.85rem;">🔀</span>'
+                    ? '<span title="Questions scrambled" style="font-size: 0.75rem; opacity: 0.8;">&#128256;</span>'
                     : '';
 
                 return `
-                    <div class="exam-card-header" style="justify-content: space-between; align-items: center;">
-                        <span class="exam-subject">${exam.subject || 'General'}</span>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            ${scrambleIndicator}
-                            <span title="Completed" style="font-size: 0.9rem;">🟢 ${greenCount}</span>
-                            <span title="In Progress - Click to manage" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openPendingStudentsModal('${exam.id}')">🟡 ${yellowCount}</span>
-                            <span title="Flagged - Click to review" style="font-size: 0.9rem; cursor: pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')">🔴 ${redCount}</span>
+                    <div class="folder-tab">
+                        <div class="folder-icon"></div>
+                        <span class="tab-title">${exam.title}</span>
+                        <div class="tab-dots">
+                            <span class="tab-dot" title="Completed"><span class="dot dot-green"></span>${greenCount}</span>
+                            <span class="tab-dot" title="In Progress - Click to manage" style="cursor:pointer;" onclick="event.stopPropagation(); openPendingStudentsModal('${exam.id}')"><span class="dot dot-yellow"></span>${yellowCount}</span>
+                            <span class="tab-dot" title="Flagged - Click to review" style="cursor:pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')"><span class="dot dot-red"></span>${redCount}</span>
                         </div>
                     </div>
-                    <div class="exam-card-body">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                            <h4 class="exam-title" style="margin: 0;">${exam.title}</h4>
-                            ${scheduleInfo}
-                        </div>
-                        <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                                <span>⏱ ${exam.duration}m</span>
-                                <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
-                                <span>🏫 ${exam.targetClass || 'All Classes'}</span>
+                    <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}">
+                        <div class="card-stripe"></div>
+                        <div class="exam-card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                <h4 class="exam-subject-name" style="margin: 0;">${exam.subject || 'General'}</h4>
+                                ${scheduleInfo}
+                                ${scrambleIndicator}
                             </div>
-                            ${isArchived
-                        ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}')">📤 Restore</button>`
-                        : `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--light-text); background: transparent; border: 1px solid #e0e0e0;" onclick="window.archiveExam('${exam.id}')">📥 Archive</button>`
-                    }
+                            <div class="exam-meta" style="margin-top: 8px;">
+                                <span class="mi">${cardSvg.clock}${exam.duration}m</span>
+                                <span class="mi">${cardSvg.question}${exam.questions ? exam.questions.length : 0} Qs</span>
+                                <span class="mi">${cardSvg.school}${exam.targetClass || 'All Classes'}</span>
+                            </div>
+                            <div class="exam-card-actions">
+                                ${!isArchived ? `<button class="pill-btn" onclick="event.stopPropagation(); window.openExtensionsModal('${exam.id}')">${cardSvg.ext}Extensions</button>` : ''}
+                                ${isArchived
+                                    ? `<button class="pill-btn pill-restore" onclick="event.stopPropagation(); window.unarchiveExam('${exam.id}')">${cardSvg.restore}Restore</button>`
+                                    : `<button class="pill-btn" onclick="event.stopPropagation(); window.archiveExam('${exam.id}')">${cardSvg.archive}Archive</button>`
+                                }
+                            </div>
                         </div>
-                    </div>
-                    <div class="exam-card-footer">
-                        <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='create-exam.html?id=${exam.id}'">✏️ Edit</button>
-                        ${!isArchived ? `<button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="window.openExtensionsModal('${exam.id}')">⏱️ Extensions</button>` : ''}
-                        <button class="btn" style="font-size: 0.8rem; padding: 4px 8px;" onclick="location.href='exam-results.html?examId=${exam.id}'">📊 Results</button>
+                        <div class="exam-card-footer">
+                            <button class="foot-btn" onclick="location.href='create-exam.html?id=${exam.id}'">${cardSvg.edit}Edit</button>
+                            <button class="foot-btn" onclick="location.href='exam-results.html?examId=${exam.id}'">${cardSvg.chart}Results</button>
+                        </div>
                     </div>
                 `;
             };
 
             // Smart Update:
-            // 1. Mark all existing cards
+            // 1. Mark all existing card wraps
             const currentCards = Array.from(grid.children);
-            const existingIds = new Set(currentCards.map(c => c.getAttribute('data-exam-id')));
             const newIds = new Set(activeExams.map(e => e.id));
 
             // 2. Remove cards for exams that are no longer active/exist
-            currentCards.forEach(card => {
-                const id = card.getAttribute('data-exam-id');
-                if (!newIds.has(id)) {
-                    card.remove();
+            currentCards.forEach(wrap => {
+                const innerCard = wrap.querySelector('.exam-card[data-exam-id]');
+                const id = innerCard ? innerCard.getAttribute('data-exam-id') : wrap.getAttribute('data-exam-id');
+                if (id && !newIds.has(id)) {
+                    wrap.remove();
                 }
             });
 
             // 3. Update existing or Append new
             activeExams.forEach(exam => {
-                let card = grid.querySelector(`.exam-card[data-exam-id="${exam.id}"]`);
+                // Find existing card-wrap by looking for inner .exam-card with matching data-exam-id
+                const innerCard = grid.querySelector(`.exam-card[data-exam-id="${exam.id}"]`);
+                let wrap = innerCard ? innerCard.closest('.card-wrap') : null;
 
-                if (card) {
+                if (wrap) {
                     // Update content
-                    card.innerHTML = getCardHTML(exam, false);
-                    card.setAttribute('data-exam-title', exam.title); // Update title just in case
+                    wrap.innerHTML = getCardHTML(exam, false);
                 } else {
                     // Create new
-                    card = document.createElement('div');
-                    card.className = 'exam-card';
-                    card.setAttribute('data-exam-id', exam.id);
-                    card.setAttribute('data-exam-title', exam.title);
-                    card.innerHTML = getCardHTML(exam, false);
+                    wrap = document.createElement('div');
+                    wrap.className = 'card-wrap';
+                    wrap.innerHTML = getCardHTML(exam, false);
                     // Prepend to top (assuming sort order) or append
-                    grid.prepend(card);
+                    grid.prepend(wrap);
                 }
             });
 
@@ -2185,7 +2252,7 @@
                     document.getElementById('archived-section').style.display = 'block';
                     document.getElementById('archived-count').textContent = `(${archivedExams.length})`;
                     archivedGrid.innerHTML = archivedExams.map(exam => `
-                        <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}" style="opacity: 0.7;">
+                        <div class="card-wrap archived">
                             ${getCardHTML(exam, true)}
                         </div>
                     `).join('');

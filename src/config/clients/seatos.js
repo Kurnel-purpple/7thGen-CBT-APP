@@ -89,7 +89,7 @@ export const clientConfig = {
 
     // Page Titles
     pageTitles: {
-        login: "SEATOS - Sign In",
+        login: "SEATOS - Login",
         register: "SEATOS - Register",
         studentDashboard: "SEATOS Student Portal",
         teacherDashboard: "SEATOS Teacher Portal",

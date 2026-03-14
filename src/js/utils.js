@@ -56,13 +56,11 @@ const Utils = {
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
 
-        // Inject Toggle Button into Header
+        // Inject Toggle Button into Header (skip if sidebar already has one)
         const header = document.querySelector('.main-header');
-        if (header) {
+        if (header && !document.getElementById('sidebar-theme-toggle')) {
             const toggleBtn = document.createElement('button');
             toggleBtn.id = 'theme-toggle';
-            toggleBtn.className = 'btn';
-            toggleBtn.style.cssText = 'background: transparent; color: var(--text-color); margin-left: auto; font-size: 1.2rem; padding: 5px;';
             toggleBtn.title = 'Toggle Dark Mode';
             toggleBtn.innerHTML = savedTheme === 'dark' ? '☀️' : '🌙';
 
@@ -72,34 +70,35 @@ const Utils = {
                 document.documentElement.setAttribute('data-theme', next);
                 localStorage.setItem('theme', next);
                 toggleBtn.innerHTML = next === 'dark' ? '☀️' : '🌙';
+
+                // Sync mobile toggle if it exists
+                const mobileToggle = document.getElementById('mobile-theme-toggle');
+                if (mobileToggle) mobileToggle.innerHTML = next === 'dark' ? '☀️' : '🌙';
             };
-
-            // Ensure it's the last item (right side)
-            // If .user-menu exists (dashboard), append to it or after it?
-            // The prompt asks for "right-side of the header". 
-            // In dashboard pages, .user-menu is usually last. 
-            // In auth pages (index/register), there might be just text or no user menu.
-            // Appending to header will put it at the end if flex direction is row.
-
-            // Check if user-menu exists, maybe put it inside there for alignment?
-            // Or just append to header. CSS for header is flex + space-between usually. 
-            // If we want it definitely on the right, appending to header is correct. 
-            // BUT if there is already a "right" element (like user-menu), we might want to put it next to it.
 
             const userMenu = header.querySelector('.user-menu');
             const mobileUserRow = header.querySelector('.mobile-user-row');
 
             if (mobileUserRow) {
                 // For pages with mobile-user-row (like create-exam), append to mobile row
+                toggleBtn.className = 'btn';
+                toggleBtn.style.cssText = 'background: transparent; color: var(--text-color); font-size: 1.2rem; padding: 5px;';
                 mobileUserRow.appendChild(toggleBtn);
-                toggleBtn.style.marginLeft = '0';
             } else if (userMenu) {
-                // Insert before the logout button in user menu? Or just prepend/append to user menu? 
-                // Let's prepend to user menu so it's [Theme] [Name] [Logout]
-                userMenu.insertBefore(toggleBtn, userMenu.firstChild);
-                toggleBtn.style.marginRight = '10px';
-                toggleBtn.style.marginLeft = '0';
+                // Insert into topbar-actions as a proper icon button, before user-menu
+                const topbarActions = userMenu.closest('.topbar-actions');
+                if (topbarActions) {
+                    toggleBtn.className = 'topbar-icon-btn';
+                    toggleBtn.style.cssText = 'font-size: 1.2rem;';
+                    topbarActions.insertBefore(toggleBtn, userMenu);
+                } else {
+                    toggleBtn.className = 'topbar-icon-btn';
+                    toggleBtn.style.cssText = 'font-size: 1.2rem;';
+                    userMenu.insertBefore(toggleBtn, userMenu.firstChild);
+                }
             } else {
+                toggleBtn.className = 'btn';
+                toggleBtn.style.cssText = 'background: transparent; color: var(--text-color); margin-left: auto; font-size: 1.2rem; padding: 5px;';
                 header.appendChild(toggleBtn);
             }
         }

@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="client-id" content="default">
     <title>Student Dashboard - CBT Exam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
@@ -192,170 +201,205 @@
 
 <body>
     <div class="app-container">
-        <header class="main-header">
-            <div class="logo">
-                <!-- Logo image will be injected here by themeApplier if available -->
-                <div class="logo-text-group">
-                    <h1 id="user-name"
-                        style="font-family: 'Futura', 'Century Gothic', 'Arial Rounded MT Bold', sans-serif; font-size: 1.5rem; margin: 0; font-weight: 700;">
-                        Student</h1>
-                    <p id="app-subtitle" style="font-size: 0.75rem; margin: 0; opacity: 0.7; font-weight: 400;">Student
-                        Portal</p>
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <div class="sidebar-brand">
+                <div>
+                    <span class="sidebar-brand-text">Gen7 CBT</span>
+                    <span class="sidebar-brand-subtitle" id="app-subtitle">Student Portal</span>
                 </div>
             </div>
-            <div class="user-menu desktop-only" style="display: flex; align-items: center; gap: 15px;">
-                <!-- Dark mode toggle will be injected here by utils.js -->
-                <div class="credentials-dropdown">
-                    <button id="credentials-btn" class="dropdown-btn" onclick="toggleCredentialsDropdown()">
-                        <span id="nav-user-display"
-                            style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">👤
-                            Account</span>
-                        <span style="font-size: 0.8rem; opacity: 0.6;">▼</span>
-                    </button>
-                    <div id="credentials-dropdown" class="dropdown-content">
-                        <div
-                            style="padding: 10px 16px; font-size: 0.75rem; color: var(--light-text); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                            Settings</div>
-                        <div style="padding: 8px 16px;">
-                            <label
-                                style="font-size: 0.75rem; color: var(--light-text); display: block; margin-bottom: 4px;">🏫
-                                School ID</label>
-                            <div style="display: flex; gap: 6px;">
-                                <input type="text" id="student-school-id" class="form-control"
-                                    placeholder="e.g. SCH2026"
-                                    style="flex: 1; padding: 6px 10px; font-size: 0.85rem; border-radius: 6px;">
-                                <button class="btn btn-primary" onclick="saveStudentSchoolId()"
-                                    style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px;">Save</button>
+
+            <nav class="sidebar-nav">
+                <a href="student-dashboard.html" class="sidebar-nav-item active">
+                    <span class="nav-icon">&#128218;</span>
+                    <span class="sidebar-nav-label">My Exams</span>
+                </a>
+                <button class="sidebar-nav-item" onclick="studentDashboard.switchTab('completed'); closeSidebarMobile();">
+                    <span class="nav-icon">&#128202;</span>
+                    <span class="sidebar-nav-label">Results</span>
+                    <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="history-count">0</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-divider"></div>
+
+            <!-- School ID -->
+            <div style="padding: 12px 16px;">
+                <label style="font-size: 0.75rem; color: rgba(255,255,255,0.5); display: block; margin-bottom: 4px;">School ID</label>
+                <div style="display: flex; gap: 6px;">
+                    <input type="text" id="student-school-id" class="form-control"
+                        placeholder="e.g. SCH2026"
+                        style="flex:1; padding:6px 10px; font-size:0.8rem; border-radius:6px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.08); color:#fff;">
+                    <button class="btn" onclick="saveStudentSchoolId()" style="padding:6px 10px; font-size:0.75rem; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:6px;">Save</button>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="sidebar-divider"></div>
+            <button class="sidebar-nav-item" onclick="openChangeUsernameModal(); closeSidebarMobile();">
+                <span class="nav-icon">&#9998;</span>
+                <span class="sidebar-nav-label">Change Username</span>
+            </button>
+            <button class="sidebar-nav-item" onclick="openChangePasswordModal(); closeSidebarMobile();">
+                <span class="nav-icon">&#128272;</span>
+                <span class="sidebar-nav-label">Change Password</span>
+            </button>
+
+            <!-- Sidebar Profile -->
+            <div class="sidebar-profile">
+                <div class="sidebar-profile-info">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">S</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Student</div>
+                        <div class="sidebar-profile-role">Student</div>
+                    </div>
+                    <button onclick="auth.logout()" style="background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; font-size:1rem; padding:4px;" title="Logout">&#9211;</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar overlay for mobile -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <!-- ========== MAIN WRAPPER ========== -->
+        <div class="app-main-wrapper">
+            <header class="main-header">
+                <button id="mobile-menu-btn" class="hamburger-btn" onclick="toggleSidebarMobile()">&#9776;</button>
+
+                <div class="topbar-search">
+                    <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" class="topbar-search-input" placeholder="Search exams..." id="topbar-search">
+                </div>
+
+                <div class="topbar-actions">
+                    <div class="user-menu" style="display:flex; align-items:center; gap:8px;">
+                        <!-- Dark mode toggle will be injected here by utils.js -->
+                        <div class="credentials-dropdown">
+                            <button id="credentials-btn" class="topbar-avatar" onclick="toggleCredentialsDropdown()" title="Account">
+                                <span id="nav-user-display" style="font-size:0.85rem;">S</span>
+                            </button>
+                            <div id="credentials-dropdown" class="dropdown-content">
+                                <div style="padding:10px 16px; font-size:0.75rem; color:var(--light-text); text-transform:uppercase; font-weight:bold; letter-spacing:0.5px;">Account</div>
+                                <button class="dropdown-item" onclick="openChangeUsernameModal()">
+                                    <span>Change Username</span>
+                                </button>
+                                <button class="dropdown-item" onclick="openChangePasswordModal()">
+                                    <span>Change Password</span>
+                                </button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item danger" onclick="auth.logout()">
+                                    <span>Logout</span>
+                                </button>
                             </div>
                         </div>
-                        <div class="dropdown-divider"></div>
-                        <button class="dropdown-item" onclick="openChangeUsernameModal()">
-                            <span>🆔 Change Username</span>
-                        </button>
-                        <button class="dropdown-item" onclick="openChangePasswordModal()">
-                            <span>🔑 Change Password</span>
-                        </button>
-                        <div class="dropdown-divider"></div>
-                        <button class="dropdown-item danger" onclick="auth.logout()">
-                            <span>🚪 Logout</span>
-                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Hidden legacy elements for JS references -->
+            <div id="mobile-menu" style="display:none;">
+                <div class="mobile-menu-content">
+                    <div class="mobile-user-row">
+                        <div id="student-name-mobile">Student Portal</div>
+                        <button id="mobile-theme-toggle" class="btn" style="background:transparent; font-size:1.2rem;">&#127763;</button>
                     </div>
                 </div>
             </div>
-            <button id="mobile-menu-btn" class="hamburger-btn">☰</button>
-        </header>
+            <div style="display:none;">
+                <input type="text" id="mobile-student-school-id">
+                <select id="mobile-subject-filter" class="form-control"><option value="All">All Subjects</option></select>
+            </div>
 
-        <!-- Mobile Menu (Hidden by default) -->
-        <div id="mobile-menu" class="mobile-menu">
-            <div class="mobile-menu-content">
-                <div class="mobile-user-row">
-                    <div id="student-name-mobile"
-                        style="font-weight: bold; font-size: 1.1rem; color: var(--text-color);">Student Portal</div>
-                    <button id="mobile-theme-toggle" class="btn"
-                        style="background: transparent; font-size: 1.2rem;">🌓</button>
-                </div>
+            <main class="main-content" style="display: block; padding: 0; overflow: hidden;">
 
-                <div class="mobile-actions"
-                    style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                    <div
-                        style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--inner-bg); border-radius: 12px; border: 1px solid var(--border-color);">
-                        <label style="font-size: 0.8rem; color: var(--light-text); font-weight: 600;">🏫 School
-                            ID</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="mobile-student-school-id" class="form-control"
-                                placeholder="e.g. SCH2026"
-                                style="flex: 1; padding: 8px 12px; font-size: 0.9rem; border-radius: 8px;">
-                            <button class="btn btn-primary" onclick="saveStudentSchoolId('mobile')"
-                                style="padding: 8px 14px; font-size: 0.85rem;">Save</button>
+                <!-- Three-Panel Layout -->
+                <div class="student-panels" id="student-panels">
+                    <!-- LEFT PANEL — Exam List -->
+                    <div class="panel-left">
+                        <div class="panel-left-header">
+                            <input type="text" class="panel-left-search" placeholder="Search exams..." id="panel-search">
+                            <div class="tabs" style="margin-top: 12px; margin-bottom: 0; border-bottom: none;">
+                                <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">
+                                    <span class="tab-text">Available</span>
+                                    <span class="badge" id="available-count">0</span>
+                                </button>
+                                <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">
+                                    <span class="tab-text">Resolved</span>
+                                    <span class="badge" id="resolved-count">0</span>
+                                </button>
+                                <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">
+                                    <span class="tab-text">History</span>
+                                </button>
+                            </div>
+                            <div style="margin-top: 8px;">
+                                <select id="desktop-subject-filter" class="form-control" style="padding:6px 10px; font-size:0.82rem; border-radius:var(--radius-pill); background:var(--inner-bg); border:none;">
+                                    <option value="All">All Subjects</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="panel-left-body">
+                            <!-- Available Exams -->
+                            <div id="available-exams-section">
+                                <div id="available-grid" class="exam-list-container">
+                                    <div class="empty-state" style="padding: 40px 20px;">
+                                        <div class="loader"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Resolved Flags -->
+                            <div id="resolved-exams-section" style="display: none;">
+                                <div id="resolved-grid" class="exam-list-container"></div>
+                            </div>
+                            <!-- Completed Exams -->
+                            <div id="completed-exams-section" style="display: none;">
+                                <div id="completed-grid" class="exam-list-container"></div>
+                            </div>
                         </div>
                     </div>
-                    <button onclick="openChangeUsernameModal()" class="btn btn-outline"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                        <span>🆔 Change Username</span>
-                    </button>
-                    <button onclick="openChangePasswordModal()" class="btn btn-outline"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px;">
-                        <span>🔑 Change Password</span>
-                    </button>
-                    <button onclick="auth.logout()" class="btn danger"
-                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; margin-top: 10px;">
-                        <span>🚪 Logout</span>
-                    </button>
-                </div>
 
-                <div class="mobile-filter-group">
-                    <label>Filter Subject:</label>
-                    <select id="mobile-subject-filter" class="form-control">
-                        <option value="All">All Subjects</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+                    <!-- CENTER PANEL — Exam Detail -->
+                    <div class="panel-center" id="exam-detail-panel">
+                        <button class="panel-back-btn" onclick="studentDashboard.showPanel('left')">&#8592; Back to list</button>
+                        <div class="panel-center-empty" id="panel-center-empty">
+                            <div class="panel-center-empty-icon">&#128221;</div>
+                            <p style="font-size: 1.1rem; font-weight: 600;">Select an exam to get started</p>
+                            <p style="font-size: 0.85rem;">Choose an exam from the list to view details and instructions.</p>
+                        </div>
+                        <div id="panel-center-content" style="display: none;"></div>
+                    </div>
 
-
-        <main class="main-content" style="display: block;">
-
-            <div class="tabs">
-                <div class="tab-group">
-                    <button class="tab-btn active" onclick="studentDashboard.switchTab('available')">
-                        <span class="tab-icon">📝</span>
-                        <span class="tab-text">Available Exams</span>
-                        <span class="badge" id="available-count">0</span>
-                    </button>
-                    <button class="tab-btn" onclick="studentDashboard.switchTab('resolved')">
-                        <span class="tab-icon">✅</span>
-                        <span class="tab-text">Resolved Flags</span>
-                        <span class="badge" id="resolved-count">0</span>
-                    </button>
-                    <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">
-                        <span class="tab-icon">📚</span>
-                        <span class="tab-text">Completed History</span>
-                        <span class="badge" id="history-count">0</span>
-                    </button>
-                </div>
-                <div class="desktop-filter">
-                    <select id="desktop-subject-filter" class="form-control"
-                        style="padding: 5px 10px; font-size: 0.9rem;">
-                        <option value="All">All Subjects</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Available Exams -->
-            <div id="available-exams-section">
-                <div class="section-header">
-                    <h3 class="section-title">Ready to take</h3>
-                </div>
-                <div id="available-grid" class="exam-grid">
-                    <!-- Dynamic -->
-                    <div class="empty-state">
-                        <div class="loader"></div>
+                    <!-- RIGHT PANEL — Metadata Aside -->
+                    <div class="panel-right" id="exam-meta-panel">
+                        <div class="panel-right-profile">
+                            <div class="panel-right-avatar" id="panel-avatar">S</div>
+                            <div class="panel-right-name" id="panel-student-name">Student</div>
+                        </div>
+                        <div class="panel-right-meta" id="panel-meta-content">
+                            <p style="text-align:center; color:var(--light-text); padding:20px; font-size:0.85rem;">Select an exam to see details</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Resolved Flags -->
-            <div id="resolved-exams-section" style="display: none;">
-                <div class="section-header">
-                    <h3 class="section-title" style="color: #28a745;">✅ Resolved Flags</h3>
-                </div>
-                <div id="resolved-grid" class="exam-grid">
-                    <!-- Dynamic -->
-                </div>
-            </div>
+            </main>
+        </div><!-- /.app-main-wrapper -->
+    </div><!-- /.app-container -->
 
-            <!-- Completed Exams -->
-            <div id="completed-exams-section" style="display: none;">
-                <div class="section-header">
-                    <h3 class="section-title">History</h3>
-                </div>
-                <div id="completed-grid" class="exam-grid">
-                    <!-- Dynamic -->
-                </div>
-            </div>
-
-        </main>
-    </div>
+    <!-- Bottom Navigation (mobile only) -->
+    <nav class="bottom-nav" role="navigation" aria-label="Mobile navigation">
+        <button class="bottom-nav-item active" onclick="studentDashboard.switchTab('available')">
+            <span class="nav-icon">&#128218;</span>
+            <span>Exams</span>
+        </button>
+        <button class="bottom-nav-item" onclick="studentDashboard.switchTab('resolved')">
+            <span class="nav-icon">&#9873;</span>
+            <span>Resolved</span>
+        </button>
+        <button class="bottom-nav-item" onclick="studentDashboard.switchTab('completed')">
+            <span class="nav-icon">&#128202;</span>
+            <span>History</span>
+        </button>
+    </nav>
 
     <!-- Exam Instructions Modal -->
     <div id="exam-instructions-modal" class="modal"
@@ -559,6 +603,24 @@
             </div>
         </div>
     </div>
+
+    <!-- Sidebar & Panel Navigation -->
+    <script>
+        window.toggleSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                if (overlay) overlay.classList.toggle('visible');
+            }
+        };
+        window.closeSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('visible');
+        };
+    </script>
 
     <script>
 

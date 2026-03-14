@@ -3,8 +3,8 @@
     "short_name": "CBT Exam",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#f5f7fa",
-    "theme_color": "#4a90e2",
+    "background_color": "#F8F9FA",
+    "theme_color": "#1A73E8",
     "icons": [
         {
             "src": "https://cdn-icons-png.flaticon.com/512/2995/2995449.png",

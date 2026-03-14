@@ -607,19 +607,16 @@ const studentDashboard = {
                 const timeLeft = Math.round((minDeadline - now) / 60000);
 
                 return `
-                <div class="exam-card" style="border: 2px solid var(--accent-color);">
-                    <div class="exam-card-header" style="background-color: #fff0f0;">
-                         <span class="exam-subject" style="color:red;">Action Required</span>
-                         <span class="exam-subject" style="background: red; color: white;">${timeLeft}m LEFT</span>
+                <div class="exam-list-item action-required" onclick="studentDashboard.reviewExam('${result.examId}', '${result.id}')">
+                    <div class="exam-list-icon" style="background: var(--accent-color);">
+                        <i class="fas fa-exclamation-triangle" style="color: white;"></i>
                     </div>
-                    <div class="exam-card-body">
-                        <h4 class="exam-title">${exam.title}</h4>
-                        <p style="font-size: 0.9rem; color: #666;">
-                            Teacher has resolved your flagged questions. Please review and update your answers.
-                        </p>
+                    <div class="exam-list-info">
+                        <div class="exam-list-title">${exam.title}</div>
+                        <div class="exam-list-subtitle">Action Required · ${timeLeft}m left</div>
                     </div>
-                    <div class="exam-card-footer">
-                        <button class="btn btn-primary" onclick="studentDashboard.reviewExam('${result.examId}', '${result.id}')" style="width: 100%; background-color: var(--accent-color); border-color: var(--accent-color);">Review & Update</button>
+                    <div class="exam-list-status">
+                        <span class="status-dot" style="background: var(--accent-color);"></span>
                     </div>
                 </div>
                 `;
@@ -701,25 +698,21 @@ const studentDashboard = {
                 actionButton = `<button class="btn btn-primary" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%;">Start Exam</button>`;
             }
 
+            const qCount = exam.questions ? exam.questions.length : 0;
+            const statusDotColor = isScheduled ? 'var(--accent-color)' : 'var(--success-color)';
+            const statusLabel = isScheduled ? 'Scheduled' : 'Available';
+
             return `
-            <div class="exam-card" ${isScheduled ? 'style="opacity: 0.8;"' : ''}>
-                <div class="exam-card-header">
-                    <span class="exam-subject">${exam.subject}</span>
-                    <span class="exam-subject exam-class-badge">${exam.targetClass || 'All'}</span>
-                    ${isScheduled
-                    ? '<span class="exam-subject" style="background: var(--accent-color); color: white;">Scheduled</span>'
-                    : '<span class="exam-subject" style="background: var(--success-color); color: white;">Available</span>'}
+            <div class="exam-list-item ${isScheduled ? 'scheduled' : ''}" data-exam-id="${exam.id}" onclick="studentDashboard.selectExam('${exam.id}', 'available')">
+                <div class="exam-list-icon">
+                    <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="exam-card-body">
-                    <h4 class="exam-title">${exam.title}</h4>
-                    <div class="exam-meta">
-                        <span>⏱ ${exam.duration} mins</span>
-                        <span>📝 ${exam.questions ? exam.questions.length : 0} Qs</span>
-                        ${scheduleInfo}
-                    </div>
+                <div class="exam-list-info">
+                    <div class="exam-list-title">${exam.title}</div>
+                    <div class="exam-list-subtitle">${exam.subject} · ${qCount} Qs · ${exam.duration}m</div>
                 </div>
-                <div class="exam-card-footer">
-                    ${actionButton}
+                <div class="exam-list-status">
+                    <span class="status-dot" style="background: ${statusDotColor};" title="${statusLabel}"></span>
                 </div>
             </div>
         `}).join('');
@@ -772,19 +765,16 @@ const studentDashboard = {
             const points = result.points !== undefined ? result.points : Math.round((result.score / 100) * totalPoints);
 
             return `
-            <div class="exam-card" style="border: 2px solid #28a745; opacity: 0.9;">
-                <div class="exam-card-header" style="background-color: #d4edda;">
-                     <span class="exam-subject" style="color: #28a745;">Resolved</span>
-                     <span class="exam-subject" style="background: #28a745; color: white;">Score: ${points}/${totalPoints}</span>
+            <div class="exam-list-item resolved" data-result-id="${result.id}" onclick="window.location.href='results.html?id=${result.id}'">
+                <div class="exam-list-icon" style="background: rgba(40, 167, 69, 0.15); color: var(--success-color);">
+                    <i class="fas fa-check-circle"></i>
                 </div>
-                <div class="exam-card-body">
-                    <h4 class="exam-title">${exam.title}</h4>
-                    <p style="font-size: 0.9rem; color: #155724;">
-                        You successfully updated your answers for the flagged questions.
-                    </p>
+                <div class="exam-list-info">
+                    <div class="exam-list-title">${exam.title}</div>
+                    <div class="exam-list-subtitle">Resolved · ${points}/${totalPoints} pts</div>
                 </div>
-                <div class="exam-card-footer">
-                    <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%; background-color: #28a745; color: white; border-color: #28a745;">👁️ View Details</button>
+                <div class="exam-list-status">
+                    <span class="status-dot" style="background: var(--success-color);"></span>
                 </div>
             </div>
             `;
@@ -818,13 +808,11 @@ const studentDashboard = {
 
         grid.innerHTML = completedResults.map(result => {
             const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
-            const isPass = result.score >= (result.passScore || 50); // Fallback
+            const isPass = result.score >= (result.passScore || 50);
 
-            // Calculate points if not stored (for backward compatibility)
             const totalPoints = result.totalPoints || 100;
             const points = result.points !== undefined ? result.points : Math.round((result.score / 100) * totalPoints);
 
-            // Check if exam has theory questions that need grading
             const hasTheoryQuestions = exam.questions && exam.questions.some(q => q.type === 'theory');
             const theoryScores = result.theoryScores || {};
             const theoryQuestionIds = hasTheoryQuestions ? exam.questions.filter(q => q.type === 'theory').map(q => q.id) : [];
@@ -832,35 +820,157 @@ const studentDashboard = {
             const allTheoryGraded = theoryQuestionIds.length > 0 && gradedCount === theoryQuestionIds.length;
             const pendingGrading = hasTheoryQuestions && !allTheoryGraded;
 
-            // Theory grading badge
-            const theoryBadge = hasTheoryQuestions ? (
-                pendingGrading
-                    ? `<div style="margin-top:6px; font-size:0.8rem; color: var(--accent-color);">⏳ Theory: ${gradedCount}/${theoryQuestionIds.length} graded</div>`
-                    : `<div style="margin-top:6px; font-size:0.8rem; color: var(--success-color);">✅ Theory graded</div>`
-            ) : '';
+            const statusDotColor = isPass ? 'var(--success-color)' : 'var(--accent-color)';
+            const theoryLabel = hasTheoryQuestions ? (pendingGrading ? ` · Theory ${gradedCount}/${theoryQuestionIds.length}` : '') : '';
 
             return `
-            <div class="exam-card" style="opacity: 0.8;">
-                <div class="exam-card-header">
-                     <span class="exam-subject">${exam.subject}</span>
-                     ${isPass
-                    ? '<span style="color: var(--success-color); font-weight: bold;">PASSED</span>'
-                    : '<span style="color: var(--accent-color); font-weight: bold;">FAILED</span>'}
+            <div class="exam-list-item completed" data-result-id="${result.id}" onclick="window.location.href='results.html?id=${result.id}'">
+                <div class="exam-list-icon" style="color: ${statusDotColor};">
+                    <i class="fas ${isPass ? 'fa-check-circle' : 'fa-times-circle'}"></i>
                 </div>
-                <div class="exam-card-body">
-                    <h4 class="exam-title">${exam.title}</h4>
-                    <div class="exam-meta">
-                        <span>Score: ${points}/${totalPoints} Points</span>
-                        <span>${Utils.formatDate(result.submittedAt)}</span>
-                    </div>
-                    ${theoryBadge}
+                <div class="exam-list-info">
+                    <div class="exam-list-title">${exam.title}</div>
+                    <div class="exam-list-subtitle">${exam.subject} · ${points}/${totalPoints} pts${theoryLabel}</div>
                 </div>
-                <div class="exam-card-footer">
-                    <button class="btn" onclick="window.location.href='results.html?id=${result.id}'" style="width: 100%;">👁️ View Details</button>
+                <div class="exam-list-status">
+                    <span class="status-dot" style="background: ${statusDotColor};" title="${isPass ? 'Passed' : 'Failed'}"></span>
                 </div>
             </div>
             `;
         }).join('');
+    },
+
+    // Three-panel layout: select an exam to show in center + right panels
+    selectExam: (examId, tab) => {
+        const exam = studentDashboard.exams.find(e => e.id === examId);
+        if (!exam) return;
+
+        // Highlight selected row
+        document.querySelectorAll('.exam-list-item').forEach(el => el.classList.remove('selected'));
+        const selected = document.querySelector(`.exam-list-item[data-exam-id="${examId}"]`);
+        if (selected) selected.classList.add('selected');
+
+        // Populate center panel
+        const centerContent = document.getElementById('panel-center-content');
+        const centerEmpty = document.getElementById('panel-center-empty');
+        if (centerEmpty) centerEmpty.style.display = 'none';
+        if (centerContent) {
+            centerContent.style.display = 'block';
+
+            const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
+            const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null;
+            let ctaHtml = '';
+
+            if (isScheduled) {
+                const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
+                ctaHtml = `<button class="btn btn-start-exam" disabled style="opacity: 0.6; cursor: not-allowed;">Available ${formattedDate}</button>`;
+            } else {
+                ctaHtml = `<button class="btn btn-start-exam" onclick="studentDashboard.startExam('${exam.id}')">Start Exam</button>`;
+            }
+
+            // Past attempts for this exam
+            const pastAttempts = studentDashboard.results.filter(r => r.examId === examId);
+            let attemptsHtml = '';
+            if (pastAttempts.length > 0) {
+                attemptsHtml = `
+                    <div style="margin-top: 24px;">
+                        <h4 style="color: var(--text-secondary, var(--light-text)); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Past Attempts</h4>
+                        ${pastAttempts.map(r => {
+                            const tp = r.totalPoints || 100;
+                            const pts = r.points !== undefined ? r.points : Math.round((r.score / 100) * tp);
+                            const passed = r.score >= (r.passScore || 50);
+                            return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                                <span style="font-size: 0.9rem; color: var(--text-color);">${Utils.formatDate(r.submittedAt)}</span>
+                                <span style="font-weight: 600; color: ${passed ? 'var(--success-color)' : 'var(--accent-color)'};">${pts}/${tp}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            centerContent.innerHTML = `
+                <div class="exam-detail-header">
+                    <span class="exam-detail-breadcrumb">${exam.subject} · ${exam.targetClass || 'All Classes'}</span>
+                    <h2 class="exam-detail-title">${exam.title}</h2>
+                </div>
+                <div class="exam-detail-divider"></div>
+                <div class="exam-detail-instructions">
+                    ${exam.instructions ? `<p>${exam.instructions}</p>` : '<p style="color: var(--light-text);">No special instructions for this exam.</p>'}
+                </div>
+                <div class="exam-detail-actions">
+                    ${ctaHtml}
+                </div>
+                ${attemptsHtml}
+            `;
+        }
+
+        // Populate right panel metadata
+        const metaContent = document.getElementById('panel-meta-content');
+        if (metaContent) {
+            const qCount = exam.questions ? exam.questions.length : 0;
+            const takenExamIds = new Set(studentDashboard.results.filter(r => r.examId === examId).map(r => r.id));
+            const statusLabel = takenExamIds.size > 0 ? 'Completed' : 'Available';
+            const statusColor = takenExamIds.size > 0 ? 'var(--success-color)' : 'var(--primary-color)';
+
+            metaContent.innerHTML = `
+                <div class="meta-row">
+                    <i class="fas fa-calendar-alt meta-icon"></i>
+                    <div class="meta-label">Term</div>
+                    <div class="meta-value">${exam.term || 'N/A'}</div>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-book meta-icon"></i>
+                    <div class="meta-label">Subject</div>
+                    <div class="meta-value">${exam.subject}</div>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-clock meta-icon"></i>
+                    <div class="meta-label">Duration</div>
+                    <div class="meta-value">${exam.duration} minutes</div>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-list-ol meta-icon"></i>
+                    <div class="meta-label">Questions</div>
+                    <div class="meta-value">${qCount}</div>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-trophy meta-icon"></i>
+                    <div class="meta-label">Pass Mark</div>
+                    <div class="meta-value">${exam.passScore || 50}%</div>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-info-circle meta-icon"></i>
+                    <div class="meta-label">Status</div>
+                    <div class="meta-value" style="color: ${statusColor}; font-weight: 600;">${statusLabel}</div>
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-users meta-icon"></i>
+                    <div class="meta-label">Class</div>
+                    <div class="meta-value">${exam.targetClass || 'All'}</div>
+                </div>
+            `;
+        }
+
+        // On mobile, slide to center panel
+        if (window.innerWidth < 768) {
+            studentDashboard.showPanel('center');
+        }
+    },
+
+    // Mobile panel navigation
+    showPanel: (panel) => {
+        const panels = document.getElementById('student-panels');
+        if (!panels) return;
+
+        panels.setAttribute('data-active-panel', panel);
+        panels.classList.remove('show-center', 'show-right');
+
+        if (panel === 'center') {
+            panels.classList.add('show-center');
+        } else if (panel === 'right') {
+            panels.classList.add('show-right');
+        }
     },
 
     startExam: async (examId) => {
