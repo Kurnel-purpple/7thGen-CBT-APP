@@ -219,11 +219,6 @@ class ThemeApplier {
                 logoImg.className = 'sidebar-brand-logo';
                 logoImg.src = logoPath;
                 logoImg.alt = `${client.name} Logo`;
-                logoImg.style.height = '32px';
-                logoImg.style.width = 'auto';
-                logoImg.style.objectFit = 'contain';
-                logoImg.style.marginRight = '8px';
-                logoImg.style.borderRadius = '6px';
                 // Insert before the text container
                 const textContainer = brand.querySelector('div');
                 if (textContainer) {

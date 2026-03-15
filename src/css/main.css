@@ -247,7 +247,15 @@ body:has(.app-container.no-sidebar) {
     padding: 20px 20px 16px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
+}
+
+.sidebar-brand > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
 }
 
 .sidebar-brand-logo {
@@ -255,6 +263,7 @@ body:has(.app-container.no-sidebar) {
     height: 36px;
     border-radius: 8px;
     object-fit: contain;
+    flex-shrink: 0;
 }
 
 .sidebar-brand-text {
@@ -1897,9 +1906,12 @@ body:has(.app-container.no-sidebar) {
         padding: 16px 8px 8px;
     }
 
+    .app-sidebar.sidebar-collapsed .sidebar-brand > div {
+        justify-content: center;
+    }
+
     .app-sidebar.sidebar-collapsed .sidebar-brand-text {
-        font-size: 0.7rem;
-        text-align: center;
+        display: none;
     }
 
     .app-sidebar.sidebar-collapsed .sidebar-brand-subtitle,
@@ -2020,15 +2032,18 @@ body:has(.app-container.no-sidebar) {
         align-items: center;
     }
 
-    /* Brand: center, hide subtitle */
+    /* Brand: center, hide text when collapsed */
     .app-sidebar .sidebar-brand {
         justify-content: center;
         padding: 16px 8px 8px;
     }
 
+    .app-sidebar .sidebar-brand > div {
+        justify-content: center;
+    }
+
     .app-sidebar .sidebar-brand-text {
-        font-size: 0.7rem;
-        text-align: center;
+        display: none;
     }
 
     .app-sidebar .sidebar-brand-subtitle,
@@ -2172,7 +2187,12 @@ body:has(.app-container.no-sidebar) {
         padding: 20px 20px 16px;
     }
 
+    .app-sidebar.sidebar-expanded .sidebar-brand > div {
+        justify-content: flex-start;
+    }
+
     .app-sidebar.sidebar-expanded .sidebar-brand-text {
+        display: inline;
         font-size: 1.2rem;
         text-align: left;
     }
