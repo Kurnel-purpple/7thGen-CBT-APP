@@ -1297,28 +1297,61 @@ const examManager = {
             const mediaCount = examManager.getMediaForQuestion(q.id).length;
             const mediaInfo = mediaCount > 0 ? ` | ${mediaCount} media` : '';
 
+            // Build options detail HTML based on question type
+            let optionsDetailHtml = '';
+            if (q.type === 'mcq' || q.type === 'image_mcq') {
+                const opts = (q.options || []).map((o, i) => {
+                    const letter = String.fromCharCode(65 + i);
+                    const correctClass = o.isCorrect ? ' q-option-correct' : '';
+                    return `<div class="q-option-item${correctClass}"><span class="q-option-letter">${letter}</span><span>${escHtml(o.text || '(empty)')}</span>${o.isCorrect ? '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>`;
+                }).join('');
+                optionsDetailHtml = opts || '<div class="q-option-empty">No options added</div>';
+            } else if (q.type === 'true_false') {
+                const trueCorrect = q.correctAnswer === 'true' || q.correctAnswer === true;
+                const falseCorrect = q.correctAnswer === 'false' || q.correctAnswer === false;
+                optionsDetailHtml = `
+                    <div class="q-option-item${trueCorrect ? ' q-option-correct' : ''}"><span class="q-option-letter">T</span><span>True</span>${trueCorrect ? '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>
+                    <div class="q-option-item${falseCorrect ? ' q-option-correct' : ''}"><span class="q-option-letter">F</span><span>False</span>${falseCorrect ? '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>`;
+            } else if (q.type === 'fill_blank') {
+                optionsDetailHtml = q.correctAnswer
+                    ? `<div class="q-option-item q-option-correct"><span class="q-option-letter">A</span><span>${escHtml(q.correctAnswer)}</span><svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg></div>`
+                    : '<div class="q-option-empty">No answer set</div>';
+            } else if (q.type === 'match') {
+                const pairs = (q.pairs || []).map((p, i) => `<div class="q-option-item"><span class="q-option-letter">${i + 1}</span><span>${escHtml(p.left || '')} → ${escHtml(p.right || '')}</span></div>`).join('');
+                optionsDetailHtml = pairs || '<div class="q-option-empty">No pairs added</div>';
+            } else if (q.type === 'image_multi') {
+                optionsDetailHtml = `<div class="q-option-item"><span class="q-option-letter">#</span><span>${(q.subQuestions || []).length} sub-questions</span></div>`;
+            } else if (q.type === 'theory') {
+                optionsDetailHtml = '<div class="q-option-empty">Theory — manual grading</div>';
+            }
+
             // Build summary card
             const card = document.createElement('div');
             card.className = 'question-summary-card';
             card.dataset.id = q.id;
-            card.onclick = () => examManager.openAddQuestionModal(q.id);
             card.innerHTML = `
-                <div class="question-number-badge">${displayNumber}</div>
-                <div class="question-summary-text">
-                    <span class="question-type-pill">${escHtml(typeLabel)}</span>
-                    <span class="q-preview">${escHtml(previewText)}</span>
-                    <span class="q-meta">
-                        <span class="points-badge">${q.points} pts</span>
-                        <span>${escHtml(optionsInfo)}${mediaInfo}</span>
-                    </span>
+                <div class="q-card-header" onclick="this.parentElement.classList.toggle('q-collapsed')">
+                    <div class="question-number-badge">${displayNumber}</div>
+                    <div class="question-summary-text">
+                        <span class="question-type-pill">${escHtml(typeLabel)}</span>
+                        <span class="q-preview">${escHtml(previewText)}</span>
+                        <span class="q-meta">
+                            <span class="points-badge">${q.points} pts</span>
+                            <span>${escHtml(optionsInfo)}${mediaInfo}</span>
+                        </span>
+                    </div>
+                    <div class="question-summary-actions" onclick="event.stopPropagation();" style="gap: 12px;">
+                        <button type="button" class="q-action-btn q-action-edit" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button type="button" class="q-action-btn q-action-delete" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        </button>
+                    </div>
+                    <svg class="q-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
-                <div class="question-summary-actions" onclick="event.stopPropagation();" style="gap: 12px;">
-                    <button type="button" class="q-action-btn q-action-edit" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                    <button type="button" class="q-action-btn q-action-delete" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                    </button>
+                <div class="q-card-options">
+                    ${optionsDetailHtml}
                 </div>
             `;
             container.appendChild(card);
