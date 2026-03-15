@@ -611,16 +611,43 @@
             if (overlay) overlay.classList.remove('visible');
         };
 
-        // Tablet Sidebar Expand/Collapse
+        // Sidebar Expand/Collapse (desktop + tablet)
         window.toggleTabletSidebar = function() {
             var sidebar = document.getElementById('app-sidebar');
             var wrapper = document.querySelector('.app-main-wrapper');
             var icon = document.getElementById('sidebar-expand-icon');
-            var expanded = sidebar.classList.toggle('sidebar-expanded');
-            if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
-            var polyline = icon ? icon.querySelector('polyline') : null;
-            if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            var isDesktop = window.innerWidth > 1024;
+
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6');
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            }
         };
+
+        // Restore sidebar state on load
+        (function() {
+            var icon = document.getElementById('sidebar-expand-icon');
+            var polyline = icon ? icon.querySelector('polyline') : null;
+            if (window.innerWidth > 1024) {
+                if (localStorage.getItem('sidebar-collapsed') === '1') {
+                    var sidebar = document.getElementById('app-sidebar');
+                    var wrapper = document.querySelector('.app-main-wrapper');
+                    if (sidebar) sidebar.classList.add('sidebar-collapsed');
+                    if (wrapper) wrapper.classList.add('sidebar-collapsed');
+                    if (polyline) polyline.setAttribute('points', '9 18 15 12 9 6');
+                } else {
+                    if (polyline) polyline.setAttribute('points', '15 18 9 12 15 6');
+                }
+            }
+        })();
 
         // Dark Mode Toggle (sidebar)
         window.toggleThemeFromSidebar = function() {

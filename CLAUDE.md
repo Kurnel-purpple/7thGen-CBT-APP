@@ -442,3 +442,275 @@ Dark mode is a **first-class feature** — not an afterthought. It must be imple
 - Never keep light-mode shadows (they disappear on dark bg) — replace with glow shadows
 - Never use the same blue hover tint (`#E8F0FE`) in dark mode — use `#1E2D4A` instead
 - Ensure all text passes WCAG AA contrast ratio on dark backgrounds
+
+---
+
+## 📝 Create Exam Modal (Desktop & Tablet Only)
+
+The Create Exam modal follows the multi-step form aesthetic from the Web Forms reference (clean white card, stepped progress indicator at top, structured field rows). Use the existing dashboard color scheme — NOT the orange from the reference image.
+
+### Modal Shell
+- White background card, `border-radius: 20px`, large shadow (`0 16px 48px rgba(0,0,0,0.14)`)
+- Max width: `720px`, centered on screen with a dark scrim overlay behind
+- Modal header: title ("Create Exam") left-aligned, close `×` icon top-right (Lucide `X`)
+- Multi-step progress indicator directly below the header (see Steps Chain below)
+- Scrollable content area below the steps chain
+- Sticky footer with "Save & Continue" / "Back" buttons at the bottom of the modal
+
+### Steps Progress Chain (Desktop & Tablet)
+Replicate the "Basic Details — Contact Details — Verification" chain from the reference image, adapted for exam creation steps. Style rules:
+- Horizontal chain of steps connected by a line
+- Each step has an **icon above** (not a number) — use a Lucide dropdown/chevron-down icon (`ChevronDown`) to indicate the field below is selectable/changeable
+- Below the icon: the step label in small bold text
+- Active step: icon and label in `--primary` blue, connector line filled blue up to that step
+- Completed step: icon filled `--primary`, label in `--text-primary`
+- Inactive step: icon and label in `--text-secondary`, connector line in `--border`
+- The three chain items for the exam selector row are: **School Level** | **Target Class** | **Subject**
+- This chain occupies its own dedicated row in the form (Row 2 — see layout below)
+- Clicking any chain item opens its respective dropdown inline below the chain
+
+### Form Layout — Row by Row (Desktop & Tablet)
+
+**Row 1 — Exam Identity:**
+```
+[ Term (25% width) ]          [ Scheduled Date ]  [ Scheduled Time ]
+```
+- Term input: `width: 25%` — compact, not full-width
+- Scheduled Date + Scheduled Time: placed to the right of Term, flexed, `justify-content: flex-end`, `gap: 12px`
+- The entire row is `display: flex`, `align-items: flex-end`, `justify-content: space-between`
+- Date and time inputs use the existing date/time picker components — do not replace them
+
+**Row 2 — Selector Chain:**
+```
+[ School Level ▾ ] ———— [ Target Class ▾ ] ———— [ Subject ▾ ]
+```
+- Full-width row
+- Rendered as the steps chain described above
+- Each item shows its currently selected value as the label below the chevron icon
+- Clicking opens a styled dropdown (white bg, `--border`, shadow, `border-radius: 12px`)
+
+**Row 3 — Numeric Settings:**
+```
+[ Duration (50%) ]  [ Passing Score (50%) ]  [ Scramble Questions ]
+```
+- Duration and Passing Score inputs: each `~25% width` (half of what they currently are)
+- They sit side by side on the left of the row
+- **Scramble Question Order**: displayed to the right of these two inputs in the same row
+  - Label: "Scramble Questions" in bold, `--text-primary`
+  - Uses **radio inputs** (not checkbox): two options inline — `No` (default, pre-selected) and `Yes`
+  - Radio button style: custom styled — selected option shows a filled `--primary` blue dot, unselected shows an empty circle with `--border`
+  - When "Yes" is selected, behaviour matches the existing checkbox scramble logic exactly
+  - Layout: label on top, `[ ● No ]  [ ○ Yes ]` radio pair below it
+
+**Row 4 — General Instructions:**
+- Remains exactly as-is — full width textarea, no changes
+
+**Row 5 — Theory Section Instructions:**
+- Remains exactly as-is — no changes
+
+**Row 6 — Questions Area:**
+- Remains exactly as-is — no changes
+
+---
+
+## ➕ Add Question Modal (Desktop & Tablet Only)
+
+### Question Type + Add Media Row
+Currently the Question Type select occupies the entire second row after the Question Number. Restructure as:
+
+```
+[ Question Type (flex-grow) ]          [ + Add Media (icon + text) ]
+```
+- `display: flex`, `justify-content: space-between`, `align-items: center`
+- Question Type: takes available space on the left (`flex: 1`)
+- Add Media: moved to this same row, right-aligned — styled as a **ghost action** (see Ghost CTAs below), NOT a button
+
+---
+
+## 👻 Ghost CTAs — Icon + Text Actions (Desktop, Tablet & Mobile)
+
+The following call-to-action elements must NOT be rendered as full buttons. Instead render them as **bold icon + text pairs** in the relevant action color:
+
+| CTA | Icon (Lucide) | Color |
+|-----|--------------|-------|
+| `+ Add Question` | `PlusCircle` | `--primary` blue |
+| `Remove` (question/option) | `Trash2` | `#EA4335` (red) |
+| `+ Add Instruction` | `PlusCircle` | `--primary` blue |
+| `+ Add Media` | `Paperclip` or `Image` | `--text-secondary` grey |
+| `+ Add Option` | `Plus` | `--primary` blue |
+
+**Ghost CTA styling:**
+```css
+.ghost-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--cta-color);   /* set per item from table above */
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity 0.15s ease;
+}
+.ghost-cta:hover { opacity: 0.75; }
+.ghost-cta svg { width: 16px; height: 16px; stroke-width: 2.5; }
+```
+- No background, no border, no pill shape
+- Icon and text share the same color
+- Hover: slight opacity reduction — no background fill
+- Apply this pattern consistently everywhere these actions appear in the modal
+
+---
+
+## 📵 Mobile Forms — Do Not Change
+
+The forms and modals on **mobile screens (< 768px) must remain exactly as they currently are**, with the following exceptions only:
+
+- Ghost CTAs (icon + text actions) apply on mobile too — remove button styling from `+ Add Question`, `Remove`, `+ Add Instruction` on mobile as well
+- In the Selector Chain (Row 2), on mobile the labels shorten:
+  - "School Level" → **"Level"**
+  - "Target Class" → **"Class"**
+  - "Subject" stays as **"Subject"**
+- All other mobile form layouts, field orders, input sizes, and structures stay unchanged
+
+
+---
+
+## 📝 Create Exam Modal
+
+The Create Exam modal follows the multi-step form aesthetic from the Web Forms reference (clean white card, structured sections, clear visual hierarchy) but uses the dashboard's blue color scheme (`--primary: #1A73E8`) instead of orange.
+
+### Modal Shell
+- White background card, `border-radius: 20px`, large shadow
+- Max width: `720px` on desktop, `100%` on mobile
+- Scrollable modal body if content overflows
+- Header: "Create Exam" title (bold, `--text-primary`) + X close button (top right)
+- Footer: "Save & Continue" / "Publish Exam" primary CTA button (blue pill, centered or right-aligned)
+- Subtle section dividers between logical groups
+
+---
+
+### 🖥️ Desktop & Tablet Layout (≥ 768px)
+
+#### Row 1 — Term + Schedule
+```
+┌─────────────────────┬──────────────────┬──────────────────┐
+│  Term               │  Scheduled Date  │  Scheduled Time  │
+│  (25% width)        │  (37.5% width)   │  (37.5% width)   │
+└─────────────────────┴──────────────────┴──────────────────┘
+```
+- Layout: `display: flex; justify-content: space-between; gap: 16px`
+- **Term**: reduced to ~25% of the row width — it's a short value, doesn't need full width
+- **Scheduled Date** and **Scheduled Time**: share the remaining 75%, placed to the right of Term
+- All three items in one flex row, space-between
+
+#### Row 2 — Level / Class / Subject Chain
+Redesign these three dropdowns as a **segmented chain selector** inspired by the stepped progress indicator in the reference image:
+
+```
+     ▼                    ▼                    ▼
+  [School Level]  ————  [Target Class]  ————  [Subject]
+   Senior Secondary      JSS 3               Mathematics
+```
+
+- Three items connected by a horizontal line (like a stepper/progress chain)
+- Above each item: a **dropdown chevron icon** (`ChevronDown` from Lucide, 18px, `--primary` blue) centered above the label — this signals to users that the value is selectable/changeable
+- Below the icon: the **label** in small uppercase grey (`--text-secondary`, `11px`, letter-spaced)
+- Below the label: the **current value** in bold (`--text-primary`, `15px`)
+- The connecting line between items: `1px solid var(--border)`, centered vertically on the icon row
+- Active/selected item: icon and value in `--primary` blue, subtle `--primary-light` background pill behind the icon
+- The entire chain item is clickable — opens a dropdown to change the value
+- On mobile (`< 768px`): labels shorten — "School Level" → **"Level"**, "Target Class" → **"Class"**, "Subject" stays as "Subject"
+
+#### Row 3 — Duration + Passing Score + Scramble Questions
+```
+┌───────────────┬───────────────┬──────────────────────────┐
+│  Duration     │  Passing Score│  Scramble Question Order │
+│  (25% width)  │  (25% width)  │  (50% width)             │
+└───────────────┴───────────────┴──────────────────────────┘
+```
+- **Duration** and **Passing Score**: each takes ~25% width — they only hold numbers, no need for full-width inputs
+- **Scramble Question Order**: takes remaining ~50%, displayed as an inline radio group:
+  ```
+  Scramble Question Order
+  ● No   ○ Yes
+  ```
+  - Default selected: **No**
+  - Radio inputs styled as pill toggles or custom radio buttons using `--primary` blue for the selected state
+  - When **Yes** is selected, behaves exactly as the current checkbox implementation does
+  - Label above, radio options inline below
+
+#### Rows 4+ — Unchanged
+- General Instructions textarea: remains as-is
+- Theory Section Instructions textarea: remains as-is
+- Questions area: remains as-is (with modifications to Add Question modal below)
+
+---
+
+### ➕ Add Question Modal — Desktop & Tablet Layout
+
+#### Row 1
+- Question Number (auto, read-only label)
+
+#### Row 2 — Question Type + Add Media (space-between)
+```
+┌──────────────────────────┬──────────────────────────┐
+│  Question Type           │  + Add Media             │
+│  (dropdown, ~50% width)  │  (icon-text CTA, right)  │
+└──────────────────────────┴──────────────────────────┘
+```
+- `display: flex; justify-content: space-between; align-items: center`
+- **Question Type**: dropdown taking roughly half the row
+- **Add Media**: moved here from its own row — rendered as an **icon-text CTA** (see CTA style below), right-aligned
+
+---
+
+### 🎨 Icon-Text CTAs (Not Buttons)
+
+The following actions should NOT be rendered as full buttons. Instead render them as **bold icon + text pairs** styled with the action's semantic color. They are clickable inline elements, not `<button>` components with backgrounds.
+
+| Action | Icon (Lucide) | Color |
+|---|---|---|
+| `+ Add Question` | `PlusCircle` | `--primary` blue |
+| `Remove` | `Trash2` | `#EA4335` (red/danger) |
+| `+ Add Instruction` | `Plus` | `--primary` blue |
+| `+ Add Media` | `Paperclip` or `Image` | `--primary` blue |
+
+**Styling rules:**
+```css
+.icon-text-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--cta-color);   /* blue or red depending on action */
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  transition: opacity 0.15s ease;
+}
+.icon-text-cta:hover {
+  opacity: 0.75;
+}
+```
+- Icon: 16px, same color as text, bold stroke
+- No background, no border, no pill shape
+- Hover: slight opacity reduction only
+- Apply this style to ALL secondary/additive/destructive actions in the modal
+
+**This applies on desktop, tablet, AND mobile.**
+
+---
+
+### 📱 Mobile Behaviour for Create Exam Modal (< 768px)
+
+- **The form layout on mobile remains as-is** — do NOT apply the desktop row restructuring to mobile, EXCEPT for the following which apply on all screen sizes:
+  - Icon-text CTAs (no buttons for Add Question, Remove, Add Instruction, Add Media)
+  - "School Level" label → **"Level"**, "Target Class" label → **"Class"** on mobile
+  - Scramble Question Order radio inputs (No/Yes) instead of checkbox — on all screen sizes
+- All other mobile form layouts stay unchanged from current implementation
+

@@ -776,6 +776,11 @@ body:has(.app-container.no-sidebar) {
     overflow: auto;
 }
 
+/* Media modal must stack above other modals (e.g. Add Question) */
+#media-modal {
+    z-index: 1100;
+}
+
 .modal-content {
     background-color: var(--card-bg);
     margin: 10% auto;
@@ -789,6 +794,9 @@ body:has(.app-container.no-sidebar) {
 }
 
 [data-theme="dark"] .modal-content {
+    background-color: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
+    color: var(--text-color);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
@@ -870,6 +878,40 @@ body:has(.app-container.no-sidebar) {
 
 .close-btn:hover {
     color: var(--accent-color);
+}
+
+/* Flag Review Modal — distinct close button */
+.flag-modal-close-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-color, #F8F9FA);
+    color: var(--text-secondary, #5F6368);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.flag-modal-close-btn:hover {
+    background: #EA4335;
+    border-color: #EA4335;
+    color: #fff;
+}
+
+[data-theme="dark"] .flag-modal-close-btn {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border-color);
+    color: var(--text-secondary, #9AA0AC);
+}
+
+[data-theme="dark"] .flag-modal-close-btn:hover {
+    background: #EA4335;
+    border-color: #EA4335;
+    color: #fff;
 }
 
 @keyframes fadeIn {
@@ -1083,12 +1125,14 @@ body:has(.app-container.no-sidebar) {
 
 .form-row {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-md);
 }
 
 .form-col {
     flex: 1;
+    min-width: 200px;
 }
 
 /* Question Editor */
@@ -1138,6 +1182,429 @@ body:has(.app-container.no-sidebar) {
     overflow-y: hidden;
     resize: none;
     line-height: 1.5;
+}
+
+/* ============================================================
+   PAGE TITLE BAR (Create Exam, etc.)
+   ============================================================ */
+.page-title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.page-title-bar h2 {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0;
+    flex: 1;
+}
+
+.page-title-bar .actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+/* ============================================================
+   QUESTION SUMMARY CARDS
+   ============================================================ */
+.question-summary-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-card);
+    margin-bottom: var(--spacing-sm);
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    min-height: 64px;
+}
+
+.question-summary-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+.question-summary-card:active {
+    transform: scale(0.99);
+}
+
+.question-number-badge {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.question-type-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .question-type-pill {
+    background: var(--dm-surface-3, #2C3150);
+    color: var(--primary);
+}
+
+.question-summary-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.question-summary-text .q-preview {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+}
+
+.question-summary-text .q-meta {
+    font-size: 0.78rem;
+    color: var(--light-text);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.question-summary-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.question-summary-actions .btn-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--light-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.question-summary-actions .btn-icon:hover {
+    background: var(--inner-bg);
+    color: var(--primary);
+}
+
+.question-summary-actions .btn-icon.btn-icon-danger:hover {
+    background: rgba(234, 67, 53, 0.1);
+    color: #EA4335;
+}
+
+[data-theme="dark"] .question-summary-actions .btn-icon:hover {
+    background: var(--dm-surface-3);
+}
+
+/* Points badge on summary card */
+.points-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--inner-bg);
+    color: var(--light-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ============================================================
+   ADD QUESTION MODAL — Question Type Selector
+   ============================================================ */
+.question-type-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: var(--spacing-md);
+}
+
+.question-type-selector .type-btn {
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-color);
+    font-family: var(--font-family);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.question-type-selector .type-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+.question-type-selector .type-btn.active {
+    background: var(--primary);
+    color: #FFFFFF;
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .question-type-selector .type-btn {
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .question-type-selector .type-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+[data-theme="dark"] .question-type-selector .type-btn.active {
+    background: var(--primary);
+    color: #FFFFFF;
+    border-color: var(--primary);
+}
+
+/* Modal editor container */
+.modal-editor-container {
+    min-height: 180px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    background: var(--card-bg);
+    overflow: hidden;
+}
+
+[data-theme="dark"] .modal-editor-container {
+    background: var(--dm-surface-2);
+    border-color: var(--border-color);
+}
+
+/* Modal options list */
+.modal-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.modal-options-list .answer-option {
+    margin-bottom: 0;
+}
+
+/* ============================================================
+   STICKY ACTIONS BAR (Frosted Glass)
+   ============================================================ */
+.sticky-actions-bar {
+    position: fixed;
+    bottom: 0;
+    left: var(--sidebar-width);
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-md);
+    padding: 16px 32px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-color);
+    z-index: 50;
+    transition: left 0.3s ease;
+}
+
+[data-theme="dark"] .sticky-actions-bar {
+    background: rgba(15, 17, 23, 0.9);
+}
+
+.sticky-actions-bar .btn {
+    border-radius: var(--radius-pill);
+    padding: 10px 28px;
+    font-weight: 700;
+}
+
+/* ============================================================
+   CREATE EXAM PAGE — Specific Styles
+   ============================================================ */
+.create-exam-page .form-section {
+    transition: box-shadow 0.2s ease;
+}
+
+.create-exam-page .section-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.create-exam-page .section-label {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.7rem;
+    color: var(--light-text);
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* Question section header with actions */
+.create-exam-page .section-header-questions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.create-exam-page .section-header-questions .actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* Section divider headers for objective/theory */
+.question-section-divider {
+    margin: var(--spacing-lg) 0 var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--inner-bg);
+    border-left: 4px solid var(--primary);
+    border-radius: 4px;
+}
+
+.question-section-divider.theory {
+    border-left-color: var(--accent-color);
+}
+
+.question-section-divider h3 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+/* ============================================================
+   GHOST CTAs — Icon + Text Actions (no button backgrounds)
+   ============================================================ */
+.ghost-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--cta-color, var(--primary-color));
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: opacity 0.15s ease;
+    font-family: var(--font-family);
+}
+.ghost-cta:hover { opacity: 0.75; }
+.ghost-cta svg { width: 16px; height: 16px; stroke-width: 2.5; flex-shrink: 0; }
+
+.ghost-cta.ghost-cta-danger { --cta-color: #EA4335; }
+
+/* ============================================================
+   CREATE EXAM — Dark mode for modal card shell
+   ============================================================ */
+[data-theme="dark"] .create-exam-modal-shell {
+    background: var(--bg-color, #0F1117);
+}
+
+[data-theme="dark"] .create-exam-card {
+    background: var(--dm-surface, #1A1D27);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+}
+
+[data-theme="dark"] .create-exam-card-header {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .create-exam-card-header .close-modal-btn {
+    background: var(--dm-surface-2, #22263A);
+    color: var(--text-color);
+}
+[data-theme="dark"] .create-exam-card-header .close-modal-btn:hover {
+    background: var(--dm-surface-3, #2C3150);
+}
+
+[data-theme="dark"] .create-exam-card-footer {
+    background: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .create-exam-divider {
+    background: var(--border-color);
+}
+
+/* Steps Chain — Dark mode */
+[data-theme="dark"] .steps-chain-icon {
+    background: var(--dm-surface-2, #22263A);
+    color: var(--light-text);
+}
+
+[data-theme="dark"] .steps-chain-item.active .steps-chain-icon,
+[data-theme="dark"] .steps-chain-item.completed .steps-chain-icon {
+    background: var(--primary-light, #1E2D4A);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .steps-chain-connector {
+    background: var(--border-color);
+}
+
+[data-theme="dark"] .steps-chain-connector.filled {
+    background: var(--primary-color);
+}
+
+[data-theme="dark"] .steps-chain-dropdown {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border-color);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+[data-theme="dark"] .steps-chain-dropdown-item:hover {
+    background: var(--dm-surface-3, #2C3150);
+}
+
+/* Scramble Radio — Dark mode */
+[data-theme="dark"] .scramble-radio-group input[type="radio"] {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .scramble-radio-group input[type="radio"]:checked {
+    border-color: var(--primary-color);
 }
 
 /* ============================================================
@@ -1253,15 +1720,241 @@ body:has(.app-container.no-sidebar) {
     .mobile-create-exam-btn {
         display: flex !important;
     }
+
+    /* Page title bar — stack on mobile */
+    .page-title-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+
+    .page-title-bar .actions {
+        width: 100%;
+    }
+
+    .page-title-bar .actions .btn {
+        flex: 1;
+        text-align: center;
+        font-size: 0.8rem;
+        padding: 8px 10px;
+    }
+
+    /* Question summary cards — compact on mobile */
+    .question-summary-card {
+        padding: var(--spacing-sm) var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+
+    .question-number-badge {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        font-size: 0.75rem;
+    }
+
+    .question-summary-text .q-preview {
+        font-size: 0.82rem;
+    }
+
+    /* Sticky actions bar — full width on mobile */
+    .sticky-actions-bar {
+        left: 0;
+        padding: 12px 16px;
+    }
+
+    /* Question type selector in modal */
+    .question-type-selector {
+        gap: 4px;
+    }
+
+    .question-type-selector .type-btn {
+        font-size: 0.72rem;
+        padding: 5px 10px;
+    }
+
+    /* Flag Review & Edit Question Modals — full width on mobile */
+    #flag-review-modal .modal-content,
+    #edit-question-modal .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        height: 100vh;
+        padding: 12px 10px !important;
+    }
 }
 
 /* ============================================================
    RESPONSIVE — TABLET (768px – 1024px)
    ============================================================ */
 
-/* Tablet expand toggle button — hidden everywhere except tablet */
+/* Sidebar collapse toggle button — hidden on mobile, visible on desktop & tablet */
 .sidebar-expand-toggle {
     display: none;
+}
+
+/* Desktop: show toggle and support collapsed state */
+@media (min-width: 1025px) {
+    .sidebar-expand-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        right: -14px;
+        width: 28px;
+        height: 28px;
+        background: var(--sidebar-bg, #1A56C4);
+        border: 1.5px solid rgba(255,255,255,0.25);
+        border-radius: 50%;
+        color: rgba(255,255,255,0.8);
+        cursor: pointer;
+        z-index: 200;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        transition: color 0.2s, background 0.2s, opacity 0.2s;
+        opacity: 0;
+    }
+
+    .app-sidebar:hover .sidebar-expand-toggle,
+    .sidebar-expand-toggle:focus {
+        opacity: 1;
+    }
+
+    .sidebar-expand-toggle:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.15);
+    }
+
+    /* Collapsed sidebar on desktop */
+    .app-sidebar.sidebar-collapsed {
+        width: 80px;
+        min-width: 80px;
+        overflow: visible;
+        align-items: center;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-expand-toggle {
+        opacity: 1;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-brand {
+        justify-content: center;
+        padding: 16px 8px 8px;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-brand-text {
+        font-size: 0.7rem;
+        text-align: center;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-brand-subtitle,
+    .app-sidebar.sidebar-collapsed .sidebar-profile-name,
+    .app-sidebar.sidebar-collapsed .sidebar-profile-role,
+    .app-sidebar.sidebar-collapsed .sidebar-stat-row span:first-child {
+        display: none;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-cta {
+        padding: 10px;
+        margin: 0 8px 12px;
+        font-size: 1.1rem;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-cta .cta-text {
+        display: none;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-nav {
+        padding: 8px 0;
+        align-items: center;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-nav-item {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 10px 4px;
+        text-align: center;
+        border-radius: 8px;
+        width: auto;
+        min-width: 64px;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-nav-label {
+        display: block;
+        font-size: 0.6rem;
+        text-align: center;
+        max-width: 72px;
+        line-height: 1.2;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-school-id {
+        display: none;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-divider {
+        width: 48px;
+        margin: 4px auto;
+    }
+
+    .app-sidebar.sidebar-collapsed #sidebar-theme-toggle {
+        margin: 4px auto 4px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-nav-item > span[id] {
+        display: none;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-profile {
+        padding: 8px 0;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-profile-info {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: 8px;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-profile-info > div[style] {
+        display: none;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-profile-info > button[title="Logout"] {
+        display: none;
+    }
+
+    /* Hide the arrow indicator when collapsed */
+    .app-sidebar.sidebar-collapsed .sidebar-profile-info > span {
+        display: none;
+    }
+
+    /* Profile dropdown — pop out to the right when sidebar is collapsed */
+    .app-sidebar.sidebar-collapsed #sidebar-profile-dropdown {
+        left: 80px !important;
+        right: auto !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 200px;
+        margin-bottom: 0 !important;
+        border-radius: 10px;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.35) !important;
+    }
+
+    .app-main-wrapper.sidebar-collapsed {
+        margin-left: 80px;
+    }
+
+    /* Add transition for smooth collapse + allow toggle button to overflow */
+    .app-sidebar {
+        transition: width 0.25s ease, min-width 0.25s ease, transform 0.3s ease;
+        overflow: visible;
+    }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
@@ -1496,6 +2189,11 @@ body:has(.app-container.no-sidebar) {
 
     .app-main-wrapper.sidebar-expanded {
         margin-left: 240px;
+    }
+
+    /* Sticky actions bar — adjust for collapsed sidebar */
+    .sticky-actions-bar {
+        left: 80px;
     }
 }
 
