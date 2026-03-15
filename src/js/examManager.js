@@ -952,6 +952,28 @@ const examManager = {
         examManager._renderModalOptions();
     },
 
+    // Set correct answer for MCQ/image_mcq directly from preview card
+    setCorrectOption: (qId, optionIndex) => {
+        const q = examManager.questions.find(q => q.id === qId);
+        if (!q || !q.options) return;
+        q.options.forEach((o, i) => { o.isCorrect = (i === optionIndex); });
+        examManager.renderQuestions();
+    },
+
+    // Set correct answer for true/false directly from preview card
+    setCorrectTF: (qId, value) => {
+        const q = examManager.questions.find(q => q.id === qId);
+        if (!q) return;
+        q.correctAnswer = value;
+        // Also update options if they exist (true_false uses options array)
+        if (q.options) {
+            q.options.forEach(o => {
+                o.isCorrect = (o.text.toLowerCase() === value);
+            });
+        }
+        examManager.renderQuestions();
+    },
+
     removeQuestion: async (id) => {
         // Ensure String comparison
         const targetId = String(id);
@@ -1299,22 +1321,23 @@ const examManager = {
 
             // Build options detail HTML based on question type
             let optionsDetailHtml = '';
+            const checkSvg = '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>';
             if (q.type === 'mcq' || q.type === 'image_mcq') {
                 const opts = (q.options || []).map((o, i) => {
                     const letter = String.fromCharCode(65 + i);
                     const correctClass = o.isCorrect ? ' q-option-correct' : '';
-                    return `<div class="q-option-item${correctClass}"><span class="q-option-letter">${letter}</span><span>${escHtml(o.text || '(empty)')}</span>${o.isCorrect ? '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>`;
+                    return `<div class="q-option-item q-option-clickable${correctClass}" onclick="event.stopPropagation(); examManager.setCorrectOption('${q.id}', ${i})" title="Click to mark as correct answer"><span class="q-option-letter">${letter}</span><span>${escHtml(o.text || '(empty)')}</span>${o.isCorrect ? checkSvg : ''}</div>`;
                 }).join('');
                 optionsDetailHtml = opts || '<div class="q-option-empty">No options added</div>';
             } else if (q.type === 'true_false') {
                 const trueCorrect = q.correctAnswer === 'true' || q.correctAnswer === true;
                 const falseCorrect = q.correctAnswer === 'false' || q.correctAnswer === false;
                 optionsDetailHtml = `
-                    <div class="q-option-item${trueCorrect ? ' q-option-correct' : ''}"><span class="q-option-letter">T</span><span>True</span>${trueCorrect ? '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>
-                    <div class="q-option-item${falseCorrect ? ' q-option-correct' : ''}"><span class="q-option-letter">F</span><span>False</span>${falseCorrect ? '<svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</div>`;
+                    <div class="q-option-item q-option-clickable${trueCorrect ? ' q-option-correct' : ''}" onclick="event.stopPropagation(); examManager.setCorrectTF('${q.id}', 'true')" title="Click to mark as correct"><span class="q-option-letter">T</span><span>True</span>${trueCorrect ? checkSvg : ''}</div>
+                    <div class="q-option-item q-option-clickable${falseCorrect ? ' q-option-correct' : ''}" onclick="event.stopPropagation(); examManager.setCorrectTF('${q.id}', 'false')" title="Click to mark as correct"><span class="q-option-letter">F</span><span>False</span>${falseCorrect ? checkSvg : ''}</div>`;
             } else if (q.type === 'fill_blank') {
                 optionsDetailHtml = q.correctAnswer
-                    ? `<div class="q-option-item q-option-correct"><span class="q-option-letter">A</span><span>${escHtml(q.correctAnswer)}</span><svg class="q-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg></div>`
+                    ? `<div class="q-option-item q-option-correct"><span class="q-option-letter">A</span><span>${escHtml(q.correctAnswer)}</span>${checkSvg}</div>`
                     : '<div class="q-option-empty">No answer set</div>';
             } else if (q.type === 'match') {
                 const pairs = (q.pairs || []).map((p, i) => `<div class="q-option-item"><span class="q-option-letter">${i + 1}</span><span>${escHtml(p.left || '')} → ${escHtml(p.right || '')}</span></div>`).join('');

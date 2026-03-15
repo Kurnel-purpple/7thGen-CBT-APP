@@ -30,8 +30,9 @@ function injectCSS() {
 .wp-btn:disabled{opacity:.4;cursor:default;}
 
 /* ── Editor content area ── */
-.wp-editor-wrapper{background:#fff;cursor:text;border-radius:0 0 8px 8px;}
-.wp-editor-wrapper .ProseMirror{min-height:150px;padding:12px 14px;outline:none;font-size:15px;font-family:inherit;color:#222;line-height:1.65;}
+.wp-editor-wrapper{background:#fff;cursor:text;border-radius:0 0 8px 8px;overflow:hidden;}
+.wp-editor-wrapper .ProseMirror{min-height:150px;padding:16px 20px 16px 50px;outline:none;font-size:15px;font-family:inherit;color:#222;line-height:1.65;overflow-x:hidden;overflow-wrap:break-word;word-break:break-word;}
+.wp-editor-wrapper .ProseMirror *{margin-left:0!important;padding-left:0!important;text-indent:0!important;}
 .wp-editor-wrapper .ProseMirror p{margin:0 0 8px 0;}
 .wp-editor-wrapper .ProseMirror p:last-child{margin-bottom:0;}
 .wp-editor-wrapper .ProseMirror p.is-empty:first-child::before{content:attr(data-placeholder);color:#aaa;pointer-events:none;float:left;height:0;}
@@ -61,7 +62,7 @@ function injectCSS() {
 .tp-shape-static{display:inline-block;vertical-align:middle;line-height:0;margin:2px 3px;}
 
 @media(max-width:600px){
-  .wp-editor-wrapper .ProseMirror{font-size:14px;padding:8px 10px;}
+  .wp-editor-wrapper .ProseMirror{font-size:14px;padding:14px 16px 14px 50px;}
   .tp-shape-panel{min-width:210px;}
   .tp-readonly-content{font-size:14px;padding:8px 10px;}
 }

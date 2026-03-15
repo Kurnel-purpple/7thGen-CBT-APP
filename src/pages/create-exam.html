@@ -67,9 +67,9 @@
         #import-instructions-panel[open] > summary .import-toggle-icon { transform: rotate(90deg); }
 
         /* Bulk Import Modal — editor fills available height */
-        #import-canvas-mount .wp-container { height: 100%; display: flex; flex-direction: column; }
-        #import-canvas-mount .wp-editor-wrapper { flex: 1; }
-        #import-canvas-mount .wp-editor-wrapper .ProseMirror { min-height: 280px; }
+        #import-canvas-mount .wp-container { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+        #import-canvas-mount .wp-editor-wrapper { flex: 1; overflow: hidden; }
+        #import-canvas-mount .wp-editor-wrapper .ProseMirror { min-height: 280px; overflow-x: hidden; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
 
         /* Scheduling row mobile */
         @media (max-width: 768px) {
@@ -90,6 +90,11 @@
         @media (max-width: 600px) {
             .scheduling-options-row { flex-direction: column !important; }
             .scheduling-options-row .form-col { width: 100% !important; }
+        }
+
+        /* Import button — short label on small screens */
+        @media (max-width: 500px) {
+            #import-modal .import-btn-long { display: none !important; }
         }
 
         /* Scroll button */
@@ -662,7 +667,7 @@
                 <button type="button" class="btn btn-outline" onclick="examManager.closeImportModal()">Cancel</button>
                 <button type="button" class="btn btn-primary btn-pill" onclick="examManager.processBulkImport()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Import Questions
+Import<span class="desktop-text import-btn-long"> Questions</span>
                 </button>
             </div>
         </div>
