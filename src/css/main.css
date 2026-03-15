@@ -1333,6 +1333,60 @@ body:has(.app-container.no-sidebar) {
     background: var(--dm-surface-3);
 }
 
+/* Question action buttons (edit/delete) */
+.q-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-color, #F8F9FA);
+    color: var(--text-secondary, #5F6368);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.q-action-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.q-action-edit:hover {
+    background: var(--primary-light, #E8F0FE);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.q-action-delete:hover {
+    background: rgba(234, 67, 53, 0.1);
+    border-color: #EA4335;
+    color: #EA4335;
+    transform: scale(1.1);
+}
+
+[data-theme="dark"] .q-action-btn {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border-color);
+    color: var(--text-secondary, #9AA0AC);
+}
+
+[data-theme="dark"] .q-action-edit:hover {
+    background: var(--primary-light, #1E2D4A);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .q-action-delete:hover {
+    background: rgba(234, 67, 53, 0.15);
+    border-color: #EA4335;
+    color: #EA4335;
+}
+
 /* Points badge on summary card */
 .points-badge {
     display: inline-flex;

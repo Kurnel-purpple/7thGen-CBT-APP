@@ -1312,13 +1312,12 @@ const examManager = {
                         <span>${escHtml(optionsInfo)}${mediaInfo}</span>
                     </span>
                 </div>
-                <div class="question-summary-actions" onclick="event.stopPropagation();">
-                    <button type="button" class="ghost-cta" style="--cta-color: var(--primary-color);" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
+                <div class="question-summary-actions" onclick="event.stopPropagation();" style="gap: 12px;">
+                    <button type="button" class="q-action-btn q-action-edit" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
-                    <button type="button" class="ghost-cta ghost-cta-danger" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
+                    <button type="button" class="q-action-btn q-action-delete" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                        Remove
                     </button>
                 </div>
             `;
