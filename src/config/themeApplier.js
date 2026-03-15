@@ -38,7 +38,7 @@ class ThemeApplier {
     domainClientMap = {
         'seatoscbt.com': 'seatos',
         'www.seatoscbt.com': 'seatos',
-        'seatos-cbt-app.netlify.app': 'default',
+        'seatos-cbt-app.netlify.app': 'seatos',
         // Add more domain mappings here as needed
     };
 
@@ -182,7 +182,7 @@ class ThemeApplier {
         const { client } = this.config;
 
         // Update app name elements (but NOT user-name which is the h1 in dashboards)
-        const logoElements = document.querySelectorAll('.logo-text, [data-brand="app-name"]');
+        const logoElements = document.querySelectorAll('.logo-text, [data-brand="app-name"], .sidebar-brand-text, .auth-brand');
         logoElements.forEach(el => {
             el.textContent = client.name;
         });
@@ -208,6 +208,52 @@ class ThemeApplier {
         logoImages.forEach(img => {
             img.src = logoPath;
             img.alt = `${client.name} Logo`;
+        });
+
+        // Inject logo into sidebar brand area if it exists
+        const sidebarBrands = document.querySelectorAll('.sidebar-brand');
+        sidebarBrands.forEach(brand => {
+            let logoImg = brand.querySelector('img.sidebar-brand-logo');
+            if (!logoImg && client.logo) {
+                logoImg = document.createElement('img');
+                logoImg.className = 'sidebar-brand-logo';
+                logoImg.src = logoPath;
+                logoImg.alt = `${client.name} Logo`;
+                logoImg.style.height = '32px';
+                logoImg.style.width = 'auto';
+                logoImg.style.objectFit = 'contain';
+                logoImg.style.marginRight = '8px';
+                logoImg.style.borderRadius = '6px';
+                // Insert before the text container
+                const textContainer = brand.querySelector('div');
+                if (textContainer) {
+                    textContainer.insertBefore(logoImg, textContainer.firstChild);
+                }
+            } else if (logoImg) {
+                logoImg.src = logoPath;
+                logoImg.alt = `${client.name} Logo`;
+            }
+        });
+
+        // Inject logo into auth brand area if it exists
+        const authBrands = document.querySelectorAll('.auth-brand');
+        authBrands.forEach(brand => {
+            let logoImg = brand.querySelector('img.auth-brand-logo');
+            if (!logoImg && client.logo) {
+                logoImg = document.createElement('img');
+                logoImg.className = 'auth-brand-logo';
+                logoImg.src = logoPath;
+                logoImg.alt = `${client.name} Logo`;
+                logoImg.style.height = '28px';
+                logoImg.style.width = 'auto';
+                logoImg.style.objectFit = 'contain';
+                logoImg.style.marginRight = '8px';
+                logoImg.style.verticalAlign = 'middle';
+                brand.insertBefore(logoImg, brand.firstChild);
+            } else if (logoImg) {
+                logoImg.src = logoPath;
+                logoImg.alt = `${client.name} Logo`;
+            }
         });
 
         // Find all logo containers and add logo image if needed
