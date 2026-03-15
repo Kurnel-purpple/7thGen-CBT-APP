@@ -30,11 +30,75 @@ const examManager = {
     },
 
     closeMediaModal: () => {
+        const pendingQId = examManager._pendingQuestionId;
         document.getElementById('media-modal').style.display = 'none';
         // Clear pending question ID
         examManager._pendingQuestionId = null;
         // Re-render questions to show any newly attached media
         examManager.renderQuestions();
+        // Update media preview inside the Add Question modal if it's open
+        examManager._updateModalMediaPreview(pendingQId);
+    },
+
+    _updateModalMediaPreview: (questionId) => {
+        const preview = document.getElementById('modal-media-preview');
+        if (!preview) return;
+        const qId = questionId || examManager._editingQuestionId;
+        if (!qId) { preview.innerHTML = ''; examManager._toggleEditorForImageType(false); return; }
+        const media = examManager.getMediaForQuestion(qId);
+        const isImageType = examManager._modalType === 'image_mcq' || examManager._modalType === 'image_multi';
+
+        if (media.length === 0) {
+            preview.innerHTML = '';
+            examManager._toggleEditorForImageType(false);
+            return;
+        }
+
+        if (isImageType) {
+            // Large preview for image-based question types
+            preview.innerHTML = media.map(m => `
+                <div style="position:relative; border-radius:12px; overflow:hidden; border:1px solid var(--border-color); max-width:100%;">
+                    <img src="${m.dataUrl}" alt="${m.name || 'media'}" style="width:100%; max-height:280px; object-fit:contain; display:block; background:var(--inner-bg);">
+                    <button type="button" onclick="examManager.unassignMedia('${m.id}','${qId}')" style="position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; border:none; background:rgba(0,0,0,0.6); color:#fff; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">&times;</button>
+                </div>
+            `).join('');
+            examManager._toggleEditorForImageType(true);
+        } else {
+            // Thumbnail preview for other question types
+            preview.innerHTML = media.map(m => `
+                <div style="position:relative; width:64px; height:64px; border-radius:8px; overflow:hidden; border:1px solid var(--border-color);">
+                    <img src="${m.dataUrl}" alt="${m.name || 'media'}" style="width:100%; height:100%; object-fit:cover;">
+                    <button type="button" onclick="examManager.unassignMedia('${m.id}','${qId}')" style="position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%; border:none; background:rgba(0,0,0,0.6); color:#fff; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">&times;</button>
+                </div>
+            `).join('');
+            examManager._toggleEditorForImageType(false);
+        }
+    },
+
+    _toggleEditorForImageType: (collapse) => {
+        const editorContainer = document.querySelector('#add-question-modal .modal-editor-container');
+        if (!editorContainer) return;
+        if (collapse) {
+            editorContainer.style.maxHeight = '60px';
+            editorContainer.style.overflow = 'hidden';
+            editorContainer.style.opacity = '0.5';
+            editorContainer.style.cursor = 'pointer';
+            editorContainer.title = 'Click to expand editor';
+            editorContainer.onclick = () => examManager._toggleEditorForImageType(false);
+        } else {
+            editorContainer.style.maxHeight = '';
+            editorContainer.style.overflow = '';
+            editorContainer.style.opacity = '';
+            editorContainer.style.cursor = '';
+            editorContainer.title = '';
+            editorContainer.onclick = null;
+        }
+    },
+
+    unassignMedia: (mediaId, questionId) => {
+        const m = examManager.uploadedMedia.find(x => x.id === mediaId);
+        if (m) m.assignedToQuestion = null;
+        examManager._updateModalMediaPreview(questionId);
     },
 
     // Auto-expand textarea based on content
@@ -365,6 +429,9 @@ const examManager = {
                         if (targetClassSelect) {
                             targetClassSelect.value = exam.targetClass || 'All';
                         }
+                        // Sync steps chain UI
+                        if (typeof populateChainDropdowns === 'function') populateChainDropdowns(exam.schoolLevel);
+                        if (typeof updateStepsChainState === 'function') updateStepsChainState();
                     }, 50);
                 }, 100);
             } else {
@@ -374,6 +441,9 @@ const examManager = {
                 if (targetClassSelect) {
                     targetClassSelect.value = exam.targetClass || 'All';
                 }
+                // Sync steps chain UI
+                if (typeof populateChainDropdowns === 'function') populateChainDropdowns(exam.schoolLevel);
+                if (typeof updateStepsChainState === 'function') updateStepsChainState();
             }
             document.getElementById('exam-duration').value = exam.duration;
             document.getElementById('exam-pass-score').value = exam.passScore;
@@ -382,14 +452,16 @@ const examManager = {
             // New fields: Scheduling and Scrambling
             const scheduledDateInput = document.getElementById('exam-scheduled-date');
             if (scheduledDateInput && exam.scheduledDate) {
-                // Convert ISO date to datetime-local format
                 const date = new Date(exam.scheduledDate);
                 scheduledDateInput.value = date.toISOString().slice(0, 16);
             }
 
-            const scrambleCheckbox = document.getElementById('exam-scramble');
-            if (scrambleCheckbox) {
-                scrambleCheckbox.checked = exam.scrambleQuestions || false;
+            if (exam.scrambleQuestions) {
+                const scrambleYes = document.getElementById('exam-scramble-yes');
+                if (scrambleYes) scrambleYes.checked = true;
+            } else {
+                const scrambleNo = document.getElementById('exam-scramble-no');
+                if (scrambleNo) scrambleNo.checked = true;
             }
 
             // Theory section instructions
@@ -424,26 +496,454 @@ const examManager = {
     },
 
     addQuestion: () => {
-        const id = Utils.generateId();
-        examManager.questions.push({
-            id: id,
-            type: 'mcq',
-            text: '',
-            canvasJSON: null,
-            canvasImage: null,
-            options: [
+        // Open the Add Question modal instead of inline append
+        examManager.openAddQuestionModal();
+    },
+
+    // ========== ADD / EDIT QUESTION MODAL ==========
+
+    _editingQuestionId: null, // null = adding new, string = editing existing
+    _modalOptions: [],        // Temporary options state for the modal
+    _modalPairs: [],          // Temporary pairs state for match type
+    _modalSubQuestions: [],   // Temporary sub-questions for image_multi
+    _modalType: 'mcq',       // Current type selected in modal
+
+    _typeLabels: {
+        mcq: 'Multiple Choice',
+        true_false: 'True / False',
+        fill_blank: 'Fill in Blank',
+        match: 'Matching',
+        image_mcq: 'Image MCQ',
+        image_multi: 'Picture Comp.',
+        theory: 'Theory'
+    },
+
+    openAddQuestionModal: (questionId) => {
+        const modal = document.getElementById('add-question-modal');
+        if (!modal) return;
+
+        const isEdit = questionId && typeof questionId === 'string' && questionId !== 'undefined';
+        let q = null;
+
+        if (isEdit) {
+            q = examManager.questions.find(x => String(x.id) === String(questionId));
+            if (!q) return;
+        }
+
+        examManager._editingQuestionId = isEdit ? q.id : null;
+
+        // Set modal title and button text
+        const titleEl = document.getElementById('add-question-modal-title');
+        const saveBtnText = document.getElementById('modal-save-btn-text');
+        if (titleEl) titleEl.textContent = isEdit ? 'Edit Question' : 'Add Question';
+        if (saveBtnText) saveBtnText.textContent = isEdit ? 'Save Changes' : 'Add Question';
+
+        // Set type
+        examManager._modalType = isEdit ? q.type : 'mcq';
+
+        // Set options / pairs / sub-questions (deep copy)
+        if (isEdit) {
+            if (q.options) examManager._modalOptions = JSON.parse(JSON.stringify(q.options));
+            else examManager._modalOptions = [{ id: Utils.generateId(), text: '', isCorrect: false }, { id: Utils.generateId(), text: '', isCorrect: false }];
+
+            if (q.pairs) examManager._modalPairs = JSON.parse(JSON.stringify(q.pairs));
+            else examManager._modalPairs = [{ left: '', right: '' }, { left: '', right: '' }];
+
+            if (q.subQuestions) examManager._modalSubQuestions = JSON.parse(JSON.stringify(q.subQuestions));
+            else examManager._modalSubQuestions = [];
+        } else {
+            examManager._modalOptions = [
                 { id: Utils.generateId(), text: '', isCorrect: false },
                 { id: Utils.generateId(), text: '', isCorrect: false }
-            ],
-            points: 0.5
-        });
+            ];
+            examManager._modalPairs = [{ left: '', right: '' }, { left: '', right: '' }];
+            examManager._modalSubQuestions = [];
+        }
+
+        // Set points
+        const pointsInput = document.getElementById('modal-points');
+        if (pointsInput) pointsInput.value = isEdit ? q.points : 0.5;
+
+        // Update type selector buttons
+        examManager._updateModalTypeButtons();
+
+        // Render options for current type
+        examManager._renderModalOptions();
+
+        // Show media preview for this question
+        examManager._updateModalMediaPreview(isEdit ? q.id : null);
+
+        // Show modal
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'flex-start';
+        modal.style.justifyContent = 'center';
+
+        // Mount Tiptap editor in modal
+        setTimeout(() => {
+            const wpMount = document.getElementById('modal-wp-mount');
+            if (wpMount && window.TiptapEditor) {
+                // Destroy any existing instance
+                window.TiptapEditor.destroyInstance('modal-q');
+                const wpInstance = window.TiptapEditor.create(wpMount, 'modal-q');
+                if (isEdit && q.canvasJSON) {
+                    wpInstance.loadJSON(q.canvasJSON);
+                } else if (isEdit && q.text && q.text.trim() && q.text !== '[Canvas Content]') {
+                    wpInstance.addTextbox(q.text, false);
+                }
+            }
+        }, 150);
+    },
+
+    closeAddQuestionModal: () => {
+        const modal = document.getElementById('add-question-modal');
+        if (modal) modal.style.display = 'none';
+
+        // Destroy Tiptap editor
+        if (window.TiptapEditor) {
+            window.TiptapEditor.destroyInstance('modal-q');
+        }
+
+        examManager._editingQuestionId = null;
+        examManager._modalOptions = [];
+        examManager._modalPairs = [];
+        examManager._modalSubQuestions = [];
+    },
+
+    saveQuestionFromModal: () => {
+        const type = examManager._modalType;
+        const pointsInput = document.getElementById('modal-points');
+        const points = pointsInput ? parseFloat(pointsInput.value) || 0 : 0.5;
+
+        // Harvest Tiptap content
+        let text = '';
+        let canvasJSON = null;
+        let canvasImage = null;
+        const wpInstance = window.TiptapEditor ? window.TiptapEditor.getInstance('modal-q') : null;
+        if (wpInstance) {
+            if (!wpInstance.isEmpty()) {
+                canvasJSON = wpInstance.getJSON();
+                canvasImage = wpInstance.getImage();
+                text = wpInstance.getPlainText() || '[Canvas Content]';
+            }
+        }
+
+        // Read current option values from DOM
+        examManager._harvestModalOptions();
+
+        const isEdit = !!examManager._editingQuestionId;
+
+        if (isEdit) {
+            // Update existing question
+            const q = examManager.questions.find(x => String(x.id) === String(examManager._editingQuestionId));
+            if (q) {
+                q.type = type;
+                q.text = text;
+                q.canvasJSON = canvasJSON;
+                q.canvasImage = canvasImage;
+                q.points = points;
+                if (type === 'mcq' || type === 'true_false' || type === 'image_mcq') {
+                    q.options = examManager._modalOptions;
+                    delete q.correctAnswer;
+                    delete q.pairs;
+                    delete q.subQuestions;
+                } else if (type === 'fill_blank') {
+                    q.correctAnswer = examManager._modalOptions[0]?.text || '';
+                    delete q.options;
+                    delete q.pairs;
+                    delete q.subQuestions;
+                } else if (type === 'match') {
+                    q.pairs = examManager._modalPairs;
+                    delete q.options;
+                    delete q.correctAnswer;
+                    delete q.subQuestions;
+                } else if (type === 'image_multi') {
+                    q.subQuestions = examManager._modalSubQuestions;
+                    delete q.options;
+                    delete q.correctAnswer;
+                    delete q.pairs;
+                } else if (type === 'theory') {
+                    delete q.options;
+                    delete q.correctAnswer;
+                    delete q.pairs;
+                    delete q.subQuestions;
+                    q.points = 0;
+                }
+            }
+        } else {
+            // Create new question
+            const id = Utils.generateId();
+            const newQ = {
+                id: id,
+                type: type,
+                text: text,
+                canvasJSON: canvasJSON,
+                canvasImage: canvasImage,
+                points: type === 'theory' ? 0 : points
+            };
+            if (type === 'mcq' || type === 'true_false' || type === 'image_mcq') {
+                newQ.options = examManager._modalOptions;
+            } else if (type === 'fill_blank') {
+                newQ.correctAnswer = examManager._modalOptions[0]?.text || '';
+            } else if (type === 'match') {
+                newQ.pairs = examManager._modalPairs;
+            } else if (type === 'image_multi') {
+                newQ.subQuestions = examManager._modalSubQuestions;
+                newQ.numSubQuestions = examManager._modalSubQuestions.length || 5;
+                newQ.image = null;
+            }
+            examManager.questions.push(newQ);
+        }
+
+        examManager.closeAddQuestionModal();
         examManager.renderQuestions();
 
-        // UX: Scroll to new question
-        setTimeout(() => {
-            const el = document.querySelector(`div[data-id="${id}"]`);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
+        // Scroll to the new/edited card
+        if (!isEdit) {
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.question-summary-card');
+                if (cards.length > 0) {
+                    cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+    },
+
+    _updateModalTypeButtons: () => {
+        const selector = document.getElementById('modal-type-selector');
+        if (!selector) return;
+        selector.querySelectorAll('.type-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.type === examManager._modalType);
+        });
+
+        // Show/hide options container based on type
+        const optsContainer = document.getElementById('modal-options-container');
+        const addOptBtn = document.getElementById('modal-add-option-btn');
+        if (optsContainer) {
+            if (examManager._modalType === 'theory') {
+                optsContainer.style.display = 'none';
+            } else {
+                optsContainer.style.display = 'block';
+            }
+        }
+        if (addOptBtn) {
+            addOptBtn.style.display = (examManager._modalType === 'mcq' || examManager._modalType === 'image_mcq') ? 'inline-flex' : 'none';
+        }
+    },
+
+    _harvestModalOptions: () => {
+        const type = examManager._modalType;
+        const container = document.getElementById('modal-options-list');
+        if (!container) return;
+
+        if (type === 'mcq' || type === 'image_mcq') {
+            const optionEls = container.querySelectorAll('.answer-option');
+            optionEls.forEach((el, i) => {
+                if (examManager._modalOptions[i]) {
+                    const textarea = el.querySelector('textarea');
+                    const radio = el.querySelector('input[type="radio"]');
+                    if (textarea) examManager._modalOptions[i].text = textarea.value;
+                    if (radio) examManager._modalOptions[i].isCorrect = radio.checked;
+                }
+            });
+        } else if (type === 'fill_blank') {
+            const textarea = container.querySelector('textarea');
+            if (textarea) {
+                if (!examManager._modalOptions[0]) examManager._modalOptions[0] = { text: '' };
+                examManager._modalOptions[0].text = textarea.value;
+            }
+        } else if (type === 'match') {
+            const pairEls = container.querySelectorAll('.answer-option');
+            pairEls.forEach((el, i) => {
+                if (examManager._modalPairs[i]) {
+                    const left = el.querySelector('.left-item');
+                    const right = el.querySelector('.right-item');
+                    if (left) examManager._modalPairs[i].left = left.value;
+                    if (right) examManager._modalPairs[i].right = right.value;
+                }
+            });
+        }
+    },
+
+    _renderModalOptions: () => {
+        const type = examManager._modalType;
+        const container = document.getElementById('modal-options-list');
+        const addOptBtn = document.getElementById('modal-add-option-btn');
+        const optsContainer = document.getElementById('modal-options-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // Update label
+        const label = optsContainer?.querySelector('label');
+
+        if (type === 'mcq' || type === 'image_mcq') {
+            if (label) label.textContent = 'ANSWER OPTIONS';
+            if (addOptBtn) addOptBtn.style.display = 'inline-flex';
+            examManager._modalOptions.forEach((opt, idx) => {
+                const div = document.createElement('div');
+                div.className = 'answer-option';
+                div.innerHTML = `
+                    <input type="radio" name="modal_correct" ${opt.isCorrect ? 'checked' : ''} title="Mark as correct">
+                    <textarea class="form-control auto-expand" placeholder="Option ${idx + 1}" rows="1">${opt.text}</textarea>
+                    ${examManager._modalOptions.length > 2 ? '<button type="button" class="ghost-cta ghost-cta-danger" title="Remove option" style="--cta-color: #EA4335;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>' : ''}
+                `;
+                const radio = div.querySelector('input[type="radio"]');
+                radio.onchange = () => {
+                    examManager._modalOptions.forEach(o => o.isCorrect = false);
+                    opt.isCorrect = true;
+                };
+                const textarea = div.querySelector('textarea');
+                textarea.oninput = (e) => {
+                    opt.text = e.target.value;
+                    examManager.autoExpand(e.target);
+                };
+                setTimeout(() => examManager.autoExpand(textarea), 0);
+                if (examManager._modalOptions.length > 2) {
+                    div.querySelector('button').onclick = () => {
+                        examManager._modalOptions = examManager._modalOptions.filter(o => o.id !== opt.id);
+                        examManager._renderModalOptions();
+                    };
+                }
+                container.appendChild(div);
+            });
+        } else if (type === 'true_false') {
+            if (label) label.textContent = 'ANSWER OPTIONS';
+            if (addOptBtn) addOptBtn.style.display = 'none';
+            // Ensure we have True/False options
+            if (examManager._modalOptions.length !== 2 || examManager._modalOptions[0].text !== 'True') {
+                examManager._modalOptions = [
+                    { id: 'opt_true', text: 'True', isCorrect: true },
+                    { id: 'opt_false', text: 'False', isCorrect: false }
+                ];
+            }
+            examManager._modalOptions.forEach(opt => {
+                const div = document.createElement('div');
+                div.className = 'answer-option';
+                div.innerHTML = `
+                    <input type="radio" name="modal_correct" ${opt.isCorrect ? 'checked' : ''}>
+                    <span style="font-weight:600;">${opt.text}</span>
+                `;
+                div.querySelector('input').onchange = () => {
+                    examManager._modalOptions.forEach(o => o.isCorrect = false);
+                    opt.isCorrect = true;
+                };
+                container.appendChild(div);
+            });
+        } else if (type === 'fill_blank') {
+            if (label) label.textContent = 'CORRECT ANSWER';
+            if (addOptBtn) addOptBtn.style.display = 'none';
+            const val = (examManager._modalOptions[0]?.text) ||
+                        (examManager._editingQuestionId ? (examManager.questions.find(q => q.id === examManager._editingQuestionId)?.correctAnswer || '') : '');
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <textarea class="form-control auto-expand" placeholder="e.g. Paris" rows="1">${val}</textarea>
+            `;
+            const textarea = div.querySelector('textarea');
+            textarea.oninput = (e) => {
+                if (!examManager._modalOptions[0]) examManager._modalOptions[0] = { text: '' };
+                examManager._modalOptions[0].text = e.target.value;
+                examManager.autoExpand(e.target);
+            };
+            setTimeout(() => examManager.autoExpand(textarea), 0);
+            container.appendChild(div);
+        } else if (type === 'match') {
+            if (label) label.textContent = 'MATCHING PAIRS';
+            if (addOptBtn) {
+                addOptBtn.style.display = 'inline-flex';
+                addOptBtn.textContent = '+ Add Pair';
+                addOptBtn.onclick = () => {
+                    examManager._modalPairs.push({ left: '', right: '' });
+                    examManager._renderModalOptions();
+                };
+            }
+            const headDiv = document.createElement('div');
+            headDiv.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold; font-size:0.85rem; color:var(--light-text);"><span style="flex:1">Left Item</span><span style="width:20px"></span><span style="flex:1">Right Item</span></div>`;
+            container.appendChild(headDiv);
+
+            examManager._modalPairs.forEach((pair, pIdx) => {
+                const pairDiv = document.createElement('div');
+                pairDiv.className = 'answer-option';
+                pairDiv.style.alignItems = 'center';
+                pairDiv.innerHTML = `
+                    <textarea class="form-control auto-expand left-item" placeholder="Left Item" rows="1" style="flex:1;">${pair.left}</textarea>
+                    <span style="font-weight: bold;">=</span>
+                    <textarea class="form-control auto-expand right-item" placeholder="Right Item" rows="1" style="flex:1;">${pair.right}</textarea>
+                    <button type="button" class="btn" style="color:var(--accent-color); padding: 5px 10px; min-width: auto;">&#10005;</button>
+                `;
+                pairDiv.querySelector('.left-item').oninput = (e) => { pair.left = e.target.value; examManager.autoExpand(e.target); };
+                pairDiv.querySelector('.right-item').oninput = (e) => { pair.right = e.target.value; examManager.autoExpand(e.target); };
+                pairDiv.querySelector('button').onclick = () => {
+                    examManager._modalPairs = examManager._modalPairs.filter((_, i) => i !== pIdx);
+                    examManager._renderModalOptions();
+                };
+                container.appendChild(pairDiv);
+            });
+        } else if (type === 'image_multi') {
+            if (label) label.textContent = 'SUB-QUESTIONS';
+            if (addOptBtn) addOptBtn.style.display = 'none';
+
+            // Number selector
+            const numDiv = document.createElement('div');
+            numDiv.style.marginBottom = '12px';
+            const currentCount = examManager._modalSubQuestions.length || 5;
+            numDiv.innerHTML = `
+                <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:4px;">Number of Questions</label>
+                <select class="form-control" style="width: 80px;">${Array.from({length:100}, (_, i) => i+1).map(n => `<option value="${n}" ${currentCount === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+            `;
+            numDiv.querySelector('select').onchange = (e) => {
+                const newCount = parseInt(e.target.value);
+                while (examManager._modalSubQuestions.length < newCount) {
+                    examManager._modalSubQuestions.push({ id: Utils.generateId(), number: examManager._modalSubQuestions.length + 1, correctAnswer: '' });
+                }
+                if (newCount < examManager._modalSubQuestions.length) {
+                    examManager._modalSubQuestions = examManager._modalSubQuestions.slice(0, newCount);
+                }
+                examManager._renderModalOptions();
+            };
+            container.appendChild(numDiv);
+
+            // Initialize sub-questions if empty
+            if (examManager._modalSubQuestions.length === 0) {
+                for (let i = 1; i <= 5; i++) {
+                    examManager._modalSubQuestions.push({ id: Utils.generateId(), number: i, correctAnswer: '' });
+                }
+            }
+
+            examManager._modalSubQuestions.forEach(subQ => {
+                const subDiv = document.createElement('div');
+                subDiv.className = 'sub-question-row';
+                subDiv.innerHTML = `
+                    <span class="sub-question-label">Q ${subQ.number}:</span>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        ${['A','B','C','D','E'].map(opt => `
+                            <label style="display:flex; align-items:center; gap:4px; cursor:pointer; padding:5px 10px; border-radius:6px; border:1px solid var(--border-color); ${subQ.correctAnswer === opt ? 'background:var(--success-color); color:white; border-color:var(--success-color);' : 'background:var(--card-bg);'}">
+                                <input type="radio" name="modal_subq_${subQ.id}" value="${opt}" ${subQ.correctAnswer === opt ? 'checked' : ''} style="cursor:pointer; width:14px; height:14px;">
+                                <span style="font-weight:600; font-size:0.85rem;">${opt}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                subDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
+                    radio.onchange = () => {
+                        subQ.correctAnswer = radio.value;
+                        examManager._renderModalOptions();
+                    };
+                });
+                container.appendChild(subDiv);
+            });
+        } else if (type === 'theory') {
+            if (optsContainer) optsContainer.style.display = 'none';
+        }
+
+        // Reset add option btn for mcq — preserve ghost CTA icon
+        if (addOptBtn && (type === 'mcq' || type === 'image_mcq')) {
+            addOptBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Option';
+            addOptBtn.onclick = () => { examManager.addModalOption(); };
+        }
+    },
+
+    addModalOption: () => {
+        examManager._modalOptions.push({ id: Utils.generateId(), text: '', isCorrect: false });
+        examManager._renderModalOptions();
     },
 
     removeQuestion: async (id) => {
@@ -696,25 +1196,10 @@ const examManager = {
     },
 
     renderQuestions: () => {
-        // Preserve editor state from all active Tiptap instances before destroying DOM
-        if (window.TiptapEditor) {
-            examManager.questions.forEach(q => {
-                const wpInstance = window.TiptapEditor.getInstance(q.id);
-                if (wpInstance && !wpInstance.isEmpty()) {
-                    q.canvasJSON = wpInstance.getJSON();
-                    q.canvasImage = wpInstance.getImage();
-                    // Extract plain text for backward compat
-                    q.text = wpInstance.getPlainText() || '[Canvas Content]';
-                }
-                // Destroy the old instance before re-render
-                window.TiptapEditor.destroyInstance(q.id);
-            });
-        }
         const container = document.getElementById('questions-container');
-        const template = document.getElementById('question-template').innerHTML;
         const noQuestionsMsg = document.getElementById('no-questions-msg');
-
         const instructionPanel = document.getElementById('instruction-panel');
+
         if (examManager.questions.length === 0) {
             if (noQuestionsMsg) noQuestionsMsg.style.display = 'block';
             if (instructionPanel) instructionPanel.style.display = 'none';
@@ -728,32 +1213,28 @@ const examManager = {
         // Separate objective and theory questions
         const objectiveQuestions = examManager.questions.filter(q => q.type !== 'theory');
         const theoryQuestions = examManager.questions.filter(q => q.type === 'theory');
-
-        // Combine them with objective questions first, then theory questions
         const sortedQuestions = [...objectiveQuestions, ...theoryQuestions];
 
-        // Re-render all (inefficient but simple for MVP)
-        // In a real app we would use a VDOM framework like React/Vue
         container.innerHTML = '';
 
-        // Add section header for objective questions if there are theory questions
+        // Section headers
         if (objectiveQuestions.length > 0 && theoryQuestions.length > 0) {
-            const objectiveHeader = document.createElement('div');
-            objectiveHeader.style.cssText = 'margin: 20px 0 15px 0; padding: 10px; background: var(--inner-bg); border-left: 4px solid var(--primary-color); border-radius: 4px;';
-            objectiveHeader.innerHTML = '<h3 style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">Section A: Objective Questions</h3>';
-            container.appendChild(objectiveHeader);
+            const objHeader = document.createElement('div');
+            objHeader.className = 'question-section-divider';
+            objHeader.innerHTML = '<h3>Section A: Objective Questions</h3>';
+            container.appendChild(objHeader);
         }
 
         sortedQuestions.forEach((q, index) => {
-            // Add theory section header before first theory question
+            // Theory section header
             if (index === objectiveQuestions.length && theoryQuestions.length > 0) {
-                const theoryHeader = document.createElement('div');
-                theoryHeader.style.cssText = 'margin: 30px 0 15px 0; padding: 10px; background: var(--inner-bg); border-left: 4px solid var(--accent-color); border-radius: 4px;';
-                theoryHeader.innerHTML = '<h3 style="margin: 0; font-size: 1.1rem; color: var(--accent-color);">Section B: Theory Questions</h3>';
-                container.appendChild(theoryHeader);
+                const thHeader = document.createElement('div');
+                thHeader.className = 'question-section-divider theory';
+                thHeader.innerHTML = '<h3>Section B: Theory Questions</h3>';
+                container.appendChild(thHeader);
             }
 
-            // Insert instruction banner above this question if one exists (stored on q.topInstruction)
+            // Instruction banner
             if (q.topInstruction) {
                 const bannerEl = document.createElement('div');
                 bannerEl.className = 'question-instruction-banner';
@@ -761,348 +1242,81 @@ const examManager = {
                 container.appendChild(bannerEl);
             }
 
-            let displayNumber = 1;
-            if (q.type === 'theory') {
-                displayNumber = (index - objectiveQuestions.length) + 1;
-            } else {
-                displayNumber = index + 1;
-            }
+            // Display number
+            let displayNumber = q.type === 'theory'
+                ? (index - objectiveQuestions.length) + 1
+                : index + 1;
 
-            let html = template
-                .replace(/{id}/g, q.id)
-                .replace(/{n}/g, displayNumber);
-
-            const div = document.createElement('div');
-            div.innerHTML = html;
-
-            // Set values
-            const qEl = div.firstElementChild;
-            // Mount Tiptap editor
-            const wpMount = qEl.querySelector('.wp-mount-point');
-            if (wpMount && window.TiptapEditor) {
-                // Defer init until element is fully in DOM and rendered
-                setTimeout(() => {
-                    const wpInstance = window.TiptapEditor.create(wpMount, q.id);
-                    if (q.canvasJSON) {
-                        // Load saved editor state (preserves formatting and shapes)
-                        wpInstance.loadJSON(q.canvasJSON);
-                    } else if (q.text && q.text.trim() && q.text !== '[Canvas Content]') {
-                        // Auto-populate with plain text (e.g., from bulk import)
-                        wpInstance.addTextbox(q.text, false);
-                    }
-                }, 200);
-            }
-
-            const typeSelect = qEl.querySelector('.q-type');
-            typeSelect.value = q.type;
-
-            qEl.querySelector('.q-points').value = q.points;
-            qEl.querySelector('.q-points').onchange = (e) => {
-                const val = parseFloat(e.target.value);
-                q.points = isNaN(val) ? 0 : val;
-            };
-
-            // Render Attached Media (from Media Upload Modal)
-            const attachedMedia = examManager.getMediaForQuestion(q.id);
-            if (attachedMedia.length > 0) {
-                const mediaSection = document.createElement('div');
-                mediaSection.style.cssText = 'margin: 15px 0; padding: 15px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 10px; border: 1px solid var(--border-color);';
-
-                let mediaHtml = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span style="font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                            📷 Attached Media <span style="background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">${attachedMedia.length}</span>
-                        </span>
-                        <button type="button" onclick="examManager.openMediaModalForQuestion('${q.id}')" class="btn" style="font-size: 0.8rem; padding: 4px 10px;">
-                            + Add More
-                        </button>
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                `;
-
-                attachedMedia.forEach(media => {
-                    mediaHtml += `
-                        <div style="position: relative; border-radius: 8px; overflow: hidden; border: 2px solid var(--border-color); background: var(--card-bg);">
-                            <img src="${media.dataUrl}" alt="${media.name}" style="width: 150px; height: 100px; object-fit: cover; display: block; cursor: pointer;" 
-                                onclick="examManager.previewMedia('${media.id}')" title="Click to preview">
-                            <button type="button" onclick="examManager.unassignMedia('${media.id}', '${q.id}')" 
-                                style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;" 
-                                title="Remove from question">×</button>
-                        </div>
-                    `;
-                });
-
-                mediaHtml += `</div>`;
-                mediaSection.innerHTML = mediaHtml;
-
-                // Insert before question content container
-                const wpMountForMedia = qEl.querySelector('.wp-mount-point');
-                if (wpMountForMedia && wpMountForMedia.parentNode) {
-                    wpMountForMedia.parentNode.insertBefore(mediaSection, wpMountForMedia);
-                }
-            } else if (q.type !== 'image_multi') {
-                // No media attached - show "Add Media" button (except for Picture Comprehension which has its own image upload)
-                const addMediaSection = document.createElement('div');
-                addMediaSection.style.cssText = 'margin: 10px 0;';
-                addMediaSection.innerHTML = `
-                    <button type="button" class="add-media-btn" onclick="examManager.openMediaModalForQuestion('${q.id}')">
-                        📷 Add Media (Image/Diagram)
-                    </button>
-                `;
-
-                // Insert before question content container
-                const wpMountEl = qEl.querySelector('.wp-mount-point');
-                if (wpMountEl && wpMountEl.parentNode) {
-                    wpMountEl.parentNode.insertBefore(addMediaSection, wpMountEl);
+            // Get question preview text
+            let previewText = q.text || '';
+            if (previewText === '[Canvas Content]' && q.canvasJSON) {
+                // Try to extract text from Tiptap JSON
+                try {
+                    const extractText = (node) => {
+                        if (!node) return '';
+                        if (node.text) return node.text;
+                        if (node.content) return node.content.map(extractText).join(' ');
+                        return '';
+                    };
+                    previewText = extractText(q.canvasJSON).trim() || '[Rich Content]';
+                } catch (e) {
+                    previewText = '[Rich Content]';
                 }
             }
+            if (!previewText) previewText = '(No content yet)';
+            if (previewText.length > 80) previewText = previewText.substring(0, 80) + '...';
 
-            // Render Options based on Type
-            const optsContainer = qEl.querySelector('.q-options-container');
-            optsContainer.innerHTML = ''; // Clear previous
+            // Type label
+            const typeLabel = examManager._typeLabels[q.type] || q.type;
 
+            // Options info
+            let optionsInfo = '';
             if (q.type === 'mcq' || q.type === 'image_mcq') {
-                // Image Upload for Image MCQ
-                if (q.type === 'image_mcq') {
-                    const imgDiv = document.createElement('div');
-                    imgDiv.style.marginBottom = '10px';
-                    imgDiv.innerHTML = `
-                        <label>Upload Image</label>
-                        <input type="file" accept="image/*" class="form-control">
-                        ${q.image ? `<img src="${q.image}" style="max-width: 100%; max-height: 200px; margin-top: 10px; border-radius: 4px;">` : ''}
-                    `;
-                    const fileInput = imgDiv.querySelector('input');
-                    fileInput.onchange = (e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                                q.image = evt.target.result;
-                                examManager.renderQuestions();
-                            };
-                            reader.readAsDataURL(file);
-                        }
-                    };
-                    optsContainer.appendChild(imgDiv);
-                }
-
-                q.options.forEach((opt, optIndex) => {
-                    const optDiv = document.createElement('div');
-                    optDiv.className = 'answer-option';
-                    optDiv.innerHTML = `
-                        <input type="radio" name="correct_${q.id}" ${opt.isCorrect ? 'checked' : ''} title="Mark as correct">
-                        <textarea class="form-control auto-expand" placeholder="Option ${optIndex + 1}" rows="1">${opt.text}</textarea>
-                        ${q.options.length > 2 ? '<button type="button" class="btn" style="color:var(--accent-color); padding: 5px 10px; min-width: auto;" title="Remove option">✕</button>' : ''}
-                    `;
-
-                    const radio = optDiv.querySelector('input[type="radio"]');
-                    radio.onchange = () => {
-                        q.options.forEach(o => o.isCorrect = false);
-                        opt.isCorrect = true;
-                    };
-
-                    const textarea = optDiv.querySelector('textarea');
-                    textarea.oninput = (e) => {
-                        opt.text = e.target.value;
-                        examManager.autoExpand(e.target);
-                    };
-
-                    // Initial expand
-                    setTimeout(() => examManager.autoExpand(textarea), 0);
-
-                    if (q.options.length > 2) {
-                        optDiv.querySelector('button').onclick = () => {
-                            q.options = q.options.filter(o => o.id !== opt.id);
-                            examManager.renderQuestions();
-                        };
-                    }
-                    optsContainer.appendChild(optDiv);
-                });
-
-                const addOptBtn = document.createElement('button');
-                addOptBtn.type = 'button';
-                addOptBtn.className = 'btn';
-                addOptBtn.style.fontSize = '0.8rem';
-                addOptBtn.style.marginTop = '5px';
-                addOptBtn.textContent = '+ Add Option';
-                addOptBtn.onclick = () => {
-                    q.options.push({ id: Utils.generateId(), text: '', isCorrect: false });
-                    examManager.renderQuestions();
-                };
-                optsContainer.appendChild(addOptBtn);
-
+                const count = q.options ? q.options.length : 0;
+                const hasCorrect = q.options ? q.options.some(o => o.isCorrect) : false;
+                optionsInfo = `${count} options${hasCorrect ? '' : ' (no correct answer)'}`;
             } else if (q.type === 'true_false') {
-                q.options.forEach(opt => {
-                    const optDiv = document.createElement('div');
-                    optDiv.className = 'answer-option';
-                    optDiv.innerHTML = `
-                        <input type="radio" name="correct_${q.id}" ${opt.isCorrect ? 'checked' : ''}>
-                        <span>${opt.text}</span>
-                    `;
-                    optDiv.querySelector('input').onchange = () => {
-                        q.options.forEach(o => o.isCorrect = false);
-                        opt.isCorrect = true;
-                    };
-                    optsContainer.appendChild(optDiv);
-                });
-
+                optionsInfo = 'True/False';
             } else if (q.type === 'fill_blank') {
-                const fbDiv = document.createElement('div');
-                fbDiv.innerHTML = `
-                    <div class="form-group">
-                        <label>Correct Answer (Word or Phrase)</label>
-                        <textarea class="form-control auto-expand" placeholder="e.g. Paris" rows="1">${q.correctAnswer || ''}</textarea>
-                    </div>
-                `;
-                const textarea = fbDiv.querySelector('textarea');
-                textarea.oninput = (e) => {
-                    q.correctAnswer = e.target.value;
-                    examManager.autoExpand(e.target);
-                };
-                setTimeout(() => examManager.autoExpand(textarea), 0);
-                optsContainer.appendChild(fbDiv);
-
+                optionsInfo = q.correctAnswer ? 'Answer set' : 'No answer set';
             } else if (q.type === 'match') {
-                const headDiv = document.createElement('div');
-                headDiv.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold;"><span style="flex:1">Left Item</span><span style="width:20px"></span><span style="flex:1">Matching Right Item</span></div>`;
-                optsContainer.appendChild(headDiv);
-
-                q.pairs = q.pairs || [];
-                q.pairs.forEach((pair, pIdx) => {
-                    const pairDiv = document.createElement('div');
-                    pairDiv.className = 'answer-option';
-                    pairDiv.style.alignItems = 'center';
-                    pairDiv.innerHTML = `
-                        <textarea class="form-control auto-expand left-item" placeholder="Left Item" rows="1" style="flex:1;">${pair.left}</textarea>
-                        <span style="font-weight: bold;">=</span>
-                        <textarea class="form-control auto-expand right-item" placeholder="Matching Right Item" rows="1" style="flex:1;">${pair.right}</textarea>
-                        <button type="button" class="btn" style="color:var(--accent-color); padding: 5px 10px; min-width: auto;">✕</button>
-                    `;
-
-                    const leftArea = pairDiv.querySelector('.left-item');
-                    const rightArea = pairDiv.querySelector('.right-item');
-
-                    leftArea.oninput = (e) => {
-                        pair.left = e.target.value;
-                        examManager.autoExpand(e.target);
-                    };
-                    rightArea.oninput = (e) => {
-                        pair.right = e.target.value;
-                        examManager.autoExpand(e.target);
-                    };
-                    pairDiv.querySelector('button').onclick = () => {
-                        q.pairs = q.pairs.filter((_, idx) => idx !== pIdx);
-                        examManager.renderQuestions();
-                    };
-                    optsContainer.appendChild(pairDiv);
-                });
-
-                const addPairBtn = document.createElement('button');
-                addPairBtn.type = 'button';
-                addPairBtn.className = 'btn';
-                addPairBtn.textContent = '+ Add Pair';
-                addPairBtn.onclick = () => {
-                    q.pairs.push({ left: '', right: '' });
-                    examManager.renderQuestions();
-                };
-                optsContainer.appendChild(addPairBtn);
+                optionsInfo = `${(q.pairs || []).length} pairs`;
             } else if (q.type === 'image_multi') {
-                // Picture Comprehension: One image with multiple sub-questions (A-E options each)
-
-                // Image Upload
-                const imgDiv = document.createElement('div');
-                imgDiv.style.marginBottom = '15px';
-                imgDiv.innerHTML = `
-                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">📷 Upload Comprehension Image</label>
-                    <input type="file" accept="image/*" class="form-control file-upload-btn" style="margin-bottom: 10px; padding: 10px 16px; cursor: pointer; border: 2px dashed var(--primary-color); background: rgba(99, 102, 241, 0.05); color: var(--primary-color); border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease;">
-                    ${q.image ? `<img src="${q.image}" style="max-width: 100%; max-height: 300px; margin-top: 10px; border-radius: 4px; border: 1px solid var(--border-color);">` : ''}
-                `;
-                const fileInput = imgDiv.querySelector('input');
-                fileInput.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                            q.image = evt.target.result;
-                            examManager.renderQuestions();
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                };
-                optsContainer.appendChild(imgDiv);
-
-                // Number of Questions Selector
-                const numQDiv = document.createElement('div');
-                numQDiv.style.marginBottom = '15px';
-                numQDiv.innerHTML = `
-                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">Number of Questions</label>
-                    <select class="form-control" style="width: 80px;">
-                        ${Array.from({ length: 100 }, (_, i) => i + 1).map(n => `<option value="${n}" ${q.numSubQuestions === n ? 'selected' : ''}>${n}</option>`).join('')}
-                    </select>
-                `;
-                numQDiv.querySelector('select').onchange = (e) => {
-                    const newCount = parseInt(e.target.value);
-                    q.numSubQuestions = newCount;
-                    // Adjust subQuestions array
-                    if (newCount > q.subQuestions.length) {
-                        // Add more questions
-                        for (let i = q.subQuestions.length + 1; i <= newCount; i++) {
-                            q.subQuestions.push({ id: Utils.generateId(), number: i, correctAnswer: '' });
-                        }
-                    } else {
-                        // Remove excess questions
-                        q.subQuestions = q.subQuestions.slice(0, newCount);
-                    }
-                    examManager.renderQuestions();
-                };
-                optsContainer.appendChild(numQDiv);
-
-                // Sub-questions with correct answers
-                const subQContainer = document.createElement('div');
-                subQContainer.style.cssText = 'background: var(--inner-bg); padding: 15px; border-radius: 8px; margin-top: 15px;';
-                subQContainer.innerHTML = '<label style="font-weight: 600; display: block; margin-bottom: 10px;">Set Correct Answers</label>';
-
-                q.subQuestions = q.subQuestions || [];
-                q.subQuestions.forEach((subQ, idx) => {
-                    const subQDiv = document.createElement('div');
-                    subQDiv.className = 'sub-question-row';
-                    subQDiv.innerHTML = `
-                        <span class="sub-question-label">Question ${subQ.number}:</span>
-                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                            ${['A', 'B', 'C', 'D', 'E'].map(opt => `
-                                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); ${subQ.correctAnswer === opt ? 'background: var(--success-color); color: white; border-color: var(--success-color);' : 'background: var(--card-bg);'}">
-                                    <input type="radio" name="subq_${subQ.id}" value="${opt}" ${subQ.correctAnswer === opt ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;">
-                                    <span style="font-weight: 600;">${opt}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    `;
-                    subQDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
-                        radio.onchange = () => {
-                            subQ.correctAnswer = radio.value;
-                            examManager.renderQuestions();
-                        };
-                    });
-                    subQContainer.appendChild(subQDiv);
-                });
-
-                optsContainer.appendChild(subQContainer);
-
+                optionsInfo = `${(q.subQuestions || []).length} sub-questions`;
             } else if (q.type === 'theory') {
-                // Theory questions don't need options
-                // Just show a note that students will write their answers
-                const theoryDiv = document.createElement('div');
-                theoryDiv.innerHTML = `
-                    <div class="form-group">
-                        <p style="color: var(--light-text); font-size: 0.9rem; font-style: italic;">
-                            Students will provide a written answer for this question. This question requires manual grading.
-                        </p>
-                    </div>
-                `;
-                optsContainer.appendChild(theoryDiv);
+                optionsInfo = 'Manual grading';
             }
 
-            container.appendChild(qEl);
+            // Attached media count
+            const mediaCount = examManager.getMediaForQuestion(q.id).length;
+            const mediaInfo = mediaCount > 0 ? ` | ${mediaCount} media` : '';
+
+            // Build summary card
+            const card = document.createElement('div');
+            card.className = 'question-summary-card';
+            card.dataset.id = q.id;
+            card.onclick = () => examManager.openAddQuestionModal(q.id);
+            card.innerHTML = `
+                <div class="question-number-badge">${displayNumber}</div>
+                <div class="question-summary-text">
+                    <span class="question-type-pill">${escHtml(typeLabel)}</span>
+                    <span class="q-preview">${escHtml(previewText)}</span>
+                    <span class="q-meta">
+                        <span class="points-badge">${q.points} pts</span>
+                        <span>${escHtml(optionsInfo)}${mediaInfo}</span>
+                    </span>
+                </div>
+                <div class="question-summary-actions" onclick="event.stopPropagation();">
+                    <button type="button" class="ghost-cta" style="--cta-color: var(--primary-color);" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button type="button" class="ghost-cta ghost-cta-danger" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        Remove
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
         });
     },
 
@@ -1135,28 +1349,15 @@ const examManager = {
             ? new Date(scheduledDateInput.value).toISOString()
             : null;
 
-        const scrambleCheckbox = document.getElementById('exam-scramble');
-        const scrambleQuestions = scrambleCheckbox ? scrambleCheckbox.checked : false;
+        const scrambleYesRadio = document.getElementById('exam-scramble-yes');
+        const scrambleQuestions = scrambleYesRadio ? scrambleYesRadio.checked : false;
 
         // Theory section instructions
         const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
         const theoryInstructions = theoryInstructionsInput ? theoryInstructionsInput.value : '';
 
-        // Harvest editor data from all Tiptap instances
-        for (const q of examManager.questions) {
-            const wpInstance = window.TiptapEditor ? window.TiptapEditor.getInstance(q.id) : null;
-            if (wpInstance) {
-                if (!wpInstance.isEmpty()) {
-                    q.canvasImage = wpInstance.getImage(); // returns null — canvasJSON is the source of truth
-                    q.canvasJSON  = wpInstance.getJSON();
-                    q.text        = wpInstance.getPlainText() || '[Canvas Content]';
-                } else {
-                    q.canvasImage = null;
-                    q.canvasJSON  = null;
-                    q.text        = '';
-                }
-            }
-        }
+        // Editor data is now harvested when saving from the Add/Edit Question modal
+        // No active inline Tiptap editors to harvest here
 
         // Validate Questions
         let valid = true;
@@ -1227,7 +1428,7 @@ const examManager = {
         examManager._isPublishing = true;
 
         // Disable submit button and show loading state
-        const submitBtn = document.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById('publish-exam-btn') || document.querySelector('.create-exam-card-footer .btn-primary') || document.querySelector('button[type="submit"]');
         const originalBtnText = submitBtn ? submitBtn.textContent : 'Publish Exam';
         if (submitBtn) {
             submitBtn.disabled = true;
@@ -1297,11 +1498,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Attach event listeners
     const addQuestionBtn = document.getElementById('add-question-btn');
     if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', examManager.addQuestion);
+        addQuestionBtn.addEventListener('click', () => examManager.openAddQuestionModal());
     }
 
     const form = document.getElementById('create-exam-form');
     if (form) {
         form.addEventListener('submit', examManager.saveExam);
+    }
+
+    // Modal type selector buttons
+    const typeSelector = document.getElementById('modal-type-selector');
+    if (typeSelector) {
+        typeSelector.addEventListener('click', (e) => {
+            const btn = e.target.closest('.type-btn');
+            if (!btn) return;
+            // Harvest current options before switching
+            examManager._harvestModalOptions();
+            examManager._modalType = btn.dataset.type;
+            examManager._updateModalTypeButtons();
+            examManager._renderModalOptions();
+        });
     }
 });
