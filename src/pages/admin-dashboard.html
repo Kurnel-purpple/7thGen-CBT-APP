@@ -870,6 +870,8 @@
                     <button class="dropdown-item" onclick="openChangeUsernameModal()" style="color:#fff; padding:10px 16px; font-size:0.85rem;">Change Username</button>
                     <button class="dropdown-item" onclick="openChangePasswordModal()" style="color:#fff; padding:10px 16px; font-size:0.85rem;">Change Password</button>
                     <div style="height:1px; background:rgba(255,255,255,0.1); margin:4px 0;"></div>
+                    <button class="dropdown-item" onclick="openResetUserPasswordModal(); toggleSidebarProfileDropdown();" style="color:#F9AB00; padding:10px 16px; font-size:0.85rem;">Reset User Password</button>
+                    <div style="height:1px; background:rgba(255,255,255,0.1); margin:4px 0;"></div>
                     <button class="dropdown-item" onclick="handleLogout()" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
                 </div>
             </div>
@@ -905,6 +907,11 @@
                             <button class="dropdown-item" onclick="openChangePasswordModal()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                                 <span>Change Password</span>
+                            </button>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item" onclick="openResetUserPasswordModal()" style="color: #F9AB00;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 010-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                                <span>Reset User Password</span>
                             </button>
                             <div class="dropdown-divider"></div>
                             <button class="dropdown-item danger" onclick="handleLogout()">
@@ -1180,6 +1187,86 @@
                     style="padding: 10px 20px; border-radius: 8px;">Cancel</button>
                 <button id="submit-username-btn" class="btn btn-primary" onclick="submitUsernameChange()"
                     style="padding: 10px 25px; border-radius: 8px; font-weight: 600;">Update Username</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset User Password Modal -->
+    <div id="reset-user-password-modal" class="modal" style="display: none; z-index: 4000;">
+        <div class="modal-content"
+            style="max-width: 440px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="modal-header"
+                style="background: #EA4335; color: white; padding: 20px; margin-bottom: 0; border: none;">
+                <h3 style="margin: 0; color: white;">Reset User Password</h3>
+                <span class="close-btn" onclick="closeResetUserPasswordModal()"
+                    style="color: white; opacity: 0.8;">&times;</span>
+            </div>
+
+            <!-- Step 1: Enter username -->
+            <div id="reset-step-1" style="padding: 24px; background: var(--card-bg);">
+                <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 20px;">
+                    Enter the user's registered username (Student ID / Teacher ID) to generate a password reset code.
+                </p>
+                <div class="control-group" style="margin-bottom: 16px;">
+                    <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">Username</label>
+                    <input type="text" id="reset-target-username" class="form-control"
+                        placeholder="e.g. JAMES123 or jdoe_teacher" style="width: 100%; border-radius: 8px;">
+                </div>
+                <div id="reset-user-error"
+                    style="color: #EA4335; font-size: 0.85rem; display: none; background: rgba(234,67,53,0.1); padding: 10px; border-radius: 6px; border: 1px solid #EA4335; margin-bottom: 15px;">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                    <button class="btn"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--light-text);"
+                        onclick="closeResetUserPasswordModal()">Cancel</button>
+                    <button id="reset-generate-btn" class="btn btn-primary" onclick="generateResetCode()"
+                        style="background: #EA4335; border-color: #EA4335;">Find User</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Show code + set new password -->
+            <div id="reset-step-2" style="padding: 24px; background: var(--card-bg); display: none; max-height: 70vh; overflow-y: auto;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <p style="font-size: 0.85rem; color: var(--light-text); margin-bottom: 8px;">Reset code for <strong id="reset-target-name"></strong></p>
+                    <div id="reset-code-display"
+                        style="font-family: 'DM Sans', monospace; font-size: 2rem; font-weight: 800; letter-spacing: 8px; color: var(--primary-color); background: var(--inner-bg); padding: 16px 24px; border-radius: 10px; border: 2px dashed var(--primary-color); display: inline-block; user-select: all;">
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--light-text); margin-top: 8px;">
+                        Share this code with the user, or set a new password directly below.
+                    </p>
+                </div>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px;">
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); margin-bottom: 12px;">Or set a new password directly:</p>
+                    <div class="control-group" style="margin-bottom: 16px;">
+                        <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">New Password</label>
+                        <div style="position: relative;">
+                            <input type="password" id="reset-new-password" class="form-control"
+                                placeholder="At least 8 characters" style="width: 100%; border-radius: 8px;">
+                            <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)"
+                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; opacity: 0.6;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="control-group" style="margin-bottom: 16px;">
+                        <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">Confirm Password</label>
+                        <input type="password" id="reset-confirm-password" class="form-control"
+                            placeholder="Repeat new password" style="width: 100%; border-radius: 8px;">
+                    </div>
+                    <div id="reset-password-error"
+                        style="color: #EA4335; font-size: 0.85rem; display: none; background: rgba(234,67,53,0.1); padding: 10px; border-radius: 6px; border: 1px solid #EA4335; margin-bottom: 15px;">
+                    </div>
+                    <div id="reset-password-success"
+                        style="color: #34A853; font-size: 0.85rem; display: none; background: rgba(52,168,83,0.1); padding: 10px; border-radius: 6px; border: 1px solid #34A853; margin-bottom: 15px;">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                    <button class="btn"
+                        style="background: transparent; border: 1px solid var(--border-color); color: var(--light-text);"
+                        onclick="closeResetUserPasswordModal()">Close</button>
+                    <button id="reset-apply-btn" class="btn btn-primary" onclick="applyDirectPasswordReset()">Set Password</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1538,9 +1625,11 @@
 
                 allTeachers = teachersResult;
 
-                // For students, we might still want all or filter by school if applicable
-                // For now, let's keep all students or filter if needed
-                allStudents = await dataService.getUsers({ role: 'student' });
+                // Load students filtered by school ID
+                allStudents = await dataService.getUsers({
+                    role: 'student',
+                    schoolVersion: currentVersion
+                });
 
                 // Populate teacher dropdown
                 const teacherSelect = document.getElementById('teacher-select');
@@ -1608,20 +1697,22 @@
                         currentVersion &&
                         profile.school_version.trim().toLowerCase() === currentVersion.trim().toLowerCase();
 
-                    const roleMatch = profile.role === 'teacher';
-                    const isRelevant = roleMatch && schoolMatch;
+                    const isTeacher = profile.role === 'teacher';
+                    const isStudent = profile.role === 'student';
+                    const isRelevant = (isTeacher || isStudent) && schoolMatch;
 
-                    // Check if this teacher WAS in our list (for departures)
-                    const wasInList = allTeachers.some(t => t.id === profile.id || (t.user === profile.user && !!profile.user));
+                    // Check if this user WAS in our lists (for departures)
+                    const wasInTeachers = allTeachers.some(t => t.id === profile.id || (t.user === profile.user && !!profile.user));
+                    const wasInStudents = allStudents.some(s => s.id === profile.id || (s.user === profile.user && !!profile.user));
 
-                    if (isRelevant || (e.action === 'update' && wasInList)) {
-                        console.log('🔄 Refreshing teacher list due to real-time update');
-                        // Refresh data to update UI and stats
+                    if (isRelevant || (e.action === 'update' && (wasInTeachers || wasInStudents))) {
+                        console.log('🔄 Refreshing data due to real-time update');
                         await loadData();
 
                         // Show a small notification for additions
-                        if (isRelevant && (e.action === 'create' || !wasInList)) {
-                            showToast(`Teacher Recognized: ${profile.full_name || 'New Teacher'}`);
+                        if (isRelevant && e.action === 'create') {
+                            const label = isTeacher ? 'Teacher' : 'Student';
+                            showToast(`${label} Recognized: ${profile.full_name || 'New ' + label}`);
                         }
                     } else {
                         console.log('Skipping update: Not relevant to current school version');
@@ -2920,6 +3011,155 @@
             XLSX.writeFile(wb, filename);
 
             showToast(`Exported ${filteredResultsData.length} student results to Excel`);
+        };
+
+        // ============================================================
+        // Reset User Password (Admin Feature)
+        // ============================================================
+        let resetTargetUserId = null;
+
+        window.openResetUserPasswordModal = function () {
+            document.getElementById('reset-user-password-modal').style.display = 'flex';
+            document.getElementById('reset-target-username').value = '';
+            document.getElementById('reset-new-password').value = '';
+            document.getElementById('reset-confirm-password').value = '';
+            document.getElementById('reset-step-1').style.display = 'block';
+            document.getElementById('reset-step-2').style.display = 'none';
+            document.getElementById('reset-generate-btn').style.display = 'inline-flex';
+            var errEl = document.getElementById('reset-user-error');
+            if (errEl) errEl.style.display = 'none';
+            var errEl2 = document.getElementById('reset-password-error');
+            if (errEl2) errEl2.style.display = 'none';
+            var succEl = document.getElementById('reset-password-success');
+            if (succEl) succEl.style.display = 'none';
+            resetTargetUserId = null;
+        };
+
+        window.closeResetUserPasswordModal = function () {
+            document.getElementById('reset-user-password-modal').style.display = 'none';
+            resetTargetUserId = null;
+        };
+
+        window.generateResetCode = async function () {
+            var username = document.getElementById('reset-target-username').value.trim();
+            var errorEl = document.getElementById('reset-user-error');
+            var btn = document.getElementById('reset-generate-btn');
+
+            if (!username) {
+                errorEl.textContent = 'Please enter a username.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            errorEl.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Searching...';
+
+            try {
+                // Use admin credentials to find the user
+                var adminPb = new PocketBase(dataService.pb.baseUrl);
+                await adminPb.admins.authWithPassword("corneliusajayi123@gmail.com", "Finest1709");
+
+                var userRecord;
+                try {
+                    userRecord = await adminPb.collection('users').getFirstListItem(
+                        'username="' + username + '" || email="' + username + '@cbtapp.proxy" || full_name="' + username + '"'
+                    );
+                } catch (e) {
+                    adminPb.authStore.clear();
+                    throw new Error('User not found. Check the username and try again.');
+                }
+
+                // Generate 6-digit code
+                var code = Math.floor(100000 + Math.random() * 900000).toString();
+
+                // Store code in localStorage (admin's device) with 30-min expiry
+                var resetData = {
+                    code: code,
+                    userId: userRecord.id,
+                    username: userRecord.username || username,
+                    fullName: userRecord.full_name || username,
+                    expires: Date.now() + (30 * 60 * 1000)
+                };
+                localStorage.setItem('cbt_admin_reset_' + (userRecord.username || username), JSON.stringify(resetData));
+
+                // Also store on the user's reset key so they can use it from login page
+                // This stores it as a message to the admin (already existing flow)
+                resetTargetUserId = userRecord.id;
+
+                adminPb.authStore.clear();
+
+                // Show step 2
+                document.getElementById('reset-step-1').style.display = 'none';
+                document.getElementById('reset-step-2').style.display = 'block';
+                document.getElementById('reset-target-name').textContent = userRecord.full_name || userRecord.username || username;
+                document.getElementById('reset-code-display').textContent = code;
+
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Code';
+            }
+        };
+
+        window.applyDirectPasswordReset = async function () {
+            var newPass = document.getElementById('reset-new-password').value;
+            var confirmPass = document.getElementById('reset-confirm-password').value;
+            var errorEl = document.getElementById('reset-password-error');
+            var successEl = document.getElementById('reset-password-success');
+            var btn = document.getElementById('reset-apply-btn');
+
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (!newPass) {
+                errorEl.textContent = 'Please enter a new password.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass.length < 8) {
+                errorEl.textContent = 'Password must be at least 8 characters.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'Passwords do not match.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (!resetTargetUserId) {
+                errorEl.textContent = 'No user selected. Please generate a code first.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+
+            try {
+                var adminPb = new PocketBase(dataService.pb.baseUrl);
+                await adminPb.admins.authWithPassword("corneliusajayi123@gmail.com", "Finest1709");
+
+                await adminPb.collection('users').update(resetTargetUserId, {
+                    password: newPass,
+                    passwordConfirm: newPass
+                });
+
+                adminPb.authStore.clear();
+
+                successEl.textContent = 'Password has been reset successfully! The user can now log in with the new password.';
+                successEl.style.display = 'block';
+                btn.style.display = 'none';
+
+            } catch (err) {
+                errorEl.textContent = 'Failed to reset password: ' + err.message;
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Set Password';
+            }
         };
 
         // Initialize on load

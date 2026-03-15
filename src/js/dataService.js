@@ -111,20 +111,46 @@ class DataService {
 
             // Auth state is auto-saved by the onChange listener in constructor
 
-            // Get user profile
+            // Get user profile — create one if missing so admin portal can find this user
             let profile = null;
             try {
                 profile = await this.pb.collection('profiles').getFirstListItem(`user="${authData.record.id}"`);
+
+                // Sync school_version from users record if profile is missing it
+                if (!profile.school_version && authData.record.school_version) {
+                    try {
+                        await this.pb.collection('profiles').update(profile.id, {
+                            school_version: authData.record.school_version
+                        });
+                        profile.school_version = authData.record.school_version;
+                        console.log('Synced school_version to existing profile');
+                    } catch (syncErr) {
+                        console.warn('Failed to sync school_version to profile:', syncErr.message);
+                    }
+                }
             } catch (profileErr) {
-                // Profile might not exist yet
-                console.warn('Profile fetch failed:', profileErr.message);
-                // Create profile from user data
-                profile = {
+                // Profile doesn't exist — create it from user data
+                console.warn('Profile not found, creating one:', profileErr.message);
+                const profileData = {
+                    user: authData.record.id,
                     role: authData.record.role || 'student',
                     full_name: authData.record.full_name,
-                    class_level: authData.record.class_level,
-                    school_version: authData.record.school_version
+                    class_level: authData.record.class_level || null,
+                    school_version: authData.record.school_version || null
                 };
+                try {
+                    profile = await this.pb.collection('profiles').create({ ...profileData, id: authData.record.id });
+                    console.log('Created profile with fixed ID');
+                } catch (createErr) {
+                    try {
+                        profile = await this.pb.collection('profiles').create(profileData);
+                        console.log('Created profile with auto ID');
+                    } catch (createErr2) {
+                        console.warn('Profile creation failed:', createErr2.message);
+                        // Fall back to local-only profile
+                        profile = profileData;
+                    }
+                }
             }
 
             const userObj = {
@@ -434,7 +460,7 @@ class DataService {
 
             const users = await this.pb.collection('profiles').getFullList({
                 filter: filterString,
-                sort: '-created' // Get newest first
+                sort: '-created'
             });
 
             // Deduplicate by User ID to ensure each physical user is only counted once
@@ -442,7 +468,7 @@ class DataService {
             const seenUserIds = new Set();
 
             for (const user of users) {
-                const userId = user.user || user.id; // Fallback to record ID if user link missing
+                const userId = user.user || user.id;
                 if (!seenUserIds.has(userId)) {
                     uniqueUsers.push(user);
                     seenUserIds.add(userId);
