@@ -1224,18 +1224,13 @@ body:has(.app-container.no-sidebar) {
    QUESTION SUMMARY CARDS
    ============================================================ */
 .question-summary-card {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md) var(--spacing-lg);
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-left: 4px solid var(--primary);
     border-radius: var(--radius-card);
     margin-bottom: var(--spacing-sm);
-    cursor: pointer;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
-    min-height: 64px;
+    overflow: hidden;
 }
 
 .question-summary-card:hover {
@@ -1245,6 +1240,124 @@ body:has(.app-container.no-sidebar) {
 
 .question-summary-card:active {
     transform: scale(0.99);
+}
+
+/* Card header row — clickable to toggle options */
+.q-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    cursor: pointer;
+    min-height: 64px;
+}
+
+/* Chevron toggle icon */
+.q-chevron {
+    flex-shrink: 0;
+    color: var(--light-text);
+    transition: transform 0.25s ease;
+    margin-left: 4px;
+}
+
+.question-summary-card.q-collapsed .q-chevron {
+    transform: rotate(-90deg);
+}
+
+/* Options detail panel */
+.q-card-options {
+    padding: 0 var(--spacing-lg) var(--spacing-md);
+    padding-left: calc(var(--spacing-lg) + 36px + var(--spacing-md));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+    max-height: 500px;
+    opacity: 1;
+    overflow: hidden;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0;
+    padding-top: var(--spacing-sm);
+}
+
+.question-summary-card.q-collapsed .q-card-options {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: transparent;
+}
+
+/* Individual option row */
+.q-option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--inner-bg, #F5F2ED);
+    font-size: 0.85rem;
+    color: var(--text-color);
+    transition: background 0.15s ease;
+}
+
+.q-option-item.q-option-correct {
+    background: rgba(52, 168, 83, 0.1);
+    border: 1px solid rgba(52, 168, 83, 0.25);
+}
+
+.q-option-letter {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    border-radius: 50%;
+    background: var(--border-color);
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+}
+
+.q-option-correct .q-option-letter {
+    background: #34A853;
+    color: #fff;
+}
+
+.q-option-check {
+    margin-left: auto;
+    color: #34A853;
+    flex-shrink: 0;
+}
+
+.q-option-empty {
+    font-size: 0.82rem;
+    color: var(--light-text);
+    font-style: italic;
+    padding: 6px 0;
+}
+
+/* Dark mode for options */
+[data-theme="dark"] .q-option-item {
+    background: var(--dm-surface-2, #22263A);
+    color: var(--text-primary, #E8EAED);
+}
+
+[data-theme="dark"] .q-option-item.q-option-correct {
+    background: rgba(52, 168, 83, 0.12);
+    border-color: rgba(52, 168, 83, 0.3);
+}
+
+[data-theme="dark"] .q-option-letter {
+    background: var(--dm-surface-3, #2C3150);
+    color: var(--text-primary, #E8EAED);
+}
+
+[data-theme="dark"] .q-option-correct .q-option-letter {
+    background: #34A853;
+    color: #fff;
 }
 
 .question-number-badge {
@@ -1803,9 +1916,14 @@ body:has(.app-container.no-sidebar) {
     }
 
     /* Question summary cards — compact on mobile */
-    .question-summary-card {
+    .q-card-header {
         padding: var(--spacing-sm) var(--spacing-md);
         gap: var(--spacing-sm);
+    }
+
+    .q-card-options {
+        padding-left: calc(var(--spacing-md) + 30px + var(--spacing-sm));
+        padding-right: var(--spacing-md);
     }
 
     .question-number-badge {
