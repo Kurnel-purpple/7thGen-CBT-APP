@@ -382,12 +382,16 @@ const examManager = {
 
 
     init: async () => {
+        console.log('examManager.init() called');
         const params = new URLSearchParams(window.location.search);
         const examId = params.get('id');
+        console.log('examId from URL:', examId);
         if (examId) {
-            document.querySelector('h1').textContent = 'Edit Exam';
+            const heading = document.querySelector('h1') || document.querySelector('.create-exam-card-header h2');
+            if (heading) heading.textContent = 'Edit Exam';
             document.title = 'Edit Exam - CBT Exam';
             await examManager.loadExam(examId);
+            console.log('loadExam complete, questions:', examManager.questions.length);
         }
     },
 
@@ -487,11 +491,13 @@ const examManager = {
                 }
             });
 
+            console.log('loadExam: questions loaded:', examManager.questions.length, examManager.questions.map(q => q.type));
             examManager.renderInstructionsList();
             examManager.renderQuestions();
+            console.log('loadExam: renderQuestions done, container innerHTML length:', document.getElementById('questions-container')?.innerHTML.length);
         } catch (err) {
-            console.error(err);
-            await Utils.showAlert('Error', 'Error loading exam');
+            console.error('loadExam error:', err);
+            await Utils.showAlert('Error', 'Error loading exam: ' + err.message);
         }
     },
 

@@ -120,6 +120,14 @@
                             </select>
                         </div>
 
+                        <!-- Student School ID Field (shown for students) -->
+                        <div class="form-group" id="student-school-group">
+                            <label>School ID</label>
+                            <input type="text" id="student-school-id" class="form-control"
+                                placeholder="Enter school ID from your admin">
+                            <small style="color: #666; font-size: 0.85rem;">Your admin will provide this ID.</small>
+                        </div>
+
                         <!-- Teacher School ID Field (Hidden by default) -->
                         <div class="form-group hidden" id="teacher-school-group">
                             <label>School ID</label>
@@ -229,6 +237,7 @@
             const userInput = document.getElementById('userid');
             const classGroup = document.getElementById('class-group');
             const teacherSchoolGroup = document.getElementById('teacher-school-group');
+            const studentSchoolGroup = document.getElementById('student-school-group');
 
             if (role === 'student') {
                 userLabel.textContent = 'Student ID';
@@ -236,6 +245,7 @@
                 userInput.placeholder = 'e.g. JAMES123';
                 classGroup.classList.remove('hidden');
                 document.getElementById('class-level').required = true;
+                studentSchoolGroup.classList.remove('hidden');
 
                 // Hide admin and teacher school fields
                 if (!isAdminMode) {
@@ -249,6 +259,7 @@
                 userInput.placeholder = isAdminMode ? 'e.g. admin_seatos' : 'e.g. jdoe_teacher';
                 classGroup.classList.add('hidden');
                 document.getElementById('class-level').required = false;
+                studentSchoolGroup.classList.add('hidden');
 
                 // Show teacher school ID field for teachers (not admin)
                 if (!isAdminMode) {
@@ -277,6 +288,7 @@
             const classLevel = document.getElementById('class-level').value;
             const adminSchoolVersion = document.getElementById('school-version').value.trim();
             const teacherSchoolId = document.getElementById('teacher-school-id').value.trim();
+            const studentSchoolId = document.getElementById('student-school-id').value.trim();
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const errorDiv = document.getElementById('register-error');
 
@@ -301,6 +313,8 @@
                     schoolVersion = adminSchoolVersion;
                 } else if (role === 'teacher' && teacherSchoolId) {
                     schoolVersion = teacherSchoolId;
+                } else if (role === 'student' && studentSchoolId) {
+                    schoolVersion = studentSchoolId;
                 }
 
                 const userData = {
