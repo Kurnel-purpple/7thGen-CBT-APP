@@ -429,6 +429,43 @@ window.BulkImportParser = (function () {
     }
 
     // =================================================================
+    // AUTO-NUMBERING (handles mixed numbered/unnumbered content)
+    // =================================================================
+
+    /**
+     * Split text into blank-line-separated paragraphs and assign a number
+     * to any paragraph that doesn't already start with one.
+     *
+     * Numbering is sequential: it finds the highest existing number among
+     * already-numbered paragraphs that appear before the current one, then
+     * assigns the next integer. This means unnumbered questions that appear
+     * before any numbered ones get 1, 2, 3… and unnumbered questions mixed
+     * in between numbered ones continue the sequence correctly.
+     */
+    function autoNumberParagraphs(txt) {
+        const paragraphs = txt.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+        if (paragraphs.length === 0) return txt;
+
+        const numbered = [];
+        let nextNum = 1;
+
+        for (const p of paragraphs) {
+            if (isMainQMarker(p)) {
+                // Already numbered — keep as-is, update nextNum
+                const existing = getMainQNumber(p);
+                if (existing >= nextNum) nextNum = existing + 1;
+                numbered.push(p);
+            } else {
+                // Unnumbered paragraph — assign the next number
+                numbered.push(`${nextNum}. ${p}`);
+                nextNum++;
+            }
+        }
+
+        return numbered.join('\n\n');
+    }
+
+    // =================================================================
     // MAIN ENTRY POINT
     // =================================================================
 
@@ -469,21 +506,13 @@ window.BulkImportParser = (function () {
             text = text.slice(0, splitIdx);
         }
 
-        // ── Step 2b: Auto-number if no numbered markers exist ─────────
-        // Handles mobile/textarea scenario where teachers paste questions
-        // without numbering them. Each blank-line-separated paragraph
-        // becomes one question, numbered 1. 2. 3. etc.
-        if (!/^\s*\d+[a-z]?\.\s+/m.test(text)) {
-            const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
-            if (paragraphs.length > 0) {
-                text = paragraphs.map((p, i) => `${i + 1}. ${p}`).join('\n\n');
-            }
-        }
-        if (forceTheorySection && !/^\s*\d+[a-z]?\.\s+/m.test(forceTheorySection)) {
-            const paragraphs = forceTheorySection.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
-            if (paragraphs.length > 0) {
-                forceTheorySection = paragraphs.map((p, i) => `${i + 1}. ${p}`).join('\n\n');
-            }
+        // ── Step 2b: Auto-number unnumbered paragraphs ──────────────
+        // Handles mixed content: some questions have numbers, some don't.
+        // Each blank-line-separated paragraph that doesn't already start
+        // with a numbered marker gets a number assigned.
+        text = autoNumberParagraphs(text);
+        if (forceTheorySection) {
+            forceTheorySection = autoNumberParagraphs(forceTheorySection);
         }
 
         // ── Step 3: Split into question blocks ────────────────────────
