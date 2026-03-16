@@ -497,7 +497,12 @@ const examManager = {
             console.log('loadExam: renderQuestions done, container innerHTML length:', document.getElementById('questions-container')?.innerHTML.length);
         } catch (err) {
             console.error('loadExam error:', err);
-            await Utils.showAlert('Error', 'Error loading exam: ' + err.message);
+            const msg = (err.message || '').toLowerCase();
+            if (msg.includes('fetch') || msg.includes('network')) {
+                await Utils.showAlert('Connection Error', 'Unable to load the exam. Please check your internet connection and try again.');
+            } else {
+                await Utils.showAlert('Load Error', 'Could not load this exam. It may have been deleted or you may not have permission to edit it.');
+            }
         }
     },
 
@@ -1572,7 +1577,16 @@ const examManager = {
                 submitBtn.textContent = originalBtnText;
                 submitBtn.style.opacity = '1';
             }
-            await Utils.showAlert('Error', 'Failed to save exam: ' + err.message);
+            const msg = (err.message || '').toLowerCase();
+            if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout')) {
+                await Utils.showAlert('Connection Error', 'Unable to reach the server. Please check your internet connection and try again.');
+            } else if (msg.includes('not authenticated') || msg.includes('not valid') || msg.includes('token')) {
+                await Utils.showAlert('Session Expired', 'Your session has expired. Please log in again and retry.');
+            } else if (msg.includes('too large') || msg.includes('payload') || msg.includes('size')) {
+                await Utils.showAlert('Exam Too Large', 'This exam contains too much data (possibly large images). Try reducing image sizes and try again.');
+            } else {
+                await Utils.showAlert('Save Failed', 'Something went wrong while saving your exam. Please try again.\n\nDetails: ' + err.message);
+            }
         }
     }
 };

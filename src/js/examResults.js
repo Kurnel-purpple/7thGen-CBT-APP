@@ -76,7 +76,7 @@ const examResults = {
         const examId = params.get('examId');
 
         if (!examId) {
-            await Utils.showAlert('Error', 'No Exam ID');
+            await Utils.showAlert('Missing Exam', 'No exam was selected. Please go back and choose an exam to view results for.');
             window.location.href = 'teacher-dashboard.html';
             return;
         }
@@ -180,7 +180,7 @@ const examResults = {
 
         } catch (err) {
             console.error(err);
-            await Utils.showAlert('Error', 'Error loading data');
+            await Utils.showAlert('Load Error', 'Unable to load exam results. Please check your internet connection and try again.');
         }
     },
 

@@ -1010,7 +1010,7 @@ const studentDashboard = {
         // Find the exam data
         const exam = studentDashboard.exams.find(e => e.id === examId);
         if (!exam) {
-            await Utils.showAlert('Not Found', 'Exam not found');
+            await Utils.showAlert('Exam Not Found', 'This exam could not be found. It may have been removed or is no longer available.');
             return;
         }
 

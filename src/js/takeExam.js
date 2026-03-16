@@ -63,7 +63,7 @@ const takeExam = {
         takeExam.resultId = params.get('resultId');
 
         if (!examId) {
-            takeExam.showAlert('Error', 'No exam specified', () => window.location.href = 'student-dashboard.html');
+            takeExam.showAlert('Error', 'No exam was selected. Please go back and choose an exam to take.', () => window.location.href = 'student-dashboard.html');
             return;
         }
 
@@ -220,7 +220,14 @@ const takeExam = {
 
         } catch (err) {
             console.error(err);
-            takeExam.showAlert('Error', 'Error loading exam: ' + err.message, () => window.location.href = 'student-dashboard.html');
+            const msg = (err.message || '').toLowerCase();
+            if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout')) {
+                takeExam.showAlert('Connection Error', 'Unable to load the exam. Please check your internet connection and try again.', () => window.location.href = 'student-dashboard.html');
+            } else if (msg.includes('not found') || msg.includes('404')) {
+                takeExam.showAlert('Exam Not Found', 'This exam could not be found. It may have been removed by your teacher.', () => window.location.href = 'student-dashboard.html');
+            } else {
+                takeExam.showAlert('Error', 'Something went wrong while loading the exam. Please try again.\n\nDetails: ' + err.message, () => window.location.href = 'student-dashboard.html');
+            }
         }
     },
 
