@@ -63,7 +63,7 @@ const auth = {
             if (err.name === 'AbortError' || (err.message && err.message.includes('AbortError'))) {
                 auth.showError('Login interrupted. Please tap Login again.');
             } else {
-                auth.showError(err.message || 'Login failed. Please check your credentials.');
+                auth.showError(err.message || 'Incorrect username or password. Please try again.');
             }
 
             submitBtn.textContent = originalBtnText;

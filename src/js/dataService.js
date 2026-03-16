@@ -87,7 +87,22 @@ class DataService {
 
             return user;
         } catch (error) {
-            throw new Error(error.message || 'Registration failed');
+            // Parse PocketBase validation errors into user-friendly messages
+            const msg = (error.message || '').toLowerCase();
+            const data = error.data || error.response?.data || {};
+
+            // Check for specific field errors from PocketBase
+            if (data.email?.code === 'validation_not_unique' || msg.includes('already exists') || msg.includes('not unique')) {
+                throw new Error('This username is already taken. Please choose a different one.');
+            } else if (data.password?.code === 'validation_length_out_of_range' || msg.includes('password')) {
+                throw new Error('Password must be at least 8 characters long.');
+            } else if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout')) {
+                throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+            } else if (msg.includes('validation')) {
+                throw new Error('Please check your details and try again. Make sure all fields are filled correctly.');
+            } else {
+                throw new Error(error.message || 'Registration failed. Please try again.');
+            }
         }
     }
 
@@ -101,12 +116,24 @@ class DataService {
             try {
                 authData = await this.pb.collection('users').authWithPassword(identifier.trim(), password);
             } catch (firstErr) {
-                // If raw username failed, try as email format
-                authData = await this.pb.collection('users').authWithPassword(email, password);
+                try {
+                    // If raw username failed, try as email format
+                    authData = await this.pb.collection('users').authWithPassword(email, password);
+                } catch (secondErr) {
+                    // Both attempts failed — provide a helpful error message
+                    const errMsg = (firstErr.message || secondErr.message || '').toLowerCase();
+                    if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('credentials')) {
+                        throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
+                    } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('timeout')) {
+                        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+                    } else {
+                        throw new Error(secondErr.message || 'Login failed. Please try again.');
+                    }
+                }
             }
 
             if (!authData.record) {
-                throw new Error('Login failed: No user data returned');
+                throw new Error('Login failed: No user data returned. Please try again.');
             }
 
             // Auth state is auto-saved by the onChange listener in constructor
@@ -223,7 +250,7 @@ class DataService {
     async updatePassword(oldPassword, newPassword) {
         try {
             if (!this.pb.authStore.isValid) {
-                throw new Error('Not authenticated');
+                throw new Error('You are not logged in. Please log in and try again.');
             }
             await this.pb.collection('users').update(this.pb.authStore.model.id, {
                 oldPassword: oldPassword,
@@ -232,7 +259,16 @@ class DataService {
             });
             return true;
         } catch (error) {
-            throw new Error(error.message || 'Failed to update password');
+            const msg = (error.message || '').toLowerCase();
+            if (msg.includes('oldpassword') || msg.includes('old password') || msg.includes('must be')) {
+                throw new Error('Your current password is incorrect. Please try again.');
+            } else if (msg.includes('length') || msg.includes('too short')) {
+                throw new Error('New password is too short. It must be at least 8 characters.');
+            } else if (msg.includes('fetch') || msg.includes('network')) {
+                throw new Error('Unable to connect to the server. Please check your internet connection.');
+            } else {
+                throw new Error(error.message || 'Failed to update password. Please try again.');
+            }
         }
     }
 
@@ -361,10 +397,14 @@ class DataService {
             console.error('Username update failed:', error);
 
             if (error.status === 400 && error.data?.data?.username) {
-                throw new Error(`The username "${newUsername}" is already taken by another account.`);
+                throw new Error(`The username "${newUsername}" is already taken. Please choose a different one.`);
             }
 
-            throw new Error(error.message || 'Failed to update username');
+            const msg = (error.message || '').toLowerCase();
+            if (msg.includes('fetch') || msg.includes('network')) {
+                throw new Error('Unable to connect to the server. Please check your internet connection.');
+            }
+            throw new Error(error.message || 'Failed to update username. Please try again.');
         }
     }
 
@@ -441,7 +481,13 @@ class DataService {
             return updatedUser;
         } catch (error) {
             console.error('updateProfile error:', error);
-            throw new Error(error.message || 'Failed to update profile');
+            const msg = (error.message || '').toLowerCase();
+            if (msg.includes('not authenticated') || msg.includes('not valid')) {
+                throw new Error('Your session has expired. Please log in again.');
+            } else if (msg.includes('fetch') || msg.includes('network')) {
+                throw new Error('Unable to connect to the server. Please check your internet connection.');
+            }
+            throw new Error(error.message || 'Failed to update profile. Please try again.');
         }
     }
 

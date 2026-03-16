@@ -57,26 +57,32 @@ run(`git checkout ${clientId}`, `Switching to branch: ${clientId}`);
 // 2. Merge main
 run('git merge main --no-edit', 'Merging main into client branch');
 
-// 3. Fix meta tags
+// 3. Bump version in package.json
+run(
+    `node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version='${version}';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n')"`,
+    `Bumping package.json version to ${version}`
+);
+
+// 4. Fix meta tags
 run(
     `node ${path.join(__dirname, '..', 'add-client-meta-tag.js')} ${clientId}`,
     `Setting client-id="${clientId}" in all HTML files`
 );
 
-// 4. Stage HTML files
-run('git add src/index.html src/pages/admin-dashboard.html src/pages/student-dashboard.html src/pages/teacher-dashboard.html src/pages/register.html src/pages/create-exam.html src/pages/take-exam.html src/pages/exam-results.html src/pages/results.html', 'Staging HTML files');
+// 5. Stage updated files
+run('git add package.json src/index.html src/pages/admin-dashboard.html src/pages/student-dashboard.html src/pages/teacher-dashboard.html src/pages/register.html src/pages/create-exam.html src/pages/take-exam.html src/pages/exam-results.html src/pages/results.html', 'Staging package.json + HTML files');
 
-// 5. Commit only if there are changes
+// 6. Commit only if there are changes
 if (hasUncommittedChanges()) {
-    run(`git commit -m "merge main + restore ${clientId} meta tags (${tag})"`, 'Committing meta tag restore');
+    run(`git commit -m "release ${tag}: bump version to ${version} + restore ${clientId} meta tags"`, 'Committing version bump + meta tags');
 } else {
-    console.log('\n✅ No meta tag changes needed — skipping commit');
+    console.log('\n✅ No changes needed — skipping commit');
 }
 
-// 6. Tag
+// 7. Tag
 run(`git tag ${tag}`, `Creating tag: ${tag}`);
 
-// 7. Push branch + tag
+// 8. Push branch + tag
 run(`git push origin ${clientId} ${tag}`, `Pushing branch and tag to GitHub`);
 
 console.log('\n' + '─'.repeat(55));

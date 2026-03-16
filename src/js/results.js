@@ -12,7 +12,7 @@ const resultsController = {
         const resultId = params.get('id');
 
         if (!resultId) {
-            await Utils.showAlert('Error', 'No result ID specified');
+            await Utils.showAlert('Missing Result', 'No result was selected. Please go back and choose a result to view.');
             window.history.back();
             return;
         }
@@ -21,9 +21,6 @@ const resultsController = {
         // Allow student (own result) or teacher (any result)
 
         try {
-            // In a real API we would fetch result by ID.
-            // Since our getResults filters, we get all and find.
-            // Optimization: Add getResultById to DataService if needed, but filter is fine for MVP local.
             const allResults = await dataService.getResults();
             const result = allResults.find(r => r.id === resultId);
 
@@ -31,7 +28,7 @@ const resultsController = {
 
             // Access Check
             if (user.role === 'student' && result.studentId !== user.id) {
-                await Utils.showAlert('Unauthorized', 'Unauthorized Access');
+                await Utils.showAlert('Access Denied', 'You do not have permission to view this result.');
                 window.location.href = '../index.html';
                 return;
             }
@@ -52,7 +49,12 @@ const resultsController = {
 
         } catch (err) {
             console.error(err);
-            await Utils.showAlert('Error', 'Error loading result');
+            const msg = (err.message || '').toLowerCase();
+            if (msg.includes('fetch') || msg.includes('network')) {
+                await Utils.showAlert('Connection Error', 'Unable to load the result. Please check your internet connection and try again.');
+            } else {
+                await Utils.showAlert('Load Error', 'This result could not be found. It may have been removed.');
+            }
             window.history.back();
         }
     },
