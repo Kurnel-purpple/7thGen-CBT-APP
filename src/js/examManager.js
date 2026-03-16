@@ -698,6 +698,17 @@ const examManager = {
                 newQ.image = null;
             }
             examManager.questions.push(newQ);
+
+            // Transfer any media assigned to 'pending' to the real question ID
+            examManager.uploadedMedia.forEach(m => {
+                if (m.assignedToQuestion === 'pending') {
+                    m.assignedToQuestion = id;
+                    if (!newQ.attachedMedia) newQ.attachedMedia = [];
+                    if (!newQ.attachedMedia.includes(m.id)) {
+                        newQ.attachedMedia.push(m.id);
+                    }
+                }
+            });
         }
 
         examManager.closeAddQuestionModal();
@@ -1430,6 +1441,15 @@ const examManager = {
                 break;
             }
             if (q.type === 'mcq' || q.type === 'image_mcq') {
+                // Image MCQ must have an image attached
+                if (q.type === 'image_mcq') {
+                    const hasImage = q.image || (examManager.getMediaForQuestion(q.id) && examManager.getMediaForQuestion(q.id).length > 0);
+                    if (!hasImage) {
+                        await Utils.showAlert('Validation Error', `Question ${i + 1} (Image MCQ) needs an image. Use "+ Add Media" to attach one.`);
+                        valid = false;
+                        break;
+                    }
+                }
                 if (q.options.some(o => !o.text.trim())) {
                     await Utils.showAlert('Validation Error', `Question ${i + 1} has empty options.`);
                     valid = false;
@@ -1461,9 +1481,10 @@ const examManager = {
                 // Theory questions only need text, no validation for options/answers
                 // They will be manually graded
             } else if (q.type === 'image_multi') {
-                // Picture Comprehension validation
-                if (!q.image) {
-                    await Utils.showAlert('Validation Error', `Question ${i + 1} (Picture Comprehension) needs an image.`);
+                // Picture Comprehension validation — check both q.image and attached media
+                const hasImage = q.image || (examManager.getMediaForQuestion(q.id) && examManager.getMediaForQuestion(q.id).length > 0);
+                if (!hasImage) {
+                    await Utils.showAlert('Validation Error', `Question ${i + 1} (Picture Comprehension) needs an image. Use "+ Add Media" to attach one.`);
                     valid = false;
                     break;
                 }
@@ -1508,6 +1529,10 @@ const examManager = {
                     name: m.name,
                     dataUrl: m.dataUrl
                 }));
+                // For image-based question types, also set q.image so student-facing code works
+                if (questionCopy.type === 'image_mcq' || questionCopy.type === 'image_multi') {
+                    questionCopy.image = attachedMedia[0].dataUrl;
+                }
             }
             return questionCopy;
         });
