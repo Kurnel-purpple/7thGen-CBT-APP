@@ -57,32 +57,52 @@ run(`git checkout ${clientId}`, `Switching to branch: ${clientId}`);
 // 2. Merge main
 run('git merge main --no-edit', 'Merging main into client branch');
 
-// 3. Bump version in package.json
+// 3. Remove landing page (only for default/main branch)
+run(
+    `node -e "\
+const fs=require('fs');\
+const path=require('path');\
+/* Delete landing CSS and JS */\
+['src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Removed '+f)}catch(e){}});\
+/* Strip landing-view div from index.html */\
+let html=fs.readFileSync('src/index.html','utf8');\
+html=html.replace(/<!--[\\s\\S]*?LANDING PAGE VIEW[\\s\\S]*?-->\\s*<div id=\\"landing-view\\"[\\s\\S]*?<\\/div>\\s*<!--/,'<!--');\
+/* Remove landing.css link */\
+html=html.replace(/\\s*<link rel=\\"stylesheet\\" href=\\"css\\/landing\\.css\\">/g,'');\
+/* Remove landing.js script */\
+html=html.replace(/\\s*<script src=\\"js\\/landing\\.js\\"><\\/script>/g,'');\
+/* Make login-view visible by default */\
+html=html.replace('<div id=\\"login-view\\" style=\\"display:none\\">', '<div id=\\"login-view\\">');\
+fs.writeFileSync('src/index.html',html);"`,
+    'Removing landing page files (client branch only)'
+);
+
+// 4. Bump version in package.json
 run(
     `node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version='${version}';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n')"`,
     `Bumping package.json version to ${version}`
 );
 
-// 4. Fix meta tags
+// 5. Fix meta tags
 run(
     `node ${path.join(__dirname, '..', 'add-client-meta-tag.js')} ${clientId}`,
     `Setting client-id="${clientId}" in all HTML files`
 );
 
-// 5. Stage updated files
-run('git add package.json src/index.html src/pages/admin-dashboard.html src/pages/student-dashboard.html src/pages/teacher-dashboard.html src/pages/register.html src/pages/create-exam.html src/pages/take-exam.html src/pages/exam-results.html src/pages/results.html', 'Staging package.json + HTML files');
+// 6. Stage updated files (including deleted landing files)
+run('git add -A package.json src/index.html src/css/landing.css src/js/landing.js src/pages/admin-dashboard.html src/pages/student-dashboard.html src/pages/teacher-dashboard.html src/pages/register.html src/pages/create-exam.html src/pages/take-exam.html src/pages/exam-results.html src/pages/results.html', 'Staging all changes');
 
-// 6. Commit only if there are changes
+// 7. Commit only if there are changes
 if (hasUncommittedChanges()) {
-    run(`git commit -m "release ${tag}: bump version to ${version} + restore ${clientId} meta tags"`, 'Committing version bump + meta tags');
+    run(`git commit -m "release ${tag}: bump version to ${version}, strip landing page, restore ${clientId} meta tags"`, 'Committing changes');
 } else {
     console.log('\n✅ No changes needed — skipping commit');
 }
 
-// 7. Tag
+// 8. Tag
 run(`git tag ${tag}`, `Creating tag: ${tag}`);
 
-// 8. Push branch + tag
+// 9. Push branch + tag
 run(`git push origin ${clientId} ${tag}`, `Pushing branch and tag to GitHub`);
 
 console.log('\n' + '─'.repeat(55));
