@@ -78,7 +78,8 @@ export const clientConfig = {
         darkModeToggle: true,
         timeExtensions: true,
         bulkImport: true,
-        richQuestions: true
+        richQuestions: true,
+        landingPage: false
     },
 
     // Footer Information

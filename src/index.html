@@ -8,6 +8,7 @@
     <title>CBT Exam Software</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
         // Prevent dark mode flash — apply theme before first paint
         (function() {
@@ -18,179 +19,464 @@
     </script>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/landing.css">
     <link rel="manifest" href="manifest.json">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 </head>
 
 <body>
     <div id="app" class="app-container no-sidebar">
-        <!-- Auth top brand bar -->
-        <header class="auth-topbar">
-            <span class="auth-brand">Gen7 CBT</span>
-        </header>
 
-        <main id="main-content" class="main-content auth-main">
-            <div class="auth-container">
-                <div class="auth-card">
-                    <div class="auth-header">
-                        <h2>Welcome Back</h2>
-                        <p>Log in to your account</p>
-                    </div>
+        <!-- ============================================================
+             LANDING PAGE VIEW (default client only)
+             ============================================================ -->
+        <div id="landing-view" class="landing-view" style="display:none">
 
-                    <div id="login-error" class="error-message"></div>
+            <!-- Topbar -->
+            <header class="landing-topbar">
+                <a class="landing-brand" href="#">
+                    <img src="assets/drop.png" alt="Gen7 CBT">
+                    <span>Gen7 CBT</span>
+                </a>
+                <nav class="landing-nav">
+                    <a href="#features">Features</a>
+                    <a href="#how-it-works">How It Works</a>
+                    <a href="#for-schools">For Schools</a>
+                </nav>
+                <div class="landing-nav-actions">
+                    <button id="landing-login-btn" class="landing-btn landing-btn-text">Log In</button>
+                    <button id="landing-register-btn" class="landing-btn landing-btn-primary">Get Started</button>
+                </div>
+                <button class="landing-hamburger" id="landing-hamburger">
+                    <i data-lucide="menu"></i>
+                </button>
+            </header>
 
-                    <form id="login-form" autocomplete="off">
-                        <div class="form-group">
-                            <label for="username">Student ID / Username</label>
-                            <input type="text" id="username" class="form-control"
-                                placeholder="Student ID (e.g. JMS123) or Username" required autocomplete="off">
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Password</label>
-                            <div class="password-input-container">
-                                <input type="password" id="password" class="form-control"
-                                    placeholder="Enter your password" required autocomplete="new-password">
-                                <button type="button" class="password-toggle-btn"
-                                    onclick="togglePassword('password', this)">
-                                    <span class="eye-icon">👁️</span>
-                                </button>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-block">🔐 Login</button>
-                    </form>
-
-                    <div class="auth-footer" style="margin-top: 15px;">
-                        <p><a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot Password?</a> · <a
-                                href="javascript:void(0)" onclick="openForgotUsernameModal()">Forgot Username?</a></p>
-                        <p>Don't have an account? <a href="pages/register.html">Register</a></p>
-                    </div>
+            <!-- Mobile nav drawer -->
+            <div id="landing-mobile-nav" class="landing-mobile-nav">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#for-schools">For Schools</a>
+                <div class="landing-mobile-nav-actions">
+                    <button id="landing-mobile-login" class="landing-btn landing-btn-outline">Log In</button>
+                    <button id="landing-mobile-register" class="landing-btn landing-btn-primary">Get Started</button>
                 </div>
             </div>
 
-            <!-- Forgot Password / Username Modal (Tabbed) -->
-            <div id="forgot-password-modal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="forgot-modal-title">Account Recovery</h3>
-                        <button onclick="closeModal('forgot-password-modal')" class="close-btn">&times;</button>
+            <!-- ░░ HERO ░░ -->
+            <section class="landing-hero">
+                <div class="landing-hero-inner">
+                    <p class="landing-hero-eyebrow reveal">Offline-first exam platform for African schools</p>
+                    <h1 class="reveal">Exams, simplified.</h1>
+                    <p class="landing-hero-sub reveal">Create rich exams. Deliver them on any device. Grade instantly — even without internet.</p>
+                    <div class="landing-hero-ctas reveal">
+                        <a id="landing-download-btn" href="#" class="landing-btn landing-btn-primary landing-btn-lg">
+                            <i data-lucide="download"></i> Download Free
+                        </a>
+                        <button id="landing-try-online-btn" class="landing-btn landing-btn-outline landing-btn-lg">
+                            Try Online
+                        </button>
                     </div>
-                    <div class="modal-body">
-                        <!-- Tab Switcher -->
-                        <div class="forgot-tabs">
-                            <button class="forgot-tab-btn active" onclick="switchForgotTab('password')"
-                                id="forgot-tab-password">
-                                🔑 Forgot Password
-                            </button>
-                            <button class="forgot-tab-btn" onclick="switchForgotTab('username')"
-                                id="forgot-tab-username">
-                                🆔 Forgot Username
-                            </button>
+                    <div class="landing-hero-platforms reveal">
+                        <span><i data-lucide="monitor"></i> Windows</span>
+                        <span><i data-lucide="laptop"></i> macOS</span>
+                        <span><i data-lucide="smartphone"></i> Android</span>
+                        <span><i data-lucide="tablet-smartphone"></i> iOS</span>
+                        <span><i data-lucide="globe"></i> Web</span>
+                    </div>
+                </div>
+
+                <!-- Product showcase -->
+                <div class="landing-hero-product reveal">
+                    <div class="product-window">
+                        <div class="product-window-bar">
+                            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                        </div>
+                        <div class="product-window-body">
+                            <div class="pw-sidebar">
+                                <div class="pw-logo"></div>
+                                <div class="pw-nav-item active"></div>
+                                <div class="pw-nav-item"></div>
+                                <div class="pw-nav-item"></div>
+                                <div class="pw-nav-item"></div>
+                            </div>
+                            <div class="pw-main">
+                                <div class="pw-topbar"></div>
+                                <div class="pw-cards">
+                                    <div class="pw-card"></div>
+                                    <div class="pw-card"></div>
+                                    <div class="pw-card"></div>
+                                </div>
+                                <div class="pw-table">
+                                    <div class="pw-row"></div>
+                                    <div class="pw-row"></div>
+                                    <div class="pw-row"></div>
+                                    <div class="pw-row"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="product-phone">
+                        <div class="product-phone-screen">
+                            <div class="pp-header"></div>
+                            <div class="pp-question"></div>
+                            <div class="pp-option"></div>
+                            <div class="pp-option"></div>
+                            <div class="pp-option active"></div>
+                            <div class="pp-option"></div>
+                            <div class="pp-nav"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ░░ MARQUEE / TRUST LINE ░░ -->
+            <div class="landing-trust-line reveal">
+                <div class="trust-marquee">
+                    <span>Offline-capable</span>
+                    <span class="trust-dot"></span>
+                    <span>Multi-platform</span>
+                    <span class="trust-dot"></span>
+                    <span>Auto-grading</span>
+                    <span class="trust-dot"></span>
+                    <span>Bulk import</span>
+                    <span class="trust-dot"></span>
+                    <span>White-label ready</span>
+                    <span class="trust-dot"></span>
+                    <span>Real-time sync</span>
+                </div>
+            </div>
+
+            <!-- ░░ FEATURES ░░ -->
+            <section class="landing-section" id="features">
+                <div class="landing-section-header reveal">
+                    <span class="landing-tag">What it does</span>
+                    <h2>Built for schools that<br>can't afford downtime.</h2>
+                </div>
+
+                <div class="landing-feature-rows">
+                    <div class="landing-feature-row reveal">
+                        <div class="feature-row-number">01</div>
+                        <div class="feature-row-content">
+                            <h3>Works Offline</h3>
+                            <p>Students take exams without internet. Answers save locally and sync the moment connectivity returns. No data lost, ever.</p>
+                        </div>
+                        <div class="feature-row-icon"><i data-lucide="wifi-off"></i></div>
+                    </div>
+                    <div class="landing-feature-row reveal">
+                        <div class="feature-row-number">02</div>
+                        <div class="feature-row-content">
+                            <h3>Every Question Type</h3>
+                            <p>MCQ, theory, picture comprehension, fill-in-the-blank, matching pairs, true/false. One platform handles it all.</p>
+                        </div>
+                        <div class="feature-row-icon"><i data-lucide="list-checks"></i></div>
+                    </div>
+                    <div class="landing-feature-row reveal">
+                        <div class="feature-row-number">03</div>
+                        <div class="feature-row-content">
+                            <h3>Bulk Import from Word</h3>
+                            <p>Paste questions directly from Microsoft Word. Import 50+ questions in seconds. No retyping, no reformatting.</p>
+                        </div>
+                        <div class="feature-row-icon"><i data-lucide="upload"></i></div>
+                    </div>
+                    <div class="landing-feature-row reveal">
+                        <div class="feature-row-number">04</div>
+                        <div class="feature-row-content">
+                            <h3>Instant Results</h3>
+                            <p>Auto-graded objective scores with per-student and class-wide analytics. Available the moment students submit.</p>
+                        </div>
+                        <div class="feature-row-icon"><i data-lucide="bar-chart-3"></i></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ░░ HOW IT WORKS ░░ -->
+            <section class="landing-section landing-how-section" id="how-it-works">
+                <div class="landing-section-header reveal">
+                    <span class="landing-tag">How it works</span>
+                    <h2>Three steps. That's it.</h2>
+                </div>
+
+                <div class="landing-steps-grid">
+                    <div class="landing-step-card reveal">
+                        <div class="step-card-num">1</div>
+                        <div class="step-card-icon"><i data-lucide="pen-tool"></i></div>
+                        <h3>Create</h3>
+                        <p>Teachers build exams using a rich editor, add images, set time limits, or bulk import from Word.</p>
+                    </div>
+                    <div class="landing-step-card reveal">
+                        <div class="step-card-num">2</div>
+                        <div class="step-card-icon"><i data-lucide="monitor-smartphone"></i></div>
+                        <h3>Deliver</h3>
+                        <p>Students access exams on any device — Windows, Mac, Android, iOS, or browser. Works offline too.</p>
+                    </div>
+                    <div class="landing-step-card reveal">
+                        <div class="step-card-num">3</div>
+                        <div class="step-card-icon"><i data-lucide="zap"></i></div>
+                        <h3>Results</h3>
+                        <p>Objectives are graded instantly. Teachers review theory, view analytics, and export reports.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ░░ FOR SCHOOLS ░░ -->
+            <section class="landing-section landing-schools-section" id="for-schools">
+                <div class="landing-schools-inner reveal">
+                    <div class="landing-schools-text">
+                        <span class="landing-tag">For schools</span>
+                        <h2>Your brand.<br>Your platform.</h2>
+                        <p>Get a fully branded version of the app — your school's name, logo, and colors. Students and teachers see only your brand. We handle the technology.</p>
+                        <div class="landing-schools-ctas">
+                            <a href="mailto:corneliusajayi123@gmail.com" class="landing-btn landing-btn-primary">
+                                <i data-lucide="mail"></i> Contact for Licensing
+                            </a>
+                        </div>
+                    </div>
+                    <div class="landing-schools-visual">
+                        <div class="brand-card">
+                            <div class="brand-card-bar" style="background: var(--primary-color, #1A73E8);"></div>
+                            <div class="brand-card-body">
+                                <img src="assets/drop.png" alt="" class="brand-card-logo">
+                                <div class="brand-card-name">Gen7 CBT</div>
+                                <div class="brand-card-label">Default Platform</div>
+                            </div>
+                        </div>
+                        <div class="brand-card brand-card-custom">
+                            <div class="brand-card-bar" style="background: #2d6a4f;"></div>
+                            <div class="brand-card-body">
+                                <div class="brand-card-logo-placeholder">S</div>
+                                <div class="brand-card-name">Your School</div>
+                                <div class="brand-card-label">Custom Branded</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ░░ STATS ░░ -->
+            <section class="landing-stats-section">
+                <div class="landing-stats-inner reveal">
+                    <div class="landing-stat">
+                        <div class="landing-stat-num" data-count="10000">0</div>
+                        <div class="landing-stat-label">Students</div>
+                    </div>
+                    <div class="landing-stat-divider"></div>
+                    <div class="landing-stat">
+                        <div class="landing-stat-num" data-count="500">0</div>
+                        <div class="landing-stat-label">Schools</div>
+                    </div>
+                    <div class="landing-stat-divider"></div>
+                    <div class="landing-stat">
+                        <div class="landing-stat-num" data-count="1000000">0</div>
+                        <div class="landing-stat-label">Exams Taken</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ░░ FINAL CTA ░░ -->
+            <section class="landing-final-cta">
+                <div class="landing-final-cta-inner reveal">
+                    <h2>Ready to modernize<br>your exams?</h2>
+                    <p>Free for individual teachers. School licenses available.</p>
+                    <div class="landing-final-cta-btns">
+                        <a id="landing-cta-download" href="#" class="landing-btn landing-btn-white landing-btn-lg">
+                            <i data-lucide="download"></i> Download Free
+                        </a>
+                        <button id="landing-cta-try-online" class="landing-btn landing-btn-ghost-white landing-btn-lg">
+                            Try Online
+                        </button>
+                    </div>
+                    <p class="landing-cta-contact">
+                        Need a school license? <a href="mailto:corneliusajayi123@gmail.com">Contact us</a>
+                    </p>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="landing-footer">
+                <div class="landing-footer-inner">
+                    <div class="landing-footer-brand">
+                        <img src="assets/drop.png" alt="Gen7 CBT">
+                        <span>Gen7 CBT</span>
+                    </div>
+                    <p>&copy; 2026 Gen7 CBT. All rights reserved.</p>
+                </div>
+            </footer>
+        </div>
+
+        <!-- ============================================================
+             LOGIN VIEW (existing auth content)
+             ============================================================ -->
+        <div id="login-view" style="display:none">
+            <!-- Auth top brand bar -->
+            <header class="auth-topbar">
+                <span class="auth-brand">Gen7 CBT</span>
+            </header>
+
+            <main id="main-content" class="main-content auth-main">
+                <div class="auth-container">
+                    <div class="auth-card">
+                        <div class="auth-header">
+                            <h2>Welcome Back</h2>
+                            <p>Log in to your account</p>
                         </div>
 
-                        <!-- Tab 1: Forgot Password -->
-                        <div class="forgot-tab-content active" id="forgot-password-content">
-                            <p>Enter your <strong>Student ID</strong> or <strong>Username</strong>. A reset code will be
-                                sent to your school administrator.</p>
-                            <div id="reset-error-1" class="error-message" style="display: none; margin-bottom: 10px;">
-                            </div>
-                            <div class="form-group">
-                                <label>Username / Student ID</label>
-                                <input type="text" id="reset-username" class="form-control" placeholder="e.g. JMS123">
-                            </div>
-                            <button onclick="handleRequestReset()" class="btn btn-primary btn-block"
-                                id="request-reset-btn">
-                                🚀 Request Reset Code
-                            </button>
-                        </div>
+                        <div id="login-error" class="error-message"></div>
 
-                        <!-- Tab 2: Forgot Username -->
-                        <div class="forgot-tab-content" id="forgot-username-content">
-                            <div class="info-callout">
-                                <strong>💡 Tip:</strong> If you remember your password but forgot your username/Student
-                                ID,
-                                enter your <strong>full name</strong> and <strong>password</strong> below to recover it.
-                            </div>
-                            <div id="username-recovery-error" class="error-message"
-                                style="display: none; margin-bottom: 10px;"></div>
+                        <form id="login-form" autocomplete="off">
                             <div class="form-group">
-                                <label>Your Full Name</label>
-                                <input type="text" id="recovery-fullname" class="form-control"
-                                    placeholder="e.g. John Smith">
+                                <label for="username">Student ID / Username</label>
+                                <input type="text" id="username" class="form-control"
+                                    placeholder="Student ID (e.g. JMS123) or Username" required autocomplete="off">
                             </div>
                             <div class="form-group">
-                                <label>Your Password</label>
+                                <label for="password">Password</label>
                                 <div class="password-input-container">
-                                    <input type="password" id="recovery-password" class="form-control"
-                                        placeholder="Enter your password">
+                                    <input type="password" id="password" class="form-control"
+                                        placeholder="Enter your password" required autocomplete="new-password">
                                     <button type="button" class="password-toggle-btn"
-                                        onclick="togglePassword('recovery-password', this)">
+                                        onclick="togglePassword('password', this)">
                                         <span class="eye-icon">👁️</span>
                                     </button>
                                 </div>
                             </div>
-                            <button onclick="handleRecoverUsername()" class="btn btn-primary btn-block"
-                                id="recover-username-btn">
-                                🔍 Find My Username
-                            </button>
-                            <div id="username-recovery-result" style="display: none;"></div>
+                            <button type="submit" class="btn btn-primary btn-block">🔐 Login</button>
+                        </form>
+
+                        <div class="auth-footer" style="margin-top: 15px;">
+                            <p><a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot Password?</a> · <a
+                                    href="javascript:void(0)" onclick="openForgotUsernameModal()">Forgot Username?</a></p>
+                            <p>Don't have an account? <a href="pages/register.html">Register</a></p>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Forgot Password Modal Step 2: Verify & Change -->
-            <div id="verify-reset-modal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Reset Your Password</h3>
-                        <button onclick="closeModal('verify-reset-modal')" class="close-btn">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Get the <strong>6-digit code</strong> from your school administrator and enter it below along
-                            with your new password.</p>
-                        <div id="reset-error-2" class="error-message" style="display: none; margin-bottom: 10px;"></div>
-
-                        <div class="form-group">
-                            <label>6-Digit Reset Code</label>
-                            <input type="text" id="reset-code" class="form-control" placeholder="000000" maxlength="6"
-                                style="text-align: center; font-size: 1.5rem; letter-spacing: 5px; font-weight: bold;">
+                <!-- Forgot Password / Username Modal (Tabbed) -->
+                <div id="forgot-password-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 id="forgot-modal-title">Account Recovery</h3>
+                            <button onclick="closeModal('forgot-password-modal')" class="close-btn">&times;</button>
                         </div>
-
-                        <div class="form-group">
-                            <label>New Password</label>
-                            <div class="password-input-container">
-                                <input type="password" id="reset-new-password" class="form-control"
-                                    placeholder="Min 6 characters">
-                                <button type="button" class="password-toggle-btn"
-                                    onclick="togglePassword('reset-new-password', this)">
-                                    <span class="eye-icon">👁️</span>
+                        <div class="modal-body">
+                            <!-- Tab Switcher -->
+                            <div class="forgot-tabs">
+                                <button class="forgot-tab-btn active" onclick="switchForgotTab('password')"
+                                    id="forgot-tab-password">
+                                    🔑 Forgot Password
+                                </button>
+                                <button class="forgot-tab-btn" onclick="switchForgotTab('username')"
+                                    id="forgot-tab-username">
+                                    🆔 Forgot Username
                                 </button>
                             </div>
-                        </div>
 
-                        <button onclick="handleVerifyReset()" class="btn btn-primary btn-block" id="verify-reset-btn">
-                            ✅ Update Password
-                        </button>
+                            <!-- Tab 1: Forgot Password -->
+                            <div class="forgot-tab-content active" id="forgot-password-content">
+                                <p>Enter your <strong>Student ID</strong> or <strong>Username</strong>. A reset code will be
+                                    sent to your school administrator.</p>
+                                <div id="reset-error-1" class="error-message" style="display: none; margin-bottom: 10px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Username / Student ID</label>
+                                    <input type="text" id="reset-username" class="form-control" placeholder="e.g. JMS123">
+                                </div>
+                                <button onclick="handleRequestReset()" class="btn btn-primary btn-block"
+                                    id="request-reset-btn">
+                                    🚀 Request Reset Code
+                                </button>
+                            </div>
+
+                            <!-- Tab 2: Forgot Username -->
+                            <div class="forgot-tab-content" id="forgot-username-content">
+                                <div class="info-callout">
+                                    <strong>💡 Tip:</strong> If you remember your password but forgot your username/Student
+                                    ID,
+                                    enter your <strong>full name</strong> and <strong>password</strong> below to recover it.
+                                </div>
+                                <div id="username-recovery-error" class="error-message"
+                                    style="display: none; margin-bottom: 10px;"></div>
+                                <div class="form-group">
+                                    <label>Your Full Name</label>
+                                    <input type="text" id="recovery-fullname" class="form-control"
+                                        placeholder="e.g. John Smith">
+                                </div>
+                                <div class="form-group">
+                                    <label>Your Password</label>
+                                    <div class="password-input-container">
+                                        <input type="password" id="recovery-password" class="form-control"
+                                            placeholder="Enter your password">
+                                        <button type="button" class="password-toggle-btn"
+                                            onclick="togglePassword('recovery-password', this)">
+                                            <span class="eye-icon">👁️</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button onclick="handleRecoverUsername()" class="btn btn-primary btn-block"
+                                    id="recover-username-btn">
+                                    🔍 Find My Username
+                                </button>
+                                <div id="username-recovery-result" style="display: none;"></div>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Forgot Password Modal Step 2: Verify & Change -->
+                <div id="verify-reset-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Reset Your Password</h3>
+                            <button onclick="closeModal('verify-reset-modal')" class="close-btn">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Get the <strong>6-digit code</strong> from your school administrator and enter it below along
+                                with your new password.</p>
+                            <div id="reset-error-2" class="error-message" style="display: none; margin-bottom: 10px;"></div>
+
+                            <div class="form-group">
+                                <label>6-Digit Reset Code</label>
+                                <input type="text" id="reset-code" class="form-control" placeholder="000000" maxlength="6"
+                                    style="text-align: center; font-size: 1.5rem; letter-spacing: 5px; font-weight: bold;">
+                            </div>
+
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <div class="password-input-container">
+                                    <input type="password" id="reset-new-password" class="form-control"
+                                        placeholder="Min 6 characters">
+                                    <button type="button" class="password-toggle-btn"
+                                        onclick="togglePassword('reset-new-password', this)">
+                                        <span class="eye-icon">👁️</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button onclick="handleVerifyReset()" class="btn btn-primary btn-block" id="verify-reset-btn">
+                                ✅ Update Password
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- Download App Banner (only shows on web, not in Electron) -->
+            <div id="download-banner" class="download-banner" style="display: none;">
+                <div class="download-content">
+                    <span id="download-banner-text">📥 Get the app for a better offline experience</span>
+                    <a id="download-banner-btn" href="#" class="btn btn-primary download-btn" target="_blank"
+                        rel="noopener">
+                        ⬇️ Download App
+                    </a>
+                    <button onclick="dismissDownloadBanner()" class="dismiss-btn">✕</button>
                 </div>
             </div>
 
-        </main>
-
-        <!-- Download App Banner (only shows on web, not in Electron) -->
-        <div id="download-banner" class="download-banner" style="display: none;">
-            <div class="download-content">
-                <span id="download-banner-text">📥 Get the app for a better offline experience</span>
-                <a id="download-banner-btn" href="#" class="btn btn-primary download-btn" target="_blank"
-                    rel="noopener">
-                    ⬇️ Download App
-                </a>
-                <button onclick="dismissDownloadBanner()" class="dismiss-btn">✕</button>
-            </div>
+            <footer class="main-footer">
+                <p>&copy; 2026 corneliusajayi123@gmail.com </p>
+            </footer>
         </div>
-
-        <footer class="main-footer">
-            <p>&copy; 2026 corneliusajayi123@gmail.com </p>
-        </footer>
     </div>
 
     <!-- PocketBase SDK -->
@@ -274,28 +560,25 @@
             windows: {
                 icon: '🖥️',
                 label: 'Download for Windows',
-                // Matches: Gen7.CBT.Exam.Setup.x.x.x.exe
                 assetMatch: (name) => /\.exe$/i.test(name) && /setup/i.test(name),
                 text: '📥 Get the full desktop experience on Windows'
             },
             mac: {
                 icon: '🍎',
                 label: 'Download for Mac',
-                // Matches: Gen7.CBT.Exam-x.x.x-arm64.dmg or similar .dmg
                 assetMatch: (name) => /\.dmg$/i.test(name),
                 text: '📥 Get the full desktop experience on macOS'
             },
             android: {
                 icon: '🤖',
                 label: 'Download for Android',
-                // Matches: app-debug.apk or similar .apk
                 assetMatch: (name) => /\.apk$/i.test(name),
                 text: '📲 Get the Android app for a better experience'
             },
             ios: {
                 icon: '📱',
                 label: 'Add to Home Screen',
-                assetMatch: null, // PWA only
+                assetMatch: null,
                 text: '📲 Install the app — tap Share → Add to Home Screen'
             },
             linux: {
@@ -324,13 +607,11 @@
 
                 let assets;
                 if (!releaseFilter) {
-                    // Default: fetch the single latest release
                     const resp = await fetch(GITHUB_RELEASES_BASE + '/latest');
                     if (!resp.ok) throw new Error('API error');
                     const data = await resp.json();
                     assets = data.assets || [];
                 } else {
-                    // Client-specific: fetch releases list and find latest matching tag
                     const resp = await fetch(GITHUB_RELEASES_BASE + '?per_page=20');
                     if (!resp.ok) throw new Error('API error');
                     const releases = await resp.json();
@@ -387,7 +668,6 @@
                 btn.textContent = config.icon + ' ' + config.label;
 
                 if (config.assetMatch) {
-                    // Desktop/Android: find the correct asset from the latest release
                     const assets = await fetchLatestReleaseAssets();
                     let directUrl = null;
 
@@ -397,18 +677,15 @@
                     }
 
                     if (directUrl) {
-                        // Direct download — clicking immediately starts the file download
                         btn.href = directUrl;
                         btn.removeAttribute('target');
                         btn.onclick = null;
                     } else {
-                        // Fallback to releases page if no matching asset found
                         btn.href = RELEASES_FALLBACK;
                         btn.target = '_blank';
                         btn.onclick = null;
                     }
                 } else if (platform === 'ios' || platform === 'android') {
-                    // Mobile PWA install prompt (fallback for Android if no APK)
                     btn.href = '#';
                     btn.onclick = async (e) => {
                         e.preventDefault();
@@ -425,7 +702,6 @@
                         }
                     };
                 } else {
-                    // Unknown platform — link to releases page
                     btn.href = RELEASES_FALLBACK;
                     btn.target = '_blank';
                     btn.onclick = null;
@@ -443,12 +719,18 @@
             }
         }
 
-        // Show banner after page loads
+        // Show banner after page loads (only when login view is visible)
         window.addEventListener('load', () => {
-            setTimeout(showDownloadBanner, 2000);
+            setTimeout(() => {
+                var loginView = document.getElementById('login-view');
+                if (loginView && loginView.style.display !== 'none') {
+                    showDownloadBanner();
+                }
+            }, 2000);
         });
     </script>
     <script src="js/app.js"></script>
+    <script src="js/landing.js"></script>
 </body>
 
 </html>
