@@ -19,7 +19,6 @@
     </script>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/auth.css">
-    <link rel="stylesheet" href="css/landing.css">
     <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
 </head>
@@ -27,43 +26,7 @@
 <body>
     <div id="app" class="app-container no-sidebar">
 
-        <!-- ============================================================
-             LANDING PAGE VIEW (default client only)
-             ============================================================ -->
-        <div id="landing-view" class="landing-view" style="display:none">
-
-            <!-- Topbar -->
-            <header class="landing-topbar">
-                <a class="landing-brand" href="#">
-                    <img src="assets/drop.png" alt="Gen7 CBT">
-                    <span>Gen7 CBT</span>
-                </a>
-                <nav class="landing-nav">
-                    <a href="#features">Features</a>
-                    <a href="#how-it-works">How It Works</a>
-                    <a href="#for-schools">For Schools</a>
-                </nav>
-                <div class="landing-nav-actions">
-                    <button id="landing-login-btn" class="landing-btn landing-btn-text">Log In</button>
-                    <button id="landing-register-btn" class="landing-btn landing-btn-primary">Get Started</button>
-                </div>
-                <button class="landing-hamburger" id="landing-hamburger">
-                    <i data-lucide="menu"></i>
-                </button>
-            </header>
-
-            <!-- Mobile nav drawer -->
-            <div id="landing-mobile-nav" class="landing-mobile-nav">
-                <a href="#features">Features</a>
-                <a href="#how-it-works">How It Works</a>
-                <a href="#for-schools">For Schools</a>
-                <div class="landing-mobile-nav-actions">
-                    <button id="landing-mobile-login" class="landing-btn landing-btn-outline">Log In</button>
-                    <button id="landing-mobile-register" class="landing-btn landing-btn-primary">Get Started</button>
-                </div>
-            </div>
-
-            <!-- ░░ HERO ░░ -->
+        <!-- ░░ HERO ░░ -->
             <section class="landing-hero">
                 <div class="landing-hero-inner">
                     <p class="landing-hero-eyebrow reveal">Offline-first exam platform for African schools</p>
@@ -307,7 +270,7 @@
         <!-- ============================================================
              LOGIN VIEW (existing auth content)
              ============================================================ -->
-        <div id="login-view" style="display:none">
+        <div id="login-view">
             <!-- Auth top brand bar -->
             <header class="auth-topbar">
                 <span class="auth-brand">Gen7 CBT</span>
@@ -730,7 +693,6 @@
         });
     </script>
     <script src="js/app.js"></script>
-    <script src="js/landing.js"></script>
 </body>
 
 </html>
