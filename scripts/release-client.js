@@ -57,10 +57,12 @@ run(`git checkout ${clientId}`, `Switching to branch: ${clientId}`);
 // 2. Merge main
 run('git merge main --no-edit', 'Merging main into client branch');
 
-// 3. Remove landing page (client branches only — landing is default/main experience)
+// 3. Delete landing page files (client branches only — landing is main-branch experience)
+// Landing is now fully external: landing-view.html + landing.css + landing.js
+// Just delete these 3 files — no HTML stripping needed since index.html has no landing content
 run(
-    `node ${path.join(__dirname, 'strip-landing.js')}`,
-    'Removing landing page files (client branch only)'
+    `node -e "const fs=require('fs');['src/landing-view.html','src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Deleted '+f)}catch(e){console.log('  Already gone: '+f)}})"`,
+    'Deleting landing page files (client branch only)'
 );
 
 // 4. Bump version in package.json

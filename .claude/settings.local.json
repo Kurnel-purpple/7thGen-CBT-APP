@@ -4,7 +4,8 @@
       "Bash(find /c/Users/HP/OneDrive/Documents/testingAG/src/config/clients -type f -name *.js)",
       "Bash(find /c/Users/HP/OneDrive/Documents/testingAG -maxdepth 2 -name README* -type f)",
       "Bash(node -e \":*)",
-      "Bash(node scripts/strip-landing.js)"
+      "Bash(node scripts/strip-landing.js)",
+      "Bash(python3:*)"
     ]
   }
 }
