@@ -61,19 +61,32 @@ run('git merge main --no-edit', 'Merging main into client branch');
 run(
     `node -e "\
 const fs=require('fs');\
-const path=require('path');\
 /* Delete landing CSS and JS */\
 ['src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Removed '+f)}catch(e){}});\
-/* Strip landing-view div from index.html */\
+/* Strip landing-view div from index.html using markers */\
 let html=fs.readFileSync('src/index.html','utf8');\
-html=html.replace(/<!--[\\s\\S]*?LANDING PAGE VIEW[\\s\\S]*?-->\\s*<div id=\\"landing-view\\"[\\s\\S]*?<\\/div>\\s*<!--/,'<!--');\
+var startMarker='LANDING PAGE VIEW';\
+var endMarker='LOGIN VIEW';\
+var si=html.indexOf(startMarker);\
+var ei=html.indexOf(endMarker);\
+if(si!==-1&&ei!==-1){\
+  /* Walk back from startMarker to the <!-- before it */\
+  var commentStart=html.lastIndexOf('<!--',si);\
+  /* Walk back from endMarker to the <!-- before it */\
+  var commentEnd=html.lastIndexOf('<!--',ei);\
+  if(commentStart!==-1&&commentEnd!==-1&&commentEnd>commentStart){\
+    html=html.substring(0,commentStart)+html.substring(commentEnd);\
+    console.log('  Stripped landing-view HTML block');\
+  }\
+}\
 /* Remove landing.css link */\
 html=html.replace(/\\s*<link rel=\\"stylesheet\\" href=\\"css\\/landing\\.css\\">/g,'');\
 /* Remove landing.js script */\
 html=html.replace(/\\s*<script src=\\"js\\/landing\\.js\\"><\\/script>/g,'');\
 /* Make login-view visible by default */\
 html=html.replace('<div id=\\"login-view\\" style=\\"display:none\\">', '<div id=\\"login-view\\">');\
-fs.writeFileSync('src/index.html',html);"`,
+fs.writeFileSync('src/index.html',html);\
+console.log('  Updated src/index.html');"`,
     'Removing landing page files (client branch only)'
 );
 
