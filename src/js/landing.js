@@ -1,7 +1,8 @@
 /**
  * Landing Page Controller
- * Shows the landing page for the default client, or skips to login for branded clients.
- * Handles CTA wiring, smooth scroll, mobile menu, scroll reveals, and count-up stats.
+ * Dynamically loads landing-view.html + landing.css, then initializes the landing page.
+ * On client branches, this file is deleted — so none of this code ever runs.
+ * Even if it somehow survives, config.features.landingPage === false skips everything.
  */
 
 (function () {
@@ -31,13 +32,40 @@
         }
 
         if (showLanding) {
-            landingView.style.display = '';
-            loginView.style.display = 'none';
-            initLanding();
+            // Dynamically load the landing page HTML and CSS
+            loadLanding();
         } else {
             landingView.style.display = 'none';
             loginView.style.display = '';
         }
+    }
+
+    // ── Dynamic loading ───────────────────────────────────────────────
+    function loadLanding() {
+        // Load CSS
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'css/landing.css';
+        document.head.appendChild(link);
+
+        // Load HTML
+        fetch('landing-view.html')
+            .then(function (res) {
+                if (!res.ok) throw new Error('Landing HTML not found');
+                return res.text();
+            })
+            .then(function (html) {
+                landingView.innerHTML = html;
+                landingView.style.display = '';
+                loginView.style.display = 'none';
+                initLanding();
+            })
+            .catch(function (err) {
+                // Landing files missing (e.g. client build) — just show login
+                console.warn('[Landing] Could not load landing page:', err.message);
+                landingView.style.display = 'none';
+                loginView.style.display = '';
+            });
     }
 
     // ── Landing page setup ───────────────────────────────────────────
