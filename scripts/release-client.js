@@ -59,37 +59,7 @@ run('git merge main --no-edit', 'Merging main into client branch');
 
 // 3. Remove landing page (client branches only — landing is default/main experience)
 run(
-    `node -e "\
-const fs=require('fs');\
-/* Delete landing CSS and JS files */\
-['src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Deleted '+f)}catch(e){}});\
-/* Strip entire landing-view block from index.html */\
-let html=fs.readFileSync('src/index.html','utf8');\
-/* Remove everything between LANDING PAGE VIEW comment and LOGIN VIEW comment */\
-var landingStart=html.indexOf('LANDING PAGE VIEW');\
-var loginStart=html.indexOf('LOGIN VIEW');\
-if(landingStart!==-1&&loginStart!==-1){\
-  /* Walk back to find the <!-- that opens the landing comment */\
-  var cutFrom=html.lastIndexOf('<!--',landingStart);\
-  /* Walk back to find the <!-- that opens the login comment */\
-  var cutTo=html.lastIndexOf('<!--',loginStart);\
-  /* Also need to skip any whitespace/newlines before the login comment */\
-  if(cutFrom!==-1&&cutTo!==-1&&cutTo>cutFrom){\
-    /* Trim trailing whitespace before the login comment */\
-    var before=html.substring(0,cutFrom).replace(/[\\r\\n\\s]+$/,'');\
-    var after=html.substring(cutTo);\
-    html=before+'\\n\\n        '+after;\
-    console.log('  Stripped landing-view HTML block ('+((cutTo-cutFrom)/1024|0)+'KB removed)');\
-  }else{console.log('  WARNING: Could not find comment boundaries');}\
-}else{console.log('  No landing-view block found (already stripped)');}\
-/* Remove landing.css link */\
-html=html.replace(/\\s*<link[^>]*landing\\.css[^>]*>/g,'');\
-/* Remove landing.js script */\
-html=html.replace(/\\s*<script[^>]*landing\\.js[^>]*><\\/script>/g,'');\
-/* Make login-view visible by default (no longer hidden behind landing) */\
-html=html.replace('<div id=\\"login-view\\" style=\\"display:none\\">', '<div id=\\"login-view\\">');\
-fs.writeFileSync('src/index.html',html);\
-console.log('  Updated src/index.html');"`,
+    `node ${path.join(__dirname, 'strip-landing.js')}`,
     'Removing landing page files (client branch only)'
 );
 
@@ -105,8 +75,8 @@ run(
     `Setting client-id="${clientId}" in all HTML files`
 );
 
-// 6. Stage updated files (including deleted landing files)
-run('git add -A package.json src/index.html src/css/landing.css src/js/landing.js src/pages/admin-dashboard.html src/pages/student-dashboard.html src/pages/teacher-dashboard.html src/pages/register.html src/pages/create-exam.html src/pages/take-exam.html src/pages/exam-results.html src/pages/results.html', 'Staging all changes');
+// 6. Stage all changed/deleted files
+run('git add -A', 'Staging all changes');
 
 // 7. Commit only if there are changes
 if (hasUncommittedChanges()) {
