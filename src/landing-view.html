@@ -29,72 +29,95 @@
     </div>
 </div>
 
-<!-- HERO -->
-<section class="landing-hero">
-    <div class="landing-hero-inner">
-        <p class="landing-hero-eyebrow reveal">Offline-first exam platform for African schools</p>
-        <h1 class="reveal">Exams, simplified.</h1>
-        <p class="landing-hero-sub reveal">Create rich exams. Deliver them on any device. Grade instantly — even without internet.</p>
-        <div class="landing-hero-ctas reveal">
-            <a id="landing-download-btn" href="#" class="landing-btn landing-btn-primary landing-btn-lg">
-                <i data-lucide="download"></i> Download Free
-            </a>
-            <button id="landing-try-online-btn" class="landing-btn landing-btn-outline landing-btn-lg">
-                Try Online
-            </button>
-            <button id="landing-demo-btn" class="landing-btn landing-btn-ghost landing-btn-lg">
-                <i data-lucide="play-circle"></i> Quick Demo
-            </button>
-        </div>
-        <div class="landing-hero-platforms reveal">
-            <span><i data-lucide="monitor"></i> Windows</span>
-            <span><i data-lucide="laptop"></i> macOS</span>
-            <span><i data-lucide="smartphone"></i> Android</span>
-            <span><i data-lucide="tablet-smartphone"></i> iOS</span>
-            <span><i data-lucide="globe"></i> Web</span>
-        </div>
-    </div>
+<!-- HERO + SHOWCASE (merged — one tall scrollable section) -->
+<section class="landing-hero-showcase" id="hero-showcase">
+    <div class="hero-showcase-sticky">
 
-    <!-- Product showcase -->
-    <div class="landing-hero-product reveal">
-        <div class="product-window">
-            <div class="product-window-bar">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            </div>
-            <div class="product-window-body">
-                <div class="pw-sidebar">
-                    <div class="pw-logo"></div>
-                    <div class="pw-nav-item active"></div>
-                    <div class="pw-nav-item"></div>
-                    <div class="pw-nav-item"></div>
-                    <div class="pw-nav-item"></div>
-                </div>
-                <div class="pw-main">
-                    <div class="pw-topbar"></div>
-                    <div class="pw-cards">
-                        <div class="pw-card"></div>
-                        <div class="pw-card"></div>
-                        <div class="pw-card"></div>
+        <!-- Hero content (fades out as user scrolls) -->
+        <div class="landing-hero-content">
+            <div class="landing-hero-split">
+                <div class="landing-hero-text">
+                    <p class="landing-hero-eyebrow"><span class="eyebrow-dot"></span> Offline-first exam platform for African schools</p>
+                    <h1>Exams,<br><span class="hero-gradient-text">simplified.</span></h1>
+                    <p class="landing-hero-sub">Create rich exams. Deliver them on any device.<br>Grade instantly — even without internet.</p>
+                    <div class="landing-hero-ctas">
+                        <button id="landing-demo-btn" class="landing-btn landing-btn-primary landing-btn-lg">
+                            <i data-lucide="play-circle"></i> Quick Demo
+                        </button>
+                        <button id="landing-hero-register-btn" class="landing-btn landing-btn-outline landing-btn-lg">
+                            Get Started
+                        </button>
                     </div>
-                    <div class="pw-table">
-                        <div class="pw-row"></div>
-                        <div class="pw-row"></div>
-                        <div class="pw-row"></div>
-                        <div class="pw-row"></div>
+                </div>
+                <div class="landing-hero-cards">
+                    <div class="hero-float-card hero-float-card--1">
+                        <div class="hero-card-placeholder" style="--ph-hue: 220;">
+                            <i data-lucide="layout-dashboard"></i>
+                            <span>Dashboard</span>
+                        </div>
+                    </div>
+                    <div class="hero-float-card hero-float-card--2">
+                        <div class="hero-card-placeholder" style="--ph-hue: 260;">
+                            <i data-lucide="file-text"></i>
+                            <span>Exam View</span>
+                        </div>
+                    </div>
+                    <div class="hero-float-card hero-float-card--3">
+                        <div class="hero-card-placeholder" style="--ph-hue: 160;">
+                            <i data-lucide="bar-chart-3"></i>
+                            <span>Results</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="product-phone">
-            <div class="product-phone-screen">
-                <div class="pp-header"></div>
-                <div class="pp-question"></div>
-                <div class="pp-option"></div>
-                <div class="pp-option"></div>
-                <div class="pp-option active"></div>
-                <div class="pp-option"></div>
-                <div class="pp-nav"></div>
+
+        <!-- Expanding card (animates from floating card position → fullscreen) -->
+        <div class="showcase-expand-overlay">
+            <div class="showcase-expand-card">
+                <div class="showcase-placeholder" style="--ph-hue: 220;">
+                    <div class="showcase-placeholder-icon"><i data-lucide="layout-dashboard"></i></div>
+                    <span>Teacher Dashboard</span>
+                    <p>Manage exams, view analytics, and track student progress</p>
+                </div>
             </div>
+        </div>
+
+        <!-- Showcase slides (cycle after card expands to fullscreen) -->
+        <div class="showcase-slide" data-index="0">
+            <div class="showcase-placeholder" style="--ph-hue: 220;">
+                <div class="showcase-placeholder-icon"><i data-lucide="layout-dashboard"></i></div>
+                <span>Teacher Dashboard</span>
+                <p>Manage exams, view analytics, and track student progress</p>
+            </div>
+        </div>
+        <div class="showcase-slide" data-index="1">
+            <div class="showcase-placeholder" style="--ph-hue: 180;">
+                <div class="showcase-placeholder-icon"><i data-lucide="pen-tool"></i></div>
+                <span>Exam Creation</span>
+                <p>Build rich exams with multiple question types</p>
+            </div>
+        </div>
+        <div class="showcase-slide" data-index="2">
+            <div class="showcase-placeholder" style="--ph-hue: 260;">
+                <div class="showcase-placeholder-icon"><i data-lucide="monitor-smartphone"></i></div>
+                <span>Student Exam View</span>
+                <p>Take exams on any device — even offline</p>
+            </div>
+        </div>
+        <div class="showcase-slide" data-index="3">
+            <div class="showcase-placeholder" style="--ph-hue: 140;">
+                <div class="showcase-placeholder-icon"><i data-lucide="bar-chart-3"></i></div>
+                <span>Results &amp; Analytics</span>
+                <p>Instant grading with detailed performance reports</p>
+            </div>
+        </div>
+        <!-- Add more .showcase-slide elements as needed — JS adapts automatically -->
+
+        <!-- Progress dots + skip -->
+        <div class="showcase-progress"></div>
+        <div class="showcase-skip">
+            Skip showcase <i data-lucide="chevrons-down"></i>
         </div>
     </div>
 </section>
@@ -248,11 +271,11 @@
         <h2>Ready to modernize<br>your exams?</h2>
         <p>Free for individual teachers. School licenses available.</p>
         <div class="landing-final-cta-btns">
-            <a id="landing-cta-download" href="#" class="landing-btn landing-btn-white landing-btn-lg">
-                <i data-lucide="download"></i> Download Free
-            </a>
-            <button id="landing-cta-try-online" class="landing-btn landing-btn-ghost-white landing-btn-lg">
-                Try Online
+            <button id="landing-cta-demo" class="landing-btn landing-btn-white landing-btn-lg">
+                <i data-lucide="play-circle"></i> Quick Demo
+            </button>
+            <button id="landing-cta-register" class="landing-btn landing-btn-ghost-white landing-btn-lg">
+                Get Started
             </button>
         </div>
         <p class="landing-cta-contact">
@@ -260,6 +283,31 @@
         </p>
     </div>
 </section>
+
+<!-- REGISTER INTERCEPT MODAL -->
+<div id="register-intercept-overlay" class="demo-modal-overlay" style="display:none">
+    <div class="demo-modal register-intercept-modal">
+        <button class="demo-modal-close" id="register-intercept-close"><i data-lucide="x"></i></button>
+        <div class="register-intercept-icon"><i data-lucide="sparkles"></i></div>
+        <h2>Want the full experience?</h2>
+        <p class="demo-disclaimer">Contact us to get a fully branded version of the app customized for your school — your logo, your colors, your platform.</p>
+        <div class="register-intercept-actions">
+            <a href="mailto:corneliusajayi123@gmail.com" class="landing-btn landing-btn-primary">
+                <i data-lucide="mail"></i> Contact Us
+            </a>
+            <a href="https://wa.me/2348100000000" target="_blank" rel="noopener" class="landing-btn landing-btn-outline">
+                <i data-lucide="message-circle"></i> WhatsApp
+            </a>
+        </div>
+        <div class="register-intercept-divider">
+            <span>or</span>
+        </div>
+        <p class="register-intercept-demo-text">Try a free demo first to see the app in action:</p>
+        <button id="register-intercept-demo-btn" class="landing-btn landing-btn-ghost landing-btn-lg">
+            <i data-lucide="play-circle"></i> Quick Demo
+        </button>
+    </div>
+</div>
 
 <!-- DEMO MODAL -->
 <div id="demo-modal-overlay" class="demo-modal-overlay" style="display:none">

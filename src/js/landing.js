@@ -77,16 +77,13 @@
 
         // Wire up CTA buttons
         wireButton('landing-login-btn', showLoginView);
-        wireButton('landing-try-online-btn', showLoginView);
-        wireButton('landing-cta-try-online', showLoginView);
 
-        wireButton('landing-register-btn', function () {
-            window.location.href = 'pages/register.html';
-        });
+        // Register / Get Started buttons → intercept modal
+        wireButton('landing-register-btn', openRegisterIntercept);
+        wireButton('landing-mobile-register', openRegisterIntercept);
+        wireButton('landing-hero-register-btn', openRegisterIntercept);
+        wireButton('landing-cta-register', openRegisterIntercept);
 
-        // Download buttons — use existing platform detection from index.html
-        setupLandingDownload('landing-download-btn');
-        setupLandingDownload('landing-cta-download');
 
         // Smooth scroll for anchor links
         var anchors = document.querySelectorAll('.landing-nav a[href^="#"], .landing-mobile-nav a[href^="#"]');
@@ -111,17 +108,20 @@
             }
         }
 
-        // Mobile nav login/register buttons
+        // Mobile nav buttons
         wireButton('landing-mobile-login', showLoginView);
-        wireButton('landing-mobile-register', function () {
-            window.location.href = 'pages/register.html';
-        });
 
         // Scroll reveal animations
         initScrollReveal();
 
         // Count-up stats
         initCountUp();
+
+        // Scroll-driven showcase
+        initShowcase();
+
+        // Register intercept modal
+        initRegisterIntercept();
 
         // Quick Demo modal
         initDemo();
@@ -138,7 +138,7 @@
         });
 
         var ticking = false;
-        window.addEventListener('scroll', function () {
+        function onScroll() {
             if (!ticking) {
                 requestAnimationFrame(function () {
                     checkReveals(reveals);
@@ -146,7 +146,14 @@
                 });
                 ticking = true;
             }
-        }, { passive: true });
+        }
+
+        // Listen on both window and the app container (Electron scroll context)
+        window.addEventListener('scroll', onScroll, { passive: true });
+        var appContainer = document.querySelector('.app-container.no-sidebar');
+        if (appContainer) {
+            appContainer.addEventListener('scroll', onScroll, { passive: true });
+        }
     }
 
     function checkReveals(reveals) {
@@ -209,6 +216,186 @@
         requestAnimationFrame(step);
     }
 
+    // ── Scroll-driven showcase ──────────────────────────────────────
+    // CSS sticky does the pinning. This JS just tracks scroll progress
+    // and drives the card-expand + slide-cycling animations.
+    function initShowcase() {
+        var section = landingView.querySelector('.landing-hero-showcase');
+        if (!section) return;
+
+        var heroContent = section.querySelector('.landing-hero-content');
+        var expandOverlay = section.querySelector('.showcase-expand-overlay');
+        var expandCard = section.querySelector('.showcase-expand-card');
+        var slides = section.querySelectorAll('.showcase-slide');
+        var progressEl = section.querySelector('.showcase-progress');
+        var skipBtn = section.querySelector('.showcase-skip');
+        var totalSlides = slides.length;
+        if (totalSlides === 0) return;
+
+        // ── Find the real scroll container ──
+        var scroller = document.querySelector('.app-container.no-sidebar');
+        if (!scroller || scroller.scrollHeight <= scroller.clientHeight) {
+            scroller = null; // fallback: window/document scroll
+        }
+
+        // 1 phase for card expand + 1 phase per slide
+        var totalPhases = 1 + totalSlides;
+        section.style.height = (totalPhases * 100) + 'vh';
+
+        // Random slide entry directions
+        var dirs = ['left', 'right', 'top', 'bottom'];
+        for (var i = 0; i < totalSlides; i++) {
+            slides[i].setAttribute('data-enter', dirs[Math.floor(Math.random() * 4)]);
+        }
+
+        // Generate progress dots
+        if (progressEl) {
+            for (var d = 0; d < totalSlides; d++) {
+                var dot = document.createElement('span');
+                dot.className = 'showcase-dot';
+                dot.setAttribute('data-index', d);
+                progressEl.appendChild(dot);
+            }
+        }
+        var dots = progressEl ? progressEl.querySelectorAll('.showcase-dot') : [];
+
+        var currentSlide = -1;
+        var expandEnd = 1 / totalPhases; // fraction of total scroll for the expand phase
+
+        // ── Scroll listener ──
+        var ticking = false;
+        function onScroll() {
+            if (!ticking) {
+                requestAnimationFrame(update);
+                ticking = true;
+            }
+        }
+        // Listen on both — one of them will fire
+        if (scroller) scroller.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Fire once on load
+        requestAnimationFrame(update);
+
+        function update() {
+            ticking = false;
+
+            // getBoundingClientRect works regardless of which element scrolls
+            var rect = section.getBoundingClientRect();
+            var scrolled = -rect.top;                          // how far into the section
+            var totalScroll = section.offsetHeight - window.innerHeight; // total scrollable distance
+            if (totalScroll <= 0) return;
+
+            var progress = Math.max(0, Math.min(1, scrolled / totalScroll));
+
+            // ── Phase 0: Idle — no scrolling yet ──
+            if (progress <= 0.001) {
+                // Hero fully visible, everything else hidden
+                heroContent.style.opacity = 1;
+                heroContent.style.pointerEvents = '';
+                expandOverlay.style.opacity = 0;
+                expandOverlay.style.pointerEvents = 'none';
+                expandCard.style.cssText = '';
+                setSlide(-1);
+                if (progressEl) progressEl.classList.remove('visible');
+                if (skipBtn) skipBtn.classList.remove('visible');
+                return;
+            }
+
+            // ── Phase 1: Card expand (progress 0 → expandEnd) ──
+            if (progress <= expandEnd) {
+                var ep = progress / expandEnd; // 0→1 within expand phase
+                var ease = easeInOutCubic(ep);
+
+                // Fade hero text out (fast — gone by 40% of expand)
+                heroContent.style.opacity = Math.max(0, 1 - ep * 2.5);
+                heroContent.style.pointerEvents = ep > 0.3 ? 'none' : '';
+
+                // Fade in expand overlay as we scroll
+                expandOverlay.style.opacity = Math.min(1, ep * 3);
+                expandOverlay.style.pointerEvents = ep > 0.1 ? 'auto' : 'none';
+
+                // Card: small/rotated upper-right → fullscreen
+                var vw = window.innerWidth, vh = window.innerHeight;
+                var w = lerp(320, vw, ease);
+                var h = lerp(220, vh, ease);
+                var x = lerp(vw * 0.55, 0, ease);
+                var y = lerp(vh * 0.2, 0, ease);
+                var rot = lerp(-5, 0, ease);
+                var rad = lerp(16, 0, ease);
+
+                expandCard.style.cssText =
+                    'width:' + w + 'px;height:' + h + 'px;' +
+                    'top:' + y + 'px;left:' + x + 'px;' +
+                    'transform:rotate(' + rot + 'deg);' +
+                    'border-radius:' + rad + 'px;position:absolute;overflow:hidden;';
+
+                // Hide slides + UI
+                setSlide(-1);
+                if (progressEl) progressEl.classList.remove('visible');
+                if (skipBtn) skipBtn.classList.remove('visible');
+
+            // ── Phase 2: Slides (progress expandEnd → 1) ──
+            } else {
+                // Hero gone, expand overlay gone
+                heroContent.style.opacity = 0;
+                heroContent.style.pointerEvents = 'none';
+                expandOverlay.style.opacity = 0;
+                expandOverlay.style.pointerEvents = 'none';
+
+                // Show dots + skip
+                if (progressEl) progressEl.classList.add('visible');
+                if (skipBtn) skipBtn.classList.add('visible');
+
+                // Which slide?
+                var sp = (progress - expandEnd) / (1 - expandEnd); // 0→1 over slide phases
+                var idx = Math.min(totalSlides - 1, Math.floor(sp * totalSlides));
+                setSlide(idx);
+            }
+        }
+
+        function setSlide(index) {
+            if (index === currentSlide) return;
+            // Deactivate old
+            if (currentSlide >= 0) {
+                slides[currentSlide].classList.remove('showcase-slide--active');
+                if (dots[currentSlide]) dots[currentSlide].classList.remove('showcase-dot--active');
+            }
+            // Activate new
+            if (index >= 0) {
+                slides[index].classList.add('showcase-slide--active');
+                if (dots[index]) dots[index].classList.add('showcase-dot--active');
+            }
+            currentSlide = index;
+        }
+
+        // ── Skip button ──
+        if (skipBtn) {
+            skipBtn.addEventListener('click', function () {
+                var target = document.getElementById('features') || section.nextElementSibling;
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+
+        // ── Dot click ──
+        for (var di = 0; di < dots.length; di++) {
+            dots[di].addEventListener('click', function () {
+                var idx = parseInt(this.getAttribute('data-index'), 10);
+                var frac = expandEnd + (idx / totalSlides) * (1 - expandEnd);
+                var totalScroll = section.offsetHeight - window.innerHeight;
+                var scrollTo = section.offsetTop + frac * totalScroll;
+                var el = scroller || document.documentElement;
+                el.scrollTo({ top: scrollTo, behavior: 'smooth' });
+            });
+        }
+
+        // ── Utils ──
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+    }
+
     // ── View transitions ─────────────────────────────────────────────
     function showLoginView() {
         landingView.style.display = 'none';
@@ -254,34 +441,32 @@
         }
     }
 
-    function setupLandingDownload(btnId) {
-        var btn = document.getElementById(btnId);
-        if (!btn) return;
+    // ── Register Intercept Modal ────────────────────────────────────
+    var registerInterceptOverlay;
 
-        // Use existing platform detection functions from index.html inline script
-        if (typeof detectPlatform !== 'function' || typeof fetchLatestReleaseAssets !== 'function') return;
+    function initRegisterIntercept() {
+        registerInterceptOverlay = document.getElementById('register-intercept-overlay');
+        if (!registerInterceptOverlay) return;
 
-        var platform = detectPlatform();
-        var config = (typeof PLATFORM_CONFIG !== 'undefined') ? PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.unknown : null;
-        if (!config) return;
+        wireButton('register-intercept-close', closeRegisterIntercept);
+        wireButton('register-intercept-demo-btn', function () {
+            closeRegisterIntercept();
+            openDemoModal();
+        });
 
-        if (config.assetMatch) {
-            fetchLatestReleaseAssets().then(function (assets) {
-                if (assets) {
-                    var match = assets.find(function (a) { return config.assetMatch(a.name); });
-                    if (match) {
-                        btn.href = match.url;
-                        btn.removeAttribute('target');
-                        return;
-                    }
-                }
-                btn.href = (typeof RELEASES_FALLBACK !== 'undefined') ? RELEASES_FALLBACK : '#';
-                btn.target = '_blank';
-            });
-        } else {
-            btn.href = (typeof RELEASES_FALLBACK !== 'undefined') ? RELEASES_FALLBACK : '#';
-            btn.target = '_blank';
-        }
+        registerInterceptOverlay.addEventListener('click', function (e) {
+            if (e.target === registerInterceptOverlay) closeRegisterIntercept();
+        });
+    }
+
+    function openRegisterIntercept() {
+        if (!registerInterceptOverlay) return;
+        registerInterceptOverlay.style.display = 'flex';
+        if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 2 } });
+    }
+
+    function closeRegisterIntercept() {
+        if (registerInterceptOverlay) registerInterceptOverlay.style.display = 'none';
     }
 
     // ── Quick Demo ──────────────────────────────────────────────────
@@ -366,6 +551,7 @@
         if (!demoModalOverlay) return;
 
         wireButton('landing-demo-btn', openDemoModal);
+        wireButton('landing-cta-demo', openDemoModal);
         wireButton('demo-modal-close', closeDemoModal);
         wireButton('demo-pick-teacher', function () { handleDemoChoice('teacher'); });
         wireButton('demo-pick-student', function () { handleDemoChoice('student'); });
