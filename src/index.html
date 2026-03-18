@@ -76,6 +76,9 @@
                         <button id="landing-try-online-btn" class="landing-btn landing-btn-outline landing-btn-lg">
                             Try Online
                         </button>
+                        <button id="landing-demo-btn" class="landing-btn landing-btn-ghost landing-btn-lg">
+                            <i data-lucide="play-circle"></i> Quick Demo
+                        </button>
                     </div>
                     <div class="landing-hero-platforms reveal">
                         <span><i data-lucide="monitor"></i> Windows</span>
@@ -291,6 +294,76 @@
                     </p>
                 </div>
             </section>
+
+            <!-- ░░ DEMO MODAL ░░ -->
+            <div id="demo-modal-overlay" class="demo-modal-overlay" style="display:none">
+                <div class="demo-modal">
+                    <button class="demo-modal-close" id="demo-modal-close"><i data-lucide="x"></i></button>
+
+                    <!-- Step 1: Role selection -->
+                    <div id="demo-step-select" class="demo-step">
+                        <h2>Try a Quick Demo</h2>
+                        <p class="demo-disclaimer">Your demo account will be automatically deleted after <strong>1 hour</strong>. All exams are sample content for demonstration purposes.</p>
+
+                        <div class="demo-role-cards">
+                            <button class="demo-role-card" id="demo-pick-teacher">
+                                <div class="demo-role-icon"><i data-lucide="book-open"></i></div>
+                                <h3>Try as Teacher</h3>
+                                <p>Create exams, manage questions, view results</p>
+                            </button>
+                            <button class="demo-role-card" id="demo-pick-student">
+                                <div class="demo-role-icon"><i data-lucide="graduation-cap"></i></div>
+                                <h3>Try as Student</h3>
+                                <p>Browse exams, take a practice test, see your scores</p>
+                            </button>
+                        </div>
+
+                        <p class="demo-contact">
+                            Want the full experience?
+                            <a href="mailto:corneliusajayi123@gmail.com"><i data-lucide="mail"></i> Email us</a>
+                            <span class="demo-contact-sep">or</span>
+                            <a href="https://wa.me/2348100000000" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> WhatsApp</a>
+                        </p>
+                    </div>
+
+                    <!-- Step 2: Loading -->
+                    <div id="demo-step-loading" class="demo-step" style="display:none">
+                        <div class="demo-spinner"></div>
+                        <h3>Setting up your demo...</h3>
+                        <p class="demo-disclaimer">Creating your temporary account and loading sample exams.</p>
+                    </div>
+
+                    <!-- Step 3: Credentials + auto-login countdown -->
+                    <div id="demo-step-credentials" class="demo-step" style="display:none">
+                        <div class="demo-success-icon"><i data-lucide="check-circle"></i></div>
+                        <h3>Demo Ready!</h3>
+                        <p class="demo-disclaimer">Your temporary credentials (saved for this session):</p>
+
+                        <div class="demo-cred-box">
+                            <div class="demo-cred-row">
+                                <span class="demo-cred-label">Username</span>
+                                <code id="demo-cred-username"></code>
+                                <button class="demo-copy-btn" data-copy="demo-cred-username"><i data-lucide="copy"></i></button>
+                            </div>
+                            <div class="demo-cred-row">
+                                <span class="demo-cred-label">Password</span>
+                                <code id="demo-cred-password"></code>
+                                <button class="demo-copy-btn" data-copy="demo-cred-password"><i data-lucide="copy"></i></button>
+                            </div>
+                        </div>
+
+                        <p class="demo-countdown-text">Entering demo in <strong id="demo-countdown">3</strong>s...</p>
+                    </div>
+
+                    <!-- Error state -->
+                    <div id="demo-step-error" class="demo-step" style="display:none">
+                        <div class="demo-error-icon"><i data-lucide="alert-circle"></i></div>
+                        <h3>Something went wrong</h3>
+                        <p id="demo-error-msg" class="demo-disclaimer"></p>
+                        <button class="landing-btn landing-btn-primary" id="demo-retry-btn">Try Again</button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Footer -->
             <footer class="landing-footer">

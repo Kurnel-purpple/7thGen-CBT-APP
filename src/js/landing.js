@@ -94,6 +94,9 @@
 
         // Count-up stats
         initCountUp();
+
+        // Quick Demo modal
+        initDemo();
     }
 
     // ── Scroll reveal ──────────────────────────────────────────────
@@ -250,6 +253,241 @@
         } else {
             btn.href = (typeof RELEASES_FALLBACK !== 'undefined') ? RELEASES_FALLBACK : '#';
             btn.target = '_blank';
+        }
+    }
+
+    // ── Quick Demo ──────────────────────────────────────────────────
+
+    // Demo exam templates (persistent demo teacher creates these on first setup)
+    var DEMO_EXAMS = [
+        {
+            title: 'Basic Mathematics (Demo)',
+            subject: 'Mathematics',
+            targetClass: 'JSS 3',
+            schoolLevel: 'Junior Secondary',
+            duration: 30,
+            passScore: 50,
+            status: 'active',
+            instructions: '<p>Answer all questions. Each question carries equal marks. <strong>This is a demo exam.</strong></p>',
+            scrambleQuestions: false,
+            questions: [
+                { id: 'dq1', type: 'mcq', text: 'What is 15 + 27?', options: [{ id: 'a', text: '42', isCorrect: true }, { id: 'b', text: '32', isCorrect: false }, { id: 'c', text: '52', isCorrect: false }, { id: 'd', text: '41', isCorrect: false }] },
+                { id: 'dq2', type: 'mcq', text: 'What is 8 × 7?', options: [{ id: 'a', text: '54', isCorrect: false }, { id: 'b', text: '56', isCorrect: true }, { id: 'c', text: '48', isCorrect: false }, { id: 'd', text: '64', isCorrect: false }] },
+                { id: 'dq3', type: 'mcq', text: 'What is 144 ÷ 12?', options: [{ id: 'a', text: '11', isCorrect: false }, { id: 'b', text: '13', isCorrect: false }, { id: 'c', text: '12', isCorrect: true }, { id: 'd', text: '14', isCorrect: false }] },
+                { id: 'dq4', type: 'mcq', text: 'Simplify: 3/4 + 1/2', options: [{ id: 'a', text: '5/4', isCorrect: true }, { id: 'b', text: '4/6', isCorrect: false }, { id: 'c', text: '1/2', isCorrect: false }, { id: 'd', text: '3/8', isCorrect: false }] },
+                { id: 'dq5', type: 'mcq', text: 'A rectangle has length 8cm and width 5cm. What is its area?', options: [{ id: 'a', text: '13 cm²', isCorrect: false }, { id: 'b', text: '40 cm²', isCorrect: true }, { id: 'c', text: '26 cm²', isCorrect: false }, { id: 'd', text: '35 cm²', isCorrect: false }] }
+            ]
+        },
+        {
+            title: 'English Language (Demo)',
+            subject: 'English',
+            targetClass: 'JSS 3',
+            schoolLevel: 'Junior Secondary',
+            duration: 25,
+            passScore: 50,
+            status: 'active',
+            instructions: '<p>Choose the best answer for each question. <strong>This is a demo exam.</strong></p>',
+            scrambleQuestions: false,
+            questions: [
+                { id: 'dq6', type: 'mcq', text: 'Choose the correct spelling:', options: [{ id: 'a', text: 'Accomodation', isCorrect: false }, { id: 'b', text: 'Accommodation', isCorrect: true }, { id: 'c', text: 'Acommodation', isCorrect: false }, { id: 'd', text: 'Acomodation', isCorrect: false }] },
+                { id: 'dq7', type: 'mcq', text: '"She ___ to school every day." Choose the correct word:', options: [{ id: 'a', text: 'go', isCorrect: false }, { id: 'b', text: 'going', isCorrect: false }, { id: 'c', text: 'goes', isCorrect: true }, { id: 'd', text: 'gone', isCorrect: false }] },
+                { id: 'dq8', type: 'mcq', text: 'What is a synonym for "happy"?', options: [{ id: 'a', text: 'Sad', isCorrect: false }, { id: 'b', text: 'Angry', isCorrect: false }, { id: 'c', text: 'Joyful', isCorrect: true }, { id: 'd', text: 'Tired', isCorrect: false }] },
+                { id: 'dq9', type: 'mcq', text: 'Which sentence is grammatically correct?', options: [{ id: 'a', text: 'He don\'t like rice.', isCorrect: false }, { id: 'b', text: 'He doesn\'t likes rice.', isCorrect: false }, { id: 'c', text: 'He doesn\'t like rice.', isCorrect: true }, { id: 'd', text: 'He not like rice.', isCorrect: false }] }
+            ]
+        },
+        {
+            title: 'General Science (Demo)',
+            subject: 'Science',
+            targetClass: 'JSS 3',
+            schoolLevel: 'Junior Secondary',
+            duration: 20,
+            passScore: 50,
+            status: 'active',
+            instructions: '<p>Answer all questions. <strong>This is a demo exam.</strong></p>',
+            scrambleQuestions: false,
+            questions: [
+                { id: 'dq10', type: 'mcq', text: 'What is the chemical symbol for water?', options: [{ id: 'a', text: 'O2', isCorrect: false }, { id: 'b', text: 'H2O', isCorrect: true }, { id: 'c', text: 'CO2', isCorrect: false }, { id: 'd', text: 'NaCl', isCorrect: false }] },
+                { id: 'dq11', type: 'mcq', text: 'Which organ pumps blood around the body?', options: [{ id: 'a', text: 'Brain', isCorrect: false }, { id: 'b', text: 'Liver', isCorrect: false }, { id: 'c', text: 'Heart', isCorrect: true }, { id: 'd', text: 'Kidney', isCorrect: false }] },
+                { id: 'dq12', type: 'mcq', text: 'What force pulls objects towards the Earth?', options: [{ id: 'a', text: 'Friction', isCorrect: false }, { id: 'b', text: 'Magnetism', isCorrect: false }, { id: 'c', text: 'Gravity', isCorrect: true }, { id: 'd', text: 'Tension', isCorrect: false }] },
+                { id: 'dq13', type: 'mcq', text: 'Plants make their food through a process called:', options: [{ id: 'a', text: 'Respiration', isCorrect: false }, { id: 'b', text: 'Photosynthesis', isCorrect: true }, { id: 'c', text: 'Digestion', isCorrect: false }, { id: 'd', text: 'Fermentation', isCorrect: false }] }
+            ]
+        },
+        {
+            title: 'Social Studies (Demo)',
+            subject: 'Social Studies',
+            targetClass: 'JSS 3',
+            schoolLevel: 'Junior Secondary',
+            duration: 35,
+            passScore: 40,
+            status: 'active',
+            instructions: '<p>Answer all questions. The theory question requires a written response. <strong>This is a demo exam.</strong></p>',
+            scrambleQuestions: false,
+            questions: [
+                { id: 'dq14', type: 'mcq', text: 'What is the capital city of Nigeria?', options: [{ id: 'a', text: 'Lagos', isCorrect: false }, { id: 'b', text: 'Abuja', isCorrect: true }, { id: 'c', text: 'Kano', isCorrect: false }, { id: 'd', text: 'Port Harcourt', isCorrect: false }] },
+                { id: 'dq15', type: 'mcq', text: 'Democracy means government of the people, by the people, and for the:', options: [{ id: 'a', text: 'President', isCorrect: false }, { id: 'b', text: 'Military', isCorrect: false }, { id: 'c', text: 'People', isCorrect: true }, { id: 'd', text: 'Wealthy', isCorrect: false }] },
+                { id: 'dq16', type: 'mcq', text: 'Which of these is a civic responsibility?', options: [{ id: 'a', text: 'Watching TV', isCorrect: false }, { id: 'b', text: 'Voting in elections', isCorrect: true }, { id: 'c', text: 'Playing football', isCorrect: false }, { id: 'd', text: 'Sleeping early', isCorrect: false }] },
+                { id: 'dq17', type: 'theory', text: 'Explain two benefits of living in a democratic society.', options: [] }
+            ]
+        }
+    ];
+
+    var demoModalOverlay, demoCountdownTimer;
+
+    function initDemo() {
+        demoModalOverlay = document.getElementById('demo-modal-overlay');
+        if (!demoModalOverlay) return;
+
+        wireButton('landing-demo-btn', openDemoModal);
+        wireButton('demo-modal-close', closeDemoModal);
+        wireButton('demo-pick-teacher', function () { handleDemoChoice('teacher'); });
+        wireButton('demo-pick-student', function () { handleDemoChoice('student'); });
+        wireButton('demo-retry-btn', function () { showDemoStep('select'); });
+
+        // Close on overlay click (not modal itself)
+        demoModalOverlay.addEventListener('click', function (e) {
+            if (e.target === demoModalOverlay) closeDemoModal();
+        });
+
+        // Copy buttons
+        var copyBtns = demoModalOverlay.querySelectorAll('.demo-copy-btn');
+        for (var i = 0; i < copyBtns.length; i++) {
+            copyBtns[i].addEventListener('click', function () {
+                var targetId = this.getAttribute('data-copy');
+                var el = document.getElementById(targetId);
+                if (el && navigator.clipboard) {
+                    navigator.clipboard.writeText(el.textContent);
+                }
+            });
+        }
+    }
+
+    function openDemoModal() {
+        // Rate limit: 5 minutes between demo creations
+        var lastCreated = localStorage.getItem('demo_last_created');
+        if (lastCreated && (Date.now() - parseInt(lastCreated, 10)) < 300000) {
+            var remaining = Math.ceil((300000 - (Date.now() - parseInt(lastCreated, 10))) / 60000);
+            alert('Please wait ' + remaining + ' minute(s) before creating another demo account.');
+            return;
+        }
+
+        showDemoStep('select');
+        demoModalOverlay.style.display = 'flex';
+
+        // Re-render lucide icons inside the modal
+        if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 2 } });
+    }
+
+    function closeDemoModal() {
+        demoModalOverlay.style.display = 'none';
+        if (demoCountdownTimer) {
+            clearInterval(demoCountdownTimer);
+            demoCountdownTimer = null;
+        }
+    }
+
+    function showDemoStep(stepName) {
+        var steps = demoModalOverlay.querySelectorAll('.demo-step');
+        for (var i = 0; i < steps.length; i++) {
+            steps[i].style.display = 'none';
+        }
+        var target = document.getElementById('demo-step-' + stepName);
+        if (target) target.style.display = '';
+    }
+
+    function showDemoError(msg) {
+        document.getElementById('demo-error-msg').textContent = msg;
+        showDemoStep('error');
+    }
+
+    async function handleDemoChoice(role) {
+        showDemoStep('loading');
+
+        var sessionId = Math.random().toString(36).substr(2, 8);
+        var expiry = Date.now() + 3600000; // 1 hour
+        var schoolVersion = 'DEMO_' + expiry + '_' + sessionId;
+        var username = 'demo_' + role.charAt(0) + '_' + sessionId;
+        var password = 'Demo' + Math.random().toString(36).substr(2, 8) + '!';
+
+        try {
+            // Register the demo user
+            await dataService.registerUser({
+                username: username,
+                password: password,
+                role: role,
+                name: role === 'teacher' ? 'Demo Teacher' : 'Demo Student',
+                classLevel: role === 'student' ? 'JSS 3' : null,
+                schoolVersion: schoolVersion
+            });
+
+            // Login
+            await dataService.login(username, password);
+
+            // For teacher demos, seed demo exams under this teacher
+            if (role === 'teacher') {
+                var user = dataService.getCurrentUser();
+                if (user) {
+                    await seedDemoExams(user.id);
+                }
+            }
+
+            // Store demo expiry for the banner
+            localStorage.setItem('demo_expiry', expiry.toString());
+            localStorage.setItem('demo_last_created', Date.now().toString());
+
+            // Show credentials
+            document.getElementById('demo-cred-username').textContent = username;
+            document.getElementById('demo-cred-password').textContent = password;
+            showDemoStep('credentials');
+
+            if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 2 } });
+
+            // Auto-login countdown (3 seconds)
+            var count = 3;
+            var countdownEl = document.getElementById('demo-countdown');
+            countdownEl.textContent = count;
+
+            demoCountdownTimer = setInterval(function () {
+                count--;
+                countdownEl.textContent = count;
+                if (count <= 0) {
+                    clearInterval(demoCountdownTimer);
+                    demoCountdownTimer = null;
+                    // Redirect based on role
+                    if (role === 'teacher') {
+                        window.location.href = 'pages/teacher-dashboard.html';
+                    } else {
+                        window.location.href = 'pages/student-dashboard.html';
+                    }
+                }
+            }, 1000);
+
+        } catch (err) {
+            console.error('[Demo] Error:', err);
+            showDemoError(err.message || 'Failed to create demo account. Please try again.');
+        }
+    }
+
+    async function seedDemoExams(teacherId) {
+        for (var i = 0; i < DEMO_EXAMS.length; i++) {
+            var exam = DEMO_EXAMS[i];
+            try {
+                await dataService.createExam({
+                    title: exam.title,
+                    subject: exam.subject,
+                    targetClass: exam.targetClass,
+                    schoolLevel: exam.schoolLevel,
+                    duration: exam.duration,
+                    passScore: exam.passScore,
+                    status: exam.status,
+                    instructions: exam.instructions,
+                    scrambleQuestions: exam.scrambleQuestions,
+                    questions: exam.questions,
+                    createdBy: teacherId,
+                    _clientId: 'demo_' + teacherId + '_' + i
+                });
+            } catch (e) {
+                console.warn('[Demo] Failed to create exam:', exam.title, e.message);
+            }
         }
     }
 
