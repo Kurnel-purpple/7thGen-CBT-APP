@@ -20,8 +20,9 @@ RUN echo "Downloading PocketBase v${PB_VERSION}..." && \
     chmod +x /pb/pocketbase && \
     rm /tmp/pocketbase.zip
 
-# Copy migrations into the container
+# Copy migrations and hooks into the container
 COPY pb_migrations /pb/pb_migrations
+COPY pb_hooks /pb/pb_hooks
 
 # Expose PocketBase port
 EXPOSE 8080
@@ -30,4 +31,4 @@ EXPOSE 8080
 # --http=0.0.0.0:8080  : listen on all interfaces, port 8080
 # --dir=/pb/pb_data     : store data in the mounted volume
 # --migrationsDir=/pb/pb_migrations : run migrations from copied folder
-CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--dir=/pb/pb_data", "--migrationsDir=/pb/pb_migrations"]
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--dir=/pb/pb_data", "--migrationsDir=/pb/pb_migrations", "--hooksDir=/pb/pb_hooks"]
