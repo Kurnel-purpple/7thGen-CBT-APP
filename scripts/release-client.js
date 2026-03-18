@@ -57,33 +57,36 @@ run(`git checkout ${clientId}`, `Switching to branch: ${clientId}`);
 // 2. Merge main
 run('git merge main --no-edit', 'Merging main into client branch');
 
-// 3. Remove landing page (only for default/main branch)
+// 3. Remove landing page (client branches only — landing is default/main experience)
 run(
     `node -e "\
 const fs=require('fs');\
-/* Delete landing CSS and JS */\
-['src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Removed '+f)}catch(e){}});\
-/* Strip landing-view div from index.html using markers */\
+/* Delete landing CSS and JS files */\
+['src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Deleted '+f)}catch(e){}});\
+/* Strip entire landing-view block from index.html */\
 let html=fs.readFileSync('src/index.html','utf8');\
-var startMarker='LANDING PAGE VIEW';\
-var endMarker='LOGIN VIEW';\
-var si=html.indexOf(startMarker);\
-var ei=html.indexOf(endMarker);\
-if(si!==-1&&ei!==-1){\
-  /* Walk back from startMarker to the <!-- before it */\
-  var commentStart=html.lastIndexOf('<!--',si);\
-  /* Walk back from endMarker to the <!-- before it */\
-  var commentEnd=html.lastIndexOf('<!--',ei);\
-  if(commentStart!==-1&&commentEnd!==-1&&commentEnd>commentStart){\
-    html=html.substring(0,commentStart)+html.substring(commentEnd);\
-    console.log('  Stripped landing-view HTML block');\
-  }\
-}\
+/* Remove everything between LANDING PAGE VIEW comment and LOGIN VIEW comment */\
+var landingStart=html.indexOf('LANDING PAGE VIEW');\
+var loginStart=html.indexOf('LOGIN VIEW');\
+if(landingStart!==-1&&loginStart!==-1){\
+  /* Walk back to find the <!-- that opens the landing comment */\
+  var cutFrom=html.lastIndexOf('<!--',landingStart);\
+  /* Walk back to find the <!-- that opens the login comment */\
+  var cutTo=html.lastIndexOf('<!--',loginStart);\
+  /* Also need to skip any whitespace/newlines before the login comment */\
+  if(cutFrom!==-1&&cutTo!==-1&&cutTo>cutFrom){\
+    /* Trim trailing whitespace before the login comment */\
+    var before=html.substring(0,cutFrom).replace(/[\\r\\n\\s]+$/,'');\
+    var after=html.substring(cutTo);\
+    html=before+'\\n\\n        '+after;\
+    console.log('  Stripped landing-view HTML block ('+((cutTo-cutFrom)/1024|0)+'KB removed)');\
+  }else{console.log('  WARNING: Could not find comment boundaries');}\
+}else{console.log('  No landing-view block found (already stripped)');}\
 /* Remove landing.css link */\
-html=html.replace(/\\s*<link rel=\\"stylesheet\\" href=\\"css\\/landing\\.css\\">/g,'');\
+html=html.replace(/\\s*<link[^>]*landing\\.css[^>]*>/g,'');\
 /* Remove landing.js script */\
-html=html.replace(/\\s*<script src=\\"js\\/landing\\.js\\"><\\/script>/g,'');\
-/* Make login-view visible by default */\
+html=html.replace(/\\s*<script[^>]*landing\\.js[^>]*><\\/script>/g,'');\
+/* Make login-view visible by default (no longer hidden behind landing) */\
 html=html.replace('<div id=\\"login-view\\" style=\\"display:none\\">', '<div id=\\"login-view\\">');\
 fs.writeFileSync('src/index.html',html);\
 console.log('  Updated src/index.html');"`,
