@@ -54,16 +54,35 @@ console.log('─'.repeat(55));
 // 1. Switch to client branch
 run(`git checkout ${clientId}`, `Switching to branch: ${clientId}`);
 
-// 2. Merge main
-run('git merge main --no-edit', 'Merging main into client branch');
+// 2. Merge main (allow conflicts — we auto-resolve landing file conflicts below)
+const LANDING_FILES = ['src/landing-view.html', 'src/css/landing.css', 'src/js/landing.js'];
 
-// 3. Delete landing page files (client branches only — landing is main-branch experience)
-// Landing is now fully external: landing-view.html + landing.css + landing.js
-// Just delete these 3 files — no HTML stripping needed since index.html has no landing content
-run(
-    `node -e "const fs=require('fs');['src/landing-view.html','src/css/landing.css','src/js/landing.js'].forEach(f=>{try{fs.unlinkSync(f);console.log('  Deleted '+f)}catch(e){console.log('  Already gone: '+f)}})"`,
-    'Deleting landing page files (client branch only)'
-);
+try {
+    console.log('\n▶ Merging main into client branch');
+    execSync('git merge main --no-edit', { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'] });
+} catch (err) {
+    // Check if the only conflicts are landing files (modify/delete) — auto-resolve them
+    const conflicts = execSync('git diff --name-only --diff-filter=U', { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+    const landingOnly = conflicts.every(f => LANDING_FILES.includes(f.replace(/\\/g, '/')));
+    if (landingOnly && conflicts.length > 0) {
+        console.log('  ⚠ Landing file conflicts detected — auto-resolving (delete on client branch)');
+        for (const f of conflicts) {
+            execSync(`git rm -f "${f}"`, { encoding: 'utf8' });
+        }
+        // Continue with the merge
+        execSync('git -c core.editor=true merge --continue', { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'] });
+    } else {
+        console.error('❌ Merge conflicts on non-landing files:', conflicts.join(', '));
+        execSync('git merge --abort', { encoding: 'utf8' });
+        process.exit(1);
+    }
+}
+
+// 3. Delete landing page files (in case merge brought them back)
+console.log('\n▶ Deleting landing page files (client branch only)');
+for (const f of LANDING_FILES) {
+    try { require('fs').unlinkSync(f); console.log('  Deleted ' + f); } catch { console.log('  Already gone: ' + f); }
+}
 
 // 4. Bump version in package.json
 run(
