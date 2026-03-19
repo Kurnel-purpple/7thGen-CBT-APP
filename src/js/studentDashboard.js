@@ -617,8 +617,8 @@ const studentDashboard = {
                         <i class="fas fa-exclamation-triangle" style="color: white;"></i>
                     </div>
                     <div class="exam-list-info">
-                        <div class="exam-list-title">${exam.title}</div>
-                        <div class="exam-list-subtitle">Action Required · ${timeLeft}m left</div>
+                        <div class="exam-list-title" style="font-size:1.05rem; font-weight:800; color:var(--text-color);">${exam.subject}</div>
+                        <div class="exam-list-subtitle">${exam.title} · Action Required · ${timeLeft}m left</div>
                     </div>
                     <div class="exam-list-status">
                         <span class="status-dot" style="background: var(--accent-color);"></span>
@@ -711,10 +711,10 @@ const studentDashboard = {
                     <span style="width:36px;height:36px;border-radius:50%;background:${isScheduled ? 'var(--light-text)' : 'var(--primary-color)'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0;">${isScheduled ? 'S' : 'A'}</span>
                 </div>
                 <div class="exam-list-info" style="flex:1; min-width:0;">
-                    <div class="exam-list-title" style="font-size:0.95rem; font-weight:700;">${exam.subject}</div>
+                    <div class="exam-list-title" style="font-size:1.05rem; font-weight:800; color:var(--text-color);">${exam.subject}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div class="exam-list-subtitle" style="font-size:0.82rem; color:var(--light-text); font-weight:400;">${exam.title}</div>
-                        <div style="font-size:0.75rem; color:var(--light-text); white-space:nowrap; margin-left:8px;">${qCount} Qs · ${exam.duration}m</div>
+                        <div class="exam-list-subtitle" style="font-size:0.78rem; color:var(--light-text); font-weight:400;">${exam.title}</div>
+                        <div style="font-size:0.72rem; color:var(--light-text); white-space:nowrap; margin-left:8px;">${qCount} Qs · ${exam.duration}m</div>
                     </div>
                     ${scheduleInfo ? '<div style="margin-top:2px;">' + scheduleInfo + '</div>' : ''}
                 </div>
@@ -781,8 +781,8 @@ const studentDashboard = {
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="exam-list-info">
-                    <div class="exam-list-title">${exam.title}</div>
-                    <div class="exam-list-subtitle">Resolved · ${points}/${totalPoints} pts</div>
+                    <div class="exam-list-title" style="font-size:1.05rem; font-weight:800; color:var(--text-color);">${exam.subject}</div>
+                    <div class="exam-list-subtitle">${exam.title} · Resolved · ${points}/${totalPoints} pts</div>
                 </div>
                 <div class="exam-list-status">
                     <span class="status-dot" style="background: var(--success-color);"></span>
@@ -847,8 +847,8 @@ const studentDashboard = {
                     <i class="fas ${isPass ? 'fa-check-circle' : 'fa-times-circle'}"></i>
                 </div>
                 <div class="exam-list-info">
-                    <div class="exam-list-title">${exam.title}</div>
-                    <div class="exam-list-subtitle">${exam.subject} · ${points}/${totalPoints} pts${theoryLabel}</div>
+                    <div class="exam-list-title" style="font-size:1.05rem; font-weight:800; color:var(--text-color);">${exam.subject}</div>
+                    <div class="exam-list-subtitle">${exam.title} · ${points}/${totalPoints} pts${theoryLabel}</div>
                 </div>
                 <div class="exam-list-status">
                     <span class="status-dot" style="background: ${statusDotColor};" title="${isPass ? 'Passed' : 'Failed'}"></span>
@@ -909,8 +909,8 @@ const studentDashboard = {
 
             centerContent.innerHTML = `
                 <div class="exam-detail-header">
-                    <span class="exam-detail-breadcrumb">${exam.subject} · ${exam.targetClass || 'All Classes'}</span>
-                    <h2 class="exam-detail-title">${exam.title}</h2>
+                    <h2 class="exam-detail-title" style="font-size:1.5rem; font-weight:800;">${exam.subject}</h2>
+                    <span class="exam-detail-breadcrumb">${exam.title} · ${exam.targetClass || 'All Classes'}</span>
                 </div>
                 <div class="exam-detail-divider"></div>
                 <div class="exam-detail-instructions">
