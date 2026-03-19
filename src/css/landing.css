@@ -8,21 +8,34 @@
     width: 100%;
     min-height: 100vh;
     overflow: visible;
-    background:
-        linear-gradient(to right,  rgba(0,0,0,0.04) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px),
-        #FAFAFA;
-    background-size: 80px 80px, 80px 80px, 100% 100%;
+    background: #FAFAFA;
     color: #202124;
     font-family: 'Nunito', 'Figtree', sans-serif;
+    position: relative;
+    isolation: isolate;
+}
+
+.landing-view::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        linear-gradient(to right,  rgba(0,0,0,0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+    z-index: 0;
 }
 
 [data-theme="dark"] .landing-view {
+    background: #0F1117;
+}
+
+[data-theme="dark"] .landing-view::after {
     background:
         linear-gradient(to right,  rgba(255,255,255,0.04) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px),
-        #0F1117;
-    background-size: 80px 80px, 80px 80px, 100% 100%;
+        linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 80px 80px;
 }
 
 /* ── Reveal animation ────────────────────────────────────────── */
@@ -422,6 +435,8 @@
     width: 100%;
     height: 100%;
     display: block;
+    object-fit: cover;
+    object-position: top left;
 }
 
 .hero-card-placeholder {
@@ -529,51 +544,49 @@
     transform: translate(0, 0) !important;
 }
 
-/* Placeholder slides (replace with <img> when screenshots ready) */
-.showcase-placeholder {
+/* Showcase & expand card images */
+.showcase-img {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    background: linear-gradient(160deg,
-        hsl(var(--ph-hue), 45%, 12%) 0%,
-        hsl(calc(var(--ph-hue) + 20), 40%, 18%) 50%,
-        hsl(calc(var(--ph-hue) + 40), 35%, 8%) 100%);
-    color: rgba(255,255,255,0.85);
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+}
+
+.showcase-caption {
+    position: absolute;
+    bottom: 32px;
+    left: 32px;
+    right: auto;
+    max-width: 420px;
+    padding: 20px 28px;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    color: #fff;
     font-family: 'Jost', 'DM Sans', sans-serif;
+    pointer-events: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
-.showcase-placeholder-icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.showcase-placeholder-icon svg {
-    width: 36px;
-    height: 36px;
-    color: rgba(255,255,255,0.6);
-}
-
-.showcase-placeholder span {
-    font-size: 2rem;
+.showcase-caption span {
+    font-size: 1.6rem;
     font-weight: 700;
     letter-spacing: -0.02em;
+    display: block;
 }
 
-.showcase-placeholder p {
-    font-size: 1rem;
-    color: rgba(255,255,255,0.4);
-    margin: 0;
+.showcase-caption p {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.75);
+    margin: 4px 0 0;
     font-weight: 400;
 }
+
+/* Legacy placeholder styles (kept for reference) */
+.showcase-placeholder { display: none; }
 
 /* Progress dots — vertical on right side (hidden during hero phase) */
 .showcase-progress {
@@ -685,6 +698,19 @@
 }
 
 /* ── Sections shared ─────────────────────────────────────────── */
+.landing-section,
+.landing-how-section,
+.landing-schools-section,
+.landing-stats-section,
+.landing-final-cta,
+.landing-trust-line,
+.landing-footer,
+.landing-topbar,
+.landing-hero-showcase {
+    position: relative;
+    z-index: 1;
+}
+
 .landing-section {
     padding: 100px 48px;
     max-width: 1100px;
@@ -1528,14 +1554,20 @@
         bottom: 20px;
     }
 
-    .showcase-placeholder span {
-        font-size: 1.4rem;
+    .showcase-caption span {
+        font-size: 1.2rem;
     }
 
-    .showcase-placeholder p {
-        font-size: 0.85rem;
-        padding: 0 24px;
-        text-align: center;
+    .showcase-caption p {
+        font-size: 0.8rem;
+    }
+
+    .showcase-caption {
+        bottom: 16px;
+        left: 16px;
+        padding: 14px 18px;
+        max-width: 280px;
+        border-radius: 12px;
     }
 
     /* Trust line */

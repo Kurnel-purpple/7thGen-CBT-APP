@@ -261,6 +261,8 @@
 
         var currentSlide = -1;
         var expandEnd = 1 / totalPhases; // fraction of total scroll for the expand phase
+        var lastProgress = 0;
+        var peakSlide = -1; // highest slide index reached while scrolling down
 
         // ── Scroll listener ──
         var ticking = false;
@@ -287,6 +289,26 @@
             if (totalScroll <= 0) return;
 
             var progress = Math.max(0, Math.min(1, scrolled / totalScroll));
+            var scrollingUp = progress < lastProgress;
+
+            // ── Scrolling UP while in slides phase? Snap scroll back to collapse zone ──
+            if (scrollingUp && progress > expandEnd) {
+                // Jump scroll position to just inside the expand zone so user
+                // immediately sees the card collapsing instead of scrolling through dead space
+                peakSlide = -1;
+                setSlide(-1);
+                if (progressEl) progressEl.classList.remove('visible');
+                if (skipBtn) skipBtn.classList.remove('visible');
+
+                var targetProgress = expandEnd * 0.8; // land at 80% of expand phase
+                var snapTo = section.offsetTop + targetProgress * totalScroll;
+                var el = scroller || document.documentElement;
+                el.scrollTop = snapTo;
+                lastProgress = targetProgress;
+                return;
+            }
+
+            lastProgress = progress;
 
             // ── Phase 0: Idle — no scrolling yet ──
             if (progress <= 0.001) {
@@ -297,6 +319,7 @@
                 expandOverlay.style.pointerEvents = 'none';
                 expandCard.style.cssText = '';
                 setSlide(-1);
+                peakSlide = -1;
                 if (progressEl) progressEl.classList.remove('visible');
                 if (skipBtn) skipBtn.classList.remove('visible');
                 return;
@@ -332,10 +355,11 @@
 
                 // Hide slides + UI
                 setSlide(-1);
+                peakSlide = -1;
                 if (progressEl) progressEl.classList.remove('visible');
                 if (skipBtn) skipBtn.classList.remove('visible');
 
-            // ── Phase 2: Slides (progress expandEnd → 1) ──
+            // ── Phase 2: Slides — only advances forward ──
             } else {
                 // Hero gone, expand overlay gone
                 heroContent.style.opacity = 0;
@@ -347,10 +371,11 @@
                 if (progressEl) progressEl.classList.add('visible');
                 if (skipBtn) skipBtn.classList.add('visible');
 
-                // Which slide?
+                // Which slide? Only advance, never go backwards
                 var sp = (progress - expandEnd) / (1 - expandEnd); // 0→1 over slide phases
                 var idx = Math.min(totalSlides - 1, Math.floor(sp * totalSlides));
-                setSlide(idx);
+                if (idx > peakSlide) peakSlide = idx;
+                setSlide(peakSlide);
             }
         }
 
