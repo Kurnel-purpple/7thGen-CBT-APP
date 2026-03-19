@@ -226,6 +226,16 @@
     white-space: pre-wrap;
     max-width: 100%;
     overflow: hidden;
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .q-text-display,
+[data-theme="dark"] .q-text-display * {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .readonly-canvas-mount {
+    background: var(--dm-surface-2, #22263A) !important;
 }
 
 .q-text-display img {

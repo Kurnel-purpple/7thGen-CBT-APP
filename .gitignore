@@ -5,6 +5,9 @@ dist
 
 # Capacitor Android build outputs (keep source, ignore build artifacts)
 android/.gradle
+*.keystore
+*.jks
+android/keystore.properties
 android/app/build
 android/build
 android/.idea
