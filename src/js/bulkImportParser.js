@@ -47,8 +47,11 @@ window.BulkImportParser = (function () {
             .replace(/\t/g, '    ')                              // Tabs → 4 spaces
             // Add space after parenthesized markers: (a)Fish → (a) Fish
             .replace(/(\([a-zA-Z0-9]+\))(\S)/g, '$1 $2')
-            // Add space after numbered/combined marker period: 1.Define, 1a.Define → add space
-            .replace(/^(\s*\d+[a-z]?)\.([\S])/gm, '$1. $2')
+            // Add space after numbered marker period: 1.Define → 1. Define
+            // But NOT "1.a" / "1.b" (number-dot-single-letter) — combined marker handled later
+            .replace(/^(\s*\d+)\.((?![a-zA-Z](?:[.\)\s]|$))[^\s])/gm, '$1. $2')
+            // Add space after combined marker period: 1a.Define → 1a. Define
+            .replace(/^(\s*\d+[a-z])\.([\S])/gm, '$1. $2')
             // Add space after multi-letter roman numeral period: iii.text → iii. text
             .replace(/^(\s*(?:ii|iii|iv|vi|vii|viii|ix))\.([\S])/gim, '$1. $2')
             .replace(/[^\S\n]+$/gm, '')                         // Trim trailing whitespace per line
@@ -60,7 +63,6 @@ window.BulkImportParser = (function () {
      *
      * Converts:
      *   "1) "   → "1. "   — main question with closing paren
-     *   "1a) "  → "1a. "  — combined number+letter with closing paren
      *   "(i) "  → "i. "   — parenthesized roman numeral
      *   "ii) "  → "ii. "  — roman numeral with closing paren
      *   "a) "   → "a. "   — single letter with closing paren
@@ -69,8 +71,6 @@ window.BulkImportParser = (function () {
      */
     function normalizeMarkers(text) {
         return text
-            // "1a) " → "1a. " — combined number+letter BEFORE generic single-letter rule
-            .replace(/^(\s*\d+[a-z])\)\s*/gm, '$1. ')
             // "1) " → "1. " — main question number variant
             .replace(/^(\s*\d+)\)\s*/gm, '$1. ')
             // "(i)/(iv)/etc. " → "i. " — parenthesized roman numeral at line start
@@ -81,26 +81,101 @@ window.BulkImportParser = (function () {
             .replace(/^(\s*[a-zA-Z])\)\s*/gm, '$1. ');
     }
 
+    /**
+     * Expand combined number+letter markers into separate lines so that
+     * the block splitter groups them correctly under the parent question.
+     *
+     * Handles all common teacher formats:
+     *   "1a. text"   / "1a) text"    → "a. text"  (under question 1)
+     *   "1(a) text"  / "1(a). text"  → "a. text"  (under question 1)
+     *   "1.a text"   / "1.a. text"   → "a. text"  (under question 1)
+     *   "1 a. text"  / "1 a) text"   → "a. text"  (under question 1)
+     *
+     * The function scans line by line. When it encounters a combined marker,
+     * it checks whether the parent question number already has a main-question
+     * line emitted. If not, it emits an empty main-question line first
+     * (e.g., "1. ") so that splitIntoBlocks creates the block, then emits the
+     * sub-question as a standard "a. text" child line inside that block.
+     *
+     * This runs AFTER normalizeMarkers (which handles ")"-to-"." conversion)
+     * and BEFORE splitIntoBlocks.
+     */
+    function expandCombinedMarkers(text) {
+        const lines = text.split('\n');
+        const result = [];
+        const emittedMainQs = new Set(); // Track which question numbers already have a main line
+
+        // Pre-scan: find all existing standalone main question lines (e.g. "3. Draw the truth table...")
+        for (const line of lines) {
+            if (/^\s*(\d+)\.\s+/.test(line)) {
+                const m = line.match(/^\s*(\d+)\.\s+/);
+                if (m) emittedMainQs.add(parseInt(m[1], 10));
+            }
+        }
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            // Pattern: "1a. text" or "1a) text" — number immediately followed by letter
+            let m = trimmed.match(/^(\d+)([a-zA-Z])[\.\)]\s*(.*)/);
+
+            // Pattern: "1(a) text" or "1(a). text" — number followed by parenthesized letter
+            if (!m) {
+                m = trimmed.match(/^(\d+)\(([a-zA-Z])\)\.?\s*(.*)/);
+            }
+
+            // Pattern: "1.a text" or "1.a. text" — number dot letter
+            if (!m) {
+                m = trimmed.match(/^(\d+)\.([a-zA-Z])\.?\s*(.*)/);
+            }
+
+            // Pattern: "1 a. text" or "1 a) text" — number space letter dot/paren
+            if (!m) {
+                m = trimmed.match(/^(\d+)\s+([a-zA-Z])[\.\)]\s*(.*)/);
+            }
+
+            if (m) {
+                const num = parseInt(m[1], 10);
+                const letter = m[2].toLowerCase();
+                const rest = m[3];
+
+                // If we haven't seen a standalone main question line for this number yet,
+                // emit a placeholder so splitIntoBlocks creates the block
+                if (!emittedMainQs.has(num)) {
+                    result.push(`${num}. `);
+                    emittedMainQs.add(num);
+                }
+
+                // Emit the sub-question as a standard child line
+                result.push(`${letter}. ${rest}`);
+            } else {
+                result.push(line);
+            }
+        }
+
+        return result.join('\n');
+    }
+
     // =================================================================
     // PHASE 2 — MARKER DETECTION UTILITIES
     // =================================================================
 
     /**
      * TRUE if the line starts a new top-level question.
-     * Matches: "1. ", "12. ", "1a. ", "2b. " etc.
-     * Only at the very start of a line (after optional whitespace).
-     * Prevents false positives like "version1.0" or "step1. action".
+     * Matches: "1. ", "12. " etc. (number + dot + space).
+     * Does NOT match combined markers like "1a. " — those are expanded
+     * into separate lines by expandCombinedMarkers() before this runs.
      */
     function isMainQMarker(line) {
-        return /^\s*\d+[a-z]?\.\s+/.test(line);
+        return /^\s*\d+\.\s+/.test(line);
     }
 
     /**
      * Extract the question number from a main question line.
-     * Handles both "1. " and "1a. " formats.
+     * e.g. "3. Draw..." → 3
      */
     function getMainQNumber(line) {
-        const m = line.match(/^\s*(\d+)[a-z]?\.\s+/);
+        const m = line.match(/^\s*(\d+)\.\s+/);
         return m ? parseInt(m[1], 10) : 0;
     }
 
@@ -187,8 +262,8 @@ window.BulkImportParser = (function () {
                 if (current) blocks.push(current);
 
                 const num = getMainQNumber(line);
-                // Strip the leading "N. " or "Na. " from the first content line
-                const content = line.replace(/^\s*\d+[a-z]?\.\s+/, '');
+                // Strip the leading "N. " from the first content line
+                const content = line.replace(/^\s*\d+\.\s+/, '');
 
                 current = { num, lines: [content] };
             } else if (current !== null) {
@@ -433,14 +508,37 @@ window.BulkImportParser = (function () {
     // =================================================================
 
     /**
+     * TRUE if the paragraph starts with a sub-question marker that should
+     * be attached to the previous main question, NOT auto-numbered.
+     *
+     * Matches:
+     *   "a. text", "b. text"         — alphabetic child
+     *   "i. text", "ii. text"        — roman numeral grandchild
+     *   "(a) text", "(b) text"       — parenthesized child
+     *   Combined markers like "1a.", "1(a)", "1.a", "1 a." are already
+     *   expanded by expandCombinedMarkers before this runs.
+     */
+    function isSubQuestionMarker(text) {
+        const t = text.trim();
+        // Alphabetic or roman numeral: "a. ", "b. ", "i. ", "ii. ", "iv. "
+        if (/^[a-zA-Z]{1,4}\.\s+/.test(t)) return true;
+        // Parenthesized: "(a) ", "(b) ", "(i) "
+        if (/^\([a-zA-Z]{1,4}\)\s+/.test(t)) return true;
+        return false;
+    }
+
+    /**
      * Split text into blank-line-separated paragraphs and assign a number
      * to any paragraph that doesn't already start with one.
      *
+     * Sub-question markers (a. b. i. ii. (a) etc.) are NOT auto-numbered —
+     * they are re-attached to the previous main question paragraph so the
+     * block splitter groups them correctly. This handles editors (like Tiptap)
+     * that insert blank lines between every line of pasted text.
+     *
      * Numbering is sequential: it finds the highest existing number among
      * already-numbered paragraphs that appear before the current one, then
-     * assigns the next integer. This means unnumbered questions that appear
-     * before any numbered ones get 1, 2, 3… and unnumbered questions mixed
-     * in between numbered ones continue the sequence correctly.
+     * assigns the next integer.
      */
     function autoNumberParagraphs(txt) {
         const paragraphs = txt.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
@@ -455,6 +553,16 @@ window.BulkImportParser = (function () {
                 const existing = getMainQNumber(p);
                 if (existing >= nextNum) nextNum = existing + 1;
                 numbered.push(p);
+            } else if (isSubQuestionMarker(p)) {
+                // Sub-question marker — attach to the previous main question
+                // instead of giving it its own number
+                if (numbered.length > 0) {
+                    numbered[numbered.length - 1] += '\n' + p;
+                } else {
+                    // No main question yet — treat as first question's content
+                    numbered.push(`${nextNum}. ${p}`);
+                    nextNum++;
+                }
             } else {
                 // Unnumbered paragraph — assign the next number
                 numbered.push(`${nextNum}. ${p}`);
@@ -492,6 +600,11 @@ window.BulkImportParser = (function () {
         // ── Step 1: Normalize ──────────────────────────────────────────
         let text = normalizeInput(rawText);
         text = normalizeMarkers(text);
+
+        // ── Step 1b: Expand combined markers ─────────────────────────
+        // "1a. text", "1(a) text", "1.a text", "1 a. text" etc. →
+        // separate main-question line + "a. text" child line
+        text = expandCombinedMarkers(text);
 
         // ── Step 2: Detect THEORY / SECTION B / SECTION C / etc. ─────
         // A header like "--- THEORY ---", "=== SECTION B ===", "SECTION B:",

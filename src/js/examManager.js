@@ -1308,7 +1308,25 @@ const examManager = {
                 }
             }
             if (!previewText) previewText = '(No content yet)';
-            if (previewText.length > 80) previewText = previewText.substring(0, 80) + '...';
+
+            // For theory questions with sub-questions, preserve line structure
+            // so each sub-question appears on its own indented line
+            let previewHtml = '';
+            if (q.type === 'theory' && previewText.includes('\n')) {
+                previewHtml = previewText.split('\n').map(line => {
+                    const escaped = escHtml(line);
+                    // Indent sub-questions (a. b. etc.) and sub-sub-questions (i. ii. etc.)
+                    if (/^\s{2,}/.test(line)) {
+                        return `<span style="display:block; padding-left:32px; color:var(--light-text, #9AA0AC);">${escaped.trim()}</span>`;
+                    } else if (/^[a-zA-Z]{1,4}\.\s/.test(line.trim())) {
+                        return `<span style="display:block; padding-left:16px;">${escaped.trim()}</span>`;
+                    }
+                    return `<span style="display:block;">${escaped}</span>`;
+                }).join('');
+            } else {
+                if (previewText.length > 80) previewText = previewText.substring(0, 80) + '...';
+                previewHtml = escHtml(previewText);
+            }
 
             // Type label
             const typeLabel = examManager._typeLabels[q.type] || q.type;
@@ -1373,7 +1391,7 @@ const examManager = {
                     <div class="question-number-badge">${displayNumber}</div>
                     <div class="question-summary-text">
                         <span class="question-type-pill">${escHtml(typeLabel)}</span>
-                        <span class="q-preview">${escHtml(previewText)}</span>
+                        <span class="q-preview">${previewHtml}</span>
                         <span class="q-meta">
                             <span class="points-badge">${q.points} pts</span>
                             <span>${escHtml(optionsInfo)}${mediaInfo}</span>
@@ -1577,15 +1595,16 @@ const examManager = {
                 submitBtn.textContent = originalBtnText;
                 submitBtn.style.opacity = '1';
             }
-            const msg = (err.message || '').toLowerCase();
-            if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout')) {
+            const msg = err.message || '';
+            if (msg === 'NETWORK_ERROR') {
                 await Utils.showAlert('Connection Error', 'Unable to reach the server. Please check your internet connection and try again.');
-            } else if (msg.includes('not authenticated') || msg.includes('not valid') || msg.includes('token')) {
+            } else if (msg === 'AUTH_ERROR') {
                 await Utils.showAlert('Session Expired', 'Your session has expired. Please log in again and retry.');
-            } else if (msg.includes('too large') || msg.includes('payload') || msg.includes('size')) {
+            } else if (msg === 'SIZE_ERROR') {
                 await Utils.showAlert('Exam Too Large', 'This exam contains too much data (possibly large images). Try reducing image sizes and try again.');
             } else {
-                await Utils.showAlert('Save Failed', 'Something went wrong while saving your exam. Please try again.\n\nDetails: ' + err.message);
+                // msg already contains a user-friendly message from dataService._parseExamError
+                await Utils.showAlert('Save Failed', msg);
             }
         }
     }
