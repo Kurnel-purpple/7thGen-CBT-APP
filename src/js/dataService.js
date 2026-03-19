@@ -720,7 +720,12 @@ class DataService {
 
             return mappedExam;
         } catch (error) {
-            throw error;
+            console.error('createExam error:', error, 'data:', error.data);
+            const parsed = this._parseExamError(error);
+            if (parsed) {
+                throw new Error(parsed);
+            }
+            throw new Error('Unable to save the exam. Please check all fields are filled in correctly and try again.');
         }
     }
 
@@ -751,7 +756,12 @@ class DataService {
 
             return mappedExam;
         } catch (error) {
-            throw error;
+            console.error('updateExam error:', error, 'data:', error.data);
+            const parsed = this._parseExamError(error);
+            if (parsed) {
+                throw new Error(parsed);
+            }
+            throw new Error('Unable to update the exam. Please check all fields are filled in correctly and try again.');
         }
     }
 
@@ -845,6 +855,63 @@ class DataService {
         } catch (e) {
             console.warn('Cache manual update failed', e);
         }
+    }
+
+    _parseExamError(error) {
+        const msg = (error.message || '').toLowerCase();
+        const fieldErrors = error.data?.data || error.response?.data?.data || {};
+        const fieldLabels = {
+            title: 'Exam Title',
+            subject: 'Subject',
+            target_class: 'Target Class',
+            school_level: 'School Level',
+            duration: 'Duration',
+            pass_score: 'Passing Score',
+            instructions: 'Instructions',
+            questions: 'Questions',
+            created_by: 'Creator',
+            scheduled_date: 'Scheduled Date',
+            status: 'Status'
+        };
+
+        // Check for field-level validation errors from PocketBase
+        const missingFields = [];
+        const invalidFields = [];
+        for (const [field, err] of Object.entries(fieldErrors)) {
+            const label = fieldLabels[field] || field;
+            if (err.code === 'validation_required' || err.code === 'validation_not_blank') {
+                missingFields.push(label);
+            } else if (err.code) {
+                invalidFields.push(label);
+            }
+        }
+
+        if (missingFields.length > 0) {
+            return `The following required fields are missing: ${missingFields.join(', ')}. Please fill them in and try again.`;
+        }
+        if (invalidFields.length > 0) {
+            return `There's a problem with: ${invalidFields.join(', ')}. Please check these fields and try again.`;
+        }
+
+        // Network errors
+        if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('failed to fetch')) {
+            return 'NETWORK_ERROR';
+        }
+        // Auth errors
+        if (msg.includes('not authenticated') || msg.includes('not valid') || msg.includes('token') || error.status === 401 || error.status === 403) {
+            return 'AUTH_ERROR';
+        }
+        // Payload too large
+        if (msg.includes('too large') || msg.includes('payload') || msg.includes('size') || error.status === 413) {
+            return 'SIZE_ERROR';
+        }
+
+        // If PocketBase gave a message but no field details, use it
+        if (error.data?.message && error.data.message !== error.message) {
+            return error.data.message;
+        }
+
+        return null;
     }
 
     _mapExam(dbExam) {
