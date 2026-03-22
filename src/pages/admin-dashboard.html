@@ -49,55 +49,16 @@
         }
 
         /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .stat-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: var(--radius-card);
-            box-shadow: var(--shadow-card);
-            border: 1px solid var(--border-color);
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-hover);
-        }
-        .stat-card .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .stat-card .stat-icon svg {
-            width: 24px;
-            height: 24px;
-            stroke: white;
-        }
-        .stat-card h3 {
-            margin: 0;
-            font-size: 0.75rem;
-            color: var(--light-text);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
-        }
-        .stat-card .value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--text-color);
-            margin: 0;
-            line-height: 1.2;
+
+        /* Hide in-section search on desktop (topbar search handles it) */
+        @media (min-width: 769px) {
+            .section-search-input {
+                display: none !important;
+            }
+            .section-filter-select {
+                width: auto !important;
+                min-width: 160px;
+            }
         }
 
         /* Sections */
@@ -548,7 +509,6 @@
         }
 
         /* Dark mode overrides */
-        [data-theme="dark"] .stat-card,
         [data-theme="dark"] .section {
             background: var(--dm-surface, #1A1D27);
             border-color: var(--border-color);
@@ -607,8 +567,21 @@
         .sidebar-stat-item {
             text-align: center;
             padding: 6px 4px;
-            border-radius: 6px;
+            border-radius: 8px;
             background: rgba(255,255,255,0.06);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+        }
+        .sidebar-stat-item:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-1px);
+        }
+        .sidebar-stat-item:active {
+            transform: scale(0.97);
+        }
+        .sidebar-stat-item.stat-active {
+            background: rgba(255,255,255,0.2);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.35);
         }
         .sidebar-stat-item .stat-val {
             font-size: 1rem;
@@ -621,34 +594,26 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
+        /* Collapsed sidebar: stack stat items vertically */
+        .app-sidebar.sidebar-collapsed .sidebar-stats-mini {
+            grid-template-columns: 1fr;
+            padding: 6px 8px 10px;
+            gap: 4px;
+        }
+        .app-sidebar.sidebar-collapsed .sidebar-stat-item {
+            padding: 5px 4px;
+        }
+        .app-sidebar.sidebar-collapsed .sidebar-stat-item .stat-val {
+            font-size: 0.85rem;
+        }
+        .app-sidebar.sidebar-collapsed .sidebar-stat-item .stat-lbl {
+            font-size: 0.5rem;
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
             .messaging-section {
                 grid-template-columns: 1fr;
-            }
-            .stats-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-            }
-            .stat-card {
-                padding: 14px;
-                gap: 10px;
-            }
-            .stat-card .stat-icon {
-                width: 40px;
-                height: 40px;
-                border-radius: 10px;
-            }
-            .stat-card .stat-icon svg {
-                width: 20px;
-                height: 20px;
-            }
-            .stat-card .value {
-                font-size: 1.4rem;
-            }
-            .stat-card h3 {
-                font-size: 0.65rem;
             }
             #general-results-section .section-header {
                 flex-direction: column;
@@ -675,34 +640,55 @@
             .result-card-scores {
                 grid-template-columns: 1fr;
             }
-            .stats-grid {
-                grid-template-columns: 1fr;
+        }
+        /* Exams list section — tablet & mobile */
+        @media (max-width: 768px) {
+            #exams-list-section .section-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            #exams-list-section .section-header > div:last-child {
+                display: flex;
+                justify-content: space-between;
+            }
+            #exams-modal-container > div {
+                grid-template-columns: 1fr !important;
+            }
+            #exams-list-section,
+            #teachers-section,
+            #students-section,
+            #exams-section-wrapper {
+                margin: -24px;
+                width: calc(100% + 48px);
+            }
+            #exams-list-section > .section,
+            #teachers-section > .section,
+            #students-section > .section,
+            #exams-section-wrapper > .section {
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                margin-bottom: 0;
+                padding: 16px;
+                min-height: calc(100vh - 56px);
             }
         }
+
+        /* Exams list section + cards — small mobile */
         @media (max-width: 500px) {
-            #exams-list-modal .modal-header {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 15px !important;
-                padding: 20px 15px !important;
-            }
-            #exams-list-modal .modal-header > div:last-child {
-                width: 100%;
-                justify-content: space-between;
-                display: flex;
-            }
-            #exams-list-modal #exam-filter {
-                flex: 1;
-                max-width: 200px;
-            }
-            #exams-modal-container {
-                padding: 15px !important;
-            }
             .exam-card { padding: 14px !important; }
             .exam-card-header {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 8px;
+            }
+            .exam-meta {
+                flex-direction: column;
+                gap: 6px !important;
+            }
+            .exam-card select {
+                flex: 1;
+                min-width: 0;
             }
         }
 
@@ -803,11 +789,11 @@
             </button>
 
             <nav class="sidebar-nav">
-                <a href="admin-dashboard.html" class="sidebar-nav-item active">
+                <a href="javascript:void(0)" onclick="goToDashboardHome(); closeSidebarMobile();" class="sidebar-nav-item active">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                     <span class="sidebar-nav-label">Dashboard</span>
                 </a>
-                <button class="sidebar-nav-item" onclick="scrollToSection('exams-section'); closeSidebarMobile();">
+                <button class="sidebar-nav-item" onclick="showAdminSection('exams'); closeSidebarMobile();">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
                     <span class="sidebar-nav-label">Exams</span>
                     <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="sidebar-exam-count">0</span>
@@ -833,21 +819,21 @@
                 </div>
             </div>
 
-            <!-- Mini Stats in Sidebar -->
+            <!-- Mini Stats in Sidebar — clickable navigation -->
             <div class="sidebar-stats-mini">
-                <div class="sidebar-stat-item">
+                <div class="sidebar-stat-item" data-section="teachers" onclick="showAdminSection('teachers'); closeSidebarMobile();">
                     <div class="stat-val" id="stat-teachers-m">0</div>
                     <div class="stat-lbl">Teachers</div>
                 </div>
-                <div class="sidebar-stat-item">
+                <div class="sidebar-stat-item" data-section="exams" onclick="showAdminSection('exams'); closeSidebarMobile();">
                     <div class="stat-val" id="stat-exams-m">0</div>
                     <div class="stat-lbl">Exams</div>
                 </div>
-                <div class="sidebar-stat-item">
+                <div class="sidebar-stat-item" data-section="active-exams" onclick="showAdminSection('active-exams'); closeSidebarMobile();">
                     <div class="stat-val" id="stat-active-m">0</div>
                     <div class="stat-lbl">Active</div>
                 </div>
-                <div class="sidebar-stat-item">
+                <div class="sidebar-stat-item" data-section="students" onclick="showAdminSection('students'); closeSidebarMobile();">
                     <div class="stat-val" id="stat-students-m">0</div>
                     <div class="stat-lbl">Students</div>
                 </div>
@@ -926,68 +912,100 @@
             <!-- ========== MAIN CONTENT ========== -->
             <main class="main-content" style="padding: 24px;">
 
-                <!-- Statistics -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: #1A73E8;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <!-- Teachers Section (hidden by default) -->
+                <div id="teachers-section" class="admin-section" style="display:none;">
+                    <div class="section">
+                        <div class="section-header" style="display:flex; flex-direction:column; gap:12px;">
+                            <h2 style="margin:0;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                                All Teachers
+                            </h2>
+                            <input type="text" id="teacher-search" class="form-control section-search-input" placeholder="Search teachers..." oninput="filterTeacherCards()" style="width:100%; padding:9px 14px; font-size:0.88rem; border-radius:var(--radius-btn);">
                         </div>
-                        <div>
-                            <h3>Teachers</h3>
-                            <p class="value" id="stat-teachers">0</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: #34A853;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-                        </div>
-                        <div>
-                            <h3>Total Exams</h3>
-                            <p class="value" id="stat-exams">0</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: #F9AB00;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                        </div>
-                        <div>
-                            <h3>Active Exams</h3>
-                            <p class="value" id="stat-active">0</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: #EA4335;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        </div>
-                        <div>
-                            <h3>Students</h3>
-                            <p class="value" id="stat-students">0</p>
+                        <div id="teachers-grid" class="exam-grid" style="margin-top:16px;">
+                            <div class="empty-state">
+                                <p>Load a school version to see teachers</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- All Exams Section -->
-                <div id="exams-section"></div>
-                <div class="section">
-                    <div class="section-header responsive-header" onclick="openExamsModal('all')"
-                        style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'"
-                        onmouseout="this.style.opacity='1'">
-                        <div class="header-main" style="display:flex; align-items:center; gap:10px;">
-                            <h2>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-                                All Exams
+                <!-- Students Section (hidden by default) -->
+                <div id="students-section" class="admin-section" style="display:none;">
+                    <div class="section">
+                        <div class="section-header" style="display:flex; flex-direction:column; gap:12px;">
+                            <h2 style="margin:0;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                All Students
                             </h2>
-                            <span class="badge badge-primary">View All</span>
+                            <input type="text" id="student-search" class="form-control section-search-input" placeholder="Search students..." oninput="filterStudentCards()" style="width:100%; padding:9px 14px; font-size:0.88rem; border-radius:var(--radius-btn);">
+                            <select id="student-class-filter" class="form-control section-filter-select" onchange="filterStudentCards()" style="padding:9px 14px; font-size:0.88rem; border-radius:var(--radius-btn);">
+                                <option value="All">All Classes</option>
+                            </select>
                         </div>
-                        <div class="header-action" style="color:var(--primary-color); font-weight:600; font-size:0.85rem; display:flex; align-items:center; gap:4px;">
-                            Click to see all exams
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                        <div id="students-grid" class="exam-grid" style="margin-top:16px;">
+                            <div class="empty-state">
+                                <p>Load a school version to see students</p>
+                            </div>
                         </div>
                     </div>
-                    <div id="exams-teacher-list" class="exam-grid">
-                        <div class="empty-state">
-                            <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg></div>
-                            <p>Select a school version to view exams</p>
+                </div>
+
+                <!-- Exams List Page (replaces old modal) -->
+                <div id="exams-list-section" class="admin-section" style="display:none;">
+                    <div class="section">
+                        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <h2 id="exams-list-title" style="margin:0; display:flex; align-items:center; gap:8px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                                    All School Exams
+                                </h2>
+                                <p id="exams-list-subtitle" style="margin:4px 0 0; font-size:0.8rem; color:var(--light-text);"></p>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <select id="exam-filter" onchange="filterExams()"
+                                    style="padding:7px 12px; font-size:0.82rem; border-radius:var(--radius-btn); border:1px solid var(--border-color); background:var(--inner-bg); color:var(--text-color); cursor:pointer;">
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active Only</option>
+                                    <option value="draft">Drafts Only</option>
+                                    <option value="archived">Archived Only</option>
+                                </select>
+                                <button class="btn" onclick="closeExamsPage()" style="padding:7px 16px; font-size:0.82rem;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+                                    Back
+                                </button>
+                            </div>
+                        </div>
+                        <div id="exams-modal-container" style="margin-top:16px;">
+                            <!-- Exams will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Exams Section (toggled by stat card click) -->
+                <div id="exams-section-wrapper" class="admin-section">
+                    <div id="exams-section"></div>
+                    <div class="section">
+                        <div class="section-header responsive-header" onclick="openExamsModal('all')"
+                            style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'"
+                            onmouseout="this.style.opacity='1'">
+                            <div class="header-main" style="display:flex; align-items:center; gap:10px;">
+                                <h2>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                                    All Exams
+                                </h2>
+                                <span class="badge badge-primary">View All</span>
+                            </div>
+                            <div class="header-action" style="color:var(--primary-color); font-weight:600; font-size:0.85rem; display:flex; align-items:center; gap:4px;">
+                                Click to see all exams
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                            </div>
+                        </div>
+                        <div id="exams-teacher-list" class="exam-grid">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg></div>
+                                <p>Select a school version to view exams</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1097,10 +1115,10 @@
         <div class="modal-content"
             style="max-width: 400px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div class="modal-header"
-                style="background: var(--primary-color); color: white; padding: 20px; margin-bottom: 0; border: none;">
-                <h3 style="margin: 0; color: white;">Change Password</h3>
+                style="background: var(--card-bg); color: var(--text-color); padding: 20px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; color: var(--text-color);">Change Password</h3>
                 <span class="close-btn" onclick="closeChangePasswordModal()"
-                    style="color: white; opacity: 0.8;">&times;</span>
+                    style="color: var(--light-text); opacity: 0.8; font-size: 1.5rem;">&times;</span>
             </div>
             <div style="padding: 24px; background: var(--card-bg);">
                 <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 24px;">
@@ -1158,10 +1176,10 @@
         <div class="modal-content"
             style="max-width: 400px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div class="modal-header"
-                style="background: var(--primary-color); color: white; padding: 20px; margin-bottom: 0; border: none;">
-                <h3 style="margin: 0; color: white;">Change Username</h3>
+                style="background: var(--card-bg); color: var(--text-color); padding: 20px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; color: var(--text-color);">Change Username</h3>
                 <span class="close-btn" onclick="closeChangeUsernameModal()"
-                    style="color: white; opacity: 0.8;">&times;</span>
+                    style="color: var(--light-text); opacity: 0.8; font-size: 1.5rem;">&times;</span>
             </div>
             <div style="padding: 24px; background: var(--card-bg);">
                 <p style="font-size: 0.9rem; color: var(--light-text); margin-bottom: 24px;">
@@ -1196,10 +1214,10 @@
         <div class="modal-content"
             style="max-width: 440px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div class="modal-header"
-                style="background: #EA4335; color: white; padding: 20px; margin-bottom: 0; border: none;">
-                <h3 style="margin: 0; color: white;">Reset User Password</h3>
+                style="background: var(--card-bg); color: var(--text-color); padding: 20px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; color: var(--text-color);">Reset User Password</h3>
                 <span class="close-btn" onclick="closeResetUserPasswordModal()"
-                    style="color: white; opacity: 0.8;">&times;</span>
+                    style="color: var(--light-text); opacity: 0.8; font-size: 1.5rem;">&times;</span>
             </div>
 
             <!-- Step 1: Enter username -->
@@ -1276,10 +1294,10 @@
         <div class="modal-content"
             style="max-width: 420px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div class="modal-header"
-                style="background: var(--primary-color); color: white; padding: 20px; margin-bottom: 0; border: none;">
-                <h3 style="margin: 0; color: white;">Schedule & Duration</h3>
+                style="background: var(--card-bg); color: var(--text-color); padding: 20px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; color: var(--text-color);">Schedule & Duration</h3>
                 <span class="close-btn" onclick="closeScheduleModal()"
-                    style="color: white; opacity: 0.8;">&times;</span>
+                    style="color: var(--light-text); opacity: 0.8; font-size: 1.5rem;">&times;</span>
             </div>
             <div style="padding: 24px; background: var(--card-bg);">
                 <input type="hidden" id="schedule-exam-id">
@@ -1319,8 +1337,8 @@
         <div class="modal-content"
             style="max-width: 400px; margin: 30vh auto; width: 90%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); text-align: center;">
             <div class="modal-header"
-                style="background: var(--primary-color); color: white; padding: 15px; margin-bottom: 0; border: none; justify-content: center;">
-                <h3 id="alert-title" style="margin: 0; color: white;">Notice</h3>
+                style="background: var(--card-bg); color: var(--text-color); padding: 15px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color); justify-content: center;">
+                <h3 id="alert-title" style="margin: 0; color: var(--text-color);">Notice</h3>
             </div>
             <div style="padding: 30px 20px; background: var(--card-bg);">
                 <p id="alert-message" style="margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-color);">
@@ -1339,8 +1357,8 @@
         <div class="modal-content"
             style="max-width: 400px; margin: 30vh auto; width: 90%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); text-align: center;">
             <div class="modal-header"
-                style="background: #e67e22; color: white; padding: 15px; margin-bottom: 0; border: none; justify-content: center;">
-                <h3 id="confirm-title" style="margin: 0; color: white;">Confirm Action</h3>
+                style="background: var(--card-bg); color: var(--text-color); padding: 15px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color); justify-content: center;">
+                <h3 id="confirm-title" style="margin: 0; color: var(--text-color);">Confirm Action</h3>
             </div>
             <div style="padding: 30px 20px; background: var(--card-bg);">
                 <p id="confirm-message" style="margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-color);">
@@ -1356,35 +1374,40 @@
         </div>
     </div>
 
-    <!-- Exams List Modal -->
-    <div id="exams-list-modal" class="modal" style="display: none; z-index: 3000;">
+
+    <!-- Student Results Modal -->
+    <div id="student-results-modal" class="modal" style="display: none; z-index: 4000;">
         <div class="modal-content"
-            style="max-width: 900px; margin: 5vh auto; width: 95%; height: 90vh; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); display: flex; flex-direction: column;">
-            <div class="modal-header"
-                style="background: var(--primary-color); color: white; padding: 15px 25px; margin-bottom: 0; border: none; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+            style="max-width: 600px; margin: 5vh auto; width: 95%; max-height: 90vh; padding: 0; overflow: hidden; border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.4); display: flex; flex-direction: column; background: var(--card-bg);">
+            <div style="background: var(--card-bg); color: var(--text-color); padding: 18px 24px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);">
                 <div>
-                    <h3 id="exams-modal-title" style="margin: 0; color: white;">Exam List</h3>
-                    <p id="exams-modal-subtitle" style="margin: 0; font-size: 0.8rem; opacity: 0.8;"></p>
+                    <h3 id="sr-modal-name" style="margin: 0; color: var(--text-color); font-size: 1.1rem;">Student Results</h3>
+                    <p id="sr-modal-class" style="margin: 2px 0 0; font-size: 0.8rem; color: var(--light-text);"></p>
                 </div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <select id="exam-filter" onchange="filterExams()"
-                        style="padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; cursor: pointer; font-size: 0.85rem; outline: none;">
-                        <option value="all">All Status</option>
-                        <option value="active">Active Only</option>
-                        <option value="draft">Drafts Only</option>
-                        <option value="archived">Archived Only</option>
-                    </select>
-                    <span class="close-btn" onclick="closeExamsModal()"
-                        style="color: white; opacity: 0.8; font-size: 2rem; cursor: pointer;">&times;</span>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="exportStudentResults()" title="Export"
+                        style="background: var(--inner-bg); border: 1px solid var(--border-color); color: var(--primary-color); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export
+                    </button>
+                    <span onclick="closeStudentResultsModal()" style="color: var(--light-text); opacity: 0.8; font-size: 2rem; cursor: pointer; line-height: 1;">&times;</span>
                 </div>
             </div>
-            <div id="exams-modal-container"
-                style="padding: 25px; overflow-y: auto; flex: 1; background: var(--card-bg);">
-                <!-- Exams will be rendered here -->
+            <!-- Score header row -->
+            <div style="display: flex; padding: 10px 24px; background: var(--inner-bg); border-bottom: 1px solid var(--border-color); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--light-text);">
+                <span style="flex: 1;">Subject</span>
+                <span style="width: 50px; text-align: center;">CA</span>
+                <span style="width: 50px; text-align: center;">Exam</span>
+                <span style="width: 55px; text-align: right;">Total</span>
             </div>
-            <div class="modal-footer"
-                style="padding: 15px 25px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; flex-shrink: 0;">
-                <button class="btn btn-primary" onclick="closeExamsModal()" style="padding: 8px 25px;">Close</button>
+            <!-- Score lines container -->
+            <div id="sr-modal-scores" style="overflow-y: auto; flex: 1; padding: 0;">
+                <!-- Score rows rendered here -->
+            </div>
+            <!-- Footer with grand total -->
+            <div id="sr-modal-footer" style="padding: 14px 24px; border-top: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: var(--inner-bg);">
+                <span style="font-weight: 600; font-size: 0.85rem; color: var(--light-text);">Grand Total</span>
+                <span id="sr-modal-grand-total" style="font-weight: 800; font-size: 1.15rem; color: var(--primary-color);">0</span>
             </div>
         </div>
     </div>
@@ -1399,6 +1422,7 @@
     </script>
 
     <!-- Scripts -->
+    <script src="../js/idb.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../js/auth.js"></script>
@@ -1586,11 +1610,19 @@
                 const schoolInput = document.getElementById('school-id-input');
                 if (schoolInput) schoolInput.value = currentUser.schoolVersion;
                 currentVersion = currentUser.schoolVersion;
-                await loadData();
+
+                // Show cached data instantly, then refresh in background
+                const hadCache = await loadFromCache();
+                if (hadCache) {
+                    // Background refresh — don't block UI
+                    loadData();
+                } else {
+                    await loadData();
+                }
             }
 
-            // Load message history
-            await loadMessageHistory();
+            // Load message history (non-blocking)
+            loadMessageHistory();
 
             // Setup teacher select listener
             document.getElementById('teacher-select').addEventListener('change', (e) => {
@@ -1614,27 +1646,40 @@
 
 
 
-        async function loadData() {
+        // Try to render from IDB cache instantly — returns true if cache existed
+        async function loadFromCache() {
+            if (!window.idb) return false;
             try {
-                // Load only teachers and students for this version
-                // This is more efficient than loading all users and filtering locally
-                const teachersResult = await dataService.getUsers({
-                    role: 'teacher',
-                    schoolVersion: currentVersion
-                });
+                const teachersCacheKey = `users_{"role":"teacher","schoolVersion":"${currentVersion}"}`;
+                const studentsCacheKey = `users_{"role":"student","schoolVersion":"${currentVersion}"}`;
+                const examsCacheKey = 'exams_{}';
 
-                allTeachers = teachersResult;
+                const [teachersCache, studentsCache, examsCache] = await Promise.all([
+                    window.idb.getDashboardCache(teachersCacheKey).catch(() => null),
+                    window.idb.getDashboardCache(studentsCacheKey).catch(() => null),
+                    window.idb.getDashboardCache(examsCacheKey).catch(() => null)
+                ]);
 
-                // Load students filtered by school ID
-                allStudents = await dataService.getUsers({
-                    role: 'student',
-                    schoolVersion: currentVersion
-                });
+                if (!teachersCache?.data?.length && !studentsCache?.data?.length && !examsCache?.data?.length) {
+                    return false;
+                }
 
-                // Populate teacher dropdown
+                allTeachers = teachersCache?.data || [];
+                allStudents = studentsCache?.data || [];
+
+                // Filter exams by this school's teachers
+                const teacherIds = allTeachers.map(t => t.id);
+                const teacherUserIds = allTeachers.map(t => t.user).filter(id => !!id);
+                allExams = (examsCache?.data || []).filter(exam =>
+                    teacherIds.includes(exam.createdBy) ||
+                    teacherUserIds.includes(exam.createdBy)
+                );
+
+                // Render immediately from cache
+                const activeExams = allExams.filter(e => e.status === 'active').length;
+                updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
+
                 const teacherSelect = document.getElementById('teacher-select');
-                const currentSelected = teacherSelect.value;
-
                 teacherSelect.innerHTML = `
                     <option value="">Choose a teacher...</option>
                     <option value="ALL_TEACHERS" style="font-weight: bold;">All Teachers (${allTeachers.length})</option>
@@ -1646,40 +1691,125 @@
                     teacherSelect.appendChild(option);
                 });
 
-                // Restore selection if teacher still exists
+                displayExams(allExams);
+                console.log('⚡ Rendered from cache');
+                return true;
+            } catch (e) {
+                console.warn('Cache load failed:', e);
+                return false;
+            }
+        }
+
+        async function loadData() {
+            try {
+                // Fetch teachers, students, and exams in PARALLEL
+                const [teachersResult, studentsResult, examsResult] = await Promise.all([
+                    dataService.getUsers({ role: 'teacher', schoolVersion: currentVersion, forceRefresh: true }),
+                    dataService.getUsers({ role: 'student', schoolVersion: currentVersion, forceRefresh: true }),
+                    dataService.getExams({ forceRefresh: true })
+                ]);
+
+                allTeachers = teachersResult;
+                allStudents = studentsResult;
+
+                // Filter exams by teachers in this version
+                const teacherIds = allTeachers.map(t => t.id);
+                const teacherUserIds = allTeachers.map(t => t.user).filter(id => !!id);
+                allExams = examsResult.filter(exam =>
+                    teacherIds.includes(exam.createdBy) ||
+                    teacherUserIds.includes(exam.createdBy)
+                );
+
+                // Update stats immediately (don't wait for backfill)
+                const activeExams = allExams.filter(e => e.status === 'active').length;
+                updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
+
+                // Populate teacher dropdown
+                const teacherSelect = document.getElementById('teacher-select');
+                const currentSelected = teacherSelect.value;
+                teacherSelect.innerHTML = `
+                    <option value="">Choose a teacher...</option>
+                    <option value="ALL_TEACHERS" style="font-weight: bold;">All Teachers (${allTeachers.length})</option>
+                `;
+                allTeachers.forEach(teacher => {
+                    const option = document.createElement('option');
+                    option.value = teacher.id;
+                    option.textContent = teacher.full_name || teacher.username;
+                    teacherSelect.appendChild(option);
+                });
                 if (currentSelected && allTeachers.some(t => t.id === currentSelected)) {
                     teacherSelect.value = currentSelected;
                 } else if (currentSelected === 'ALL_TEACHERS') {
                     teacherSelect.value = 'ALL_TEACHERS';
                 }
 
-                // Load all exams
-                allExams = await dataService.getExams();
-
-                // Filter exams by teachers in this version
-                // Match by either profile ID or user ID since createdBy might store either
-                const teacherIds = allTeachers.map(t => t.id);
-                const teacherUserIds = allTeachers.map(t => t.user).filter(id => !!id);
-
-                allExams = allExams.filter(exam =>
-                    teacherIds.includes(exam.createdBy) ||
-                    teacherUserIds.includes(exam.createdBy)
-                );
-
-
-                // Update stats
-                const activeExams = allExams.filter(e => e.status === 'active').length;
-                updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
-
                 // Display exams
                 displayExams(allExams);
 
-                // Setup real-time subscription for TEACHER RECOGNITION
+                // Setup real-time subscription
                 setupRealTimeUpdates();
+
+                // Backfill class_level in background (non-blocking)
+                backfillStudentClasses();
 
             } catch (error) {
                 console.error('Error loading data:', error);
-                // alert('Failed to load data: ' + error.message);
+            }
+        }
+
+        // Background class backfill — doesn't block dashboard rendering
+        async function backfillStudentClasses() {
+            const needsClass = allStudents.filter(s => !s.class_level);
+            if (needsClass.length === 0) return;
+
+            try {
+                var classAdminPb = new PocketBase(dataService.pb.baseUrl);
+                await classAdminPb.admins.authWithPassword("corneliusajayi123@gmail.com", "Finest1709");
+                const userIds = needsClass.map(s => s.user || s.id);
+
+                // Fetch all needing class in one batch (PocketBase handles large filters)
+                const batchSize = 80;
+                const allUsersRecords = [];
+                for (let i = 0; i < userIds.length; i += batchSize) {
+                    const batch = userIds.slice(i, i + batchSize);
+                    const filter = batch.map(id => `id="${id}"`).join(' || ');
+                    const records = await classAdminPb.collection('users').getFullList({ filter });
+                    allUsersRecords.push(...records);
+                }
+
+                const classMap = {};
+                allUsersRecords.forEach(u => { if (u.class_level) classMap[u.id] = u.class_level; });
+
+                if (Object.keys(classMap).length === 0) {
+                    classAdminPb.authStore.clear();
+                    return;
+                }
+
+                // Merge into allStudents and persist in parallel (fire-and-forget)
+                const updatePromises = [];
+                for (const s of allStudents) {
+                    const userId = s.user || s.id;
+                    if (!s.class_level && classMap[userId]) {
+                        s.class_level = classMap[userId];
+                        updatePromises.push(
+                            classAdminPb.collection('profiles').update(s.id, { class_level: classMap[userId] }).catch(() => {})
+                        );
+                    }
+                }
+
+                // Run all profile updates in parallel
+                if (updatePromises.length > 0) {
+                    await Promise.all(updatePromises);
+                    // Re-render student cards if the section is visible
+                    const studentsSection = document.getElementById('students-section');
+                    if (studentsSection && studentsSection.style.display !== 'none') {
+                        renderStudentCards();
+                    }
+                }
+
+                classAdminPb.authStore.clear();
+            } catch (e) {
+                console.warn('Background class backfill:', e.message);
             }
         }
 
@@ -1739,13 +1869,6 @@
 
 
         function updateStats(teachers, exams, active, students) {
-            // Update main content stats
-            const ids = { 'stat-teachers': teachers, 'stat-exams': exams, 'stat-active': active, 'stat-students': students };
-            Object.entries(ids).forEach(([id, val]) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = val;
-            });
-
             // Update sidebar stats
             const sIds = { 'stat-teachers-m': teachers, 'stat-exams-m': exams, 'stat-active-m': active, 'stat-students-m': students };
             Object.entries(sIds).forEach(([id, val]) => {
@@ -1757,6 +1880,456 @@
             const examCount = document.getElementById('sidebar-exam-count');
             if (examCount) examCount.textContent = exams;
         }
+
+        // ===== Section Toggle (stat card clicks) =====
+        let activeAdminSection = null;
+
+        window.goToDashboardHome = function() {
+            // Hide overlay sections, restore default view
+            ['teachers-section', 'students-section', 'exams-list-section'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const examsWrapper = document.getElementById('exams-section-wrapper');
+            if (examsWrapper) examsWrapper.style.display = 'block';
+            highlightStatCard(null);
+            activeAdminSection = null;
+            updateTopbarSearchPlaceholder();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.showAdminSection = function(section) {
+            const sections = ['teachers', 'students', 'exams', 'active-exams'];
+            const sectionMap = {
+                'teachers': 'teachers-section',
+                'students': 'students-section',
+                'exams': 'exams-section-wrapper',
+                'active-exams': 'exams-section-wrapper'
+            };
+
+            // Toggle: if clicking the same section, hide it
+            if (activeAdminSection === section || (section === 'active-exams' && activeAdminSection === 'exams-list')) {
+                ['teachers-section', 'students-section', 'exams-section-wrapper', 'exams-list-section'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                highlightStatCard(null);
+                activeAdminSection = null;
+                updateTopbarSearchPlaceholder();
+                return;
+            }
+
+            // Hide all sections
+            ['teachers-section', 'students-section', 'exams-section-wrapper', 'exams-list-section'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            // Show selected
+            const targetEl = document.getElementById(sectionMap[section]);
+            if (targetEl) {
+                targetEl.style.display = 'block';
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            // For active-exams, auto-open the modal filtered to active
+            if (section === 'active-exams') {
+                openExamsModal('all');
+            }
+
+            // Render content
+            if (section === 'teachers') renderTeacherCards();
+            if (section === 'students') renderStudentCards();
+
+            highlightStatCard(section);
+            activeAdminSection = section;
+            updateTopbarSearchPlaceholder();
+        };
+
+        // ===== Topbar Search — context-aware =====
+        function updateTopbarSearchPlaceholder() {
+            const input = document.getElementById('topbar-search');
+            if (!input) return;
+            if (activeAdminSection === 'exams-list') {
+                input.placeholder = 'Search exams...';
+            } else if (activeAdminSection === 'teachers') {
+                input.placeholder = 'Search teachers...';
+            } else if (activeAdminSection === 'students') {
+                input.placeholder = 'Search students...';
+            } else {
+                input.placeholder = 'Search...';
+            }
+            input.value = '';
+        }
+
+        (function() {
+            const input = document.getElementById('topbar-search');
+            if (!input) return;
+            input.addEventListener('input', function() {
+                const query = input.value;
+                if (activeAdminSection === 'exams-list') {
+                    topbarSearchExams(query);
+                } else if (activeAdminSection === 'teachers') {
+                    const el = document.getElementById('teacher-search');
+                    if (el) { el.value = query; filterTeacherCards(); }
+                } else if (activeAdminSection === 'students') {
+                    const el = document.getElementById('student-search');
+                    if (el) { el.value = query; filterStudentCards(); }
+                }
+            });
+        })();
+
+        function topbarSearchExams(query) {
+            const q = query.toLowerCase();
+            const container = document.getElementById('exams-modal-container');
+            if (!container) return;
+            container.querySelectorAll('.exam-card').forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(q) ? '' : 'none';
+            });
+        }
+
+        function highlightStatCard(section) {
+            document.querySelectorAll('.sidebar-stat-item').forEach(item => {
+                item.classList.remove('stat-active');
+            });
+            if (section) {
+                const item = document.querySelector(`.sidebar-stat-item[data-section="${section}"]`);
+                if (item) {
+                    item.classList.add('stat-active');
+                }
+            }
+        }
+
+        // ===== Teacher Cards =====
+        function renderTeacherCards() {
+            const grid = document.getElementById('teachers-grid');
+            if (!grid) return;
+            if (allTeachers.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No teachers found</p></div>';
+                return;
+            }
+
+            grid.innerHTML = allTeachers.map(t => {
+                const name = t.full_name || t.username || 'Unknown';
+                const initial = name.charAt(0).toUpperCase();
+                const examCount = allExams.filter(e => e.createdBy === t.id || e.createdBy === t.user).length;
+                return `
+                    <div class="collapsible-group" style="cursor:pointer; transition:all 0.2s;"
+                         onclick="openExamsModal('${t.id}')"
+                         onmouseover="this.style.borderColor='var(--primary-color)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'"
+                         onmouseout="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none'">
+                        <div class="collapsible-header" style="background:var(--inner-bg); border:none; display:flex; align-items:center; gap:12px; padding:16px;">
+                            <div style="width:40px; height:40px; border-radius:50%; background:#1A73E8; color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; flex-shrink:0;">${initial}</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-weight:600; font-size:0.95rem; color:var(--text-color);">${name}</div>
+                                <div style="font-size:0.8rem; color:var(--light-text);">${t.username || ''}</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span class="group-count">${examCount} ${examCount === 1 ? 'Exam' : 'Exams'}</span>
+                                <span class="view-link" style="display:flex;align-items:center;gap:2px;">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg></span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.filterTeacherCards = function() {
+            const search = (document.getElementById('teacher-search')?.value || '').toLowerCase();
+            const grid = document.getElementById('teachers-grid');
+            if (!grid) return;
+            grid.querySelectorAll('.collapsible-group').forEach(card => {
+                const name = card.textContent.toLowerCase();
+                card.style.display = name.includes(search) ? '' : 'none';
+            });
+        };
+
+        // ===== Student Cards =====
+        const studentClassOptions = ['JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3', 'Grade 4', 'Grade 5&6'];
+
+        function refreshClassFilter() {
+            const classFilter = document.getElementById('student-class-filter');
+            if (!classFilter) return;
+            const currentVal = classFilter.value;
+            const classes = [...new Set(allStudents.map(s => s.class_level || '').filter(Boolean))].sort();
+            // Reset options
+            classFilter.innerHTML = '<option value="All">All Classes</option>';
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                classFilter.appendChild(opt);
+            });
+            // Add Unassigned if any
+            if (allStudents.some(s => !s.class_level)) {
+                const opt = document.createElement('option');
+                opt.value = 'Unassigned';
+                opt.textContent = 'Unassigned';
+                classFilter.appendChild(opt);
+            }
+            classFilter.value = currentVal;
+        }
+
+        function renderStudentCards() {
+            const grid = document.getElementById('students-grid');
+            if (!grid) return;
+            if (allStudents.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No students found</p></div>';
+                return;
+            }
+            refreshClassFilter();
+            renderFilteredStudents();
+        }
+
+        function renderFilteredStudents() {
+            const grid = document.getElementById('students-grid');
+            if (!grid) return;
+            const search = (document.getElementById('student-search')?.value || '').toLowerCase();
+            const classVal = document.getElementById('student-class-filter')?.value || 'All';
+
+            let filtered = [...allStudents];
+            if (classVal === 'Unassigned') {
+                filtered = filtered.filter(s => !s.class_level);
+            } else if (classVal !== 'All') {
+                filtered = filtered.filter(s => s.class_level === classVal);
+            }
+            if (search) {
+                filtered = filtered.filter(s => {
+                    const name = (s.full_name || s.username || '').toLowerCase();
+                    return name.includes(search);
+                });
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No students match your search</p></div>';
+                return;
+            }
+
+            // Sort alphabetically by name
+            filtered.sort((a, b) => {
+                const nameA = (a.full_name || a.username || '').toLowerCase();
+                const nameB = (b.full_name || b.username || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+            // Group by class
+            const grouped = {};
+            filtered.forEach(s => {
+                const cls = s.class_level || 'Unassigned';
+                if (!grouped[cls]) grouped[cls] = [];
+                grouped[cls].push(s);
+            });
+
+            const sortedClasses = Object.keys(grouped).sort((a, b) => {
+                if (a === 'Unassigned') return 1;
+                if (b === 'Unassigned') return -1;
+                return a.localeCompare(b);
+            });
+
+            let html = '';
+            sortedClasses.forEach(cls => {
+                html += `<div style="margin-bottom:18px;">
+                    <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--light-text); padding:8px 4px 6px; border-bottom:2px solid var(--border-color); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>${cls}</span>
+                        <span style="font-weight:600; font-size:0.75rem; background:var(--primary-color); color:white; padding:2px 10px; border-radius:10px;">${grouped[cls].length}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px;">`;
+                grouped[cls].forEach(s => {
+                    const name = s.full_name || s.username || 'Unknown';
+                    const initial = name.charAt(0).toUpperCase();
+                    const currentClass = s.class_level || '';
+                    const classOptionsHtml = studentClassOptions.map(c =>
+                        `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`
+                    ).join('');
+                    html += `
+                        <div class="collapsible-group" style="transition:all 0.2s;">
+                            <div class="collapsible-header" style="background:var(--inner-bg); border:none; padding:14px 16px; display:flex; flex-direction:column;">
+                                <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; width:100%;">
+                                    <div style="width:38px; height:38px; border-radius:50%; background:#EA4335; color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.95rem; flex-shrink:0;">${initial}</div>
+                                    <div style="min-width:0;">
+                                        <div style="font-weight:600; font-size:0.92rem; color:var(--text-color);">${name}</div>
+                                        <div style="font-size:0.78rem; color:var(--light-text);">${s.username || ''}</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <select onchange="updateStudentClass('${s.id}', this.value)" title="Assign class"
+                                        style="padding:4px 8px; font-size:0.78rem; border-radius:0; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-color); cursor:pointer; max-width:120px;">
+                                        <option value="" ${!currentClass ? 'selected' : ''}>No class</option>
+                                        ${classOptionsHtml}
+                                    </select>
+                                    <button onclick="viewStudentResults('${s.user || s.id}', '${name.replace(/'/g, "\\'")}', '${currentClass.replace(/'/g, "\\'")}')"
+                                        style="background:none; border:none; color:var(--primary-color); font-size:0.78rem; font-weight:700; cursor:pointer; padding:2px 0; display:flex; align-items:center; gap:4px;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                        Results
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                html += `</div></div>`;
+            });
+
+            grid.innerHTML = html;
+        }
+
+        window.filterStudentCards = function() {
+            renderFilteredStudents();
+        };
+
+        // ===== Student Results Modal =====
+        let _currentStudentResultsData = null; // For export
+
+        window.viewStudentResults = async function(studentUserId, studentName, studentClass) {
+            const modal = document.getElementById('student-results-modal');
+            const scoresContainer = document.getElementById('sr-modal-scores');
+            const grandTotalEl = document.getElementById('sr-modal-grand-total');
+
+            document.getElementById('sr-modal-name').textContent = studentName;
+            document.getElementById('sr-modal-class').textContent = studentClass || 'No class assigned';
+            scoresContainer.innerHTML = '<div style="padding:30px; text-align:center; color:var(--light-text);">Loading results...</div>';
+            grandTotalEl.textContent = '...';
+            modal.style.display = 'flex';
+
+            try {
+                // Fetch all results for this student
+                const results = await dataService.getResults({ studentId: studentUserId, forceRefresh: true });
+
+                if (!results || results.length === 0) {
+                    scoresContainer.innerHTML = '<div style="padding:40px; text-align:center; color:var(--light-text);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="margin-bottom:10px; opacity:0.4;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><br>No exam results found for this student.</div>';
+                    grandTotalEl.textContent = '0';
+                    _currentStudentResultsData = null;
+                    return;
+                }
+
+                // Match results with exams to get subject info
+                const scoreRows = [];
+                let grandTotal = 0;
+                let grandCA = 0;
+                let grandExam = 0;
+
+                for (const result of results) {
+                    if (result.status !== 'completed' && result.status !== 'graded') continue;
+
+                    const exam = allExams.find(e => e.id === result.examId);
+                    const subject = exam ? (exam.subject || exam.title) : 'Unknown Subject';
+
+                    const ca = (result.flags && result.flags._manualTheoryScore !== undefined)
+                        ? parseFloat(result.flags._manualTheoryScore) : null;
+                    const totalPoints = result.totalPoints || 0;
+                    const scorePct = result.score || 0;
+                    const actualPoints = totalPoints > 0 ? Math.round((scorePct / 100) * totalPoints) : 0;
+
+                    // Exam score = total scored - CA (if CA exists)
+                    let examScore, caScore, total;
+                    if (ca !== null && ca > 0) {
+                        caScore = ca;
+                        examScore = Math.max(0, actualPoints - ca);
+                        total = actualPoints;
+                    } else {
+                        caScore = null;
+                        examScore = actualPoints;
+                        total = actualPoints;
+                    }
+
+                    grandCA += caScore || 0;
+                    grandExam += examScore;
+                    grandTotal += total;
+
+                    scoreRows.push({ subject, caScore, examScore, total, totalPoints, passed: result.passed, scorePct });
+                }
+
+                // Store for export
+                _currentStudentResultsData = { name: studentName, class: studentClass, rows: scoreRows, grandCA, grandExam, grandTotal };
+
+                if (scoreRows.length === 0) {
+                    scoresContainer.innerHTML = '<div style="padding:40px; text-align:center; color:var(--light-text);">No completed exams found.</div>';
+                    grandTotalEl.textContent = '0';
+                    return;
+                }
+
+                // Render score rows
+                let html = '';
+                scoreRows.forEach((row, i) => {
+                    const bgColor = i % 2 === 0 ? 'transparent' : 'var(--inner-bg)';
+                    const totalColor = row.passed ? '#28a745' : (row.scorePct >= 40 ? '#ffc107' : '#dc3545');
+                    html += `
+                        <div style="display:flex; align-items:center; padding:12px 24px; background:${bgColor}; border-bottom:1px solid var(--border-color);">
+                            <span style="flex:1; font-weight:600; font-size:0.88rem; color:var(--text-color); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.subject}">${row.subject}</span>
+                            <span style="width:50px; text-align:center; font-size:0.85rem; color:${row.caScore !== null ? 'var(--text-color)' : 'var(--light-text)'}; font-weight:${row.caScore !== null ? '600' : '400'};">${row.caScore !== null ? row.caScore : '—'}</span>
+                            <span style="width:50px; text-align:center; font-size:0.85rem; color:var(--text-color); font-weight:600;">${row.examScore}</span>
+                            <span style="width:55px; text-align:right; font-size:0.9rem; font-weight:800; color:${totalColor};">${row.total}</span>
+                        </div>`;
+                });
+                scoresContainer.innerHTML = html;
+                grandTotalEl.textContent = grandTotal;
+
+            } catch (err) {
+                console.error('Failed to load student results:', err);
+                scoresContainer.innerHTML = '<div style="padding:30px; text-align:center; color:#dc3545;">Failed to load results. Please try again.</div>';
+            }
+        };
+
+        window.closeStudentResultsModal = function() {
+            document.getElementById('student-results-modal').style.display = 'none';
+        };
+
+        window.exportStudentResults = function() {
+            if (!_currentStudentResultsData || !_currentStudentResultsData.rows.length) {
+                showAlert('No Data', 'No results to export.');
+                return;
+            }
+            if (typeof XLSX === 'undefined') {
+                showAlert('Error', 'Excel export library not loaded. Please check your connection and refresh.');
+                return;
+            }
+
+            const d = _currentStudentResultsData;
+            const headers = ['Subject', 'CA', 'Exam Score', 'Total'];
+            const rows = d.rows.map(r => [
+                r.subject,
+                r.caScore !== null ? r.caScore : '',
+                r.examScore,
+                r.total
+            ]);
+            // Add grand total row
+            rows.push([]);
+            rows.push(['Grand Total', d.grandCA || '', d.grandExam, d.grandTotal]);
+
+            const ws = XLSX.utils.aoa_to_sheet([
+                [`${d.name} — ${d.class || 'No Class'} — Results`],
+                [],
+                headers,
+                ...rows
+            ]);
+
+            // Column widths
+            ws['!cols'] = [{ wch: 25 }, { wch: 8 }, { wch: 12 }, { wch: 8 }];
+            // Merge title row
+            ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+            const wb = XLSX.utils.book_new();
+            const safeName = d.name.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 25);
+            XLSX.utils.book_append_sheet(wb, ws, safeName || 'Results');
+            XLSX.writeFile(wb, `${d.name.replace(/\s+/g, '_')}_Results.xlsx`);
+            showToast('Results exported successfully');
+        };
+
+        window.updateStudentClass = async function(profileId, newClass) {
+            try {
+                await dataService.pb.collection('profiles').update(profileId, { class_level: newClass });
+                // Update local data
+                const student = allStudents.find(s => s.id === profileId);
+                if (student) student.class_level = newClass;
+                showToast(`Class updated to "${newClass || 'Unassigned'}"`);
+                // Refresh the filter options and re-render
+                refreshClassFilter();
+                renderFilteredStudents();
+            } catch (err) {
+                console.error('Failed to update student class:', err);
+                showAlert('Error', 'Failed to update student class: ' + err.message);
+            }
+        };
 
         // Global state for current view in modal
         let currentModalTeacherId = 'all';
@@ -1812,31 +2385,54 @@
 
         window.openExamsModal = function (teacherId) {
             currentModalTeacherId = teacherId;
-            const modal = document.getElementById('exams-list-modal');
-            const titleEl = document.getElementById('exams-modal-title');
-            const subtitleEl = document.getElementById('exams-modal-subtitle');
+            const titleEl = document.getElementById('exams-list-title');
+            const subtitleEl = document.getElementById('exams-list-subtitle');
 
             // Set title based on selection
             if (teacherId === 'all') {
-                titleEl.textContent = 'All School Exams';
+                titleEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> All School Exams';
                 subtitleEl.textContent = `Viewing all exams for version: ${currentVersion}`;
             } else {
                 const teacher = allTeachers.find(t => t.id === teacherId);
                 const teacherName = teacher ? (teacher.full_name || teacher.username) : 'Teacher';
-                titleEl.textContent = `Exams by ${teacherName}`;
+                titleEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> Exams by ' + teacherName;
                 subtitleEl.textContent = `Exams published in ${currentVersion}`;
             }
 
             // Reset filter to 'all' when opening
             document.getElementById('exam-filter').value = 'all';
 
-            modal.style.display = 'flex';
-            filterExams(); // Initial render in modal
+            // Hide other sections, show exams list section
+            ['teachers-section', 'students-section', 'exams-section-wrapper'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const examsListSection = document.getElementById('exams-list-section');
+            if (examsListSection) {
+                examsListSection.style.display = 'block';
+                examsListSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            activeAdminSection = 'exams-list';
+            highlightStatCard(null);
+            updateTopbarSearchPlaceholder();
+            filterExams();
         };
 
-        window.closeExamsModal = function () {
-            document.getElementById('exams-list-modal').style.display = 'none';
+        window.closeExamsPage = function () {
+            document.getElementById('exams-list-section').style.display = 'none';
+            // Restore previous view
+            const examsWrapper = document.getElementById('exams-section-wrapper');
+            if (examsWrapper) examsWrapper.style.display = 'block';
+            activeAdminSection = 'exams';
+            highlightStatCard('exams');
+            updateTopbarSearchPlaceholder();
+            const input = document.getElementById('topbar-search');
+            if (input) input.value = '';
         };
+
+        // Keep closeExamsModal as alias for backwards compat
+        window.closeExamsModal = window.closeExamsPage;
 
         window.filterExams = function () {
             const statusFilter = document.getElementById('exam-filter').value;
@@ -1886,6 +2482,8 @@
                     ? `<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${new Date(exam.scheduledDate).toLocaleString()}</span>`
                     : '';
 
+                const targetClassLabel = exam.targetClass && exam.targetClass !== 'All' ? exam.targetClass : 'All Classes';
+
                 return `
                             <div class="exam-card" id="exam-card-${exam.id}">
                                 <div class="exam-card-header">
@@ -1894,14 +2492,24 @@
                                         <div class="exam-meta">
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${teacherName}</span>
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> ${exam.subject}</span>
+                                            <span id="class-label-${exam.id}" style="font-weight:600; color:var(--primary-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> ${targetClassLabel}</span>
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${exam.duration} min</span>
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${exam.questions.length} Qs</span>
-                                            ${scheduledInfo}
                                         </div>
                                     </div>
                                     <span class="status-badge ${statusClass}">${exam.status}</span>
                                 </div>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                                    <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--light-text);">
+                                        ${scheduledInfo || '<span style="opacity:0.6;">No schedule set</span>'}
+                                    </div>
+                                    <button onclick="openScheduleModal('${exam.id}', ${exam.duration}, '${exam.scheduledDate || ''}')"
+                                        style="padding: 6px 12px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.82rem; display:flex; align-items:center; gap:4px; flex-shrink:0;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        Schedule
+                                    </button>
+                                </div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
                                     <select id="status-${exam.id}" onchange="changeExamStatus('${exam.id}', this.value)"
                                         style="padding: 6px 10px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); font-size: 0.82rem; cursor: pointer; background: var(--card-bg); color: var(--text-color);">
                                         <option value="active" ${exam.status === 'active' ? 'selected' : ''}>Active</option>
@@ -1913,11 +2521,6 @@
                                         <option value="All" ${exam.targetClass === 'All' ? 'selected' : ''}>All Classes</option>
                                         ${getClassOptions(exam.targetClass)}
                                     </select>
-                                    <button onclick="openScheduleModal('${exam.id}', ${exam.duration}, '${exam.scheduledDate || ''}')"
-                                        style="padding: 6px 12px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.82rem; display:flex; align-items:center; gap:4px;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                        Schedule
-                                    </button>
                                 </div>
                             </div>
                         `;
@@ -1976,6 +2579,12 @@
                 // Update local data
                 const exam = allExams.find(e => e.id === examId);
                 if (exam) exam.targetClass = newClass;
+                // Update class label on the card
+                const classLabel = document.getElementById('class-label-' + examId);
+                if (classLabel) {
+                    const labelText = newClass && newClass !== 'All' ? newClass : 'All Classes';
+                    classLabel.innerHTML = classLabel.querySelector('svg').outerHTML + ' ' + labelText;
+                }
 
                 showToast(`Exam class changed to "${newClass}"`);
                 // If a modal is open, refresh the modal view too

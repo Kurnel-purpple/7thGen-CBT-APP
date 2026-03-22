@@ -2100,6 +2100,10 @@ body:has(.app-container.no-sidebar) {
         display: none;
     }
 
+    .app-sidebar.sidebar-collapsed .sidebar-logout-btn {
+        display: none;
+    }
+
     .app-sidebar.sidebar-collapsed .sidebar-cta {
         padding: 10px;
         margin: 0 8px 12px;
