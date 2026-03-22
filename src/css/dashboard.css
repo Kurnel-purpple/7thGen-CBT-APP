@@ -700,12 +700,11 @@
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(26,115,232,0.3);
+    box-shadow: none;
 }
 
 .btn-start-exam:hover {
-    background: var(--primary-dark);
-    box-shadow: 0 6px 20px rgba(26,115,232,0.4);
+    opacity: 0.9;
     transform: translateY(-1px);
 }
 

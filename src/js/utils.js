@@ -339,6 +339,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         Utils.makeLogoClickable();
     }, 100);
+
+    // Click empty sidebar area to toggle collapse
+    const sidebar = document.getElementById('app-sidebar');
+    if (sidebar) {
+        sidebar.addEventListener('click', (e) => {
+            // Only toggle if the click was on an empty area of the sidebar
+            const tag = e.target.tagName.toLowerCase();
+            const interactive = ['button', 'a', 'input', 'select', 'option', 'textarea', 'label', 'span', 'svg', 'path', 'line', 'circle', 'polyline', 'rect', 'img'];
+            if (interactive.includes(tag)) return;
+            // Also skip if clicking inside an interactive parent
+            if (e.target.closest('button, a, input, select, .sidebar-nav-item, .sidebar-stat-item, .sidebar-profile-info, .sidebar-cta, .dropdown-item, .sidebar-expand-toggle')) return;
+            // Toggle
+            if (typeof window.toggleTabletSidebar === 'function') {
+                window.toggleTabletSidebar();
+            }
+        });
+    }
 });
 
 // Register Service Worker

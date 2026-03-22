@@ -175,6 +175,19 @@
     color: #fff;
 }
 
+.landing-btn-dashed {
+    background: transparent;
+    color: #1A73E8;
+    border: 2px dashed #1A73E8;
+    font-weight: 700;
+}
+
+.landing-btn-dashed:hover {
+    background: rgba(26, 115, 232, 0.08);
+    border-color: #1557B0;
+    color: #1557B0;
+}
+
 .landing-btn-white {
     background: #fff;
     color: #1A73E8;
@@ -297,7 +310,7 @@
     inset: 0;
     display: flex;
     align-items: center;
-    padding: 72px 48px 0;
+    padding: 0 48px;
     z-index: 5;
     transition: opacity 0.1s linear;
 }
@@ -1220,6 +1233,17 @@
     color: #0F1117;
 }
 
+[data-theme="dark"] .landing-btn-dashed {
+    color: #4D8EF0;
+    border-color: #4D8EF0;
+}
+
+[data-theme="dark"] .landing-btn-dashed:hover {
+    background: rgba(77, 142, 240, 0.1);
+    color: #6CA4F7;
+    border-color: #6CA4F7;
+}
+
 [data-theme="dark"] .landing-hamburger {
     color: #E8EAED;
 }
@@ -1422,7 +1446,7 @@
 /* ── Tablet ──────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
     .landing-hero-content {
-        padding: 72px 32px 0;
+        padding: 0 32px;
     }
 
     .landing-hero-content h1 {
@@ -1491,7 +1515,7 @@
 
     /* Hero */
     .landing-hero-content {
-        padding: 60px 20px 0;
+        padding: 0 20px;
     }
 
     .landing-hero-split {

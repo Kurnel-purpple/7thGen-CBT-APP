@@ -914,7 +914,10 @@ const examManager = {
             numDiv.querySelector('select').onchange = (e) => {
                 const newCount = parseInt(e.target.value);
                 while (examManager._modalSubQuestions.length < newCount) {
-                    examManager._modalSubQuestions.push({ id: Utils.generateId(), number: examManager._modalSubQuestions.length + 1, correctAnswer: '' });
+                    const lastNum = examManager._modalSubQuestions.length > 0
+                        ? examManager._modalSubQuestions[examManager._modalSubQuestions.length - 1].number
+                        : 0;
+                    examManager._modalSubQuestions.push({ id: Utils.generateId(), number: lastNum + 1, correctAnswer: '' });
                 }
                 if (newCount < examManager._modalSubQuestions.length) {
                     examManager._modalSubQuestions = examManager._modalSubQuestions.slice(0, newCount);
@@ -934,7 +937,7 @@ const examManager = {
                 const subDiv = document.createElement('div');
                 subDiv.className = 'sub-question-row';
                 subDiv.innerHTML = `
-                    <span class="sub-question-label">Q ${subQ.number}:</span>
+                    <span class="sub-question-label">Q <input type="number" class="subq-number-input" value="${subQ.number}" min="1" max="999" title="Edit question number">:</span>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         ${['A','B','C','D','E'].map(opt => `
                             <label style="display:flex; align-items:center; gap:4px; cursor:pointer; padding:5px 10px; border-radius:6px; border:1px solid var(--border-color); ${subQ.correctAnswer === opt ? 'background:var(--success-color); color:white; border-color:var(--success-color);' : 'background:var(--card-bg);'}">
@@ -944,6 +947,10 @@ const examManager = {
                         `).join('')}
                     </div>
                 `;
+                const numInput = subDiv.querySelector('.subq-number-input');
+                numInput.onchange = () => {
+                    subQ.number = parseInt(numInput.value) || subQ.number;
+                };
                 subDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
                     radio.onchange = () => {
                         subQ.correctAnswer = radio.value;

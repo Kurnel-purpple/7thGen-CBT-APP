@@ -40,6 +40,28 @@
             min-width: 90px;
             flex-shrink: 0;
         }
+        .subq-number-input {
+            width: 42px;
+            padding: 2px 4px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-align: center;
+            border: 1px dashed var(--border-color);
+            border-radius: 6px;
+            background: transparent;
+            color: inherit;
+            -moz-appearance: textfield;
+        }
+        .subq-number-input::-webkit-outer-spin-button,
+        .subq-number-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .subq-number-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            border-style: solid;
+        }
 
         @media (max-width: 480px) {
             .sub-question-row { flex-direction: column; align-items: flex-start; gap: 5px; }

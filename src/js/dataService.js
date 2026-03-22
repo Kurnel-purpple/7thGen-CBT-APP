@@ -143,16 +143,21 @@ class DataService {
             try {
                 profile = await this.pb.collection('profiles').getFirstListItem(`user="${authData.record.id}"`);
 
-                // Sync school_version from users record if profile is missing it
+                // Sync school_version and class_level from users record if profile is missing them
+                const syncFields = {};
                 if (!profile.school_version && authData.record.school_version) {
+                    syncFields.school_version = authData.record.school_version;
+                }
+                if (!profile.class_level && authData.record.class_level) {
+                    syncFields.class_level = authData.record.class_level;
+                }
+                if (Object.keys(syncFields).length > 0) {
                     try {
-                        await this.pb.collection('profiles').update(profile.id, {
-                            school_version: authData.record.school_version
-                        });
-                        profile.school_version = authData.record.school_version;
-                        console.log('Synced school_version to existing profile');
+                        await this.pb.collection('profiles').update(profile.id, syncFields);
+                        Object.assign(profile, syncFields);
+                        console.log('Synced fields to existing profile:', Object.keys(syncFields));
                     } catch (syncErr) {
-                        console.warn('Failed to sync school_version to profile:', syncErr.message);
+                        console.warn('Failed to sync fields to profile:', syncErr.message);
                     }
                 }
             } catch (profileErr) {
@@ -494,14 +499,27 @@ class DataService {
 
 
     async getUsers(filters = {}) {
+        const { forceRefresh, ...cacheFilters } = filters;
+        const cacheKey = `users_${JSON.stringify(cacheFilters)}`;
+
+        // Try IDB cache first
+        if (window.idb && !forceRefresh) {
+            try {
+                const cached = await window.idb.getDashboardCache(cacheKey);
+                if (cached && cached.data && cached.data.length > 0) {
+                    return cached.data;
+                }
+            } catch (e) { }
+        }
+
         try {
             let filterString = '';
-            if (filters.role) {
-                filterString = `role="${filters.role}"`;
+            if (cacheFilters.role) {
+                filterString = `role="${cacheFilters.role}"`;
             }
-            if (filters.schoolVersion) {
+            if (cacheFilters.schoolVersion) {
                 if (filterString) filterString += ' && ';
-                filterString += `school_version="${filters.schoolVersion}"`;
+                filterString += `school_version="${cacheFilters.schoolVersion}"`;
             }
 
             const users = await this.pb.collection('profiles').getFullList({
@@ -519,6 +537,11 @@ class DataService {
                     uniqueUsers.push(user);
                     seenUserIds.add(userId);
                 }
+            }
+
+            // Cache the result
+            if (window.idb) {
+                try { await window.idb.saveDashboardCache(cacheKey, uniqueUsers); } catch (e) { }
             }
 
             return uniqueUsers;

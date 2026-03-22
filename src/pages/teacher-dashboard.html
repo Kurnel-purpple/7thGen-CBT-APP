@@ -282,7 +282,12 @@
                 </button>
                 <button class="sidebar-nav-item" onclick="openFlagReviewModal()">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
-                    <span class="sidebar-nav-label">Flags &amp; Results</span>
+                    <span class="sidebar-nav-label">Flags</span>
+                    <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="flags-pending-count">-</span>
+                </button>
+                <button class="sidebar-nav-item" onclick="scrollToExams(); closeSidebarMobile();">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+                    <span class="sidebar-nav-label">Results</span>
                     <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="results-pending-count">-</span>
                 </button>
                 <button class="sidebar-nav-item" style="background-color: rgba(46,204,113,0.15); color: rgba(255,255,255,0.9);" onclick="prepareDevice()">
@@ -453,6 +458,11 @@
                 if (overlay) overlay.classList.toggle('visible');
             }
         };
+        window.scrollToExams = function() {
+            const grid = document.getElementById('exams-grid');
+            if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
         window.closeSidebarMobile = function() {
             var sidebar = document.getElementById('app-sidebar');
             var overlay = document.getElementById('sidebar-overlay');
@@ -1297,15 +1307,20 @@
                 // Update Stats - Initial count before filtering
                 // (Will be updated below with active exams only)
 
-                // Calculate Pending Results (Global Red Count - Total Flagged Submissions / Students)
-                // Filter for any ACTIVE flags
-                const pendingCount = allResults.filter(r => window.countActiveFlags(r.flags) > 0).length;
+                // Calculate counts for this teacher's exams only
+                const teacherExamIds = new Set(exams.map(e => e.id));
+                const teacherResults = allResults.filter(r => teacherExamIds.has(r.examId));
+                const flagsCount = teacherResults.filter(r => window.countActiveFlags(r.flags) > 0).length;
+                const resultsCount = teacherResults.filter(r => r.status === 'completed').length;
+
+                const fEl = document.getElementById('flags-pending-count');
+                if (fEl) fEl.textContent = flagsCount;
 
                 const pEl = document.getElementById('results-pending-count');
-                if (pEl) pEl.textContent = pendingCount;
+                if (pEl) pEl.textContent = resultsCount;
 
                 const mpEl = document.getElementById('mobile-results-pending-count');
-                if (mpEl) mpEl.textContent = pendingCount;
+                if (mpEl) mpEl.textContent = flagsCount;
 
                 // Render Grid
                 const grid = document.getElementById('exams-grid');
@@ -2163,16 +2178,25 @@
 
         // Helper to update main dashboard counters without full reload
         function updateDashboardStats(exams, allResults) {
-            // Count distinct STUDENTS with active flags (not total flags)
-            const pendingCount = allResults.filter(r => window.countActiveFlags(r.flags) > 0).length;
+            // Filter results to only this teacher's exams
+            const teacherExamIds = new Set(exams.map(e => e.id));
+            const teacherResults = allResults.filter(r => teacherExamIds.has(r.examId));
 
-            // Update desktop Results Pending counter
+            // Count flags and total results for this teacher only
+            const flagsCount = teacherResults.filter(r => window.countActiveFlags(r.flags) > 0).length;
+            const resultsCount = teacherResults.filter(r => r.status === 'completed').length;
+
+            // Update Flags counter
+            const fEl = document.getElementById('flags-pending-count');
+            if (fEl) fEl.textContent = flagsCount;
+
+            // Update Results counter
             const pEl = document.getElementById('results-pending-count');
-            if (pEl) pEl.textContent = pendingCount;
+            if (pEl) pEl.textContent = resultsCount;
 
-            // Update mobile Results Pending counter (Task 3)
+            // Update mobile counters
             const mpEl = document.getElementById('mobile-results-pending-count');
-            if (mpEl) mpEl.textContent = pendingCount;
+            if (mpEl) mpEl.textContent = flagsCount;
 
             // Filter to only show ACTIVE exams (not archived or deleted)
             const activeExams = exams.filter(e => e.status !== 'archived' && e.status !== 'deleted');

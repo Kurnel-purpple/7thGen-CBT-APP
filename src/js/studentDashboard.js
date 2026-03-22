@@ -685,6 +685,16 @@ const studentDashboard = {
             return;
         }
 
+        // Sort: available exams first, then scheduled by due date (earliest first)
+        available.sort((a, b) => {
+            const aScheduled = a.scheduledDate && new Date(a.scheduledDate) > now;
+            const bScheduled = b.scheduledDate && new Date(b.scheduledDate) > now;
+            if (aScheduled && !bScheduled) return 1;
+            if (!aScheduled && bScheduled) return -1;
+            if (aScheduled && bScheduled) return new Date(a.scheduledDate) - new Date(b.scheduledDate);
+            return 0;
+        });
+
         html += available.map(exam => {
             // Check if exam is scheduled for future
             const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > now;
@@ -698,9 +708,9 @@ const studentDashboard = {
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
                 scheduleInfo = `<span style="color: var(--accent-color); display:inline-flex; align-items:center; gap:4px; font-size:0.72rem;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${formattedDate}</span>`;
-                actionButton = `<button class="btn" style="width: 100%; background: var(--light-text); color: white; cursor: not-allowed; display:inline-flex; align-items:center; justify-content:center; gap:6px;" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Available ${formattedDate}</button>`;
+                actionButton = `<button class="btn" style="width: 100%; background: #EA4335; color: white; cursor: not-allowed; display:inline-flex; align-items:center; justify-content:center; gap:6px; opacity:0.85;" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Available ${formattedDate}</button>`;
             } else {
-                actionButton = `<button class="btn btn-primary" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%;">Start Exam</button>`;
+                actionButton = `<button class="btn" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%; background: #28a745; color: white;">Start Exam</button>`;
             }
 
             const qCount = exam.questions ? exam.questions.length : 0;
@@ -882,9 +892,9 @@ const studentDashboard = {
             if (isScheduled) {
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
-                ctaHtml = `<button class="btn btn-start-exam" disabled style="opacity: 0.6; cursor: not-allowed;">Available ${formattedDate}</button>`;
+                ctaHtml = `<button class="btn btn-start-exam" disabled style="background: #EA4335; color: white; opacity: 0.85; cursor: not-allowed;">Available ${formattedDate}</button>`;
             } else {
-                ctaHtml = `<button class="btn btn-start-exam" onclick="studentDashboard.startExam('${exam.id}')">Start Exam</button>`;
+                ctaHtml = `<button class="btn btn-start-exam" onclick="studentDashboard.startExam('${exam.id}')" style="background: #28a745; color: white;">Start Exam</button>`;
             }
 
             // Past attempts for this exam
@@ -907,15 +917,62 @@ const studentDashboard = {
                 `;
             }
 
+            // Build instructions content for center panel
+            let customInstructionsHtml = '';
+            if (exam.instructions && exam.instructions.trim()) {
+                customInstructionsHtml = `
+                    <div style="margin-bottom: 20px;">
+                        <h5 style="color: var(--secondary-color, var(--primary-color)); margin-bottom: 10px;">Specific Instructions:</h5>
+                        <div style="background: var(--card-bg, #fff); padding: 12px; border-left: 3px solid var(--primary-color); border-radius: 4px; color: var(--text-color);">
+                            ${exam.instructions}
+                        </div>
+                    </div>
+                `;
+            }
+
             centerContent.innerHTML = `
                 <div class="exam-detail-header">
                     <h2 class="exam-detail-title" style="font-size:1.5rem; font-weight:800;">${exam.subject}</h2>
                     <span class="exam-detail-breadcrumb">${exam.title} · ${exam.targetClass || 'All Classes'}</span>
                 </div>
                 <div class="exam-detail-divider"></div>
-                <div class="exam-detail-instructions">
-                    ${exam.instructions ? `<p>${exam.instructions}</p>` : '<p style="color: var(--light-text);">No special instructions for this exam.</p>'}
+
+                ${customInstructionsHtml}
+
+                <h5 style="color: var(--secondary-color, var(--primary-color)); margin-bottom: 10px;">General Guidelines:</h5>
+                <ul style="color: var(--text-color); line-height: 1.8; margin-bottom: 20px; padding-left: 20px;">
+                    <li>Read each question carefully before answering</li>
+                    <li>You can navigate between questions using the navigation buttons</li>
+                    <li>Your progress is automatically saved as you answer</li>
+                    <li>The timer will start immediately when you begin the exam</li>
+                    <li>You can review and change your answers before submitting</li>
+                </ul>
+
+                <div style="background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <h5 style="color: #f57c00; margin-bottom: 10px; margin-top: 0;">Important:</h5>
+                    <ul style="color: var(--text-color); line-height: 1.8; margin: 0; padding-left: 20px;">
+                        <li><strong>Auto-Submission:</strong> The exam will automatically submit when time expires</li>
+                        <li><strong>Incomplete Submissions:</strong> If you close the app or browser before completing, your score will be calculated based on the questions you've answered</li>
+                        <li><strong>Internet Connection:</strong> Your answers are saved locally and will sync when you're back online</li>
+                        <li><strong>One Attempt:</strong> Once you start, you cannot retake this exam</li>
+                    </ul>
                 </div>
+
+                <h5 style="color: var(--secondary-color, var(--primary-color)); margin-bottom: 10px;">Submission Process:</h5>
+                <ol style="color: var(--text-color); line-height: 1.8; margin-bottom: 20px; padding-left: 20px;">
+                    <li>Answer all questions or as many as you can</li>
+                    <li>Review your answers using the question navigation</li>
+                    <li>Click the "Submit Exam" button when ready</li>
+                    <li>Confirm your submission in the final dialog</li>
+                    <li>View your results immediately after submission</li>
+                </ol>
+
+                <div style="text-align: center; padding: 15px; background: var(--inner-bg, #f5f5f5); border-radius: 8px; margin-bottom: 20px;">
+                    <p style="font-size: 1.1rem; color: var(--primary-color); margin: 0;">
+                        <strong>Good Luck!</strong> Take your time and do your best!
+                    </p>
+                </div>
+
                 <div class="exam-detail-actions">
                     ${ctaHtml}
                 </div>
@@ -950,7 +1007,7 @@ const studentDashboard = {
                 <div class="meta-row">
                     <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                     <div class="meta-label">Term</div>
-                    <div class="meta-value">${exam.term || 'N/A'}</div>
+                    <div class="meta-value">${exam.title || 'N/A'}</div>
                 </div>
                 <div class="meta-row">
                     <div class="meta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
@@ -1007,46 +1064,15 @@ const studentDashboard = {
     },
 
     startExam: async (examId) => {
-        // Find the exam data
         const exam = studentDashboard.exams.find(e => e.id === examId);
         if (!exam) {
             await Utils.showAlert('Exam Not Found', 'This exam could not be found. It may have been removed or is no longer available.');
             return;
         }
 
-        // Store exam ID for later use
-        studentDashboard.pendingExamId = examId;
-
-        // Populate modal with exam data
-        document.getElementById('modal-exam-title').textContent = exam.title;
-        document.getElementById('modal-exam-duration').textContent = `${exam.duration} minutes`;
-        document.getElementById('modal-exam-questions').textContent = exam.questions ? exam.questions.length : 0;
-        document.getElementById('modal-exam-subject').textContent = exam.subject || 'General';
-        document.getElementById('modal-exam-pass-score').textContent = `${exam.passScore || 50}%`;
-
-        // Show custom instructions if available
-        const customInstructionsDiv = document.getElementById('modal-custom-instructions');
-        const instructionsText = document.getElementById('modal-instructions-text');
-
-        if (exam.instructions && exam.instructions.trim()) {
-            instructionsText.textContent = exam.instructions;
-            customInstructionsDiv.style.display = 'block';
-        } else {
-            customInstructionsDiv.style.display = 'none';
-        }
-
-        // Show the modal
-        document.getElementById('exam-instructions-modal').style.display = 'flex';
-    },
-
-    closeInstructionsModal: () => {
-        document.getElementById('exam-instructions-modal').style.display = 'none';
-        studentDashboard.pendingExamId = null;
-    },
-
-    confirmStartExam: () => {
-        if (studentDashboard.pendingExamId) {
-            window.location.href = `take-exam.html?id=${studentDashboard.pendingExamId}`;
+        const confirmed = await Utils.showConfirm('Start Exam', `Are you sure you want to start <strong>${exam.subject} — ${exam.title}</strong>?<br><br>The timer will begin immediately once you proceed.`);
+        if (confirmed) {
+            window.location.href = `take-exam.html?id=${examId}`;
         }
     },
 
