@@ -183,14 +183,8 @@ const studentDashboard = {
                 if (useIndexedDB) {
                     // Use IndexedDB for larger storage capacity
                     await window.idb.saveExams(exams);
-                    await window.idb.saveDashboardCache('exams_list', {
-                        data: exams,
-                        timestamp: Date.now()
-                    });
-                    await window.idb.saveDashboardCache(`results_${userId}`, {
-                        data: serverResults,
-                        timestamp: Date.now()
-                    });
+                    await window.idb.saveDashboardCache('exams_list', exams);
+                    await window.idb.saveDashboardCache(`results_${userId}`, serverResults);
                     // Also save results to IndexedDB
                     if (serverResults.length > 0) {
                         await window.idb.saveResults(serverResults);
@@ -222,10 +216,10 @@ const studentDashboard = {
                     const cachedExams = await window.idb.getDashboardCache('exams_list');
                     const cachedResults = await window.idb.getDashboardCache(`results_${userId}`);
 
-                    if (cachedExams && cachedExams.data && cachedExams.data.data) {
-                        exams = cachedExams.data.data;
+                    if (cachedExams && cachedExams.data && Array.isArray(cachedExams.data) && cachedExams.data.length > 0) {
+                        exams = cachedExams.data;
                         isUsingCache = true;
-                        console.log(`📦 Loaded ${exams.length} exams from IndexedDB (saved ${window.idb.formatCacheAge(cachedExams.data.timestamp)})`);
+                        console.log(`📦 Loaded ${exams.length} exams from IndexedDB cache`);
                     } else {
                         // Try getting all exams from IndexedDB
                         const allExams = await window.idb.getAllExams();
@@ -236,8 +230,8 @@ const studentDashboard = {
                         }
                     }
 
-                    if (cachedResults && cachedResults.data && cachedResults.data.data) {
-                        serverResults = cachedResults.data.data;
+                    if (cachedResults && cachedResults.data && Array.isArray(cachedResults.data) && cachedResults.data.length > 0) {
+                        serverResults = cachedResults.data;
                         console.log(`📦 Loaded ${serverResults.length} results from IndexedDB`);
                     } else {
                         // Try getting results by student
@@ -325,13 +319,24 @@ const studentDashboard = {
                         userId ? dataService.getResults({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
                     ]);
 
+                    // Guard: Do NOT overwrite good data with an empty response
+                    const hadExams = studentDashboard.exams.length > 0;
+                    const gotEmptyExams = freshExams.length === 0;
+
+                    if (hadExams && gotEmptyExams) {
+                        console.warn('⚠️ Background refresh returned 0 exams but we already have data — keeping cached data');
+                        return;
+                    }
+
                     // Update Cache with FRESH data
                     if (window.idb) {
-                        await window.idb.saveExams(freshExams);
-                        await window.idb.saveDashboardCache('exams_list', { data: freshExams, timestamp: Date.now() });
+                        if (freshExams.length > 0) {
+                            await window.idb.saveExams(freshExams);
+                            await window.idb.saveDashboardCache('exams_list', freshExams);
+                        }
                         if (freshResults.length > 0) {
                             await window.idb.saveResults(freshResults);
-                            await window.idb.saveDashboardCache(`results_${userId}`, { data: freshResults, timestamp: Date.now() });
+                            await window.idb.saveDashboardCache(`results_${userId}`, freshResults);
                         }
                     }
 
