@@ -651,11 +651,9 @@ class DataService {
             const exams = await this.pb.collection('exams').getFullList(options);
             const mappedData = exams.map(e => this._mapExam(e));
 
-            // 2. Save to IDB
-            if (window.idb) {
-                // Save the list for this specific query
+            // 2. Save to IDB (only if we got data — never overwrite good cache with empty)
+            if (window.idb && mappedData.length > 0) {
                 await window.idb.saveDashboardCache(cacheKey, mappedData);
-                // Save individual exams to the object store for getExamById
                 await window.idb.saveExams(mappedData);
             }
 
@@ -1076,8 +1074,8 @@ class DataService {
             const results = await this.pb.collection('results').getFullList(options);
             const mappedResults = results.map(r => this._mapResult(r));
 
-            // 2. Save to IDB
-            if (window.idb) {
+            // 2. Save to IDB (only if we got data — never overwrite good cache with empty)
+            if (window.idb && mappedResults.length > 0) {
                 await window.idb.saveDashboardCache(cacheKey, mappedResults);
                 await window.idb.saveResults(mappedResults);
             }

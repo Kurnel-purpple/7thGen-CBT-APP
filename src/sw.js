@@ -53,8 +53,9 @@ self.addEventListener('activate', (e) => {
     console.log('[Service Worker] Activate v13');
     e.waitUntil(
         caches.keys().then((keyList) => {
+            const keepCaches = [CACHE_NAME, CACHE_NAME + '-api'];
             return Promise.all(keyList.map((key) => {
-                if (key !== CACHE_NAME) {
+                if (!keepCaches.includes(key)) {
                     console.log('[Service Worker] Removing old cache', key);
                     return caches.delete(key);
                 }

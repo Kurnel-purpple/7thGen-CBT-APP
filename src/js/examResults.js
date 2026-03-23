@@ -144,6 +144,12 @@ const examResults = {
                             dataService.getResults({ examId: examId, forceRefresh: true })
                         ]);
 
+                        // Guard: don't overwrite good data with empty response
+                        if (!freshExam || (freshResults.length === 0 && examResults.results.length > 0)) {
+                            console.warn('⚠️ Background refresh returned empty — keeping existing data');
+                            return;
+                        }
+
                         examResults.currentExam = freshExam;
                         examResults.hasTheoryQuestions = freshExam.questions.some(q => q.type === 'theory');
 
