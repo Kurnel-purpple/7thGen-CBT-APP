@@ -8,7 +8,6 @@ class DataService {
         // Initialize PocketBase client
         this.pb = new PocketBase('https://gen7-cbt-app.fly.dev'); // Production PocketBase on Fly.io
         this.pb.autoCancellation(false);
-        this.AUTH_TIMEOUT = 8000; // 8s timeout for auth requests on spotty networks
 
         // Restore auth state from localStorage
         const savedAuth = localStorage.getItem('pb_auth');
@@ -107,47 +106,29 @@ class DataService {
         }
     }
 
-    // Race a promise against a timeout
-    _withTimeout(promise, ms) {
-        return Promise.race([
-            promise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
-        ]);
-    }
-
     async login(identifier, password) {
         const email = this._generateEmail(identifier);
 
         try {
-            // Try username first, then email fallback — both with timeout
+            // Try authenticating with the raw identifier first (matches PocketBase username field)
+            // Then fall back to email format for legacy accounts
             let authData;
             try {
-                authData = await this._withTimeout(
-                    this.pb.collection('users').authWithPassword(identifier.trim(), password),
-                    this.AUTH_TIMEOUT
-                );
+                authData = await this.pb.collection('users').authWithPassword(identifier.trim(), password);
             } catch (firstErr) {
-                const firstMsg = (firstErr.message || '').toLowerCase();
-                // Only try email fallback if it's an auth failure (not network/timeout)
-                if (firstMsg.includes('failed to authenticate') || firstMsg.includes('invalid') || firstMsg.includes('400')) {
-                    try {
-                        authData = await this._withTimeout(
-                            this.pb.collection('users').authWithPassword(email, password),
-                            this.AUTH_TIMEOUT
-                        );
-                    } catch (secondErr) {
-                        const errMsg = (secondErr.message || '').toLowerCase();
-                        if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('400')) {
-                            throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
-                        }
-                        throw secondErr; // Re-throw network/timeout errors
+                try {
+                    // If raw username failed, try as email format
+                    authData = await this.pb.collection('users').authWithPassword(email, password);
+                } catch (secondErr) {
+                    // Both attempts failed — provide a helpful error message
+                    const errMsg = (firstErr.message || secondErr.message || '').toLowerCase();
+                    if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('credentials')) {
+                        throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
+                    } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('timeout')) {
+                        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+                    } else {
+                        throw new Error(secondErr.message || 'Login failed. Please try again.');
                     }
-                } else if (firstMsg.includes('timed out')) {
-                    throw new Error('Connection is too slow. Please check your network and try again.');
-                } else if (firstMsg.includes('fetch') || firstMsg.includes('network') || firstMsg.includes('failed to fetch')) {
-                    throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
-                } else {
-                    throw firstErr;
                 }
             }
 
