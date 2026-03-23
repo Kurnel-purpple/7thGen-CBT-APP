@@ -309,49 +309,53 @@ const studentDashboard = {
 
         studentDashboard.renderCompleted();
 
-        // --- Background Update (stale-while-revalidate) ---
+        // --- Background refresh function (reused for initial + periodic) ---
+        const backgroundRefresh = async () => {
+            if (!navigator.onLine) return;
+            try {
+                console.log('🔄 Checking for fresh dashboard data...');
+                const [freshExams, freshResults] = await Promise.all([
+                    dataService.getExams({ status: 'active', studentDashboard: true, forceRefresh: true }),
+                    userId ? dataService.getResults({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
+                ]);
+
+                // Guard: Do NOT overwrite good data with an empty response
+                if (studentDashboard.exams.length > 0 && freshExams.length === 0) {
+                    console.warn('⚠️ Background refresh returned 0 exams — keeping cached data');
+                    return;
+                }
+
+                // Update Cache with FRESH data
+                if (window.idb) {
+                    if (freshExams.length > 0) {
+                        await window.idb.saveExams(freshExams);
+                        await window.idb.saveDashboardCache('exams_list', freshExams);
+                    }
+                    if (freshResults.length > 0) {
+                        await window.idb.saveResults(freshResults);
+                        await window.idb.saveDashboardCache(`results_${userId}`, freshResults);
+                    }
+                }
+
+                // Update UI with fresh data
+                studentDashboard.results = [...mappedPending, ...freshResults];
+                studentDashboard.exams = freshExams;
+
+                studentDashboard.populateSubjectFilters();
+                studentDashboard.renderAvailable();
+                studentDashboard.renderResolved();
+                studentDashboard.renderCompleted();
+
+            } catch (e) { console.warn('Background refresh failed', e); }
+        };
+
+        // Initial refresh after 1.5s, then every 3 minutes
         if (navigator.onLine) {
-            setTimeout(async () => {
-                try {
-                    console.log('🔄 Checking for fresh dashboard data...');
-                    const [freshExams, freshResults] = await Promise.all([
-                        dataService.getExams({ status: 'active', studentDashboard: true, forceRefresh: true }),
-                        userId ? dataService.getResults({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
-                    ]);
-
-                    // Guard: Do NOT overwrite good data with an empty response
-                    const hadExams = studentDashboard.exams.length > 0;
-                    const gotEmptyExams = freshExams.length === 0;
-
-                    if (hadExams && gotEmptyExams) {
-                        console.warn('⚠️ Background refresh returned 0 exams but we already have data — keeping cached data');
-                        return;
-                    }
-
-                    // Update Cache with FRESH data
-                    if (window.idb) {
-                        if (freshExams.length > 0) {
-                            await window.idb.saveExams(freshExams);
-                            await window.idb.saveDashboardCache('exams_list', freshExams);
-                        }
-                        if (freshResults.length > 0) {
-                            await window.idb.saveResults(freshResults);
-                            await window.idb.saveDashboardCache(`results_${userId}`, freshResults);
-                        }
-                    }
-
-                    // Update UI with fresh data
-                    studentDashboard.results = [...mappedPending, ...freshResults];
-                    studentDashboard.exams = freshExams;
-
-                    studentDashboard.populateSubjectFilters();
-                    studentDashboard.renderAvailable();
-                    studentDashboard.renderResolved();
-                    studentDashboard.renderCompleted();
-
-                } catch (e) { console.warn('Background refresh failed', e); }
-            }, 1500);
+            setTimeout(backgroundRefresh, 1500);
         }
+        // Clear any previous interval (e.g. if loadData is called again after sync)
+        if (studentDashboard._refreshInterval) clearInterval(studentDashboard._refreshInterval);
+        studentDashboard._refreshInterval = setInterval(backgroundRefresh, 3 * 60 * 1000);
 
         // Trigger preload of ready exams for offline use
         studentDashboard.preloadExamsForOffline();

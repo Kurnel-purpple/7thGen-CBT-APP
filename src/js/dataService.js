@@ -8,6 +8,7 @@ class DataService {
         // Initialize PocketBase client
         this.pb = new PocketBase('https://gen7-cbt-app.fly.dev'); // Production PocketBase on Fly.io
         this.pb.autoCancellation(false);
+        this.AUTH_TIMEOUT = 8000; // 8s timeout for auth requests on spotty networks
 
         // Restore auth state from localStorage
         const savedAuth = localStorage.getItem('pb_auth');
@@ -106,29 +107,47 @@ class DataService {
         }
     }
 
+    // Race a promise against a timeout
+    _withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms))
+        ]);
+    }
+
     async login(identifier, password) {
         const email = this._generateEmail(identifier);
 
         try {
-            // Try authenticating with the raw identifier first (matches PocketBase username field)
-            // Then fall back to email format for legacy accounts
+            // Try username first, then email fallback — both with timeout
             let authData;
             try {
-                authData = await this.pb.collection('users').authWithPassword(identifier.trim(), password);
+                authData = await this._withTimeout(
+                    this.pb.collection('users').authWithPassword(identifier.trim(), password),
+                    this.AUTH_TIMEOUT
+                );
             } catch (firstErr) {
-                try {
-                    // If raw username failed, try as email format
-                    authData = await this.pb.collection('users').authWithPassword(email, password);
-                } catch (secondErr) {
-                    // Both attempts failed — provide a helpful error message
-                    const errMsg = (firstErr.message || secondErr.message || '').toLowerCase();
-                    if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('credentials')) {
-                        throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
-                    } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('timeout')) {
-                        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
-                    } else {
-                        throw new Error(secondErr.message || 'Login failed. Please try again.');
+                const firstMsg = (firstErr.message || '').toLowerCase();
+                // Only try email fallback if it's an auth failure (not network/timeout)
+                if (firstMsg.includes('failed to authenticate') || firstMsg.includes('invalid') || firstMsg.includes('400')) {
+                    try {
+                        authData = await this._withTimeout(
+                            this.pb.collection('users').authWithPassword(email, password),
+                            this.AUTH_TIMEOUT
+                        );
+                    } catch (secondErr) {
+                        const errMsg = (secondErr.message || '').toLowerCase();
+                        if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('400')) {
+                            throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
+                        }
+                        throw secondErr; // Re-throw network/timeout errors
                     }
+                } else if (firstMsg.includes('timed out')) {
+                    throw new Error('Connection is too slow. Please check your network and try again.');
+                } else if (firstMsg.includes('fetch') || firstMsg.includes('network') || firstMsg.includes('failed to fetch')) {
+                    throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+                } else {
+                    throw firstErr;
                 }
             }
 
@@ -138,67 +157,25 @@ class DataService {
 
             // Auth state is auto-saved by the onChange listener in constructor
 
-            // Get user profile — create one if missing so admin portal can find this user
-            let profile = null;
-            try {
-                profile = await this.pb.collection('profiles').getFirstListItem(`user="${authData.record.id}"`);
-
-                // Sync school_version and class_level from users record if profile is missing them
-                const syncFields = {};
-                if (!profile.school_version && authData.record.school_version) {
-                    syncFields.school_version = authData.record.school_version;
-                }
-                if (!profile.class_level && authData.record.class_level) {
-                    syncFields.class_level = authData.record.class_level;
-                }
-                if (Object.keys(syncFields).length > 0) {
-                    try {
-                        await this.pb.collection('profiles').update(profile.id, syncFields);
-                        Object.assign(profile, syncFields);
-                        console.log('Synced fields to existing profile:', Object.keys(syncFields));
-                    } catch (syncErr) {
-                        console.warn('Failed to sync fields to profile:', syncErr.message);
-                    }
-                }
-            } catch (profileErr) {
-                // Profile doesn't exist — create it from user data
-                console.warn('Profile not found, creating one:', profileErr.message);
-                const profileData = {
-                    user: authData.record.id,
-                    role: authData.record.role || 'student',
-                    full_name: authData.record.full_name,
-                    class_level: authData.record.class_level || null,
-                    school_version: authData.record.school_version || null
-                };
-                try {
-                    profile = await this.pb.collection('profiles').create({ ...profileData, id: authData.record.id });
-                    console.log('Created profile with fixed ID');
-                } catch (createErr) {
-                    try {
-                        profile = await this.pb.collection('profiles').create(profileData);
-                        console.log('Created profile with auto ID');
-                    } catch (createErr2) {
-                        console.warn('Profile creation failed:', createErr2.message);
-                        // Fall back to local-only profile
-                        profile = profileData;
-                    }
-                }
-            }
-
+            // Build user object from auth record immediately — don't block on profile
+            const record = authData.record;
             const userObj = {
-                id: authData.record.id,
-                profileId: profile?.id,
-                email: authData.record.email,
-                username: authData.record.username,
-                role: profile?.role || authData.record.role || 'student',
-                name: profile?.full_name || authData.record.full_name,
-                classLevel: profile?.class_level || authData.record.class_level,
-                schoolVersion: profile?.school_version || authData.record.school_version,
-                _pb_user: authData.record
+                id: record.id,
+                profileId: null,
+                email: record.email,
+                username: record.username,
+                role: record.role || 'student',
+                name: record.full_name,
+                classLevel: record.class_level,
+                schoolVersion: record.school_version,
+                _pb_user: record
             };
 
-
             localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
+
+            // Defer profile fetch/sync to background — don't block sign-in
+            this._syncProfileInBackground(record, userObj);
+
             return userObj;
 
         } catch (err) {
@@ -231,6 +208,64 @@ class DataService {
                 }
             }
             throw err;
+        }
+    }
+
+    // Background profile sync — runs after login redirect, doesn't block sign-in
+    async _syncProfileInBackground(record, userObj) {
+        try {
+            let profile = null;
+            try {
+                profile = await this.pb.collection('profiles').getFirstListItem(`user="${record.id}"`);
+
+                // Sync missing fields from user record to profile
+                const syncFields = {};
+                if (!profile.school_version && record.school_version) {
+                    syncFields.school_version = record.school_version;
+                }
+                if (!profile.class_level && record.class_level) {
+                    syncFields.class_level = record.class_level;
+                }
+                if (Object.keys(syncFields).length > 0) {
+                    try {
+                        await this.pb.collection('profiles').update(profile.id, syncFields);
+                        Object.assign(profile, syncFields);
+                    } catch (syncErr) {
+                        console.warn('Failed to sync fields to profile:', syncErr.message);
+                    }
+                }
+            } catch (profileErr) {
+                // Profile doesn't exist — create it
+                const profileData = {
+                    user: record.id,
+                    role: record.role || 'student',
+                    full_name: record.full_name,
+                    class_level: record.class_level || null,
+                    school_version: record.school_version || null
+                };
+                try {
+                    profile = await this.pb.collection('profiles').create({ ...profileData, id: record.id });
+                } catch (createErr) {
+                    try {
+                        profile = await this.pb.collection('profiles').create(profileData);
+                    } catch (createErr2) {
+                        console.warn('Profile creation failed:', createErr2.message);
+                        return; // Nothing more to do
+                    }
+                }
+            }
+
+            // Update local user meta with profile data if it enriches it
+            if (profile) {
+                userObj.profileId = profile.id;
+                userObj.role = profile.role || userObj.role;
+                userObj.name = profile.full_name || userObj.name;
+                userObj.classLevel = profile.class_level || userObj.classLevel;
+                userObj.schoolVersion = profile.school_version || userObj.schoolVersion;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
+            }
+        } catch (e) {
+            console.warn('Background profile sync failed:', e.message);
         }
     }
 
@@ -586,19 +621,18 @@ class DataService {
         const { forceRefresh, ...cacheFilters } = filters;
         const cacheKey = `exams_${JSON.stringify(cacheFilters)}`;
 
-        // 1. Try IDB Cache first
+        // 1. Try IDB Cache first (max 3 minutes before refetching)
+        const CACHE_MAX_AGE = 3 * 60 * 1000; // 3 minutes
         if (window.idb && !forceRefresh) {
             try {
                 const cached = await window.idb.getDashboardCache(cacheKey);
-                // If we have cache, return it immediately! 
-                // We rely on manual updates (create/edit) to keep it fresh, 
-                // or the user can manually refresh if they suspect desync.
                 if (cached && cached.data && cached.data.length > 0) {
-                    console.log('📦 Serving exams from IDB cache');
-
-                    // Optional: Trigger background refresh if cache is too old (e.g. > 1 hour)
-                    // But for now, we prioritize speed as requested.
-                    return cached.data;
+                    const age = Date.now() - (cached.cachedAt || 0);
+                    if (age < CACHE_MAX_AGE) {
+                        console.log(`📦 Serving exams from IDB cache (${Math.round(age / 1000)}s old)`);
+                        return cached.data;
+                    }
+                    console.log(`🔄 Cache expired (${Math.round(age / 1000)}s old), fetching fresh data...`);
                 }
             } catch (e) {
                 console.warn('IDB Cache read error:', e);
@@ -1039,12 +1073,16 @@ class DataService {
         const { forceRefresh, ...cacheFilters } = filters;
         const cacheKey = `results_${JSON.stringify(cacheFilters)}`;
 
-        // 1. Try IDB Cache
+        // 1. Try IDB Cache (max 3 minutes before refetching)
+        const CACHE_MAX_AGE = 3 * 60 * 1000;
         if (window.idb && !forceRefresh) {
             try {
                 const cached = await window.idb.getDashboardCache(cacheKey);
                 if (cached && cached.data && cached.data.length > 0) {
-                    return cached.data;
+                    const age = Date.now() - (cached.cachedAt || 0);
+                    if (age < CACHE_MAX_AGE) {
+                        return cached.data;
+                    }
                 }
             } catch (e) { }
         }
