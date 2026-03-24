@@ -507,6 +507,91 @@
         .sidebar-school-section button:hover {
             background: rgba(255,255,255,0.25);
         }
+        /* Prepare for Exams Banner */
+        .prepare-exams-banner {
+            background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+            border: 1px solid #c8e6c9;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+        .prepare-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .prepare-banner-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #2e7d32;
+        }
+        .prepare-banner-info strong {
+            display: block;
+            font-size: 0.92rem;
+            color: #1b5e20;
+        }
+        .prepare-banner-sub {
+            font-size: 0.78rem;
+            color: #558b2f;
+        }
+        .prepare-banner-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .prepare-status {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #2e7d32;
+        }
+        .prepare-exams-btn {
+            padding: 10px 22px;
+            font-size: 0.85rem;
+            background: #34a853;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .prepare-exams-btn:hover { background: #2e7d32; }
+        .prepare-exams-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .prepare-progress-bar {
+            margin-top: 12px;
+            height: 6px;
+            background: #c8e6c9;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .prepare-progress-fill {
+            height: 100%;
+            background: #34a853;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Dark mode */
+        [data-theme="dark"] .prepare-exams-banner {
+            background: linear-gradient(135deg, rgba(52,168,83,0.12) 0%, rgba(52,168,83,0.06) 100%);
+            border-color: rgba(52,168,83,0.25);
+        }
+        [data-theme="dark"] .prepare-banner-info { color: #a5d6a7; }
+        [data-theme="dark"] .prepare-banner-info strong { color: #c8e6c9; }
+        [data-theme="dark"] .prepare-banner-sub { color: #81c784; }
+        [data-theme="dark"] .prepare-status { color: #a5d6a7; }
+        [data-theme="dark"] .prepare-progress-bar { background: rgba(52,168,83,0.2); }
+
+        @media (max-width: 600px) {
+            .prepare-banner-content { flex-direction: column; align-items: stretch; }
+            .prepare-banner-actions { justify-content: stretch; }
+            .prepare-exams-btn { width: 100%; text-align: center; }
+        }
 
         /* Dark mode overrides */
         [data-theme="dark"] .section {
@@ -911,6 +996,26 @@
 
             <!-- ========== MAIN CONTENT ========== -->
             <main class="main-content" style="padding: 24px;">
+
+                <!-- Prepare for Exams Banner -->
+                <div id="prepare-exams-banner" class="prepare-exams-banner" style="display:none;">
+                    <div class="prepare-banner-content">
+                        <div class="prepare-banner-info">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <div>
+                                <strong>Prepare this computer for exams</strong>
+                                <span class="prepare-banner-sub">Pre-download all active exams so students load instantly</span>
+                            </div>
+                        </div>
+                        <div class="prepare-banner-actions">
+                            <span id="prepare-status" class="prepare-status"></span>
+                            <button onclick="handlePrepareExams()" id="prepare-exams-btn" class="prepare-exams-btn">Prepare for Exams</button>
+                        </div>
+                    </div>
+                    <div id="prepare-progress-bar" class="prepare-progress-bar" style="display:none;">
+                        <div id="prepare-progress-fill" class="prepare-progress-fill"></div>
+                    </div>
+                </div>
 
                 <!-- Teachers Section (hidden by default) -->
                 <div id="teachers-section" class="admin-section" style="display:none;">
@@ -1692,6 +1797,7 @@
                 });
 
                 displayExams(allExams);
+                showPrepareBanner();
                 console.log('⚡ Rendered from cache');
                 return true;
             } catch (e) {
@@ -1745,6 +1851,9 @@
 
                 // Display exams
                 displayExams(allExams);
+
+                // Show prepare banner now that data is loaded
+                showPrepareBanner();
 
                 // Setup real-time subscription
                 setupRealTimeUpdates();
@@ -1855,7 +1964,7 @@
             }
         }
 
-        function showToast(message) {
+        function showToast(message, duration = 3000) {
             const toast = document.createElement('div');
             toast.textContent = message;
             toast.style.cssText = 'position: fixed; bottom: 80px; left: 20px; background: var(--primary-color); color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s;';
@@ -1864,8 +1973,104 @@
                 toast.style.opacity = '0';
                 toast.style.transition = 'opacity 0.3s';
                 setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            }, duration);
         }
+
+        // --- Prepare for Exams: Pre-cache all active exams for student use on this computer ---
+        function showPrepareBanner() {
+            const banner = document.getElementById('prepare-exams-banner');
+            if (banner && allExams && allExams.length > 0) {
+                banner.style.display = 'block';
+            }
+        }
+
+        window.handlePrepareExams = async function () {
+            const btn = document.getElementById('prepare-exams-btn');
+            const statusEl = document.getElementById('prepare-status');
+            const progressBar = document.getElementById('prepare-progress-bar');
+            const progressFill = document.getElementById('prepare-progress-fill');
+
+            if (!allExams || allExams.length === 0) {
+                showToast('Load a school first before preparing exams.');
+                return;
+            }
+            if (!window.idb || !window.idb.isIndexedDBAvailable()) {
+                showToast('IndexedDB not available on this browser.');
+                return;
+            }
+
+            const activeExams = allExams.filter(e => e.status === 'active');
+            if (activeExams.length === 0) {
+                showToast('No active exams to prepare.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Preparing...';
+            statusEl.textContent = `0 / ${activeExams.length}`;
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+
+            let cached = 0;
+            let failed = 0;
+            const total = activeExams.length;
+
+            try {
+                // 1. Fetch each active exam with full questions and cache individually
+                for (const exam of activeExams) {
+                    try {
+                        const fullExam = await dataService.getExamById(exam.id);
+                        if (fullExam && fullExam.questions) {
+                            await window.idb.saveExam(fullExam);
+                            cached++;
+                        }
+                    } catch (err) {
+                        console.warn(`Could not cache exam ${exam.id}:`, err.message);
+                        failed++;
+                    }
+                    // Update progress
+                    const done = cached + failed;
+                    statusEl.textContent = `${done} / ${total}`;
+                    progressFill.style.width = `${Math.round((done / total) * 100)}%`;
+                }
+
+                // 2. Save the active exams list to the student dashboard cache key
+                const studentCacheKey = `exams_${JSON.stringify({"status":"active","studentDashboard":true})}`;
+                await window.idb.saveDashboardCache(studentCacheKey, activeExams);
+
+                // 3. Also save to the fallback 'exams_list' key
+                await window.idb.saveDashboardCache('exams_list', activeExams);
+
+                // 4. Batch save all exams to the exams object store
+                await window.idb.saveExams(activeExams);
+
+                // Done — show success state
+                progressFill.style.width = '100%';
+                const failMsg = failed > 0 ? ` (${failed} failed)` : '';
+                statusEl.textContent = `${cached} exams ready${failMsg}`;
+                statusEl.style.color = '#2e7d32';
+                btn.textContent = 'Done';
+                btn.style.background = '#2e7d32';
+
+                showToast(`Ready! ${cached} exams cached for students on this computer.`, 5000);
+
+                // Reset button after 6 seconds
+                setTimeout(() => {
+                    btn.textContent = 'Prepare for Exams';
+                    btn.style.background = '';
+                    btn.disabled = false;
+                    progressBar.style.display = 'none';
+                }, 6000);
+
+            } catch (err) {
+                console.error('Prepare exams failed:', err);
+                showToast('Failed to prepare exams: ' + err.message);
+                statusEl.textContent = 'Failed';
+                statusEl.style.color = '#c62828';
+                btn.textContent = 'Retry';
+                btn.disabled = false;
+            }
+        };
 
 
         function updateStats(teachers, exams, active, students) {
