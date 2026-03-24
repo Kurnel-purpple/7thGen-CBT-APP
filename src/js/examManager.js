@@ -489,6 +489,17 @@ const examManager = {
                         });
                     });
                 }
+                // For image_mcq/image_multi: if q.image exists but no mediaAttachments, restore it
+                if ((q.type === 'image_mcq' || q.type === 'image_multi') && q.image && (!q.mediaAttachments || q.mediaAttachments.length === 0)) {
+                    const syntheticId = Utils.generateId();
+                    examManager.uploadedMedia.push({
+                        id: syntheticId,
+                        name: 'Question Image',
+                        dataUrl: q.image,
+                        assignedToQuestion: q.id,
+                        uploadedAt: new Date().toISOString()
+                    });
+                }
             });
 
             console.log('loadExam: questions loaded:', examManager.questions.length, examManager.questions.map(q => q.type));

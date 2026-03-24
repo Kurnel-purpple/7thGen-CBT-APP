@@ -413,7 +413,7 @@ const takeExam = {
             if (!q.type || q.type === 'mcq' || q.type === 'image_mcq') {
                 let imgHtml = '';
                 if (q.type === 'image_mcq' && q.image) {
-                    imgHtml = `<div style="margin-bottom:15px;"><img src="${q.image}" style="max-width:100%; max-height:250px; border-radius:4px;"></div>`;
+                    imgHtml = `<div style="margin-bottom:15px; cursor:pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)"><img src="${q.image}" style="max-width:100%; max-height:250px; border-radius:4px;"><div style="text-align:center; margin-top:4px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div></div>`;
                 }
 
                 optionsHtml = imgHtml + q.options.map((opt) => {
@@ -479,8 +479,9 @@ const takeExam = {
                 // Picture Comprehension: One image with multiple sub-questions (A-E options each)
                 let imgHtml = '';
                 if (q.image) {
-                    imgHtml = `<div style="margin-bottom: 20px; text-align: center;">
+                    imgHtml = `<div style="margin-bottom: 20px; text-align: center; cursor: pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)">
                         <img src="${q.image}" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <div style="margin-top:6px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div>
                     </div>`;
                 }
 
@@ -636,6 +637,39 @@ const takeExam = {
         document.body.appendChild(overlay);
 
         // Also allow ESC key to close
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    },
+
+    showImageLightbox: (imgSrc) => {
+        const overlay = document.createElement('div');
+        overlay.id = 'exam-image-lightbox';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95); display: flex; align-items: center;
+            justify-content: center; z-index: 10000; cursor: pointer; padding: 20px;
+        `;
+        overlay.onclick = () => overlay.remove();
+
+        overlay.innerHTML = `
+            <div style="position: relative; max-width: 95%; max-height: 95%; display: flex; flex-direction: column; align-items: center;" onclick="event.stopPropagation();">
+                <img src="${imgSrc}" alt="Question Image"
+                    style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5); object-fit: contain;">
+                <button onclick="this.parentElement.parentElement.remove()"
+                    style="position: absolute; top: -15px; right: -15px; background: white; color: black; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 22px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">×</button>
+                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
+                    Click anywhere outside or press × to close
+                </p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
         const escHandler = (e) => {
             if (e.key === 'Escape') {
                 overlay.remove();
