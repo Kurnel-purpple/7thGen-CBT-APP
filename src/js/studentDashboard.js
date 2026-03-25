@@ -640,16 +640,17 @@ const studentDashboard = {
         }
 
         // --- 2. Render Normal Available Exams ---
-        const takenExamIds = new Set(studentDashboard.results.map(r => String(r.examId)));
+        // Only exclude exams with completed results — allow in-progress exams back so students can continue
+        const completedExamIds = new Set(
+            studentDashboard.results
+                .filter(r => r.status !== 'in-progress')
+                .map(r => String(r.examId))
+        );
+        const inProgressResults = studentDashboard.results.filter(r => r.status === 'in-progress');
         const userClass = studentDashboard.user.classLevel;
 
-
-
         const available = studentDashboard.exams.filter(e => {
-
-
-            if (takenExamIds.has(String(e.id))) {
-
+            if (completedExamIds.has(String(e.id))) {
                 return false;
             }
             if (e.status === 'draft' || e.status === 'archived') {
@@ -708,31 +709,42 @@ const studentDashboard = {
             // Check if exam is scheduled for future
             const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > now;
             const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null;
+            const isInProgress = inProgressResults.some(r => String(r.examId) === String(exam.id));
 
             let scheduleInfo = '';
             let actionButton = '';
+            let iconBg = 'var(--primary-color)';
+            let iconLabel = 'A';
 
-            if (isScheduled) {
+            if (isInProgress) {
+                iconBg = '#f0ad4e';
+                iconLabel = 'C';
+            } else if (isScheduled) {
+                iconBg = 'var(--light-text)';
+                iconLabel = 'S';
+            }
+
+            if (isScheduled && !isInProgress) {
                 // Format scheduled date nicely
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
                 scheduleInfo = `<span style="color: var(--accent-color); display:inline-flex; align-items:center; gap:4px; font-size:0.72rem;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${formattedDate}</span>`;
                 actionButton = `<button class="btn" style="width: 100%; background: #EA4335; color: white; cursor: not-allowed; display:inline-flex; align-items:center; justify-content:center; gap:6px; opacity:0.85;" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Available ${formattedDate}</button>`;
             } else {
-                actionButton = `<button class="btn" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%; background: #28a745; color: white;">Start Exam</button>`;
+                actionButton = `<button class="btn" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%; background: ${isInProgress ? '#f0ad4e' : '#28a745'}; color: white;">${isInProgress ? 'Continue Exam' : 'Start Exam'}</button>`;
             }
 
             const qCount = exam.questions ? exam.questions.length : 0;
 
             return `
-            <div class="exam-list-item ${isScheduled ? 'scheduled' : ''}" data-exam-id="${exam.id}" onclick="studentDashboard.selectExam('${exam.id}', 'available')">
+            <div class="exam-list-item ${isScheduled && !isInProgress ? 'scheduled' : ''}" data-exam-id="${exam.id}" onclick="studentDashboard.selectExam('${exam.id}', 'available')">
                 <div class="exam-list-icon">
-                    <span style="width:36px;height:36px;border-radius:50%;background:${isScheduled ? 'var(--light-text)' : 'var(--primary-color)'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0;">${isScheduled ? 'S' : 'A'}</span>
+                    <span style="width:36px;height:36px;border-radius:50%;background:${iconBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0;">${iconLabel}</span>
                 </div>
                 <div class="exam-list-info" style="flex:1; min-width:0;">
                     <div class="exam-list-title" style="font-size:1.05rem; font-weight:800; color:var(--text-color);">${exam.subject}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div class="exam-list-subtitle" style="font-size:0.78rem; color:var(--light-text); font-weight:400;">${exam.title}</div>
+                        <div class="exam-list-subtitle" style="font-size:0.78rem; color:var(--light-text); font-weight:400;">${exam.title}${isInProgress ? ' · In Progress' : ''}</div>
                         <div style="font-size:0.72rem; color:var(--light-text); white-space:nowrap; margin-left:8px;">${qCount} Qs · ${exam.duration}m</div>
                     </div>
                     ${scheduleInfo ? '<div style="margin-top:2px;">' + scheduleInfo + '</div>' : ''}
@@ -896,14 +908,15 @@ const studentDashboard = {
 
             const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
             const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null;
+            const isInProgress = studentDashboard.results.some(r => r.examId === examId && r.status === 'in-progress');
             let ctaHtml = '';
 
-            if (isScheduled) {
+            if (isScheduled && !isInProgress) {
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
                 ctaHtml = `<button class="btn btn-start-exam" disabled style="background: #EA4335; color: white; opacity: 0.85; cursor: not-allowed;">Available ${formattedDate}</button>`;
             } else {
-                ctaHtml = `<button class="btn btn-start-exam" onclick="studentDashboard.startExam('${exam.id}')" style="background: #28a745; color: white;">Start Exam</button>`;
+                ctaHtml = `<button class="btn btn-start-exam" onclick="studentDashboard.startExam('${exam.id}')" style="background: ${isInProgress ? '#f0ad4e' : '#28a745'}; color: white;">${isInProgress ? 'Continue Exam' : 'Start Exam'}</button>`;
             }
 
             // Past attempts for this exam
@@ -995,12 +1008,16 @@ const studentDashboard = {
             const qCount = exam.questions ? exam.questions.length : 0;
             const pastAttempts = studentDashboard.results.filter(r => r.examId === examId);
             const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
+            const isInProgress = pastAttempts.some(r => r.status === 'in-progress');
             let statusLabel, statusColor;
             if (tab === 'flagged') {
                 statusLabel = 'Flagged';
                 statusColor = 'var(--accent-color)';
-            } else if (tab === 'completed' || pastAttempts.length > 0) {
-                const lastResult = pastAttempts[pastAttempts.length - 1];
+            } else if (isInProgress) {
+                statusLabel = 'In Progress';
+                statusColor = '#f0ad4e';
+            } else if (tab === 'completed' || pastAttempts.some(r => r.status !== 'in-progress')) {
+                const lastResult = pastAttempts.filter(r => r.status !== 'in-progress').pop();
                 const passed = lastResult && lastResult.score >= (lastResult.passScore || 50);
                 statusLabel = passed ? 'Passed' : 'Failed';
                 statusColor = passed ? 'var(--success-color)' : 'var(--accent-color)';
