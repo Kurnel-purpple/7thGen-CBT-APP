@@ -627,10 +627,10 @@ class DataService {
                 filterString += `status="${filters.status}"`;
             }
 
-            // Always exclude soft-deleted exams (those with _deleted flag in extensions)
+            // Always exclude soft-deleted exams (archived with _deleted flag)
             if (!filters.includeDeleted) {
                 if (filterString) filterString += ' && ';
-                filterString += 'extensions._deleted!=true';
+                filterString += 'status!="archived"';
             }
 
             if (filters.teacherId) {
@@ -836,27 +836,24 @@ class DataService {
     async _updateDashboardCacheList(exam, action) {
         if (!window.idb) return;
 
-        // Construct potential keys. 
-        // The Teacher Dashboard usually queries by { teacherId: ... }
-        // The Student Dashboard queries by { studentDashboard: true, targetClass: ... }
+        // Update all dashboard cache keys that might hold this exam
 
-        // 1. Teacher Cache Update
+        // 1. Teacher Cache: { teacherId: ... }
         if (exam.createdBy) {
             const teacherKey = `exams_${JSON.stringify({ teacherId: exam.createdBy })}`;
             await this._performCacheListUpdate(teacherKey, exam, action);
         }
 
-        // 2. Student Dashboard Cache Update (if exam is active/published)
-        if (exam.targetClass) {
-            // We might have multiple keys depending on how filters are combined.
-            // This is a "best effort" update.
-            const studentKey = `exams_${JSON.stringify({ studentDashboard: true, targetClass: exam.targetClass })}`;
-            // Also "All" classes
-            const studentKeyAll = `exams_${JSON.stringify({ studentDashboard: true, targetClass: 'All' })}`;
+        // 2. Student Dashboard: { status: 'active', studentDashboard: true }
+        const studentKey = `exams_${JSON.stringify({ status: 'active', studentDashboard: true })}`;
+        await this._performCacheListUpdate(studentKey, exam, action, true);
 
-            await this._performCacheListUpdate(studentKey, exam, action, true); // true = prevent adding drafts to student view
-            await this._performCacheListUpdate(studentKeyAll, exam, action, true);
-        }
+        // 3. Student offline fallback key
+        await this._performCacheListUpdate('exams_list', exam, action, true);
+
+        // 4. Admin Dashboard: {} (no filters except forceRefresh which is stripped)
+        const adminKey = `exams_${JSON.stringify({})}`;
+        await this._performCacheListUpdate(adminKey, exam, action);
     }
 
     async _performCacheListUpdate(key, exam, action, isStudentView = false) {
