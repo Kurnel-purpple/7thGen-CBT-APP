@@ -2766,7 +2766,7 @@
                 showToast(`Exam status changed to "${newStatus}"`);
 
                 // If a modal is open, refresh the modal view too
-                if (document.getElementById('exams-list-modal').style.display === 'flex') {
+                if (document.getElementById('exams-list-modal')?.style.display === 'flex') {
                     filterExams();
                 }
 
@@ -2793,7 +2793,7 @@
 
                 showToast(`Exam class changed to "${newClass}"`);
                 // If a modal is open, refresh the modal view too
-                if (document.getElementById('exams-list-modal').style.display === 'flex') {
+                if (document.getElementById('exams-list-modal')?.style.display === 'flex') {
                     filterExams();
                 }
             } catch (err) {
@@ -2881,7 +2881,7 @@
                 showToast(msg);
 
                 // If a modal is open, refresh the modal view too
-                if (document.getElementById('exams-list-modal').style.display === 'flex') {
+                if (document.getElementById('exams-list-modal')?.style.display === 'flex') {
                     filterExams();
                 }
 
