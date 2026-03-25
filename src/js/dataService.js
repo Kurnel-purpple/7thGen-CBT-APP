@@ -978,7 +978,7 @@ class DataService {
             score: resultData.score,
             total_points: resultData.totalPoints,
             answers: resultData.answers,
-            flags: { ...resultData.flags, _status: 'completed' },
+            flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '' },
             submitted_at: new Date().toISOString()
         };
 
@@ -996,6 +996,11 @@ class DataService {
                 // Create new
                 const created = await this.pb.collection('results').create(data);
                 result = this._mapResult(created);
+            }
+
+            // Ensure studentName is set (PocketBase response has no expand)
+            if (result && (!result.studentName || result.studentName === 'Unknown') && resultData.studentName) {
+                result.studentName = resultData.studentName;
             }
 
             // Update IDB Results Cache
