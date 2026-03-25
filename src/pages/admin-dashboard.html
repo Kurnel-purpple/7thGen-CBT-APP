@@ -1394,6 +1394,40 @@
         </div>
     </div>
 
+    <!-- Extensions Modal -->
+    <div id="extensions-modal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 4500;">
+        <div class="modal-content"
+            style="background: var(--card-bg); padding: 20px; border-radius: 12px; width: 92%; max-width: 500px; max-height: 80vh; overflow-y: auto; z-index: 4501; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <h3 style="margin: 0; color: var(--text-color);">Manage Time Extensions</h3>
+                <span style="cursor: pointer; font-size: 1.5rem; color: var(--light-text);" onclick="closeExtensionsModal()">&times;</span>
+            </div>
+            <p id="ext-exam-title" style="margin-bottom: 15px; color: var(--light-text); font-size: 0.9rem;"></p>
+
+            <div class="control-group" style="margin-bottom: 12px;">
+                <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 6px;">Select Student</label>
+                <select id="ext-student-select" class="form-control" style="width: 100%; border-radius: 8px;">
+                    <option value="">Loading students...</option>
+                </select>
+            </div>
+
+            <div class="control-group" style="margin-bottom: 12px;">
+                <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 6px;">Extra Time (Minutes)</label>
+                <input type="number" id="ext-minutes" class="form-control" placeholder="e.g. 15" min="1" style="width: 100%; border-radius: 8px;">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+                <button class="btn btn-primary" onclick="saveExtension()" style="padding: 10px 20px; border-radius: 8px; font-weight: 600;">Grant Extension</button>
+            </div>
+
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+
+            <h4 style="color: var(--text-color); margin-bottom: 10px;">Current Extensions</h4>
+            <div id="ext-list" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+
     <!-- Schedule & Duration Modal -->
     <div id="schedule-modal" class="modal" style="display: none; z-index: 4000;">
         <div class="modal-content"
@@ -2708,11 +2742,18 @@
                                     <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--light-text);">
                                         ${scheduledInfo || '<span style="opacity:0.6;">No schedule set</span>'}
                                     </div>
-                                    <button onclick="openScheduleModal('${exam.id}', ${exam.duration}, '${exam.scheduledDate || ''}')"
-                                        style="padding: 6px 12px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.82rem; display:flex; align-items:center; gap:4px; flex-shrink:0;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                        Schedule
-                                    </button>
+                                    <div style="display:flex; gap:6px; flex-shrink:0;">
+                                        <button onclick="openScheduleModal('${exam.id}', ${exam.duration}, '${exam.scheduledDate || ''}')"
+                                            style="padding: 6px 12px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.82rem; display:flex; align-items:center; gap:4px;">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                            Schedule
+                                        </button>
+                                        <button onclick="openExtensionsModal('${exam.id}')"
+                                            style="padding: 6px 12px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.82rem; display:flex; align-items:center; gap:4px;">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            Extension
+                                        </button>
+                                    </div>
                                 </div>
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
                                     <select id="status-${exam.id}" onchange="changeExamStatus('${exam.id}', this.value)"
@@ -2895,6 +2936,176 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Save Changes';
             }
+        }
+
+        // --- Extensions Logic ---
+        let currentExamExtensionsId = null;
+        let extensionsInterval = null;
+
+        window.openExtensionsModal = async function(examId) {
+            currentExamExtensionsId = examId;
+            const exam = await dataService.getExamById(examId);
+            if (!exam) return;
+
+            document.getElementById('extensions-modal').style.display = 'flex';
+            document.getElementById('ext-exam-title').textContent = `Exam: ${exam.title}`;
+
+            const select = document.getElementById('ext-student-select');
+            select.innerHTML = '<option value="">Loading students...</option>';
+
+            try {
+                const results = await dataService.getResults({ examId: examId });
+                const participants = results.map(r => ({
+                    id: r.studentId,
+                    name: r.studentName || 'Unknown',
+                    status: r.status
+                }));
+
+                participants.sort((a, b) => a.name.localeCompare(b.name));
+
+                let opts = '<option value="GLOBAL" style="font-weight:bold;">-- ALL STUDENTS --</option>';
+                if (participants.length === 0) {
+                    opts += '<option value="" disabled>No students have started this exam yet</option>';
+                } else {
+                    opts += participants.map(p => {
+                        const statusInfo = p.status === 'in-progress' ? ' (In Progress)' : '';
+                        return `<option value="${p.id}">${p.name}${statusInfo}</option>`;
+                    }).join('');
+                }
+
+                select.innerHTML = opts;
+                renderExtensionsList(exam, results);
+            } catch (e) {
+                console.error(e);
+                select.innerHTML = '<option value="">Error loading participants</option>';
+            }
+        };
+
+        window.closeExtensionsModal = function() {
+            document.getElementById('extensions-modal').style.display = 'none';
+            currentExamExtensionsId = null;
+            if (extensionsInterval) {
+                clearInterval(extensionsInterval);
+                extensionsInterval = null;
+            }
+        };
+
+        window.saveExtension = async function() {
+            if (!currentExamExtensionsId) return;
+            const studentId = document.getElementById('ext-student-select').value;
+            const minutes = parseInt(document.getElementById('ext-minutes').value);
+
+            if (!studentId) { alert('Please select a student or "All Students"'); return; }
+            if (isNaN(minutes) || minutes <= 0) { alert('Please enter a valid number of minutes'); return; }
+
+            try {
+                const exam = await dataService.getExamById(currentExamExtensionsId);
+
+                if (studentId === 'GLOBAL') {
+                    const globalExtension = { addedMinutes: minutes, grantedAt: new Date().toISOString() };
+                    await dataService.updateExam(currentExamExtensionsId, { globalExtension });
+                } else {
+                    const extensions = exam.extensions || {};
+                    extensions[studentId] = { addedMinutes: minutes, grantedAt: new Date().toISOString() };
+                    await dataService.updateExam(currentExamExtensionsId, { extensions });
+                }
+
+                const updatedExam = await dataService.getExamById(currentExamExtensionsId);
+                const results = await dataService.getResults({ examId: currentExamExtensionsId });
+                renderExtensionsList(updatedExam, results);
+                document.getElementById('ext-minutes').value = '';
+                showToast('Extension saved successfully');
+            } catch (e) {
+                console.error('Failed to save extension:', e);
+                showToast('Failed to save: ' + e.message);
+            }
+        };
+
+        window.removeExtension = async function(studentId) {
+            if (!currentExamExtensionsId) return;
+            if (!confirm('Remove this extension?')) return;
+
+            try {
+                const exam = await dataService.getExamById(currentExamExtensionsId);
+                if (studentId === 'GLOBAL') {
+                    await dataService.updateExam(currentExamExtensionsId, { globalExtension: null });
+                } else {
+                    const extensions = exam.extensions || {};
+                    delete extensions[studentId];
+                    await dataService.updateExam(currentExamExtensionsId, { extensions });
+                }
+
+                const updatedExam = await dataService.getExamById(currentExamExtensionsId);
+                const results = await dataService.getResults({ examId: currentExamExtensionsId });
+                renderExtensionsList(updatedExam, results);
+            } catch (e) {
+                showToast('Failed to remove extension: ' + e.message);
+            }
+        };
+
+        function renderExtensionsList(exam, results = []) {
+            const list = document.getElementById('ext-list');
+            const ext = exam.extensions || {};
+            // Filter out internal keys like _deleted, _deletedAt
+            const studentIds = Object.keys(ext).filter(k => !k.startsWith('_'));
+            const globalExt = exam.globalExtension;
+
+            if (extensionsInterval) clearInterval(extensionsInterval);
+
+            if (studentIds.length === 0 && !globalExt) {
+                list.innerHTML = '<p style="font-size: 0.9rem; color: var(--light-text);">No extensions granted.</p>';
+                return;
+            }
+
+            const updateTimers = () => {
+                const now = new Date();
+                let html = '';
+
+                if (globalExt) {
+                    const grantedAt = new Date(globalExt.grantedAt);
+                    const endTime = new Date(grantedAt.getTime() + globalExt.addedMinutes * 60000);
+                    const diff = endTime - now;
+                    const countdown = diff > 0
+                        ? `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s remaining`
+                        : '<span style="color:var(--accent-color);">Expired</span>';
+
+                    html += `
+                        <div style="background: var(--inner-bg); padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color);">
+                            <div>
+                                <div style="font-weight: 700; color: var(--text-color);">ALL STUDENTS</div>
+                                <div style="font-size: 0.8rem; color: var(--light-text);">+${globalExt.addedMinutes} min · ${countdown}</div>
+                            </div>
+                            <button onclick="removeExtension('GLOBAL')" style="background: none; border: none; color: var(--accent-color); cursor: pointer; font-size: 0.8rem; font-weight: 600;">Remove</button>
+                        </div>`;
+                }
+
+                studentIds.forEach(sid => {
+                    const data = ext[sid];
+                    if (!data || !data.addedMinutes) return;
+                    const r = results.find(r => r.studentId === sid);
+                    const name = r ? r.studentName : sid;
+                    const grantedAt = new Date(data.grantedAt);
+                    const endTime = new Date(grantedAt.getTime() + data.addedMinutes * 60000);
+                    const diff = endTime - now;
+                    const countdown = diff > 0
+                        ? `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s remaining`
+                        : '<span style="color:var(--accent-color);">Expired</span>';
+
+                    html += `
+                        <div style="background: var(--inner-bg); padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f0ad4e;">
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-color);">${name}</div>
+                                <div style="font-size: 0.8rem; color: var(--light-text);">+${data.addedMinutes} min · ${countdown}</div>
+                            </div>
+                            <button onclick="removeExtension('${sid}')" style="background: none; border: none; color: var(--accent-color); cursor: pointer; font-size: 0.8rem; font-weight: 600;">Remove</button>
+                        </div>`;
+                });
+
+                list.innerHTML = html;
+            };
+
+            updateTimers();
+            extensionsInterval = setInterval(updateTimers, 1000);
         }
 
         async function sendMessage() {
