@@ -52,10 +52,205 @@ class DataService {
         });
 
         this.PROXY_DOMAIN = 'school.cbt';
+
+        // V2D: Trusted server time — offset from device clock
+        this._serverTimeOffsetMs = null;
+        const savedOffset = localStorage.getItem('server_time_offset_ms');
+        const savedOffsetAt = localStorage.getItem('server_time_offset_synced_at');
+        if (savedOffset !== null) {
+            this._serverTimeOffsetMs = parseInt(savedOffset, 10);
+            const age = Date.now() - parseInt(savedOffsetAt || '0', 10);
+            if (age > 24 * 60 * 60 * 1000) {
+                console.warn('[TimeSync] Persisted offset is >24h old, will re-sync ASAP');
+            }
+        }
     }
 
     _getPB() {
         return this.pb;
+    }
+
+    // --- V2D: Trusted Server Time ---
+
+    /**
+     * Sync server time. Tries (in order):
+     *   1. Date HTTP header from /api/health
+     *   2. PocketBase record timestamp fallback (dashboard_versions or exams)
+     * Non-blocking — safe to call and not await if you want fire-and-forget.
+     */
+    async syncServerTime() {
+        const _p = _perf.start('syncServerTime');
+        try {
+            // Strategy 1: Date header from /api/health
+            const resp = await fetch(this.pb.baseUrl + '/api/health', { method: 'GET', cache: 'no-store' });
+            const dateHeader = resp.headers.get('Date');
+            if (dateHeader) {
+                const serverMs = new Date(dateHeader).getTime();
+                if (!isNaN(serverMs)) {
+                    this._applyServerOffset(serverMs);
+                    _perf.end(_p, { source: 'header' });
+                    console.log(`[TimeSync] Server time synced from Date header (offset: ${this._formatOffset()})`);
+                    return true;
+                }
+            }
+
+            // Strategy 2: PocketBase record timestamp fallback (Electron/file:// safe)
+            console.log('[TimeSync] Date header unavailable, trying PocketBase timestamp fallback');
+            const synced = await this._syncFromRecordTimestamp();
+            if (synced) {
+                _perf.end(_p, { source: 'record-ts' });
+                return true;
+            }
+
+            // All live sources failed
+            if (this._serverTimeOffsetMs !== null) {
+                console.log('[TimeSync] No live server time available, using stored offset');
+            } else {
+                console.warn('[TimeSync] No trusted time available');
+            }
+            _perf.end(_p, { source: 'miss' });
+            return false;
+        } catch (e) {
+            // Network error on health check — try record timestamp fallback
+            try {
+                console.log('[TimeSync] Health check failed, trying PocketBase timestamp fallback');
+                const synced = await this._syncFromRecordTimestamp();
+                if (synced) {
+                    _perf.end(_p, { source: 'record-ts' });
+                    return true;
+                }
+            } catch (_) { /* both strategies failed */ }
+
+            if (this._serverTimeOffsetMs !== null) {
+                console.log('[TimeSync] No live server time available, using stored offset');
+            } else {
+                console.warn('[TimeSync] No trusted time available');
+            }
+            _perf.end(_p, { source: 'error' });
+            return false;
+        }
+    }
+
+    /**
+     * Fallback: derive server time from a PocketBase record's `updated` timestamp.
+     * Uses lightweight queries against collections the user can already read.
+     */
+    async _syncFromRecordTimestamp() {
+        try {
+            // Try dashboard_versions first (tiny, readable by authenticated users)
+            const record = await this.pb.collection('dashboard_versions').getList(1, 1, {
+                fields: 'id,updated',
+                sort: '-updated'
+            });
+            if (record.items && record.items.length > 0) {
+                const ts = record.items[0].updated;
+                if (ts) {
+                    const serverMs = new Date(ts).getTime();
+                    if (!isNaN(serverMs)) {
+                        this._applyServerOffset(serverMs);
+                        console.log(`[TimeSync] Server time synced from PocketBase record timestamp (offset: ${this._formatOffset()})`);
+                        return true;
+                    }
+                }
+            }
+        } catch (_) { /* dashboard_versions may not be readable, try next */ }
+
+        try {
+            // Fallback: use exams collection (students can always read active exams)
+            const record = await this.pb.collection('exams').getList(1, 1, {
+                fields: 'id,updated',
+                sort: '-updated',
+                filter: 'status="active"'
+            });
+            if (record.items && record.items.length > 0) {
+                const ts = record.items[0].updated;
+                if (ts) {
+                    const serverMs = new Date(ts).getTime();
+                    if (!isNaN(serverMs)) {
+                        this._applyServerOffset(serverMs);
+                        console.log(`[TimeSync] Server time synced from exams record timestamp (offset: ${this._formatOffset()})`);
+                        return true;
+                    }
+                }
+            }
+        } catch (_) { /* exams query failed too */ }
+
+        return false;
+    }
+
+    /** Store computed offset to memory + localStorage */
+    _applyServerOffset(serverMs) {
+        this._serverTimeOffsetMs = serverMs - Date.now();
+        localStorage.setItem('server_time_offset_ms', String(this._serverTimeOffsetMs));
+        localStorage.setItem('server_time_offset_synced_at', String(Date.now()));
+    }
+
+    /** Format offset for logging */
+    _formatOffset() {
+        return `${this._serverTimeOffsetMs > 0 ? '+' : ''}${this._serverTimeOffsetMs}ms`;
+    }
+
+    /**
+     * Returns a trusted Date representing "now" using the server time offset.
+     * Falls back to persisted offset, then returns null if no trusted time is available.
+     */
+    getTrustedNow() {
+        if (this._serverTimeOffsetMs !== null) {
+            return new Date(Date.now() + this._serverTimeOffsetMs);
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if a valid server time offset is available (in memory or persisted).
+     */
+    hasTrustedTime() {
+        return this._serverTimeOffsetMs !== null;
+    }
+
+    /**
+     * V2D: Centralized exam availability resolver — THE single source of truth.
+     * Device time is NEVER authoritative. Uses trusted server time or safe fallback.
+     *
+     * @param {Object} exam - Mapped exam object (from _mapExam or _mapExamSummary)
+     * @returns {{ available: boolean, reason: string, trustedNow: Date|null, scheduledAt: Date|null }}
+     */
+    resolveExamAvailability(exam) {
+        // A. Invalid exam
+        if (!exam || !exam.id) {
+            return { available: false, reason: 'invalid', trustedNow: null, scheduledAt: null };
+        }
+
+        // B. Inactive exam (archived/draft)
+        if (exam.status === 'archived' || exam.status === 'draft') {
+            return { available: false, reason: 'inactive', trustedNow: this.getTrustedNow(), scheduledAt: null };
+        }
+
+        // C. No schedule — always available immediately
+        if (!exam.scheduledDate) {
+            return { available: true, reason: 'unscheduled', trustedNow: this.getTrustedNow(), scheduledAt: null };
+        }
+
+        // D/E. Has scheduled date — need trusted time
+        const scheduledAt = new Date(exam.scheduledDate);
+        if (isNaN(scheduledAt.getTime())) {
+            // Malformed date — treat as unscheduled (available)
+            return { available: true, reason: 'unscheduled', trustedNow: this.getTrustedNow(), scheduledAt: null };
+        }
+
+        const trustedNow = this.getTrustedNow();
+
+        // D. Trusted time available — compare
+        if (trustedNow) {
+            if (trustedNow >= scheduledAt) {
+                return { available: true, reason: 'scheduled_reached', trustedNow, scheduledAt };
+            }
+            return { available: false, reason: 'scheduled_future', trustedNow, scheduledAt };
+        }
+
+        // E. No trusted time — LOCK scheduled exams (prevent device-clock spoofing)
+        console.warn('[Schedule] Exam locked: no trusted time for scheduled exam', exam.id);
+        return { available: false, reason: 'no_trusted_time_future_locked', trustedNow: null, scheduledAt };
     }
 
     /**
@@ -719,7 +914,7 @@ class DataService {
         const { forceRefresh, ...cacheFilters } = filters;
         const cacheKey = `examSummaries_${JSON.stringify(cacheFilters)}`;
 
-        const CACHE_MAX_AGE = 15 * 60 * 1000; // 15 minutes
+        const CACHE_MAX_AGE = 2 * 60 * 1000; // 2 minutes — short TTL so schedule changes propagate quickly
         if (window.idb && !forceRefresh) {
             try {
                 const cached = await window.idb.getDashboardCache(cacheKey);

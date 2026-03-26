@@ -1168,6 +1168,8 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             setupConnectionMonitoring();
+            // V2D: Sync trusted server time (non-blocking)
+            if (navigator.onLine) dataService.syncServerTime().catch(() => {});
             // Auth Check
             const user = dataService.getCurrentUser();
             if (!user || user.role !== 'teacher') {
@@ -1350,12 +1352,12 @@
                     const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
                     const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
 
-                    // Format scheduled date if exists
+                    // V2D: Format scheduled date using trusted time resolver
                     let scheduleInfo = '';
                     if (exam.scheduledDate) {
+                        const schedAvail = dataService.resolveExamAvailability(exam);
                         const schedDate = new Date(exam.scheduledDate);
-                        const now = new Date();
-                        const isPast = schedDate < now;
+                        const isPast = schedAvail.available && schedAvail.reason === 'scheduled_reached';
                         const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                         scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.85rem;">📅 ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
                     }
@@ -2259,11 +2261,12 @@
                 const yellowCount = examResults.filter(r => r.status === 'in-progress').length;
                 const redCount = examResults.reduce((sum, r) => sum + window.countActiveFlags(r.flags), 0);
 
+                // V2D: Use trusted time resolver for schedule status
                 let scheduleInfo = '';
                 if (exam.scheduledDate) {
+                    const schedAvail = dataService.resolveExamAvailability(exam);
                     const schedDate = new Date(exam.scheduledDate);
-                    const now = new Date();
-                    const isPast = schedDate < now;
+                    const isPast = schedAvail.available && schedAvail.reason === 'scheduled_reached';
                     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                     scheduleInfo = `<span style="color: ${isPast ? 'var(--success-color)' : 'var(--accent-color)'}; font-size: 0.75rem;">${cardSvg.clock} ${schedDate.toLocaleDateString('en-US', options)}${isPast ? ' ✓' : ''}</span>`;
                 }

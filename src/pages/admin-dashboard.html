@@ -1431,14 +1431,14 @@
     <!-- Schedule & Duration Modal -->
     <div id="schedule-modal" class="modal" style="display: none; z-index: 4000;">
         <div class="modal-content"
-            style="max-width: 420px; margin: 10vh auto; width: 92%; padding: 0; overflow: hidden; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            style="max-width: 420px; margin: 5vh auto; width: 92%; padding: 0; border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; max-height: 90vh;">
             <div class="modal-header"
-                style="background: var(--card-bg); color: var(--text-color); padding: 20px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color);">
+                style="background: var(--card-bg); color: var(--text-color); padding: 20px; margin-bottom: 0; border: none; border-bottom: 1px solid var(--border-color); flex-shrink: 0; border-radius: 12px 12px 0 0;">
                 <h3 style="margin: 0; color: var(--text-color);">Schedule & Duration</h3>
                 <span class="close-btn" onclick="closeScheduleModal()"
                     style="color: var(--light-text); opacity: 0.8; font-size: 1.5rem;">&times;</span>
             </div>
-            <div style="padding: 24px; background: var(--card-bg);">
+            <div style="padding: 24px; background: var(--card-bg); overflow-y: auto; flex: 1 1 auto;">
                 <input type="hidden" id="schedule-exam-id">
 
                 <div class="control-group" style="margin-bottom: 20px;">
@@ -1473,7 +1473,7 @@
                 </div>
             </div>
             <div class="modal-footer"
-                style="padding: 20px 24px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0;">
+                style="padding: 20px 24px; background: var(--inner-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: 0; flex-shrink: 0; border-radius: 0 0 12px 12px;">
                 <button class="btn btn-outline" onclick="closeScheduleModal()"
                     style="padding: 10px 20px; border-radius: 8px;">Cancel</button>
                 <button id="schedule-submit-btn" class="btn btn-primary" onclick="submitScheduleChanges()"
@@ -1714,6 +1714,8 @@
 
         // Initialize
         async function init() {
+            // V2D: Sync trusted server time (non-blocking)
+            if (navigator.onLine) dataService.syncServerTime().catch(() => {});
             currentUser = dataService.getCurrentUser();
 
             if (!currentUser || currentUser.role !== 'admin') {
