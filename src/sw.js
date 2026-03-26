@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-exam-v17';
+const CACHE_NAME = 'cbt-exam-v18';
 const ASSETS = [
 
     './',
@@ -27,7 +27,7 @@ const ASSETS = [
 
 // Install Event - Pre-cache static assets
 self.addEventListener('install', (e) => {
-    console.log('[Service Worker] Install v17');
+    console.log('[Service Worker] Install v18');
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('[Service Worker] Caching all: app shell and content');
@@ -50,7 +50,7 @@ self.addEventListener('install', (e) => {
 
 // Activate Event (Cleanup old caches + claim clients immediately)
 self.addEventListener('activate', (e) => {
-    console.log('[Service Worker] Activate v17');
+    console.log('[Service Worker] Activate v18');
     e.waitUntil(
         caches.keys().then((keyList) => {
             const keepCaches = [CACHE_NAME, CACHE_NAME + '-api'];

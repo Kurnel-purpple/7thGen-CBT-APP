@@ -155,29 +155,41 @@ const studentDashboard = {
         }
     },
 
-    // V2B: Check server version and determine if cache is stale
+    // V2B+V2D: Check server version and determine if cache is stale
+    // Checks BOTH class-specific AND _global feed keys to catch all mutations
     _checkVersionStale: async () => {
         const userClass = studentDashboard.user?.classLevel;
-        const feedKey = userClass ? `student_exam_feed:${userClass}` : 'student_exam_feed:_global';
-        const cacheKey = `dashboard_version_${feedKey}`;
+        const feedKeys = [];
+        if (userClass) feedKeys.push(`student_exam_feed:${userClass}`);
+        feedKeys.push('student_exam_feed:_global');
 
-        try {
-            const serverVersion = await dataService.getDashboardVersion(feedKey);
-            // If version unavailable (403, 404, network error), treat as "cannot verify, assume fresh"
-            if (serverVersion === null) return false;
-
-            const cachedVersion = parseInt(localStorage.getItem(cacheKey) || '0', 10);
-
-            if (serverVersion !== cachedVersion) {
-                console.log(`🔄 Dashboard version changed: ${cachedVersion} → ${serverVersion}`);
-                localStorage.setItem(cacheKey, String(serverVersion));
-                return true; // stale
+        let anyNull = true; // assume null until proven otherwise
+        for (const feedKey of feedKeys) {
+            const cacheKey = `dashboard_version_${feedKey}`;
+            try {
+                const serverVersion = await dataService.getDashboardVersion(feedKey);
+                if (serverVersion === null) {
+                    console.warn(`[VersionCheck] Version unavailable for ${feedKey}`);
+                    continue; // try next key
+                }
+                anyNull = false;
+                const cachedVersion = parseInt(localStorage.getItem(cacheKey) || '0', 10);
+                if (serverVersion !== cachedVersion) {
+                    console.log(`[VersionCheck] Version changed for ${feedKey}: ${cachedVersion} -> ${serverVersion}`);
+                    localStorage.setItem(cacheKey, String(serverVersion));
+                    return true; // stale — at least one key changed
+                }
+            } catch (e) {
+                console.warn(`[VersionCheck] Check failed for ${feedKey}:`, e);
+                continue;
             }
-            return false; // fresh
-        } catch (e) {
-            console.warn('Version check failed:', e);
-            return false; // assume fresh on error, will catch up on next interval
         }
+        // If ALL version checks returned null (403/error), treat as stale to force refresh
+        if (anyNull) {
+            console.warn('[VersionCheck] All version checks unavailable, forcing refresh');
+            return true;
+        }
+        return false; // all keys matched — fresh
     },
 
     loadData: async () => {
@@ -195,11 +207,20 @@ const studentDashboard = {
             forceRefresh = true;
         }
 
-        // V2B: Check if dashboard version changed — if so, force refresh
+        // V2B+V2D: Check if dashboard version changed — if so, force refresh
         if (!forceRefresh && navigator.onLine) {
             try {
                 forceRefresh = await studentDashboard._checkVersionStale();
-            } catch (e) { /* proceed without version check */ }
+                if (forceRefresh) console.log('[ExamRefresh] Version stale on initial load, forcing network fetch');
+            } catch (e) {
+                forceRefresh = true; // on error, force refresh to be safe
+                console.warn('[ExamRefresh] Version check error, forcing refresh');
+            }
+        }
+
+        // V2D: Sync trusted server time in parallel with data fetch (non-blocking)
+        if (navigator.onLine) {
+            dataService.syncServerTime().catch(() => {});
         }
 
         try {
@@ -346,27 +367,42 @@ const studentDashboard = {
 
         studentDashboard.renderCompleted();
 
-        // --- Background refresh function (reused for initial + periodic) ---
+        // --- Background refresh function (reused for initial + periodic + visibility) ---
         const backgroundRefresh = async () => {
             if (!navigator.onLine) return;
             try {
-                // V2B: Only force-refresh if version changed
-                const isStale = await studentDashboard._checkVersionStale();
-                if (!isStale) {
-                    console.log('✅ Dashboard version unchanged, skipping refresh');
-                    return;
+                // V2B: Check version to decide force refresh vs normal fetch
+                let forceNet = false;
+                try {
+                    forceNet = await studentDashboard._checkVersionStale();
+                } catch (e) {
+                    forceNet = true; // on error, force refresh to be safe
                 }
 
-                console.log('🔄 Dashboard version changed, fetching fresh data...');
+                if (forceNet) {
+                    console.log('[ExamRefresh] Version stale or unavailable, forcing network fetch');
+                }
+
+                // Always fetch — version check determines forceRefresh flag.
+                // Even without forceRefresh, the 2-min IDB cache TTL ensures fresh data
+                // within 2 minutes of any admin change.
                 const [freshExams, freshResults] = await Promise.all([
-                    dataService.getExamSummaries({ status: 'active', studentDashboard: true, forceRefresh: true }),
-                    userId ? dataService.getResultSummaries({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
+                    dataService.getExamSummaries({ status: 'active', studentDashboard: true, ...(forceNet && { forceRefresh: true }) }),
+                    userId ? dataService.getResultSummaries({ studentId: userId, studentDashboard: true, ...(forceNet && { forceRefresh: true }) }) : []
                 ]);
 
                 // Guard: Do NOT overwrite good data with an empty response
                 if (studentDashboard.exams.length > 0 && freshExams.length === 0) {
-                    console.warn('⚠️ Background refresh returned 0 exams — keeping cached data');
+                    console.warn('[ExamRefresh] Background refresh returned 0 exams — keeping cached data');
                     return;
+                }
+
+                // Detect schedule changes and log them
+                for (const freshExam of freshExams) {
+                    const oldExam = studentDashboard.exams.find(e => e.id === freshExam.id);
+                    if (oldExam && oldExam.scheduledDate !== freshExam.scheduledDate) {
+                        console.log(`[ScheduleUpdate] Schedule changed for exam ${freshExam.id}: "${oldExam.scheduledDate}" -> "${freshExam.scheduledDate}"`);
+                    }
                 }
 
                 // Update dashboard cache with FRESH summaries only — NOT entity stores
@@ -387,19 +423,26 @@ const studentDashboard = {
                 studentDashboard.renderAvailable();
                 studentDashboard.renderResolved();
                 studentDashboard.renderCompleted();
+                console.log(`[ExamRefresh] Fetched fresh exams: ${freshExams.length}`);
 
-            } catch (e) { console.warn('Background refresh failed', e); }
+            } catch (e) { console.warn('[ExamRefresh] Background refresh failed', e); }
         };
 
-        // Periodic background refresh every 5 minutes
+        // Periodic background refresh every 2 minutes (matches cache TTL)
         if (studentDashboard._refreshInterval) clearInterval(studentDashboard._refreshInterval);
-        studentDashboard._refreshInterval = setInterval(backgroundRefresh, 5 * 60 * 1000);
+        studentDashboard._refreshInterval = setInterval(backgroundRefresh, 2 * 60 * 1000);
 
-        // V2B: Smart refresh on tab focus / visibility change
+        // V2B+V2D: Smart refresh on tab focus / visibility change (debounced 5s)
         if (!studentDashboard._visibilityListenerAdded) {
             studentDashboard._visibilityListenerAdded = true;
+            let lastVisRefresh = 0;
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible' && navigator.onLine) {
+                    const now = Date.now();
+                    if (now - lastVisRefresh < 5000) return; // debounce 5s
+                    lastVisRefresh = now;
+                    // V2D: Re-sync trusted time on visibility change
+                    dataService.syncServerTime().catch(() => {});
                     backgroundRefresh();
                 }
             });
@@ -740,20 +783,23 @@ const studentDashboard = {
             return;
         }
 
-        // Sort: available exams first, then scheduled by due date (earliest first)
+        // V2D: Sort using centralized resolver — available exams first, then scheduled by date
         available.sort((a, b) => {
-            const aScheduled = a.scheduledDate && new Date(a.scheduledDate) > now;
-            const bScheduled = b.scheduledDate && new Date(b.scheduledDate) > now;
-            if (aScheduled && !bScheduled) return 1;
-            if (!aScheduled && bScheduled) return -1;
-            if (aScheduled && bScheduled) return new Date(a.scheduledDate) - new Date(b.scheduledDate);
+            const aAvail = dataService.resolveExamAvailability(a);
+            const bAvail = dataService.resolveExamAvailability(b);
+            const aLocked = !aAvail.available && aAvail.scheduledAt;
+            const bLocked = !bAvail.available && bAvail.scheduledAt;
+            if (aLocked && !bLocked) return 1;
+            if (!aLocked && bLocked) return -1;
+            if (aLocked && bLocked) return aAvail.scheduledAt - bAvail.scheduledAt;
             return 0;
         });
 
         html += available.map(exam => {
-            // Check if exam is scheduled for future
-            const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > now;
-            const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null;
+            // V2D: Use centralized resolver — no raw Date comparisons
+            const availability = dataService.resolveExamAvailability(exam);
+            const isScheduled = !availability.available && (availability.reason === 'scheduled_future' || availability.reason === 'no_trusted_time_future_locked');
+            const scheduledDate = availability.scheduledAt;
             const isInProgress = inProgressResults.some(r => String(r.examId) === String(exam.id));
 
             let scheduleInfo = '';
@@ -770,10 +816,11 @@ const studentDashboard = {
             }
 
             if (isScheduled && !isInProgress) {
-                // Format scheduled date nicely
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
-                scheduleInfo = `<span style="color: var(--accent-color); display:inline-flex; align-items:center; gap:4px; font-size:0.72rem;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${formattedDate}</span>`;
+                const formattedDate = scheduledDate ? scheduledDate.toLocaleDateString('en-US', options) : 'Scheduled';
+                const verifyNote = availability.reason === 'no_trusted_time_future_locked'
+                    ? ' <span style="font-size:0.65rem; opacity:0.7;">(verifying time...)</span>' : '';
+                scheduleInfo = `<span style="color: var(--accent-color); display:inline-flex; align-items:center; gap:4px; font-size:0.72rem;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${formattedDate}${verifyNote}</span>`;
                 actionButton = `<button class="btn" style="width: 100%; background: #EA4335; color: white; cursor: not-allowed; display:inline-flex; align-items:center; justify-content:center; gap:6px; opacity:0.85;" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Available ${formattedDate}</button>`;
             } else {
                 actionButton = `<button class="btn" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%; background: ${isInProgress ? '#f0ad4e' : '#28a745'}; color: white;">${isInProgress ? 'Continue Exam' : 'Start Exam'}</button>`;
@@ -963,15 +1010,19 @@ const studentDashboard = {
         if (centerContent) {
             centerContent.style.display = 'block';
 
-            const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
-            const scheduledDate = exam.scheduledDate ? new Date(exam.scheduledDate) : null;
+            // V2D: Use centralized resolver
+            const availability = dataService.resolveExamAvailability(exam);
+            const isScheduled = !availability.available && (availability.reason === 'scheduled_future' || availability.reason === 'no_trusted_time_future_locked');
+            const scheduledDate = availability.scheduledAt;
             const isInProgress = studentDashboard.results.some(r => r.examId === examId && r.status === 'in-progress');
             let ctaHtml = '';
 
             if (isScheduled && !isInProgress) {
                 const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const formattedDate = scheduledDate.toLocaleDateString('en-US', options);
-                ctaHtml = `<button class="btn btn-start-exam" disabled style="background: #EA4335; color: white; opacity: 0.85; cursor: not-allowed;">Available ${formattedDate}</button>`;
+                const formattedDate = scheduledDate ? scheduledDate.toLocaleDateString('en-US', options) : 'Scheduled';
+                const verifyNote = availability.reason === 'no_trusted_time_future_locked'
+                    ? ' (verifying time...)' : '';
+                ctaHtml = `<button class="btn btn-start-exam" disabled style="background: #EA4335; color: white; opacity: 0.85; cursor: not-allowed;">Available ${formattedDate}${verifyNote}</button>`;
             } else {
                 ctaHtml = `<button class="btn btn-start-exam" onclick="studentDashboard.startExam('${exam.id}')" style="background: ${isInProgress ? '#f0ad4e' : '#28a745'}; color: white;">${isInProgress ? 'Continue Exam' : 'Start Exam'}</button>`;
             }
@@ -1064,7 +1115,9 @@ const studentDashboard = {
         if (metaContent) {
             const qCount = exam.questionCount || 0;
             const pastAttempts = studentDashboard.results.filter(r => r.examId === examId);
-            const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
+            // V2D: Use centralized resolver for right-panel status
+            const metaAvail = dataService.resolveExamAvailability(exam);
+            const isScheduled = !metaAvail.available && (metaAvail.reason === 'scheduled_future' || metaAvail.reason === 'no_trusted_time_future_locked');
             const isInProgress = pastAttempts.some(r => r.status === 'in-progress');
             let statusLabel, statusColor;
             if (tab === 'flagged') {
@@ -1153,6 +1206,25 @@ const studentDashboard = {
             return;
         }
 
+        // V2D: Validate schedule using trusted server time BEFORE confirming
+        const availability = dataService.resolveExamAvailability(exam);
+        if (!availability.available) {
+            if (availability.reason === 'no_trusted_time_future_locked') {
+                await Utils.showAlert('Cannot Verify Time', 'Cannot verify exam start time right now. Please reconnect and try again.');
+                return;
+            }
+            if (availability.reason === 'scheduled_future') {
+                const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = availability.scheduledAt.toLocaleDateString('en-US', options);
+                await Utils.showAlert('Not Yet Available', `This exam is not yet available. It will be accessible on ${formattedDate}.`);
+                return;
+            }
+            if (availability.reason === 'inactive') {
+                await Utils.showAlert('Exam Unavailable', 'This exam is no longer available.');
+                return;
+            }
+        }
+
         const confirmed = await Utils.showConfirm('Start Exam', `Are you sure you want to start <strong>${exam.subject} — ${exam.title}</strong>?<br><br>The timer will begin immediately once you proceed.`);
         if (confirmed) {
             // Show loading indicator
@@ -1167,14 +1239,48 @@ const studentDashboard = {
             }
 
             try {
-                // V2B: Validate prefetched exam isn't stale by checking server timestamp
+                // V2D LAUNCH GUARD: Fetch latest exam metadata from server and re-validate schedule
                 let serverUpdatedAt = exam.updatedAt;
                 if (navigator.onLine) {
                     try {
                         const pb = dataService._getPB();
-                        const fresh = await pb.collection('exams').getOne(examId, { fields: 'updated' });
-                        serverUpdatedAt = fresh.updated;
-                    } catch (e) { /* use summary timestamp as fallback */ }
+                        const freshMeta = await pb.collection('exams').getOne(examId, {
+                            fields: 'updated,scheduled_date,status'
+                        });
+                        serverUpdatedAt = freshMeta.updated;
+
+                        // Re-check availability with fresh server data
+                        const freshExamForCheck = {
+                            ...exam,
+                            scheduledDate: freshMeta.scheduled_date || null,
+                            status: freshMeta.status,
+                            updatedAt: freshMeta.updated
+                        };
+                        const freshAvailability = dataService.resolveExamAvailability(freshExamForCheck);
+                        if (!freshAvailability.available) {
+                            if (loader) loader.remove();
+                            console.log(`[LaunchGuard] Blocked stale launch for exam ${examId}: reason=${freshAvailability.reason}`);
+                            if (freshAvailability.reason === 'scheduled_future') {
+                                const opts = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                                const fd = freshAvailability.scheduledAt.toLocaleDateString('en-US', opts);
+                                await Utils.showAlert('Schedule Changed', `This exam has been scheduled and is not yet available. It will be accessible on ${fd}.`);
+                            } else if (freshAvailability.reason === 'inactive') {
+                                await Utils.showAlert('Exam Unavailable', 'This exam is no longer available.');
+                            } else {
+                                await Utils.showAlert('Cannot Start', 'This exam cannot be started right now. Please refresh and try again.');
+                            }
+                            // Update local exam data to reflect server state
+                            const idx = studentDashboard.exams.findIndex(e => e.id === examId);
+                            if (idx !== -1) {
+                                studentDashboard.exams[idx] = freshExamForCheck;
+                                studentDashboard.renderAvailable();
+                            }
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('[LaunchGuard] Could not verify latest exam state:', e);
+                        // Proceed with cached data — take-exam page has its own checks
+                    }
                 }
 
                 // Wait for any in-progress prefetch

@@ -114,6 +114,7 @@ const takeExam = {
 
             // V2C: Exam Snapshot Freezing — use frozen snapshot if resuming an attempt
             const snapshotKey = `attempt_snapshot_${examId}_${user.id}`;
+            let isResumingSnapshot = false;
             if (window.idb && window.idb.isIndexedDBAvailable()) {
                 try {
                     const snapshot = await window.idb.getDashboardCache(snapshotKey);
@@ -122,6 +123,7 @@ const takeExam = {
                         if (snapshotExam.questions.length > 0) {
                             console.log('[TakeExam] Resuming from frozen exam snapshot');
                             exam = snapshotExam;
+                            isResumingSnapshot = true;
                         } else {
                             // Invalid snapshot (e.g. summary with questions:null was cached)
                             console.warn('[TakeExam] Invalid snapshot detected, discarding and refetching');
@@ -150,17 +152,27 @@ const takeExam = {
                 takeExam.showNotice('⚠️ Offline mode: Using cached exam data. Your answers will be saved locally and synced when online.', 'warning');
             }
 
-            // Check if exam is accessible (not archived, scheduled time passed)
+            // V2D: Check exam accessibility using trusted server time
+            // IMPORTANT: Skip schedule check if resuming from snapshot (V2C: don't re-lock mid-attempt)
             if (exam.status === 'archived') {
                 takeExam.showAlert('Archived', 'This exam has been archived and is no longer available.', () => window.location.href = 'student-dashboard.html');
                 return;
             }
 
-            if (exam.scheduledDate && new Date(exam.scheduledDate) > new Date()) {
-                const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const scheduledStr = new Date(exam.scheduledDate).toLocaleDateString('en-US', options);
-                takeExam.showAlert('Not Yet Available', `This exam is not yet available. It will be accessible on ${scheduledStr}.`, () => window.location.href = 'student-dashboard.html');
-                return;
+            if (!isResumingSnapshot) {
+                const availability = dataService.resolveExamAvailability(exam);
+                if (!availability.available && availability.reason !== 'inactive') {
+                    if (availability.reason === 'no_trusted_time_future_locked') {
+                        takeExam.showAlert('Cannot Verify Time', 'Cannot verify exam start time right now. Please reconnect and try again.', () => window.location.href = 'student-dashboard.html');
+                        return;
+                    }
+                    if (availability.reason === 'scheduled_future') {
+                        const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                        const scheduledStr = availability.scheduledAt.toLocaleDateString('en-US', options);
+                        takeExam.showAlert('Not Yet Available', `This exam is not yet available. It will be accessible on ${scheduledStr}.`, () => window.location.href = 'student-dashboard.html');
+                        return;
+                    }
+                }
             }
 
             // Scramble sub-questions for image_multi (picture comprehension) questions
