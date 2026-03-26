@@ -1599,6 +1599,30 @@ const examManager = {
 
         try {
             if (examManager.currentExamId) {
+                // V2C: Warn if students have in-progress attempts
+                try {
+                    const inProgressResults = await dataService.getResults({ examId: examManager.currentExamId });
+                    const activeAttempts = inProgressResults.filter(r => r.status === 'in-progress');
+                    if (activeAttempts.length > 0) {
+                        const proceed = await Utils.showConfirm(
+                            'Students In Progress',
+                            `<strong>${activeAttempts.length} student(s)</strong> are currently taking this exam.<br><br>Your changes will only affect students who have <strong>not yet started</strong>. Students already in progress will continue with their original version.`
+                        );
+                        if (!proceed) {
+                            examManager._isPublishing = false;
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = originalBtnText;
+                                submitBtn.style.opacity = '1';
+                            }
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    // Don't block save if check fails
+                    console.warn('Could not check in-progress attempts:', e);
+                }
+
                 await dataService.updateExam(examManager.currentExamId, examData);
             } else {
                 await dataService.createExam(examData);

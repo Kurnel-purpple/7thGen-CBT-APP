@@ -3,6 +3,24 @@
  * Handles persistence using PocketBase Client.
  */
 
+// V2C: Debug perf instrumentation — enable with localStorage.setItem('debug_perf', '1')
+const _perf = {
+    enabled: () => localStorage.getItem('debug_perf') === '1',
+    start: (label) => {
+        if (!_perf.enabled()) return null;
+        return { label, t0: performance.now() };
+    },
+    end: (ctx, extra = {}) => {
+        if (!ctx) return;
+        const ms = (performance.now() - ctx.t0).toFixed(1);
+        const parts = [`[PERF] ${ctx.label}: ${ms}ms`];
+        if (extra.source) parts.push(`source=${extra.source}`);
+        if (extra.count !== undefined) parts.push(`count=${extra.count}`);
+        if (extra.size !== undefined) parts.push(`size=${(extra.size / 1024).toFixed(1)}KB`);
+        console.log(parts.join(' | '));
+    }
+};
+
 class DataService {
     constructor() {
         // Initialize PocketBase client
@@ -34,8 +52,6 @@ class DataService {
         });
 
         this.PROXY_DOMAIN = 'school.cbt';
-        this.queryCache = new Map();
-        this.CACHE_TTL = 30000; // 30 seconds cache for dashboard queries
     }
 
     _getPB() {
@@ -107,27 +123,39 @@ class DataService {
     }
 
     async login(identifier, password) {
+        const _p = _perf.start('login');
         const email = this._generateEmail(identifier);
 
         try {
-            // Try authenticating with the raw identifier first (matches PocketBase username field)
-            // Then fall back to email format for legacy accounts
+            // V2C: Try email format first (most common case — single call)
+            // Fall back to raw identifier for edge cases
             let authData;
             try {
-                authData = await this.pb.collection('users').authWithPassword(identifier.trim(), password);
+                authData = await this.pb.collection('users').authWithPassword(email, password);
             } catch (firstErr) {
-                try {
-                    // If raw username failed, try as email format
-                    authData = await this.pb.collection('users').authWithPassword(email, password);
-                } catch (secondErr) {
-                    // Both attempts failed — provide a helpful error message
-                    const errMsg = (firstErr.message || secondErr.message || '').toLowerCase();
+                // If email format failed and identifier differs from email, try raw
+                if (identifier.trim() !== email) {
+                    try {
+                        authData = await this.pb.collection('users').authWithPassword(identifier.trim(), password);
+                    } catch (secondErr) {
+                        const errMsg = (firstErr.message || secondErr.message || '').toLowerCase();
+                        if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('credentials')) {
+                            throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
+                        } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('timeout')) {
+                            throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+                        } else {
+                            throw new Error(secondErr.message || 'Login failed. Please try again.');
+                        }
+                    }
+                } else {
+                    // identifier was already an email — no fallback needed
+                    const errMsg = (firstErr.message || '').toLowerCase();
                     if (errMsg.includes('failed to authenticate') || errMsg.includes('invalid') || errMsg.includes('credentials')) {
                         throw new Error('Incorrect username or password. Please double-check your credentials and try again.');
                     } else if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('timeout')) {
                         throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
                     } else {
-                        throw new Error(secondErr.message || 'Login failed. Please try again.');
+                        throw new Error(firstErr.message || 'Login failed. Please try again.');
                     }
                 }
             }
@@ -154,9 +182,10 @@ class DataService {
 
             localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
 
-            // Defer profile fetch/sync to background — don't block sign-in
-            this._syncProfileInBackground(record, userObj);
+            // V2C: Defer profile sync by 5s so dashboard load isn't competing
+            setTimeout(() => this._syncProfileInBackground(record, userObj), 5000);
 
+            _perf.end(_p, { source: 'auth' });
             return userObj;
 
         } catch (err) {
@@ -685,14 +714,111 @@ class DataService {
         }
     }
 
-    async getExamById(id) {
-        // 1. Try IDB first
+    async getExamSummaries(filters = {}) {
+        const _p = _perf.start('getExamSummaries');
+        const { forceRefresh, ...cacheFilters } = filters;
+        const cacheKey = `examSummaries_${JSON.stringify(cacheFilters)}`;
+
+        const CACHE_MAX_AGE = 15 * 60 * 1000; // 15 minutes
+        if (window.idb && !forceRefresh) {
+            try {
+                const cached = await window.idb.getDashboardCache(cacheKey);
+                if (cached && cached.data && cached.data.length > 0) {
+                    const age = Date.now() - (cached.cachedAt || 0);
+                    if (age < CACHE_MAX_AGE) {
+                        console.log(`📦 Serving exam summaries from cache (${Math.round(age / 1000)}s old)`);
+                        _perf.end(_p, { source: 'cache', count: cached.data.length });
+                        return cached.data;
+                    }
+                }
+            } catch (e) {
+                console.warn('IDB Cache read error:', e);
+            }
+        }
+
+        try {
+            let filterString = '';
+
+            if (filters.status) {
+                filterString += `status="${filters.status}"`;
+            }
+
+            if (!filters.includeDeleted) {
+                if (filterString) filterString += ' && ';
+                filterString += 'status!="archived"';
+            }
+
+            if (filters.teacherId) {
+                if (filterString) filterString += ' && ';
+                let teacherFilter = `created_by="${filters.teacherId}"`;
+                const currentUser = this.getCurrentUser();
+                if (currentUser && currentUser.id === filters.teacherId) {
+                    teacherFilter = `(created_by="${filters.teacherId}" || created_by="${currentUser.username}" || created_by="${currentUser.email}")`;
+                }
+                filterString += teacherFilter;
+            }
+
+            if (filters.targetClass) {
+                if (filterString) filterString += ' && ';
+                filterString += `(target_class="${filters.targetClass}" || target_class="All")`;
+            }
+
+            const options = {
+                filter: filterString,
+                sort: '-created',
+                fields: 'id,title,subject,target_class,duration,pass_score,status,created_by,created,updated,scheduled_date,scramble_questions,question_count,has_theory,theory_count,extensions,global_extension'
+            };
+
+            if (filters.studentDashboard) {
+                options.perPage = 50;
+            }
+
+            const exams = await this.pb.collection('exams').getFullList(options);
+            const mappedData = exams.map(e => this._mapExamSummary(e));
+
+            if (window.idb && mappedData.length > 0) {
+                await window.idb.saveDashboardCache(cacheKey, mappedData);
+            }
+
+            _perf.end(_p, { source: 'network', count: mappedData.length, size: JSON.stringify(mappedData).length });
+            return mappedData;
+        } catch (error) {
+            if (window.idb) {
+                try {
+                    const cached = await window.idb.getDashboardCache(cacheKey);
+                    if (cached) return cached.data;
+                } catch (e) { /* ignore */ }
+            }
+            throw error;
+        }
+    }
+
+    async getExamById(id, summaryUpdatedAt) {
+        const _p = _perf.start('getExamById');
+        // 1. Try IDB first with freshness check
         if (window.idb) {
             try {
                 const cachedExam = await window.idb.getExam(id);
                 if (cachedExam) {
-                    console.log(`📦 Serving exam ${id} from IDB`);
-                    return cachedExam;
+                    // Reject summaries that leaked into the exams store (questions is null/missing)
+                    if (!Array.isArray(cachedExam.questions) || cachedExam.questions.length === 0) {
+                        console.warn(`⚠️ Exam ${id} in IDB has no questions (likely a summary), skipping cache`);
+                        // Clean up the polluted entry
+                        try { await window.idb.deleteExam(id); } catch (_) { /* best effort cleanup */ }
+                    } else if (summaryUpdatedAt && cachedExam.updatedAt === summaryUpdatedAt) {
+                        // If we have a summary timestamp, check freshness
+                        console.log(`📦 Serving exam ${id} from IDB (fresh)`);
+                        _perf.end(_p, { source: 'cache-fresh' });
+                        return cachedExam;
+                    } else if (!summaryUpdatedAt) {
+                        // No summary to compare — serve cached as before
+                        console.log(`📦 Serving exam ${id} from IDB`);
+                        _perf.end(_p, { source: 'cache' });
+                        return cachedExam;
+                    } else {
+                        // Summary is newer — fall through to network fetch
+                        console.log(`🔄 Exam ${id} stale in IDB, fetching fresh...`);
+                    }
                 }
             } catch (e) { console.warn(e); }
         }
@@ -706,6 +832,7 @@ class DataService {
                 await window.idb.saveExam(mappedExam);
             }
 
+            _perf.end(_p, { source: 'network', size: JSON.stringify(mappedExam).length });
             return mappedExam;
         } catch (err) {
             throw err;
@@ -727,6 +854,8 @@ class DataService {
         }
 
         try {
+            const questions = examData.questions || [];
+            const theoryQs = questions.filter(q => q.type === 'theory');
             const data = {
                 title: examData.title,
                 school_level: examData.schoolLevel || null,
@@ -736,12 +865,15 @@ class DataService {
                 pass_score: examData.passScore,
                 instructions: examData.instructions,
                 theory_instructions: examData.theoryInstructions || null,
-                questions: examData.questions,
+                questions: questions,
                 status: examData.status || 'draft',
                 created_by: examData.createdBy,
                 scheduled_date: examData.scheduledDate || null,
                 scramble_questions: examData.scrambleQuestions || false,
-                client_id: clientGeneratedId
+                client_id: clientGeneratedId,
+                question_count: questions.length,
+                has_theory: theoryQs.length > 0,
+                theory_count: theoryQs.length
             };
 
             const created = await this.pb.collection('exams').create(data);
@@ -753,6 +885,9 @@ class DataService {
                 // Smart Update: Add to teacher's dashboard list
                 await this._updateDashboardCacheList(mappedExam, 'add');
             }
+
+            // V2B: Bump dashboard version (fire-and-forget)
+            this._bumpDashboardVersion(examData.targetClass).catch(() => {});
 
             return mappedExam;
         } catch (error) {
@@ -774,7 +909,13 @@ class DataService {
             if (updates.duration) data.duration = updates.duration;
             if (updates.passScore) data.pass_score = updates.passScore;
             if (updates.instructions) data.instructions = updates.instructions;
-            if (updates.questions) data.questions = updates.questions;
+            if (updates.questions) {
+                data.questions = updates.questions;
+                const theoryQs = updates.questions.filter(q => q.type === 'theory');
+                data.question_count = updates.questions.length;
+                data.has_theory = theoryQs.length > 0;
+                data.theory_count = theoryQs.length;
+            }
             if (updates.status) data.status = updates.status;
             if (updates.extensions !== undefined) data.extensions = updates.extensions;
             if (updates.globalExtension !== undefined) data.global_extension = updates.globalExtension;
@@ -788,6 +929,13 @@ class DataService {
             if (window.idb) {
                 await window.idb.saveExam(mappedExam);
                 await this._updateDashboardCacheList(mappedExam, 'update');
+            }
+
+            // V2B: Bump dashboard version (fire-and-forget)
+            // If targetClass changed, bump both old and new
+            this._bumpDashboardVersion(mappedExam.targetClass).catch(() => {});
+            if (updates.targetClass && updates._oldTargetClass && updates._oldTargetClass !== updates.targetClass) {
+                this._bumpDashboardVersion(updates._oldTargetClass).catch(() => {});
             }
 
             return mappedExam;
@@ -823,9 +971,56 @@ class DataService {
                 await this._updateDashboardCacheList({ id, createdBy: this.getCurrentUser()?.id }, 'delete');
             }
 
+            // V2B: Bump dashboard version (fire-and-forget)
+            this._bumpDashboardVersion(existing.target_class).catch(() => {});
+
             return true;
         } catch (error) {
             throw error;
+        }
+    }
+
+    // --- Dashboard Versions (V2B) ---
+
+    async _bumpDashboardVersion(targetClass) {
+        const keys = [];
+        if (targetClass && targetClass !== 'All') {
+            keys.push(`student_exam_feed:${targetClass}`);
+        }
+        keys.push('student_exam_feed:_global');
+
+        for (const feedKey of keys) {
+            try {
+                const existing = await this.pb.collection('dashboard_versions').getFirstListItem(`feed_key="${feedKey}"`);
+                await this.pb.collection('dashboard_versions').update(existing.id, {
+                    version: (existing.version || 0) + 1
+                });
+            } catch (e) {
+                // Record doesn't exist yet — create it with version 1
+                try {
+                    await this.pb.collection('dashboard_versions').create({
+                        feed_key: feedKey,
+                        version: 1
+                    });
+                } catch (createErr) {
+                    console.warn('[V2B] Failed to create dashboard version for', feedKey, createErr);
+                }
+            }
+        }
+    }
+
+    // NOTE: dashboard_versions should be readable by all authenticated users (lightweight feed metadata).
+    // Code must still work safely if backend rules are not yet updated.
+    async getDashboardVersion(feedKey) {
+        const _p = _perf.start('getDashboardVersion');
+        try {
+            const record = await this.pb.collection('dashboard_versions').getFirstListItem(`feed_key="${feedKey}"`);
+            _perf.end(_p, { source: 'network' });
+            return record.version || 0;
+        } catch (e) {
+            _perf.end(_p, { source: 'miss' });
+            console.warn('[DashboardVersion] Version unavailable, using cache-first fallback');
+            return null;
         }
     }
 
@@ -842,11 +1037,19 @@ class DataService {
         if (exam.createdBy) {
             const teacherKey = `exams_${JSON.stringify({ teacherId: exam.createdBy })}`;
             await this._performCacheListUpdate(teacherKey, exam, action);
+
+            // Summary cache for teacher
+            const teacherSummaryKey = `examSummaries_${JSON.stringify({ teacherId: exam.createdBy })}`;
+            await this._performCacheListUpdate(teacherSummaryKey, this._toSummaryExam(exam), action);
         }
 
         // 2. Student Dashboard: { status: 'active', studentDashboard: true }
         const studentKey = `exams_${JSON.stringify({ status: 'active', studentDashboard: true })}`;
         await this._performCacheListUpdate(studentKey, exam, action, true);
+
+        // Summary cache for student
+        const studentSummaryKey = `examSummaries_${JSON.stringify({ status: 'active', studentDashboard: true })}`;
+        await this._performCacheListUpdate(studentSummaryKey, this._toSummaryExam(exam), action, true);
 
         // 3. Student offline fallback key
         await this._performCacheListUpdate('exams_list', exam, action, true);
@@ -854,6 +1057,16 @@ class DataService {
         // 4. Admin Dashboard: {} (no filters except forceRefresh which is stripped)
         const adminKey = `exams_${JSON.stringify({})}`;
         await this._performCacheListUpdate(adminKey, exam, action);
+
+        // Summary cache for admin
+        const adminSummaryKey = `examSummaries_${JSON.stringify({})}`;
+        await this._performCacheListUpdate(adminSummaryKey, this._toSummaryExam(exam), action);
+    }
+
+    _toSummaryExam(exam) {
+        if (!exam) return exam;
+        const { questions, instructions, ...summary } = exam;
+        return { ...summary, questions: null };
     }
 
     async _performCacheListUpdate(key, exam, action, isStudentView = false) {
@@ -949,6 +1162,7 @@ class DataService {
 
     _mapExam(dbExam) {
         if (!dbExam) return null;
+        const questions = dbExam.questions || [];
         return {
             id: dbExam.id,
             title: dbExam.title,
@@ -957,7 +1171,7 @@ class DataService {
             duration: dbExam.duration,
             passScore: dbExam.pass_score,
             instructions: dbExam.instructions,
-            questions: dbExam.questions,
+            questions: questions,
             status: dbExam.status,
             createdBy: dbExam.created_by,
             createdAt: dbExam.created,
@@ -965,7 +1179,34 @@ class DataService {
             extensions: dbExam.extensions || {},
             globalExtension: dbExam.global_extension || null,
             scheduledDate: dbExam.scheduled_date || null,
-            scrambleQuestions: dbExam.scramble_questions || false
+            scrambleQuestions: dbExam.scramble_questions || false,
+            questionCount: dbExam.question_count ?? questions.length,
+            hasTheory: dbExam.has_theory ?? questions.some(q => q.type === 'theory'),
+            theoryCount: dbExam.theory_count ?? questions.filter(q => q.type === 'theory').length
+        };
+    }
+
+    _mapExamSummary(dbExam) {
+        if (!dbExam) return null;
+        return {
+            id: dbExam.id,
+            title: dbExam.title,
+            subject: dbExam.subject,
+            targetClass: dbExam.target_class,
+            duration: dbExam.duration,
+            passScore: dbExam.pass_score,
+            questions: null,
+            status: dbExam.status,
+            createdBy: dbExam.created_by,
+            createdAt: dbExam.created,
+            updatedAt: dbExam.updated,
+            extensions: dbExam.extensions || {},
+            globalExtension: dbExam.global_extension || null,
+            scheduledDate: dbExam.scheduled_date || null,
+            scrambleQuestions: dbExam.scramble_questions || false,
+            questionCount: dbExam.question_count || 0,
+            hasTheory: dbExam.has_theory || false,
+            theoryCount: dbExam.theory_count || 0
         };
     }
 
@@ -1112,6 +1353,68 @@ class DataService {
         }
     }
 
+    async getResultSummaries(filters = {}) {
+        const _p = _perf.start('getResultSummaries');
+        const { forceRefresh, ...cacheFilters } = filters;
+        const cacheKey = `resultSummaries_${JSON.stringify(cacheFilters)}`;
+
+        const CACHE_MAX_AGE = 10 * 60 * 1000; // 10 minutes
+        if (window.idb && !forceRefresh) {
+            try {
+                const cached = await window.idb.getDashboardCache(cacheKey);
+                if (cached && cached.data && cached.data.length > 0) {
+                    const age = Date.now() - (cached.cachedAt || 0);
+                    if (age < CACHE_MAX_AGE) {
+                        console.log(`📦 Serving result summaries from cache (${Math.round(age / 1000)}s old)`);
+                        _perf.end(_p, { source: 'cache', count: cached.data.length });
+                        return cached.data;
+                    }
+                }
+            } catch (e) { }
+        }
+
+        try {
+            let filterString = '';
+
+            if (filters.studentId) {
+                filterString += `student_id="${filters.studentId}"`;
+            }
+
+            if (filters.examId) {
+                if (filterString) filterString += ' && ';
+                filterString += `exam_id="${filters.examId}"`;
+            }
+
+            const options = {
+                filter: filterString,
+                sort: '-submitted_at',
+                fields: 'id,exam_id,student_id,score,total_points,pass_score,passed,submitted_at,flags,created,updated'
+            };
+
+            if (filters.studentDashboard) {
+                options.perPage = 100;
+            }
+
+            const results = await this.pb.collection('results').getFullList(options);
+            const mappedResults = results.map(r => this._mapResultSummary(r));
+
+            if (window.idb && mappedResults.length > 0) {
+                await window.idb.saveDashboardCache(cacheKey, mappedResults);
+            }
+
+            _perf.end(_p, { source: 'network', count: mappedResults.length, size: JSON.stringify(mappedResults).length });
+            return mappedResults;
+        } catch (error) {
+            if (window.idb) {
+                try {
+                    const cached = await window.idb.getDashboardCache(cacheKey);
+                    if (cached) return cached.data;
+                } catch (e) { /* ignore */ }
+            }
+            throw error;
+        }
+    }
+
     _mapResult(dbResult) {
         if (!dbResult) return null;
 
@@ -1141,6 +1444,35 @@ class DataService {
             passScore: dbResult.pass_score,
             passed: dbResult.passed,
             answers: dbResult.answers,
+            submittedAt: dbResult.submitted_at,
+            studentName: studentName,
+            flags: dbResult.flags || {},
+            status: status,
+            theoryScores: (dbResult.flags && dbResult.flags._theoryScores) ? dbResult.flags._theoryScores : {}
+        };
+    }
+
+    _mapResultSummary(dbResult) {
+        if (!dbResult) return null;
+
+        let status = 'completed';
+        if (dbResult.flags && dbResult.flags._status) {
+            status = dbResult.flags._status;
+        }
+
+        // No expand available — get student name from flags only
+        const studentName = (dbResult.flags && dbResult.flags._studentName) || 'Unknown';
+
+        return {
+            id: dbResult.id,
+            examId: dbResult.exam_id,
+            studentId: dbResult.student_id,
+            score: dbResult.score,
+            totalPoints: (dbResult.flags && dbResult.flags._real_total_points) ?
+                parseFloat(dbResult.flags._real_total_points) : dbResult.total_points,
+            passScore: dbResult.pass_score,
+            passed: dbResult.passed,
+            answers: null,
             submittedAt: dbResult.submitted_at,
             studentName: studentName,
             flags: dbResult.flags || {},
@@ -1636,6 +1968,33 @@ class DataService {
 
 // Global instance
 window.dataService = new DataService();
+
+// One-time migration: purge polluted IDB data from pre-V2ABC versions.
+// Summaries (questions:null) were mistakenly saved to the exams IDB store,
+// causing takeExam to crash. This runs once per device, then sets a flag.
+(async function _v2abcMigration() {
+    const FLAG = 'v2abc_idb_cleanup_done';
+    if (localStorage.getItem(FLAG)) return;
+    if (!window.idb || !window.idb.isIndexedDBAvailable()) {
+        localStorage.setItem(FLAG, '1');
+        return;
+    }
+    try {
+        console.log('[V2ABC] Running one-time IDB cleanup...');
+        // Clear polluted exams store (summaries with questions:null)
+        await window.idb.clearExams();
+        // Clear stale dashboard cache so fresh data is fetched
+        // (dashboardCache keys like 'exams_list', 'results_*' will be repopulated on next load)
+        const db = await window.idb.openDB();
+        const tx = db.transaction('dashboardCache', 'readwrite');
+        tx.objectStore('dashboardCache').clear();
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        console.log('[V2ABC] IDB cleanup complete — fresh data will be fetched on next dashboard load');
+    } catch (e) {
+        console.warn('[V2ABC] IDB cleanup error (non-fatal):', e);
+    }
+    localStorage.setItem(FLAG, '1');
+})();
 
 /**
  * Helper to update local IndexedDB cache based on actions

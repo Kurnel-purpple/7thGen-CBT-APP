@@ -155,6 +155,31 @@ const studentDashboard = {
         }
     },
 
+    // V2B: Check server version and determine if cache is stale
+    _checkVersionStale: async () => {
+        const userClass = studentDashboard.user?.classLevel;
+        const feedKey = userClass ? `student_exam_feed:${userClass}` : 'student_exam_feed:_global';
+        const cacheKey = `dashboard_version_${feedKey}`;
+
+        try {
+            const serverVersion = await dataService.getDashboardVersion(feedKey);
+            // If version unavailable (403, 404, network error), treat as "cannot verify, assume fresh"
+            if (serverVersion === null) return false;
+
+            const cachedVersion = parseInt(localStorage.getItem(cacheKey) || '0', 10);
+
+            if (serverVersion !== cachedVersion) {
+                console.log(`🔄 Dashboard version changed: ${cachedVersion} → ${serverVersion}`);
+                localStorage.setItem(cacheKey, String(serverVersion));
+                return true; // stale
+            }
+            return false; // fresh
+        } catch (e) {
+            console.warn('Version check failed:', e);
+            return false; // assume fresh on error, will catch up on next interval
+        }
+    },
+
     loadData: async () => {
         const userId = studentDashboard.user.id;
         const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
@@ -163,17 +188,33 @@ const studentDashboard = {
         let serverResults = [];
         let isUsingCache = false;
 
+        // Force refresh if returning from exam submission
+        let forceRefresh = false;
+        if (sessionStorage.getItem('force_refresh_dashboard') === '1') {
+            sessionStorage.removeItem('force_refresh_dashboard');
+            forceRefresh = true;
+        }
+
+        // V2B: Check if dashboard version changed — if so, force refresh
+        if (!forceRefresh && navigator.onLine) {
+            try {
+                forceRefresh = await studentDashboard._checkVersionStale();
+            } catch (e) { /* proceed without version check */ }
+        }
+
         try {
             // Attempt to fetch from server with optimizations
             [exams, serverResults] = await Promise.all([
-                dataService.getExams({
+                dataService.getExamSummaries({
                     status: 'active',
-                    studentDashboard: true // Use optimized query
+                    studentDashboard: true,
+                    ...(forceRefresh && { forceRefresh: true })
                 }),
                 userId
-                    ? dataService.getResults({
+                    ? dataService.getResultSummaries({
                         studentId: userId,
-                        studentDashboard: true // Use optimized query
+                        studentDashboard: true,
+                        ...(forceRefresh && { forceRefresh: true })
                     })
                     : Promise.resolve([])
             ]);
@@ -181,14 +222,10 @@ const studentDashboard = {
             // SUCCESS! Cache the fresh data for offline fallback
             try {
                 if (useIndexedDB) {
-                    // Use IndexedDB for larger storage capacity
-                    await window.idb.saveExams(exams);
+                    // Save summaries to dashboard cache only — NOT to entity stores (exams/results)
+                    // Summaries have questions:null / answers:null and would pollute full-entity stores
                     await window.idb.saveDashboardCache('exams_list', exams);
                     await window.idb.saveDashboardCache(`results_${userId}`, serverResults);
-                    // Also save results to IndexedDB
-                    if (serverResults.length > 0) {
-                        await window.idb.saveResults(serverResults);
-                    }
                     console.log('✅ Dashboard data cached to IndexedDB');
                 } else {
                     // Fallback to localStorage
@@ -313,10 +350,17 @@ const studentDashboard = {
         const backgroundRefresh = async () => {
             if (!navigator.onLine) return;
             try {
-                console.log('🔄 Checking for fresh dashboard data...');
+                // V2B: Only force-refresh if version changed
+                const isStale = await studentDashboard._checkVersionStale();
+                if (!isStale) {
+                    console.log('✅ Dashboard version unchanged, skipping refresh');
+                    return;
+                }
+
+                console.log('🔄 Dashboard version changed, fetching fresh data...');
                 const [freshExams, freshResults] = await Promise.all([
-                    dataService.getExams({ status: 'active', studentDashboard: true, forceRefresh: true }),
-                    userId ? dataService.getResults({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
+                    dataService.getExamSummaries({ status: 'active', studentDashboard: true, forceRefresh: true }),
+                    userId ? dataService.getResultSummaries({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
                 ]);
 
                 // Guard: Do NOT overwrite good data with an empty response
@@ -325,14 +369,12 @@ const studentDashboard = {
                     return;
                 }
 
-                // Update Cache with FRESH data
+                // Update dashboard cache with FRESH summaries only — NOT entity stores
                 if (window.idb) {
                     if (freshExams.length > 0) {
-                        await window.idb.saveExams(freshExams);
                         await window.idb.saveDashboardCache('exams_list', freshExams);
                     }
                     if (freshResults.length > 0) {
-                        await window.idb.saveResults(freshResults);
                         await window.idb.saveDashboardCache(`results_${userId}`, freshResults);
                     }
                 }
@@ -349,16 +391,19 @@ const studentDashboard = {
             } catch (e) { console.warn('Background refresh failed', e); }
         };
 
-        // Initial refresh after 1.5s, then every 3 minutes
-        if (navigator.onLine) {
-            setTimeout(backgroundRefresh, 1500);
-        }
-        // Clear any previous interval (e.g. if loadData is called again after sync)
+        // Periodic background refresh every 5 minutes
         if (studentDashboard._refreshInterval) clearInterval(studentDashboard._refreshInterval);
-        studentDashboard._refreshInterval = setInterval(backgroundRefresh, 3 * 60 * 1000);
+        studentDashboard._refreshInterval = setInterval(backgroundRefresh, 5 * 60 * 1000);
 
-        // Trigger preload of ready exams for offline use
-        studentDashboard.preloadExamsForOffline();
+        // V2B: Smart refresh on tab focus / visibility change
+        if (!studentDashboard._visibilityListenerAdded) {
+            studentDashboard._visibilityListenerAdded = true;
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && navigator.onLine) {
+                    backgroundRefresh();
+                }
+            });
+        }
     },
 
     // Helper to format cache age
@@ -734,7 +779,7 @@ const studentDashboard = {
                 actionButton = `<button class="btn" onclick="studentDashboard.startExam('${exam.id}')" style="width: 100%; background: ${isInProgress ? '#f0ad4e' : '#28a745'}; color: white;">${isInProgress ? 'Continue Exam' : 'Start Exam'}</button>`;
             }
 
-            const qCount = exam.questions ? exam.questions.length : 0;
+            const qCount = exam.questionCount || 0;
 
             return `
             <div class="exam-list-item ${isScheduled && !isInProgress ? 'scheduled' : ''}" data-exam-id="${exam.id}" onclick="studentDashboard.selectExam('${exam.id}', 'available')">
@@ -862,15 +907,15 @@ const studentDashboard = {
             const totalPoints = result.totalPoints || 100;
             const points = result.points !== undefined ? result.points : Math.round((result.score / 100) * totalPoints);
 
-            const hasTheoryQuestions = exam.questions && exam.questions.some(q => q.type === 'theory');
+            const hasTheoryQuestions = exam.hasTheory || false;
             const theoryScores = result.theoryScores || {};
-            const theoryQuestionIds = hasTheoryQuestions ? exam.questions.filter(q => q.type === 'theory').map(q => q.id) : [];
-            const gradedCount = theoryQuestionIds.filter(id => theoryScores[id] !== undefined).length;
-            const allTheoryGraded = theoryQuestionIds.length > 0 && gradedCount === theoryQuestionIds.length;
+            const gradedCount = Object.keys(theoryScores).length;
+            const theoryTotal = exam.theoryCount || 0;
+            const allTheoryGraded = theoryTotal > 0 && gradedCount >= theoryTotal;
             const pendingGrading = hasTheoryQuestions && !allTheoryGraded;
 
             const statusDotColor = isPass ? 'var(--success-color)' : 'var(--accent-color)';
-            const theoryLabel = hasTheoryQuestions ? (pendingGrading ? ` · Theory ${gradedCount}/${theoryQuestionIds.length}` : '') : '';
+            const theoryLabel = hasTheoryQuestions ? (pendingGrading ? ` · Theory ${gradedCount}/${theoryTotal}` : '') : '';
 
             return `
             <div class="exam-list-item completed" data-result-id="${result.id}" onclick="window.location.href='results.html?id=${result.id}'">
@@ -890,9 +935,21 @@ const studentDashboard = {
     },
 
     // Three-panel layout: select an exam to show in center + right panels
+    // Prefetch state for selected exam
+    _prefetchState: { examId: null, status: 'idle', promise: null },
+
     selectExam: (examId, tab) => {
         const exam = studentDashboard.exams.find(e => e.id === examId);
         if (!exam) return;
+
+        // Background prefetch of full exam for faster "Start Exam"
+        if (studentDashboard._prefetchState.examId !== examId) {
+            studentDashboard._prefetchState = { examId, status: 'loading', promise: null };
+            const prefetchPromise = dataService.getExamById(examId, exam.updatedAt)
+                .then(() => { studentDashboard._prefetchState.status = 'ready'; })
+                .catch(() => { studentDashboard._prefetchState.status = 'error'; });
+            studentDashboard._prefetchState.promise = prefetchPromise;
+        }
 
         // Highlight selected row
         document.querySelectorAll('.exam-list-item').forEach(el => el.classList.remove('selected'));
@@ -1005,7 +1062,7 @@ const studentDashboard = {
         // Populate right panel metadata
         const metaContent = document.getElementById('panel-meta-content');
         if (metaContent) {
-            const qCount = exam.questions ? exam.questions.length : 0;
+            const qCount = exam.questionCount || 0;
             const pastAttempts = studentDashboard.results.filter(r => r.examId === examId);
             const isScheduled = exam.scheduledDate && new Date(exam.scheduledDate) > new Date();
             const isInProgress = pastAttempts.some(r => r.status === 'in-progress');
@@ -1098,6 +1155,41 @@ const studentDashboard = {
 
         const confirmed = await Utils.showConfirm('Start Exam', `Are you sure you want to start <strong>${exam.subject} — ${exam.title}</strong>?<br><br>The timer will begin immediately once you proceed.`);
         if (confirmed) {
+            // Show loading indicator
+            const centerContent = document.getElementById('panel-center-content');
+            let loader;
+            if (centerContent) {
+                loader = document.createElement('div');
+                loader.id = 'exam-loading-indicator';
+                loader.style.cssText = 'text-align:center;padding:20px;color:var(--primary-color);font-weight:600;';
+                loader.textContent = 'Preparing exam...';
+                centerContent.prepend(loader);
+            }
+
+            try {
+                // V2B: Validate prefetched exam isn't stale by checking server timestamp
+                let serverUpdatedAt = exam.updatedAt;
+                if (navigator.onLine) {
+                    try {
+                        const pb = dataService._getPB();
+                        const fresh = await pb.collection('exams').getOne(examId, { fields: 'updated' });
+                        serverUpdatedAt = fresh.updated;
+                    } catch (e) { /* use summary timestamp as fallback */ }
+                }
+
+                // Wait for any in-progress prefetch
+                const pf = studentDashboard._prefetchState;
+                if (pf.examId === examId && pf.status === 'loading' && pf.promise) {
+                    try { await pf.promise; } catch (e) { /* continue */ }
+                }
+
+                // Fetch full exam with freshness check — will re-fetch if stale
+                await dataService.getExamById(examId, serverUpdatedAt);
+            } catch (e) {
+                // Proceed anyway — take-exam page will fetch if needed
+            }
+
+            if (loader) loader.remove();
             window.location.href = `take-exam.html?id=${examId}`;
         }
     },
