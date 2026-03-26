@@ -290,6 +290,11 @@
                     <span class="sidebar-nav-label">Results</span>
                     <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="results-pending-count">-</span>
                 </button>
+                <button class="sidebar-nav-item" onclick="showArchivedExams(); closeSidebarMobile();">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
+                    <span class="sidebar-nav-label">Archived</span>
+                    <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="sidebar-archived-count">0</span>
+                </button>
                 <button class="sidebar-nav-item" style="background-color: rgba(46,204,113,0.15); color: rgba(255,255,255,0.9);" onclick="prepareDevice()">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
                     <span class="sidebar-nav-label">Prepare Offline</span>
@@ -1408,6 +1413,8 @@
                 }
 
                 // Render archived exams
+                const sidebarArchivedEl = document.getElementById('sidebar-archived-count');
+                if (sidebarArchivedEl) sidebarArchivedEl.textContent = archivedExams.length;
                 if (archivedExams.length > 0) {
                     archivedSection.style.display = 'block';
                     archivedCountEl.textContent = `(${archivedExams.length})`;
@@ -1450,6 +1457,29 @@
             } catch (err) {
                 Utils.showAlert('Error', 'Failed to restore exam: ' + err.message);
             }
+        };
+
+        window.showArchivedExams = () => {
+            const section = document.getElementById('archived-section');
+            const grid = document.getElementById('archived-grid');
+            const icon = document.getElementById('archive-toggle-icon');
+            if (!section) return;
+            // Make section visible
+            section.style.display = 'block';
+            // Expand the grid if collapsed
+            if (grid && grid.style.display === 'none') {
+                grid.style.display = 'grid';
+                if (icon) icon.textContent = '▼';
+            }
+            // Scroll to it smoothly
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Brief highlight flash
+            section.style.transition = 'box-shadow 0.3s ease';
+            section.style.boxShadow = '0 0 0 3px var(--primary, #1A73E8)';
+            section.style.borderRadius = '12px';
+            setTimeout(() => {
+                section.style.boxShadow = 'none';
+            }, 1500);
         };
 
         window.toggleArchivedSection = () => {
@@ -2021,7 +2051,7 @@
                 // Fetch fresh data
                 const user = dataService.getCurrentUser();
                 const [exams, allResults] = await Promise.all([
-                    dataService.getExams({ teacherId: user.id }),
+                    dataService.getExams({ teacherId: user.id, includeDeleted: true }),
                     dataService.getResults()
                 ]);
 
@@ -2108,7 +2138,8 @@
             if (window.idb) {
                 try {
                     const [cExams, cResults] = await Promise.all([
-                        window.idb.getDashboardCache(`examSummaries_${JSON.stringify({ teacherId: user.id })}`)
+                        window.idb.getDashboardCache(`examSummaries_${JSON.stringify({ teacherId: user.id, includeDeleted: true })}`)
+                            .then(r => r || window.idb.getDashboardCache(`examSummaries_${JSON.stringify({ teacherId: user.id })}`))
                             .then(r => r || window.idb.getDashboardCache(`exams_${JSON.stringify({ teacherId: user.id })}`)),
                         window.idb.getDashboardCache('results_all')
                     ]);
@@ -2136,7 +2167,7 @@
 
                 console.log('🌐 Fetching fresh dashboard data...');
                 const [exams, results] = await Promise.all([
-                    dataService.getExamSummaries({ teacherId: user.id, forceRefresh: true }),
+                    dataService.getExamSummaries({ teacherId: user.id, forceRefresh: true, includeDeleted: true }),
                     dataService.getResults({ forceRefresh: true })
                 ]);
 
@@ -2332,6 +2363,8 @@
             // Also handle archived grid (simpler: just rebuild)
             const archivedGrid = document.getElementById('archived-grid');
             const archivedExams = exams.filter(e => e.status === 'archived');
+            const sidebarArchivedEl2 = document.getElementById('sidebar-archived-count');
+            if (sidebarArchivedEl2) sidebarArchivedEl2.textContent = archivedExams.length;
             if (archivedGrid) {
                 if (archivedExams.length > 0) {
                     document.getElementById('archived-section').style.display = 'block';
