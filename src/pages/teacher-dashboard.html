@@ -1377,7 +1377,7 @@
                             <div class="exam-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                                 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                                     <span>⏱ ${exam.duration}m</span>
-                                    <span>❓ ${exam.questions ? exam.questions.length : 0} Qs</span>
+                                    <span>❓ ${exam.questionCount || 0} Qs</span>
                                     <span>🏫 ${exam.targetClass || 'All Classes'}</span>
                                     ${scheduleInfo}
                                 </div>
@@ -2108,16 +2108,17 @@
             if (window.idb) {
                 try {
                     const [cExams, cResults] = await Promise.all([
-                        window.idb.getDashboardCache(`exams_${JSON.stringify({ teacherId: user.id })}`),
+                        window.idb.getDashboardCache(`examSummaries_${JSON.stringify({ teacherId: user.id })}`)
+                            .then(r => r || window.idb.getDashboardCache(`exams_${JSON.stringify({ teacherId: user.id })}`)),
                         window.idb.getDashboardCache('results_all')
                     ]);
 
                     if (cExams && cExams.data) {
-                        cachedExams = cExams.data;
+                        cachedExams = ensureArray(cExams.data);
                         updateDashboardStats(cachedExams, cachedResults || []);
                     }
                     if (cResults && cResults.data) {
-                        cachedResults = cResults.data;
+                        cachedResults = ensureArray(cResults.data);
                         updateDashboardStats(cachedExams || [], cachedResults);
                     }
                 } catch (e) {
@@ -2135,7 +2136,7 @@
 
                 console.log('🌐 Fetching fresh dashboard data...');
                 const [exams, results] = await Promise.all([
-                    dataService.getExams({ teacherId: user.id, forceRefresh: true }),
+                    dataService.getExamSummaries({ teacherId: user.id, forceRefresh: true }),
                     dataService.getResults({ forceRefresh: true })
                 ]);
 
@@ -2144,7 +2145,7 @@
 
                 // 3. Update Cache (implicitly done by dataService but good to be explicit for dashboard specific keys if needed)
                 if (window.idb) {
-                    await window.idb.saveDashboardCache('results_all', { data: results, timestamp: Date.now() });
+                    await window.idb.saveDashboardCache('results_all', results);
                 }
 
                 updateDashboardStats(exams, results);
@@ -2176,8 +2177,18 @@
             }
         }
 
+        // Safely coerce any value to an array
+        function ensureArray(value) {
+            if (Array.isArray(value)) return value;
+            if (Array.isArray(value?.items)) return value.items;
+            if (Array.isArray(value?.data)) return value.data;
+            return [];
+        }
+
         // Helper to update main dashboard counters without full reload
         function updateDashboardStats(exams, allResults) {
+            exams = ensureArray(exams);
+            allResults = ensureArray(allResults);
             // Filter results to only this teacher's exams
             const teacherExamIds = new Set(exams.map(e => e.id));
             const teacherResults = allResults.filter(r => teacherExamIds.has(r.examId));
@@ -2249,7 +2260,7 @@
                             </div>
                             <div class="exam-meta" style="margin-top: 8px;">
                                 <span class="mi">${cardSvg.clock}${exam.duration}m</span>
-                                <span class="mi">${cardSvg.question}${exam.questions ? exam.questions.length : 0} Qs</span>
+                                <span class="mi">${cardSvg.question}${exam.questionCount || 0} Qs</span>
                                 <span class="mi">${cardSvg.school}${exam.targetClass || 'All Classes'}</span>
                                 ${scheduleInfo}
                             </div>

@@ -1857,7 +1857,7 @@
                 const [teachersResult, studentsResult, examsResult] = await Promise.all([
                     dataService.getUsers({ role: 'teacher', schoolVersion: currentVersion, forceRefresh: true }),
                     dataService.getUsers({ role: 'student', schoolVersion: currentVersion, forceRefresh: true }),
-                    dataService.getExams({ forceRefresh: true })
+                    dataService.getExamSummaries({ forceRefresh: true })
                 ]);
 
                 allTeachers = teachersResult;
@@ -2744,7 +2744,7 @@
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> ${exam.subject}</span>
                                             <span id="class-label-${exam.id}" style="font-weight:600; color:var(--primary-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> ${targetClassLabel}</span>
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${exam.duration} min</span>
-                                            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${exam.questions.length} Qs</span>
+                                            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${exam.questionCount || 0} Qs</span>
                                         </div>
                                     </div>
                                     <span class="status-badge ${statusClass}">${exam.status}</span>

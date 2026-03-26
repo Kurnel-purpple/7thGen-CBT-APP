@@ -111,6 +111,38 @@ const takeExam = {
             }
 
             if (!exam) throw new Error('Exam not found. Please check your network connection.');
+
+            // V2C: Exam Snapshot Freezing — use frozen snapshot if resuming an attempt
+            const snapshotKey = `attempt_snapshot_${examId}_${user.id}`;
+            if (window.idb && window.idb.isIndexedDBAvailable()) {
+                try {
+                    const snapshot = await window.idb.getDashboardCache(snapshotKey);
+                    if (snapshot && snapshot.data) {
+                        const snapshotExam = takeExam._normalizeExam(snapshot.data);
+                        if (snapshotExam.questions.length > 0) {
+                            console.log('[TakeExam] Resuming from frozen exam snapshot');
+                            exam = snapshotExam;
+                        } else {
+                            // Invalid snapshot (e.g. summary with questions:null was cached)
+                            console.warn('[TakeExam] Invalid snapshot detected, discarding and refetching');
+                            await window.idb.saveDashboardCache(snapshotKey, null);
+                        }
+                    }
+                    // Freeze if no valid snapshot was loaded
+                    if (!snapshot || !snapshot.data || !Array.isArray(snapshot.data?.questions) || snapshot.data.questions.length === 0) {
+                        exam = takeExam._normalizeExam(exam);
+                        if (exam.questions.length > 0) {
+                            await window.idb.saveDashboardCache(snapshotKey, exam);
+                            console.log('[TakeExam] Exam snapshot frozen for this attempt');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Snapshot save/load failed:', e);
+                }
+            }
+
+            // Final normalization — ensures questions is always an array
+            exam = takeExam._normalizeExam(exam);
             takeExam.exam = exam;
 
             // Show notice if using cached data
@@ -242,7 +274,7 @@ const takeExam = {
 
     setupPalette: () => {
         const grid = document.getElementById('question-palette');
-        const questions = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
+        const questions = (takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions) || [];
 
         // Separate objective and theory questions
         const objectiveQuestions = questions.filter(q => q.type !== 'theory');
@@ -568,6 +600,9 @@ const takeExam = {
         if (takeExam.mode === 'resolve') {
             document.getElementById('submit-btn').textContent = 'Update Answers';
         }
+
+        // Add floating question navigation bar
+        takeExam._initQuestionNav(sortedQuestions.length);
     },
 
     // Render read-only Tiptap content for student exam view
@@ -685,7 +720,121 @@ const takeExam = {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`palette-btn-${index}`).classList.add('active');
+            takeExam.currentQuestionIndex = index;
+            takeExam._updateQuestionNav();
         }
+    },
+
+    _initQuestionNav: (totalQuestions) => {
+        takeExam._totalQuestions = totalQuestions;
+
+        // Remove existing nav if any (e.g. on re-render)
+        const existing = document.getElementById('floating-question-nav');
+        if (existing) existing.remove();
+
+        if (totalQuestions <= 1) return;
+
+        const nav = document.createElement('div');
+        nav.id = 'floating-question-nav';
+        nav.innerHTML = `
+            <button id="nav-prev-btn" aria-label="Previous question">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+                <span>Prev</span>
+            </button>
+            <span id="nav-question-label">1 / ${totalQuestions}</span>
+            <button id="nav-next-btn" aria-label="Next question">
+                <span>Next</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        `;
+
+        // Style the nav bar
+        nav.style.cssText = `
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 12px;
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 40px; padding: 8px 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000; user-select: none;
+        `;
+
+        const btnStyle = `
+            display: inline-flex; align-items: center; gap: 4px;
+            background: none; border: none; cursor: pointer;
+            color: var(--primary-color); font-weight: 700; font-size: 0.85rem;
+            padding: 8px 12px; border-radius: 20px;
+            transition: background 0.15s;
+        `;
+
+        nav.querySelector('#nav-question-label').style.cssText = `
+            font-weight: 700; font-size: 0.85rem; color: var(--text-color);
+            min-width: 60px; text-align: center;
+        `;
+
+        const questionArea = document.querySelector('.question-area') || document.querySelector('.exam-main');
+        if (questionArea) {
+            questionArea.appendChild(nav);
+        } else {
+            document.body.appendChild(nav);
+        }
+
+        // Apply button styles after appending
+        const prevBtn = document.getElementById('nav-prev-btn');
+        const nextBtn = document.getElementById('nav-next-btn');
+        prevBtn.style.cssText = btnStyle;
+        nextBtn.style.cssText = btnStyle;
+
+        prevBtn.addEventListener('click', () => {
+            if (takeExam.currentQuestionIndex > 0) {
+                takeExam.scrollToQuestion(takeExam.currentQuestionIndex - 1);
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (takeExam.currentQuestionIndex < takeExam._totalQuestions - 1) {
+                takeExam.scrollToQuestion(takeExam.currentQuestionIndex + 1);
+            }
+        });
+
+        // Track which question is visible on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.id; // e.g. "q-card-3"
+                    const idx = parseInt(id.replace('q-card-', ''));
+                    if (!isNaN(idx)) {
+                        takeExam.currentQuestionIndex = idx;
+                        takeExam._updateQuestionNav();
+                        // Also sync palette
+                        document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+                        const paletteBtn = document.getElementById(`palette-btn-${idx}`);
+                        if (paletteBtn) paletteBtn.classList.add('active');
+                    }
+                }
+            });
+        }, { threshold: 0.5 });
+
+        for (let i = 0; i < totalQuestions; i++) {
+            const card = document.getElementById(`q-card-${i}`);
+            if (card) observer.observe(card);
+        }
+
+        takeExam._questionNavObserver = observer;
+        takeExam._updateQuestionNav();
+    },
+
+    _updateQuestionNav: () => {
+        const label = document.getElementById('nav-question-label');
+        const prevBtn = document.getElementById('nav-prev-btn');
+        const nextBtn = document.getElementById('nav-next-btn');
+        if (!label) return;
+
+        const idx = takeExam.currentQuestionIndex;
+        const total = takeExam._totalQuestions || 0;
+
+        label.textContent = `${idx + 1} / ${total}`;
+        if (prevBtn) prevBtn.style.opacity = idx <= 0 ? '0.3' : '1';
+        if (nextBtn) nextBtn.style.opacity = idx >= total - 1 ? '0.3' : '1';
     },
 
     selectAnswer: (qId, val) => {
@@ -741,7 +890,9 @@ const takeExam = {
     updatePaletteBtn: (index) => {
         const qList = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
         const q = qList[index];
+        if (!q) return;
         const btn = document.getElementById(`palette-btn-${index}`);
+        if (!btn) return;
 
         // Check if question is answered based on type
         let answered = false;
@@ -760,6 +911,23 @@ const takeExam = {
 
         if (flagged) btn.classList.add('flagged');
         else btn.classList.remove('flagged');
+    },
+
+    // V2C: Clear frozen exam snapshot after submission
+    _clearSnapshot: async () => {
+        if (window.idb && takeExam.exam && takeExam.user) {
+            try {
+                const key = `attempt_snapshot_${takeExam.exam.id}_${takeExam.user.id}`;
+                await window.idb.saveDashboardCache(key, null);
+            } catch (e) { /* best effort */ }
+        }
+    },
+
+    // Normalize exam payload — ensures questions is always a valid array
+    _normalizeExam: (exam) => {
+        if (!exam) return exam;
+        exam.questions = Array.isArray(exam.questions) ? exam.questions : [];
+        return exam;
     },
 
     saveProgress: async () => {
@@ -1149,6 +1317,9 @@ const takeExam = {
             } else {
                 await dataService.saveResult(resultData);
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                takeExam._clearSnapshot();
+                // Signal dashboard to force-refresh results on next load
+                sessionStorage.setItem('force_refresh_dashboard', '1');
                 const passed = percentage >= takeExam.exam.passScore;
                 takeExam.showResultModal('Exam Submitted!', 'You have successfully completed the exam.', score, totalPoints, percentage, passed);
             }
@@ -1160,6 +1331,8 @@ const takeExam = {
             if (err.message === 'Saved Offline') {
                 // Successfully queued for later sync
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                takeExam._clearSnapshot();
+                sessionStorage.setItem('force_refresh_dashboard', '1');
                 takeExam.showResultModal('Exam Saved Offline!', 'Your answers have been saved locally and will sync automatically when you\'re back online.', score, totalPoints, percentage, undefined, true);
                 return;
             }
@@ -1182,6 +1355,7 @@ const takeExam = {
                 pending.push(submission);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
                 localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                takeExam._clearSnapshot();
 
                 takeExam.showResultModal('Saved Offline', 'Network issue detected. Your answers have been saved locally.', score, totalPoints, percentage, undefined, true);
                 return;

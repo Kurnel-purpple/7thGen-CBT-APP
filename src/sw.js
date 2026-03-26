@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-exam-v16';
+const CACHE_NAME = 'cbt-exam-v17';
 const ASSETS = [
 
     './',
@@ -27,7 +27,7 @@ const ASSETS = [
 
 // Install Event - Pre-cache static assets
 self.addEventListener('install', (e) => {
-    console.log('[Service Worker] Install v14');
+    console.log('[Service Worker] Install v17');
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('[Service Worker] Caching all: app shell and content');
@@ -50,7 +50,7 @@ self.addEventListener('install', (e) => {
 
 // Activate Event (Cleanup old caches + claim clients immediately)
 self.addEventListener('activate', (e) => {
-    console.log('[Service Worker] Activate v13');
+    console.log('[Service Worker] Activate v17');
     e.waitUntil(
         caches.keys().then((keyList) => {
             const keepCaches = [CACHE_NAME, CACHE_NAME + '-api'];
@@ -83,6 +83,8 @@ self.addEventListener('fetch', (e) => {
         }
 
         // For GET requests (fetching data), try network first then return error response
+        // V2C: API cache max-age = 5 minutes
+        const API_CACHE_MAX_AGE = 5 * 60 * 1000;
 
         if (e.request.method === 'GET') {
             e.respondWith(
@@ -90,20 +92,33 @@ self.addEventListener('fetch', (e) => {
                     .then(response => {
                         // Clone response for caching read-only API data
                         if (response.ok) {
-                            const responseClone = response.clone();
+                            // Store with a timestamp header so we can check age later
+                            const headers = new Headers(response.headers);
+                            headers.set('sw-cached-at', String(Date.now()));
+                            const timedResponse = new Response(response.clone().body, {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: headers
+                            });
                             caches.open(CACHE_NAME + '-api').then(cache => {
-                                cache.put(e.request, responseClone);
+                                cache.put(e.request, timedResponse);
                             });
                         }
                         return response;
                     })
                     .catch(async () => {
                         console.log('[SW] PocketBase GET failed, checking API cache:', e.request.url);
-                        // Try API cache
                         const cachedResponse = await caches.match(e.request);
                         if (cachedResponse) {
-                            console.log('[SW] Serving PocketBase response from cache');
-                            return cachedResponse;
+                            // Check max-age
+                            const cachedAt = parseInt(cachedResponse.headers.get('sw-cached-at') || '0', 10);
+                            if (cachedAt && (Date.now() - cachedAt) > API_CACHE_MAX_AGE) {
+                                console.log('[SW] API cache entry expired, discarding');
+                                caches.open(CACHE_NAME + '-api').then(c => c.delete(e.request));
+                            } else {
+                                console.log('[SW] Serving PocketBase response from cache');
+                                return cachedResponse;
+                            }
                         }
                         // Return offline JSON response
                         return new Response(JSON.stringify({
