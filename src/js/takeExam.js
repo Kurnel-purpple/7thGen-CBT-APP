@@ -243,11 +243,15 @@ const takeExam = {
 
             takeExam.renderHeader();
             takeExam.setupPalette();
+            // V2E: Now that palette buttons exist, mark restored answered/flagged questions
+            if (takeExam.mode !== 'resolve') {
+                takeExam.exam.questions.forEach((q, i) => takeExam.updatePaletteBtn(i));
+            }
             takeExam.renderAllQuestions();
             takeExam.startTimer();
 
             if (takeExam.mode !== 'resolve') {
-                dataService.startExamSession(examId, user.id);
+                dataService.startExamSession(examId, user.id, user.name);
             }
 
             // Listeners
@@ -258,7 +262,8 @@ const takeExam = {
 
             // Setup periodic auto-save (every 30 seconds)
             takeExam.autoSaveInterval = setInterval(() => {
-                takeExam.saveProgress();
+                takeExam._isAutoSave = true;
+                takeExam.saveProgress().finally(() => { takeExam._isAutoSave = false; });
                 console.log('💾 Auto-saved progress');
             }, 30000);
 
@@ -390,6 +395,10 @@ const takeExam = {
     renderAllQuestions: () => {
         const container = document.getElementById('question-area');
         const questions = takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions;
+        const restoredCount = Object.keys(takeExam.answers || {}).length;
+        if (restoredCount > 0) {
+            console.log(`[RenderQuestion] rendering ${questions.length} questions with ${restoredCount} restored selections`);
+        }
 
         // Separate objective and theory questions
         const objectiveQuestions = questions.filter(q => q.type !== 'theory');
@@ -935,6 +944,25 @@ const takeExam = {
         }
     },
 
+    // V2E: Clear all local progress stores after submission
+    _clearProgress: async () => {
+        if (!takeExam.exam || !takeExam.user) return;
+        const examId = takeExam.exam.id;
+        const userId = takeExam.user.id;
+
+        // Clear localStorage
+        try {
+            localStorage.removeItem(`cbt_progress_${examId}_${userId}`);
+        } catch (e) { /* best effort */ }
+
+        // Clear IndexedDB
+        if (window.idb && window.idb.isIndexedDBAvailable()) {
+            try {
+                await window.idb.deleteProgress(examId, userId);
+            } catch (e) { /* best effort */ }
+        }
+    },
+
     // Normalize exam payload — ensures questions is always a valid array
     _normalizeExam: (exam) => {
         if (!exam) return exam;
@@ -946,48 +974,108 @@ const takeExam = {
         const data = {
             answers: takeExam.answers,
             flagged: takeExam.flagged,
-            currentQuestion: takeExam.currentQuestion,
+            currentQuestionIndex: takeExam.currentQuestionIndex,
             savedAt: Date.now()
         };
 
         // Always save to localStorage as immediate backup
-        localStorage.setItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`, JSON.stringify(data));
+        try {
+            localStorage.setItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`, JSON.stringify(data));
+        } catch (e) {
+            console.warn('[Resume] localStorage save failed:', e);
+        }
 
         // Also save to IndexedDB if available (larger storage)
         if (window.idb && window.idb.isIndexedDBAvailable()) {
             try {
                 await window.idb.saveProgress(takeExam.exam.id, takeExam.user.id, data);
             } catch (err) {
-                console.warn('Could not save progress to IndexedDB:', err);
+                console.warn('[Resume] Could not save progress to IndexedDB:', err);
             }
+        }
+
+        // Server-side sync (best-effort — keeps answers recoverable if client storage wiped)
+        // Only runs during periodic auto-save (not every keystroke) to avoid flooding the server
+        if (takeExam._isAutoSave) {
+            dataService.syncProgressToServer(takeExam.exam.id, takeExam.user.id, takeExam.answers)
+                .then(ok => {
+                    if (ok) console.log(`[Autosave] persisted answers count = ${Object.keys(takeExam.answers).length}`);
+                })
+                .catch(() => { /* non-critical */ });
         }
     },
 
     loadProgress: async () => {
         let saved = null;
+        const examId = takeExam.exam.id;
+        const userId = takeExam.user.id;
 
-        // Try IndexedDB first (more reliable)
+        // 1. Try IndexedDB first (largest, most reliable store)
         if (window.idb && window.idb.isIndexedDBAvailable()) {
             try {
-                saved = await window.idb.loadProgress(takeExam.exam.id, takeExam.user.id);
+                saved = await window.idb.loadProgress(examId, userId);
+                if (saved) {
+                    console.log(`[Resume] found continueable attempt for exam ${examId} (source: IndexedDB)`);
+                }
             } catch (err) {
-                console.warn('Could not load progress from IndexedDB:', err);
+                console.warn('[Resume] Could not load progress from IndexedDB:', err);
             }
         }
 
-        // Fallback to localStorage
+        // 2. Fallback to localStorage
         if (!saved) {
-            const localSaved = localStorage.getItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
-            if (localSaved) {
-                saved = JSON.parse(localSaved);
+            try {
+                const localSaved = localStorage.getItem(`cbt_progress_${examId}_${userId}`);
+                if (localSaved) {
+                    saved = JSON.parse(localSaved);
+                    console.log(`[Resume] found continueable attempt for exam ${examId} (source: localStorage)`);
+                }
+            } catch (parseErr) {
+                console.warn('[Resume] localStorage progress corrupted, discarding:', parseErr);
+                try { localStorage.removeItem(`cbt_progress_${examId}_${userId}`); } catch (e) { /* ignore */ }
+            }
+        }
+
+        // 3. Fallback to server-side in-progress result answers
+        if (!saved || !saved.answers || Object.keys(saved.answers).length === 0) {
+            try {
+                const serverAnswers = await dataService.loadServerProgress(examId, userId);
+                if (serverAnswers && Object.keys(serverAnswers).length > 0) {
+                    saved = saved || {};
+                    saved.answers = serverAnswers;
+                    console.log(`[Resume] found continueable attempt for exam ${examId} (source: server)`);
+                }
+            } catch (e) {
+                console.warn('[Resume] Server progress fallback failed:', e);
             }
         }
 
         if (saved) {
-            takeExam.answers = saved.answers || {};
-            takeExam.flagged = saved.flagged || {};
-            takeExam.exam.questions.forEach((q, i) => takeExam.updatePaletteBtn(i));
-            console.log('📂 Restored exam progress');
+            // Validate answers payload before restoring
+            const rawAnswers = saved.answers;
+            if (rawAnswers && typeof rawAnswers === 'object' && !Array.isArray(rawAnswers)) {
+                takeExam.answers = rawAnswers;
+            } else {
+                console.warn('[ResumeGuard] invalid/corrupt saved state handled safely — answers reset to {}');
+                takeExam.answers = {};
+            }
+
+            const rawFlagged = saved.flagged;
+            takeExam.flagged = (rawFlagged && typeof rawFlagged === 'object' && !Array.isArray(rawFlagged))
+                ? rawFlagged : {};
+
+            // Restore question position
+            const savedIdx = saved.currentQuestionIndex;
+            if (typeof savedIdx === 'number' && savedIdx >= 0 && savedIdx < takeExam.exam.questions.length) {
+                takeExam.currentQuestionIndex = savedIdx;
+            }
+
+            const answerCount = Object.keys(takeExam.answers).length;
+            console.log(`[Resume] restored answers count = ${answerCount}`);
+            console.log(`[Resume] restored currentQuestionIndex = ${takeExam.currentQuestionIndex}`);
+            // Note: palette buttons don't exist yet — updatePaletteBtn runs after setupPalette()
+        } else {
+            console.log(`[Resume] no saved progress found for exam ${examId}`);
         }
     },
 
@@ -1328,7 +1416,7 @@ const takeExam = {
                 }
             } else {
                 await dataService.saveResult(resultData);
-                localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                await takeExam._clearProgress();
                 takeExam._clearSnapshot();
                 // Signal dashboard to force-refresh results on next load
                 sessionStorage.setItem('force_refresh_dashboard', '1');
@@ -1342,7 +1430,7 @@ const takeExam = {
             // Check if it was saved offline
             if (err.message === 'Saved Offline') {
                 // Successfully queued for later sync
-                localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                await takeExam._clearProgress();
                 takeExam._clearSnapshot();
                 sessionStorage.setItem('force_refresh_dashboard', '1');
                 takeExam.showResultModal('Exam Saved Offline!', 'Your answers have been saved locally and will sync automatically when you\'re back online.', score, totalPoints, percentage, undefined, true);
@@ -1361,12 +1449,12 @@ const takeExam = {
                     total_points: resultData.totalPoints,
                     pass_score: resultData.passScore,
                     answers: resultData.answers,
-                    flags: resultData.flags,
+                    flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '' },
                     submitted_at: new Date().toISOString()
                 };
                 pending.push(submission);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
-                localStorage.removeItem(`cbt_progress_${takeExam.exam.id}_${takeExam.user.id}`);
+                await takeExam._clearProgress();
                 takeExam._clearSnapshot();
 
                 takeExam.showResultModal('Saved Offline', 'Network issue detected. Your answers have been saved locally.', score, totalPoints, percentage, undefined, true);

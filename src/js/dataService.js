@@ -1466,6 +1466,7 @@ class DataService {
             if (result && (!result.studentName || result.studentName === 'Unknown') && resultData.studentName) {
                 result.studentName = resultData.studentName;
             }
+            console.log(`[ResultIdentity] submission snapshot saved for result ${result.id} — name: "${result.studentName}"`);
 
             // Update IDB Results Cache
             if (window.idb) {
@@ -1491,24 +1492,38 @@ class DataService {
         }
     }
 
-    async startExamSession(examId, studentId) {
+    async startExamSession(examId, studentId, studentName) {
         try {
             // Check if exists
             try {
                 const existing = await this.pb.collection('results').getFirstListItem(
                     `exam_id="${examId}" && student_id="${studentId}"`
                 );
+                // V2E: Backfill _studentName if missing on existing in-progress record
+                if (studentName && existing.flags && !existing.flags._studentName) {
+                    try {
+                        await this.pb.collection('results').update(existing.id, {
+                            flags: { ...existing.flags, _studentName: studentName }
+                        });
+                        console.log(`[ResultIdentity] Backfilled _studentName on existing session ${existing.id}`);
+                    } catch (e) { /* best effort */ }
+                }
                 return; // Already exists
             } catch (notFoundErr) {
-                // Create new session marker
+                // Create new session marker with student name snapshot
                 await this.pb.collection('results').create({
                     exam_id: examId,
                     student_id: studentId,
-                    flags: { _status: 'in-progress', _started_at: new Date().toISOString() },
+                    flags: {
+                        _status: 'in-progress',
+                        _started_at: new Date().toISOString(),
+                        _studentName: studentName || ''
+                    },
                     score: 0,
                     total_points: 0,
                     answers: {}
                 });
+                console.log(`[ResultIdentity] Session created with _studentName for exam ${examId}`);
             }
         } catch (error) {
             console.error('Failed to start session', error);
@@ -1548,8 +1563,7 @@ class DataService {
 
             const options = {
                 filter: filterString,
-                sort: '-submitted_at',
-                expand: 'student_id'
+                sort: '-submitted_at'
             };
 
             if (filters.studentDashboard) {
@@ -1655,6 +1669,7 @@ class DataService {
         // Fallback: check if the flags contain student name (saved during submission)
         if (studentName === 'Unknown' && dbResult.flags && dbResult.flags._studentName) {
             studentName = dbResult.flags._studentName;
+            console.log(`[ResultIdentity] fallback source used: snapshot for result ${dbResult.id}`);
         }
 
         return {
@@ -1683,8 +1698,18 @@ class DataService {
             status = dbResult.flags._status;
         }
 
-        // No expand available — get student name from flags only
-        const studentName = (dbResult.flags && dbResult.flags._studentName) || 'Unknown';
+        // V2E: Full fallback chain for student name — same as _mapResult
+        let studentName = 'Unknown';
+        if (dbResult.expand && dbResult.expand.student_id) {
+            const expanded = dbResult.expand.student_id;
+            studentName = expanded.full_name || expanded.name || expanded.username || 'Unknown';
+        }
+        if (studentName === 'Unknown' && dbResult.flags && dbResult.flags._studentName) {
+            studentName = dbResult.flags._studentName;
+        }
+        if (studentName === 'Unknown') {
+            console.warn(`[ResultIdentity] fallback source used: unknown for result ${dbResult.id}`);
+        }
 
         return {
             id: dbResult.id,
@@ -1753,6 +1778,110 @@ class DataService {
             console.error('Failed to delete result:', error);
             throw error;
         }
+    }
+
+    // V2E: Backfill _studentName on old results that show "Unknown"
+    // Uses profiles collection directly since student_id stores profile IDs (expand doesn't work)
+    async backfillResultStudentNames() {
+        let backfilled = 0;
+        let skipped = 0;
+        try {
+            const results = await this.pb.collection('results').getFullList();
+
+            // 1. Identify results that need backfilling
+            const needsFix = results.filter(r =>
+                !(r.flags && r.flags._studentName && r.flags._studentName !== '' && r.flags._studentName !== 'Unknown')
+            );
+            skipped = results.length - needsFix.length;
+
+            if (needsFix.length === 0) {
+                console.log('[ResultIdentity] All results already have _studentName');
+                return { backfilled: 0, skipped };
+            }
+
+            console.log(`[ResultIdentity] ${needsFix.length} results need backfilling, ${skipped} already good`);
+
+            // 2. Batch-fetch profiles for all unique student_ids
+            const uniqueIds = [...new Set(needsFix.map(r => r.student_id).filter(Boolean))];
+            const profileMap = new Map();
+
+            const CHUNK = 50;
+            for (let i = 0; i < uniqueIds.length; i += CHUNK) {
+                const chunk = uniqueIds.slice(i, i + CHUNK);
+                const filter = chunk.map(id => `id="${id}"`).join(' || ');
+                try {
+                    const profiles = await this.pb.collection('profiles').getFullList({ filter });
+                    for (const p of profiles) {
+                        const name = p.full_name || p.name || p.username || p.email || '';
+                        if (name) profileMap.set(p.id, name);
+                    }
+                } catch (e) {
+                    console.warn('[ResultIdentity] Profile chunk fetch failed:', e.message);
+                }
+            }
+
+            console.log(`[ResultIdentity] Resolved ${profileMap.size} profiles from ${uniqueIds.length} unique student IDs`);
+
+            // 3. Update each result with the resolved name
+            for (const r of needsFix) {
+                const name = profileMap.get(r.student_id);
+                if (name) {
+                    try {
+                        const updatedFlags = { ...(r.flags || {}), _studentName: name };
+                        await this.pb.collection('results').update(r.id, { flags: updatedFlags });
+                        backfilled++;
+                    } catch (e) {
+                        console.warn(`[ResultIdentity] Failed to update ${r.id}:`, e.message);
+                        skipped++;
+                    }
+                } else {
+                    skipped++;
+                }
+            }
+        } catch (e) {
+            console.error('[ResultIdentity] Backfill failed:', e);
+        }
+        console.log(`[ResultIdentity] Backfill complete: ${backfilled} updated, ${skipped} skipped`);
+        return { backfilled, skipped };
+    }
+
+    // V2E: Save in-progress answers to server-side result record
+    async syncProgressToServer(examId, studentId, answers) {
+        try {
+            const existing = await this.pb.collection('results').getFirstListItem(
+                `exam_id="${examId}" && student_id="${studentId}"`
+            );
+            if (existing && existing.flags && existing.flags._status === 'in-progress') {
+                await this.pb.collection('results').update(existing.id, {
+                    answers: answers
+                });
+                console.log(`[Resume] Server-side progress synced for exam ${examId}`);
+                return true;
+            }
+        } catch (e) {
+            // Not critical — client-side stores are primary
+            console.warn('[Resume] Server progress sync failed:', e.message || e);
+        }
+        return false;
+    }
+
+    // V2E: Load server-side in-progress answers as fallback
+    async loadServerProgress(examId, studentId) {
+        try {
+            const existing = await this.pb.collection('results').getFirstListItem(
+                `exam_id="${examId}" && student_id="${studentId}"`
+            );
+            if (existing && existing.flags && existing.flags._status === 'in-progress' && existing.answers) {
+                const answerCount = Object.keys(existing.answers).length;
+                if (answerCount > 0) {
+                    console.log(`[Resume] Loaded ${answerCount} answers from server-side result`);
+                    return existing.answers;
+                }
+            }
+        } catch (e) {
+            console.warn('[Resume] Server progress load failed:', e.message || e);
+        }
+        return null;
     }
 
     // --- Offline Prep ---

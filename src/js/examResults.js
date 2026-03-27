@@ -104,8 +104,12 @@ const examResults = {
 
             document.getElementById('exam-title').textContent = exam.title + ' - Results';
 
+            // V2E: Filter out in-progress session markers — only show completed submissions
+            // In-progress records have score:0, submittedAt:null, often no student name
+            const completedResults = rawResults.filter(r => r.status !== 'in-progress');
+
             // Enhance Results with Calculations
-            examResults.results = rawResults.map(r => {
+            examResults.results = completedResults.map(r => {
                 const { objectivePoints, theoryPoints, totalPossible } = examResults._calculatePoints(r, exam);
                 const calculatedPoints = objectivePoints + theoryPoints;
                 const passScore = exam.passScore || 50;
@@ -153,7 +157,9 @@ const examResults = {
                         examResults.currentExam = freshExam;
                         examResults.hasTheoryQuestions = freshExam.questions.some(q => q.type === 'theory');
 
-                        examResults.results = freshResults.map(r => {
+                        // V2E: Filter out in-progress session markers on refresh too
+                        const completedFresh = freshResults.filter(r => r.status !== 'in-progress');
+                        examResults.results = completedFresh.map(r => {
                             const { objectivePoints, theoryPoints, totalPossible } = examResults._calculatePoints(r, freshExam);
                             const calculatedPoints = objectivePoints + theoryPoints;
                             const passScore = freshExam.passScore || 50;
