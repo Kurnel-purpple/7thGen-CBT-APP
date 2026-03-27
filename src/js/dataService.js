@@ -1081,8 +1081,12 @@ class DataService {
                 await this._updateDashboardCacheList(mappedExam, 'add');
             }
 
-            // V2B: Bump dashboard version (fire-and-forget)
-            this._bumpDashboardVersion(examData.targetClass).catch(() => {});
+            // V2B+V2D: Bump dashboard version — awaited so failures are visible
+            try {
+                await this._bumpDashboardVersion(examData.targetClass);
+            } catch (e) {
+                console.error('[VersionBump] Failed during createExam:', e.message || e);
+            }
 
             return mappedExam;
         } catch (error) {
@@ -1126,11 +1130,14 @@ class DataService {
                 await this._updateDashboardCacheList(mappedExam, 'update');
             }
 
-            // V2B: Bump dashboard version (fire-and-forget)
-            // If targetClass changed, bump both old and new
-            this._bumpDashboardVersion(mappedExam.targetClass).catch(() => {});
-            if (updates.targetClass && updates._oldTargetClass && updates._oldTargetClass !== updates.targetClass) {
-                this._bumpDashboardVersion(updates._oldTargetClass).catch(() => {});
+            // V2B+V2D: Bump dashboard version — awaited so failures are visible
+            try {
+                await this._bumpDashboardVersion(mappedExam.targetClass);
+                if (updates.targetClass && updates._oldTargetClass && updates._oldTargetClass !== updates.targetClass) {
+                    await this._bumpDashboardVersion(updates._oldTargetClass);
+                }
+            } catch (e) {
+                console.error('[VersionBump] Failed during updateExam:', e.message || e);
             }
 
             return mappedExam;
@@ -1166,8 +1173,12 @@ class DataService {
                 await this._updateDashboardCacheList({ id, createdBy: this.getCurrentUser()?.id }, 'delete');
             }
 
-            // V2B: Bump dashboard version (fire-and-forget)
-            this._bumpDashboardVersion(existing.target_class).catch(() => {});
+            // V2B+V2D: Bump dashboard version — awaited so failures are visible
+            try {
+                await this._bumpDashboardVersion(existing.target_class);
+            } catch (e) {
+                console.error('[VersionBump] Failed during deleteExam:', e.message || e);
+            }
 
             return true;
         } catch (error) {
@@ -1184,24 +1195,41 @@ class DataService {
         }
         keys.push('student_exam_feed:_global');
 
+        let bumped = 0;
         for (const feedKey of keys) {
-            try {
-                const existing = await this.pb.collection('dashboard_versions').getFirstListItem(`feed_key="${feedKey}"`);
-                await this.pb.collection('dashboard_versions').update(existing.id, {
-                    version: (existing.version || 0) + 1
-                });
-            } catch (e) {
-                // Record doesn't exist yet — create it with version 1
+            for (let attempt = 1; attempt <= 2; attempt++) {
                 try {
-                    await this.pb.collection('dashboard_versions').create({
-                        feed_key: feedKey,
-                        version: 1
+                    const existing = await this.pb.collection('dashboard_versions').getFirstListItem(`feed_key="${feedKey}"`);
+                    await this.pb.collection('dashboard_versions').update(existing.id, {
+                        version: (existing.version || 0) + 1
                     });
-                } catch (createErr) {
-                    console.warn('[V2B] Failed to create dashboard version for', feedKey, createErr);
+                    console.log(`[VersionBump] Bumped ${feedKey} to ${(existing.version || 0) + 1}`);
+                    bumped++;
+                    break; // success, no retry needed
+                } catch (e) {
+                    if (attempt === 1 && e.status !== 404) {
+                        console.warn(`[VersionBump] Attempt 1 failed for ${feedKey}, retrying...`, e.message || e);
+                        continue; // retry
+                    }
+                    // Record doesn't exist yet — create it with version 1
+                    try {
+                        await this.pb.collection('dashboard_versions').create({
+                            feed_key: feedKey,
+                            version: 1
+                        });
+                        console.log(`[VersionBump] Created ${feedKey} at version 1`);
+                        bumped++;
+                        break;
+                    } catch (createErr) {
+                        console.error(`[VersionBump] FAILED to bump ${feedKey} after ${attempt} attempts:`, createErr.message || createErr);
+                    }
                 }
             }
         }
+        if (bumped === 0) {
+            console.error('[VersionBump] WARNING: No feed keys were bumped! Students may not see this change.');
+        }
+        return bumped;
     }
 
     // NOTE: dashboard_versions should be readable by all authenticated users (lightweight feed metadata).
