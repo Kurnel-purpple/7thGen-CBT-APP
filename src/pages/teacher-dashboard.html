@@ -1710,6 +1710,9 @@
                         grantedAt: new Date().toISOString()
                     };
                     await dataService.updateExam(currentExamExtensionsId, { globalExtension });
+                    // V2H: Reopen ALL completed results so students can re-enter
+                    const reopened = await dataService.reopenResultForExtension(currentExamExtensionsId, null);
+                    if (reopened > 0) console.log(`[Extension] Reopened ${reopened} completed results for re-entry`);
                 } else {
                     // Specific Extension
                     const extensions = exam.extensions || {};
@@ -1718,6 +1721,9 @@
                         grantedAt: new Date().toISOString()
                     };
                     await dataService.updateExam(currentExamExtensionsId, { extensions });
+                    // V2H: Reopen this student's completed result so they can re-enter
+                    const reopened = await dataService.reopenResultForExtension(currentExamExtensionsId, studentId);
+                    if (reopened > 0) console.log(`[Extension] Reopened result for student ${studentId}`);
                 }
 
                 // Refresh list
