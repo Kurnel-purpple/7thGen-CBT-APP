@@ -1496,7 +1496,8 @@ class DataService {
             score: resultData.score,
             total_points: resultData.totalPoints,
             answers: resultData.answers,
-            flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '' },
+            flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '',
+                _reopenedForExtension: undefined, _reopenedAt: undefined, _previousScore: undefined, _previousSubmittedAt: undefined },
             submitted_at: new Date().toISOString()
         };
 
@@ -1900,6 +1901,50 @@ class DataService {
         return { backfilled, skipped };
     }
 
+    /**
+     * V2H: Reopen completed result(s) so students can re-enter after an extension.
+     * Changes _status back to 'in-progress', preserves answers/score.
+     * @param {string} examId
+     * @param {string|null} studentId — null means reopen ALL completed results for the exam
+     * @param {number} addedMinutes — extension minutes (stored on result for timer calc)
+     * @returns {number} count of reopened results
+     */
+    async reopenResultForExtension(examId, studentId = null) {
+        let reopened = 0;
+        try {
+            let filter = `exam_id="${examId}"`;
+            if (studentId) {
+                filter += ` && student_id="${studentId}"`;
+            }
+            const results = await this.pb.collection('results').getFullList({ filter });
+            const completed = results.filter(r => r.flags && r.flags._status === 'completed');
+
+            for (const r of completed) {
+                try {
+                    const updatedFlags = {
+                        ...r.flags,
+                        _status: 'in-progress',
+                        _reopenedForExtension: true,
+                        _reopenedAt: new Date().toISOString(),
+                        _previousScore: r.score,
+                        _previousSubmittedAt: r.submitted_at
+                    };
+                    await this.pb.collection('results').update(r.id, {
+                        flags: updatedFlags,
+                        submitted_at: ''
+                    });
+                    reopened++;
+                    console.log(`[Extension] Reopened result ${r.id} for student ${r.student_id}`);
+                } catch (e) {
+                    console.warn(`[Extension] Failed to reopen result ${r.id}:`, e.message);
+                }
+            }
+        } catch (e) {
+            console.error('[Extension] reopenResultForExtension failed:', e);
+        }
+        return reopened;
+    }
+
     // V2E+V2F: Save in-progress answers + progress state to server-side result record
     async syncProgressToServer(examId, studentId, answers, flagged, currentQuestionIndex) {
         try {
@@ -1924,7 +1969,7 @@ class DataService {
         return false;
     }
 
-    // V2E+V2F: Load server-side in-progress answers + progress state as fallback
+    // V2E+V2F+V2H: Load server-side in-progress answers + progress state as fallback
     async loadServerProgress(examId, studentId) {
         try {
             const existing = await this.pb.collection('results').getFirstListItem(
@@ -1938,7 +1983,8 @@ class DataService {
                     return {
                         answers: existing.answers,
                         flagged: savedProgress.flagged || {},
-                        currentQuestionIndex: savedProgress.currentQuestionIndex || 0
+                        currentQuestionIndex: savedProgress.currentQuestionIndex || 0,
+                        _reopenedForExtension: !!existing.flags._reopenedForExtension
                     };
                 }
             }

@@ -3060,10 +3060,16 @@
                 if (studentId === 'GLOBAL') {
                     const globalExtension = { addedMinutes: minutes, grantedAt: new Date().toISOString() };
                     await dataService.updateExam(currentExamExtensionsId, { globalExtension });
+                    // V2H: Reopen ALL completed results so students can re-enter
+                    const reopened = await dataService.reopenResultForExtension(currentExamExtensionsId, null);
+                    if (reopened > 0) console.log(`[Extension] Reopened ${reopened} completed results for re-entry`);
                 } else {
                     const extensions = exam.extensions || {};
                     extensions[studentId] = { addedMinutes: minutes, grantedAt: new Date().toISOString() };
                     await dataService.updateExam(currentExamExtensionsId, { extensions });
+                    // V2H: Reopen this student's completed result so they can re-enter
+                    const reopened = await dataService.reopenResultForExtension(currentExamExtensionsId, studentId);
+                    if (reopened > 0) console.log(`[Extension] Reopened result for student ${studentId}`);
                 }
 
                 const updatedExam = await dataService.getExamById(currentExamExtensionsId);

@@ -9,6 +9,7 @@ const takeExam = {
     answers: {}, // { questionId: selectedOptionId }
     flagged: {}, // { questionId: boolean }
     timer: null,
+    _reopenedForExtension: false, // V2H: true if student re-enters after extension on completed exam
 
     // Seeded random shuffle for consistent scrambling per student
     scrambleArray: (array, seed) => {
@@ -377,7 +378,14 @@ const takeExam = {
             }
         }
 
-        duration += extraMinutes;
+        // V2H: If student is re-entering after a completed submission was reopened via extension,
+        // they already used their full original time — only give them the extension minutes
+        if (takeExam._reopenedForExtension && extraMinutes > 0) {
+            console.log(`[Extension] Reopened exam — timer set to extension only: ${extraMinutes} min (original ${duration} min already used)`);
+            duration = extraMinutes;
+        } else {
+            duration += extraMinutes;
+        }
 
         takeExam.timer = new Timer(duration, (timeStr, remaining) => {
             const el = document.getElementById('timer');
@@ -1049,6 +1057,10 @@ const takeExam = {
                     saved.answers = serverProgress.answers;
                     saved.flagged = saved.flagged || serverProgress.flagged;
                     saved.currentQuestionIndex = saved.currentQuestionIndex ?? serverProgress.currentQuestionIndex;
+                    // V2H: Track if this is a reopened extension attempt
+                    if (serverProgress._reopenedForExtension) {
+                        takeExam._reopenedForExtension = true;
+                    }
                     console.log(`[Resume] found continueable attempt for exam ${examId} (source: server)`);
                 }
             } catch (e) {
