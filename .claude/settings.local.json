@@ -5,7 +5,8 @@
       "Bash(find /c/Users/HP/OneDrive/Documents/testingAG -maxdepth 2 -name README* -type f)",
       "Bash(node -e \":*)",
       "Bash(node scripts/strip-landing.js)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(curl -s \"https://gen7-cbt-app.fly.dev/api/collections/exams/records?page=1&perPage=1\")"
     ]
   }
 }

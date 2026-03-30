@@ -1244,9 +1244,13 @@ const studentDashboard = {
                 if (navigator.onLine) {
                     try {
                         const pb = dataService._getPB();
-                        const freshMeta = await pb.collection('exams').getOne(examId, {
-                            fields: 'updated,scheduled_date,status'
+                        const base = pb.baseURL || pb.baseUrl;
+                        const token = pb.authStore.token;
+                        const fieldsParam = 'fields=' + encodeURIComponent('updated,scheduled_date,status');
+                        const res = await fetch(`${base}/api/collections/exams/records/${examId}?${fieldsParam}`, {
+                            headers: token ? { 'Authorization': token } : {}
                         });
+                        const freshMeta = res.ok ? await res.json() : await pb.collection('exams').getOne(examId);
                         serverUpdatedAt = freshMeta.updated;
 
                         // Re-check availability with fresh server data
