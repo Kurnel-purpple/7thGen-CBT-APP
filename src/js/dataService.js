@@ -1845,17 +1845,21 @@ class DataService {
         return { backfilled, skipped };
     }
 
-    // V2E: Save in-progress answers to server-side result record
-    async syncProgressToServer(examId, studentId, answers) {
+    // V2E+V2F: Save in-progress answers + progress state to server-side result record
+    async syncProgressToServer(examId, studentId, answers, flagged, currentQuestionIndex) {
         try {
             const existing = await this.pb.collection('results').getFirstListItem(
                 `exam_id="${examId}" && student_id="${studentId}"`
             );
             if (existing && existing.flags && existing.flags._status === 'in-progress') {
+                const updatedFlags = {
+                    ...existing.flags,
+                    _savedProgress: { flagged: flagged || {}, currentQuestionIndex: currentQuestionIndex || 0 }
+                };
                 await this.pb.collection('results').update(existing.id, {
-                    answers: answers
+                    answers: answers,
+                    flags: updatedFlags
                 });
-                console.log(`[Resume] Server-side progress synced for exam ${examId}`);
                 return true;
             }
         } catch (e) {
@@ -1865,7 +1869,7 @@ class DataService {
         return false;
     }
 
-    // V2E: Load server-side in-progress answers as fallback
+    // V2E+V2F: Load server-side in-progress answers + progress state as fallback
     async loadServerProgress(examId, studentId) {
         try {
             const existing = await this.pb.collection('results').getFirstListItem(
@@ -1875,7 +1879,12 @@ class DataService {
                 const answerCount = Object.keys(existing.answers).length;
                 if (answerCount > 0) {
                     console.log(`[Resume] Loaded ${answerCount} answers from server-side result`);
-                    return existing.answers;
+                    const savedProgress = existing.flags._savedProgress || {};
+                    return {
+                        answers: existing.answers,
+                        flagged: savedProgress.flagged || {},
+                        currentQuestionIndex: savedProgress.currentQuestionIndex || 0
+                    };
                 }
             }
         } catch (e) {
