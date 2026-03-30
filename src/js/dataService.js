@@ -70,6 +70,62 @@ class DataService {
         return this.pb;
     }
 
+    /**
+     * V2G: Raw fetch helper that bypasses the PocketBase SDK for list queries.
+     * The SDK v0.21.0 sends `fields` in a way the server rejects (400),
+     * but raw fetch with the same URL works. This preserves field filtering
+     * so dashboards only download the columns they need.
+     */
+    async _rawList(collection, { page, perPage, filter, sort, fields, fullList } = {}) {
+        const base = this.pb.baseURL || this.pb.baseUrl;
+        const token = this.pb.authStore.token;
+
+        const fetchPage = async (pg, pp) => {
+            const params = new URLSearchParams();
+            params.set('page', String(pg));
+            params.set('perPage', String(pp));
+            if (filter) params.set('filter', filter);
+            if (sort) params.set('sort', sort);
+            if (fields) params.set('fields', fields);
+
+            const url = `${base}/api/collections/${collection}/records?${params.toString()}`;
+            const res = await fetch(url, {
+                headers: token ? { 'Authorization': token } : {}
+            });
+
+            if (!res.ok) {
+                // If server rejects fields, retry without them
+                if (fields && res.status === 400) {
+                    console.warn(`[RawList] fields rejected for ${collection}, retrying without`);
+                    params.delete('fields');
+                    const retry = await fetch(`${base}/api/collections/${collection}/records?${params.toString()}`, {
+                        headers: token ? { 'Authorization': token } : {}
+                    });
+                    if (!retry.ok) throw new Error(`PocketBase ${collection} query failed: ${retry.status}`);
+                    return retry.json();
+                }
+                throw new Error(`PocketBase ${collection} query failed: ${res.status}`);
+            }
+            return res.json();
+        };
+
+        if (fullList) {
+            // Paginate through all results (same as SDK getFullList)
+            const pp = perPage || 200;
+            let allItems = [];
+            let pg = 1;
+            while (true) {
+                const data = await fetchPage(pg, pp);
+                allItems = allItems.concat(data.items || []);
+                if (allItems.length >= data.totalItems || !data.items || data.items.length < pp) break;
+                pg++;
+            }
+            return allItems;
+        } else {
+            return fetchPage(page || 1, perPage || 30);
+        }
+    }
+
     // --- V2D: Trusted Server Time ---
 
     /**
@@ -138,9 +194,8 @@ class DataService {
     async _syncFromRecordTimestamp() {
         try {
             // Try dashboard_versions first (tiny, readable by authenticated users)
-            const record = await this.pb.collection('dashboard_versions').getList(1, 1, {
-                fields: 'id,updated',
-                sort: '-updated'
+            const record = await this._rawList('dashboard_versions', {
+                page: 1, perPage: 1, sort: '-updated', fields: 'id,updated'
             });
             if (record.items && record.items.length > 0) {
                 const ts = record.items[0].updated;
@@ -157,10 +212,8 @@ class DataService {
 
         try {
             // Fallback: use exams collection (students can always read active exams)
-            const record = await this.pb.collection('exams').getList(1, 1, {
-                fields: 'id,updated',
-                sort: '-updated',
-                filter: 'status="active"'
+            const record = await this._rawList('exams', {
+                page: 1, perPage: 1, sort: '-updated', filter: 'status="active"', fields: 'id,updated'
             });
             if (record.items && record.items.length > 0) {
                 const ts = record.items[0].updated;
@@ -961,14 +1014,15 @@ class DataService {
             const options = {
                 filter: filterString,
                 sort: '-created',
-                fields: 'id,title,subject,target_class,duration,pass_score,status,created_by,created,updated,scheduled_date,scramble_questions,question_count,has_theory,theory_count,extensions,global_extension'
+                fields: 'id,title,subject,target_class,duration,pass_score,status,created_by,created,updated,scheduled_date,scramble_questions,question_count,has_theory,theory_count,extensions,global_extension',
+                fullList: true
             };
 
             if (filters.studentDashboard) {
                 options.perPage = 50;
             }
 
-            const exams = await this.pb.collection('exams').getFullList(options);
+            const exams = await this._rawList('exams', options);
             const mappedData = exams.map(e => this._mapExamSummary(e));
 
             if (window.idb && mappedData.length > 0) {
@@ -1625,14 +1679,15 @@ class DataService {
             const options = {
                 filter: filterString,
                 sort: '-submitted_at',
-                fields: 'id,exam_id,student_id,score,total_points,pass_score,passed,submitted_at,flags,created,updated'
+                fields: 'id,exam_id,student_id,score,total_points,pass_score,passed,submitted_at,flags,created,updated',
+                fullList: true
             };
 
             if (filters.studentDashboard) {
                 options.perPage = 100;
             }
 
-            const results = await this.pb.collection('results').getFullList(options);
+            const results = await this._rawList('results', options);
             const mappedResults = results.map(r => this._mapResultSummary(r));
 
             if (window.idb && mappedResults.length > 0) {
@@ -2324,6 +2379,7 @@ class DataService {
             throw error;
         }
     }
+
 }
 
 
