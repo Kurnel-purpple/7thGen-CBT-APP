@@ -995,14 +995,18 @@ const takeExam = {
         }
 
         // Server-side sync (best-effort — keeps answers recoverable if client storage wiped)
-        // Only runs during periodic auto-save (not every keystroke) to avoid flooding the server
-        if (takeExam._isAutoSave) {
-            dataService.syncProgressToServer(takeExam.exam.id, takeExam.user.id, takeExam.answers)
+        // Debounced: runs 3s after the last answer change to avoid flooding the server
+        clearTimeout(takeExam._serverSyncTimer);
+        takeExam._serverSyncTimer = setTimeout(() => {
+            dataService.syncProgressToServer(
+                takeExam.exam.id, takeExam.user.id,
+                takeExam.answers, takeExam.flagged, takeExam.currentQuestionIndex
+            )
                 .then(ok => {
-                    if (ok) console.log(`[Autosave] persisted answers count = ${Object.keys(takeExam.answers).length}`);
+                    if (ok) console.log(`[ServerSync] persisted ${Object.keys(takeExam.answers).length} answers to server`);
                 })
                 .catch(() => { /* non-critical */ });
-        }
+        }, 3000);
     },
 
     loadProgress: async () => {
@@ -1036,13 +1040,15 @@ const takeExam = {
             }
         }
 
-        // 3. Fallback to server-side in-progress result answers
+        // 3. Fallback to server-side in-progress result (answers + flagged + position)
         if (!saved || !saved.answers || Object.keys(saved.answers).length === 0) {
             try {
-                const serverAnswers = await dataService.loadServerProgress(examId, userId);
-                if (serverAnswers && Object.keys(serverAnswers).length > 0) {
+                const serverProgress = await dataService.loadServerProgress(examId, userId);
+                if (serverProgress && serverProgress.answers && Object.keys(serverProgress.answers).length > 0) {
                     saved = saved || {};
-                    saved.answers = serverAnswers;
+                    saved.answers = serverProgress.answers;
+                    saved.flagged = saved.flagged || serverProgress.flagged;
+                    saved.currentQuestionIndex = saved.currentQuestionIndex ?? serverProgress.currentQuestionIndex;
                     console.log(`[Resume] found continueable attempt for exam ${examId} (source: server)`);
                 }
             } catch (e) {
