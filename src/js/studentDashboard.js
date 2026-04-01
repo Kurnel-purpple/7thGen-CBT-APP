@@ -7,6 +7,10 @@ const studentDashboard = {
     exams: [],
     results: [],
     currentFilter: 'All',
+    _refreshInterval: null,
+    _visibilityListenerAdded: false,
+    _realtimeSubscribed: false,
+    _realtimeRefreshTimer: null,
 
     init: async () => {
         console.log('🚀 Student Dashboard v3.0 Loaded');
@@ -58,6 +62,7 @@ const studentDashboard = {
 
         await studentDashboard.loadData();
         studentDashboard.setupConnectionMonitoring();
+        studentDashboard.setupRealtimeExamSync();
     },
 
     setupConnectionMonitoring: () => {
@@ -99,7 +104,9 @@ const studentDashboard = {
         // Online/Offline event listeners
         window.addEventListener('online', async () => {
             console.log('📶 Back online! Syncing data...');
+            studentDashboard.teardownRealtimeExamSync();
             updateStatus();
+            await studentDashboard.setupRealtimeExamSync();
 
             // Sync pending results
             await studentDashboard.syncResults();
@@ -113,6 +120,7 @@ const studentDashboard = {
         window.addEventListener('offline', () => {
             console.log('📴 Gone offline');
             updateStatus();
+            studentDashboard.teardownRealtimeExamSync();
             studentDashboard.showOfflineNotice('You are offline. Showing cached data.');
         });
 
@@ -132,6 +140,58 @@ const studentDashboard = {
         // Initial Sync Attempt
         if (navigator.onLine) {
             setTimeout(studentDashboard.syncResults, 2000);
+        }
+    },
+
+    _queueRealtimeRefresh: (reason = 'exam_change') => {
+        if (!navigator.onLine) return;
+        if (studentDashboard._realtimeRefreshTimer) {
+            clearTimeout(studentDashboard._realtimeRefreshTimer);
+        }
+
+        studentDashboard._realtimeRefreshTimer = setTimeout(() => {
+            studentDashboard._realtimeRefreshTimer = null;
+            console.log(`[RealtimeRefresh] Reloading dashboard after ${reason}`);
+            studentDashboard.loadData();
+        }, 800);
+    },
+
+    teardownRealtimeExamSync: () => {
+        studentDashboard._realtimeSubscribed = false;
+        if (studentDashboard._realtimeRefreshTimer) {
+            clearTimeout(studentDashboard._realtimeRefreshTimer);
+            studentDashboard._realtimeRefreshTimer = null;
+        }
+        dataService.unsubscribeFromExams().catch(() => {});
+    },
+
+    setupRealtimeExamSync: async () => {
+        if (studentDashboard._realtimeSubscribed) return;
+        if (!navigator.onLine) return;
+
+        try {
+            await dataService.unsubscribeFromExams().catch(() => {});
+            await dataService.subscribeToExams((event) => {
+                const exam = event.record || {};
+                const userClass = (studentDashboard.user?.classLevel || '').trim();
+                const targetClass = (exam.target_class || exam.targetClass || 'All').trim();
+                const relevantToStudent = targetClass === 'All' || (userClass && targetClass === userClass);
+
+                if (!relevantToStudent) return;
+
+                console.log(
+                    `[RealtimeRefresh] Exam ${event.action || 'update'} received for ${exam.id || 'unknown'}`
+                );
+                studentDashboard._queueRealtimeRefresh(`exam_${event.action || 'update'}`);
+            });
+
+            studentDashboard._realtimeSubscribed = true;
+            window.addEventListener('beforeunload', () => {
+                studentDashboard.teardownRealtimeExamSync();
+            }, { once: true });
+        } catch (error) {
+            studentDashboard._realtimeSubscribed = false;
+            console.warn('[RealtimeRefresh] Exam subscription unavailable, using polling/focus refresh only', error);
         }
     },
 
@@ -235,7 +295,7 @@ const studentDashboard = {
                     ? dataService.getResultSummaries({
                         studentId: userId,
                         studentDashboard: true,
-                        ...(forceRefresh && { forceRefresh: true })
+                        forceRefresh: true
                     })
                     : Promise.resolve([])
             ]);
@@ -388,7 +448,7 @@ const studentDashboard = {
                 // within 2 minutes of any admin change.
                 const [freshExams, freshResults] = await Promise.all([
                     dataService.getExamSummaries({ status: 'active', studentDashboard: true, ...(forceNet && { forceRefresh: true }) }),
-                    userId ? dataService.getResultSummaries({ studentId: userId, studentDashboard: true, ...(forceNet && { forceRefresh: true }) }) : []
+                    userId ? dataService.getResultSummaries({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
                 ]);
 
                 // Guard: Do NOT overwrite good data with an empty response
@@ -441,6 +501,9 @@ const studentDashboard = {
                     const now = Date.now();
                     if (now - lastVisRefresh < 5000) return; // debounce 5s
                     lastVisRefresh = now;
+                    if (!studentDashboard._realtimeSubscribed) {
+                        studentDashboard.setupRealtimeExamSync().catch(() => {});
+                    }
                     // V2D: Re-sync trusted time on visibility change
                     dataService.syncServerTime().catch(() => {});
                     backgroundRefresh();
@@ -892,7 +955,11 @@ const studentDashboard = {
         }
 
         grid.innerHTML = resolvedItems.map(result => {
-            const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
+            const liveExam = studentDashboard.exams.find(e => e.id === result.examId);
+            const exam = liveExam || {
+                title: result.examTitle || 'Unknown Exam',
+                subject: result.examSubject || 'N/A'
+            };
 
             // Calculate points if not stored (for backward compatibility)
             const totalPoints = result.totalPoints || 100;
@@ -948,7 +1015,14 @@ const studentDashboard = {
         }
 
         grid.innerHTML = completedResults.map(result => {
-            const exam = studentDashboard.exams.find(e => e.id === result.examId) || { title: 'Unknown Exam', subject: 'N/A' };
+            const liveExam = studentDashboard.exams.find(e => e.id === result.examId);
+            const exam = liveExam || {
+                title: result.examTitle || 'Unknown Exam',
+                subject: result.examSubject || 'N/A',
+                duration: result.examDuration,
+                hasTheory: result.examHasTheory,
+                theoryCount: result.examTheoryCount
+            };
             const isPass = result.score >= (result.passScore || 50);
 
             const totalPoints = result.totalPoints || 100;

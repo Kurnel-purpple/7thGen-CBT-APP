@@ -1216,7 +1216,9 @@ const takeExam = {
             submitBtn.style.opacity = '0.7';
         }
 
-        takeExam.timer.stop();
+        if (takeExam.timer) {
+            takeExam.timer.stop();
+        }
 
         // Grading Logic
         let score = 0;
@@ -1229,6 +1231,12 @@ const takeExam = {
             const existingResult = results.find(r => r.id === takeExam.resultId);
 
             if (!existingResult) {
+                takeExam._isSubmitting = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                }
                 takeExam.showNotice('Error: Could not find existing result', 'error');
                 return;
             }
@@ -1353,7 +1361,7 @@ const takeExam = {
             });
         }
 
-        const percentage = Math.round((score / totalPoints) * 100);
+        const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
 
         // Handle Result Flags
         let finalFlags = JSON.parse(JSON.stringify(takeExam.flagged)); // Deep clone
@@ -1383,7 +1391,15 @@ const takeExam = {
             totalPoints: Math.round(totalPoints),
             passScore: takeExam.exam.passScore,
             passed: percentage >= takeExam.exam.passScore,
-            flags: finalFlags
+            flags: finalFlags,
+            examSnapshot: {
+                title: takeExam.exam.title,
+                subject: takeExam.exam.subject,
+                targetClass: takeExam.exam.targetClass,
+                duration: takeExam.exam.duration,
+                hasTheory: takeExam.exam.hasTheory,
+                theoryCount: takeExam.exam.theoryCount
+            }
         };
 
         try {
@@ -1435,7 +1451,7 @@ const takeExam = {
             } else {
                 await dataService.saveResult(resultData);
                 await takeExam._clearProgress();
-                takeExam._clearSnapshot();
+                await takeExam._clearSnapshot();
                 // Signal dashboard to force-refresh results on next load
                 sessionStorage.setItem('force_refresh_dashboard', '1');
                 const passed = percentage >= takeExam.exam.passScore;
@@ -1449,7 +1465,7 @@ const takeExam = {
             if (err.message === 'Saved Offline') {
                 // Successfully queued for later sync
                 await takeExam._clearProgress();
-                takeExam._clearSnapshot();
+                await takeExam._clearSnapshot();
                 sessionStorage.setItem('force_refresh_dashboard', '1');
                 takeExam.showResultModal('Exam Saved Offline!', 'Your answers have been saved locally and will sync automatically when you\'re back online.', score, totalPoints, percentage, undefined, true);
                 return;
@@ -1468,12 +1484,18 @@ const takeExam = {
                     pass_score: resultData.passScore,
                     answers: resultData.answers,
                     flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '' },
+                    exam_title: resultData.examSnapshot?.title || '',
+                    exam_subject: resultData.examSnapshot?.subject || '',
+                    exam_target_class: resultData.examSnapshot?.targetClass || '',
+                    exam_duration: resultData.examSnapshot?.duration ?? null,
+                    exam_has_theory: !!resultData.examSnapshot?.hasTheory,
+                    exam_theory_count: resultData.examSnapshot?.theoryCount ?? 0,
                     submitted_at: new Date().toISOString()
                 };
                 pending.push(submission);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
                 await takeExam._clearProgress();
-                takeExam._clearSnapshot();
+                await takeExam._clearSnapshot();
 
                 takeExam.showResultModal('Saved Offline', 'Network issue detected. Your answers have been saved locally.', score, totalPoints, percentage, undefined, true);
                 return;
