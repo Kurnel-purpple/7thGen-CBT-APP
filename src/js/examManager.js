@@ -95,12 +95,6 @@ const examManager = {
         }
     },
 
-    unassignMedia: (mediaId, questionId) => {
-        const m = examManager.uploadedMedia.find(x => x.id === mediaId);
-        if (m) m.assignedToQuestion = null;
-        examManager._updateModalMediaPreview(questionId);
-    },
-
     // Auto-expand textarea based on content
     autoExpand: (textarea) => {
         textarea.style.height = 'auto';
@@ -259,23 +253,28 @@ const examManager = {
 
             mediaCard.innerHTML = `
                 <div style="position: relative;">
-                    <img src="${media.dataUrl}" alt="${media.name}" style="width: 100%; height: 120px; object-fit: cover;">
-                    <button type="button" onclick="examManager.removeMedia('${media.id}')" 
+                    <img src="${media.dataUrl}" alt="${escHtml(media.name || 'media')}" style="width: 100%; height: 120px; object-fit: cover;">
+                    <button type="button" data-media-id="${escHtml(media.id)}" 
                         style="position: absolute; top: 5px; right: 5px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;">
                         ×
                     </button>
                     ${media.assignedToQuestion ? `<span style="position: absolute; top: 5px; left: 5px; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">Assigned</span>` : ''}
                 </div>
                 <div style="padding: 10px;">
-                    <p style="font-size: 0.8rem; color: var(--light-text); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${media.name}">
-                        ${media.name}
+                    <p style="font-size: 0.8rem; color: var(--light-text); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escHtml(media.name || 'media')}">
+                        ${escHtml(media.name || 'media')}
                     </p>
-                    <select onchange="examManager.assignMediaToQuestion('${media.id}', this.value)" 
+                    <select data-media-id="${escHtml(media.id)}" 
                         style="width: 100%; padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); font-size: 0.8rem;">
                         ${questionOptions}
                     </select>
                 </div>
             `;
+
+            const removeBtn = mediaCard.querySelector('button[data-media-id]');
+            if (removeBtn) removeBtn.onclick = () => examManager.removeMedia(media.id);
+            const assignSelect = mediaCard.querySelector('select[data-media-id]');
+            if (assignSelect) assignSelect.onchange = (e) => examManager.assignMediaToQuestion(media.id, e.target.value);
 
             gallery.appendChild(mediaCard);
         });
@@ -353,10 +352,10 @@ const examManager = {
 
         overlay.innerHTML = `
             <div style="position: relative; max-width: 90%; max-height: 90%;">
-                <img src="${media.dataUrl}" alt="${media.name}" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
+                <img src="${media.dataUrl}" alt="${escHtml(media.name || 'media')}" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5);">
                 <button onclick="this.parentElement.parentElement.remove(); event.stopPropagation();" 
                     style="position: absolute; top: -15px; right: -15px; background: white; color: black; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">×</button>
-                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem;">${media.name}</p>
+                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem;">${escHtml(media.name || 'media')}</p>
             </div>
         `;
 
@@ -688,7 +687,7 @@ const examManager = {
                     delete q.correctAnswer;
                     delete q.pairs;
                     delete q.subQuestions;
-                    q.points = 0;
+                    q.points = points;
                 }
             }
         } else {
@@ -700,7 +699,7 @@ const examManager = {
                 text: text,
                 canvasJSON: canvasJSON,
                 canvasImage: canvasImage,
-                points: type === 'theory' ? 0 : points
+                points: points
             };
             if (type === 'mcq' || type === 'true_false' || type === 'image_mcq') {
                 newQ.options = examManager._modalOptions;
@@ -1034,14 +1033,13 @@ const examManager = {
                 q.pairs = [{ left: '', right: '' }, { left: '', right: '' }];
                 delete q.options;
             } else if (newType === 'theory') {
-                // Theory questions don't have options or correct answers
-                // They require manual grading
-                // Set points to 0 so they don't affect automatic scoring
+                // Theory questions don't have options or correct answers.
+                // Keep their configured points so teachers can grade against them later.
                 delete q.options;
                 delete q.correctAnswer;
                 delete q.pairs;
                 delete q.subQuestions;
-                q.points = 0;
+                q.points = q.points || 0.5;
             } else if (newType === 'image_multi') {
                 // Picture Comprehension: One image with multiple questions (A-E options each)
                 q.subQuestions = [
@@ -1476,7 +1474,8 @@ const examManager = {
         let valid = true;
         for (let i = 0; i < examManager.questions.length; i++) {
             const q = examManager.questions[i];
-            if (!q.canvasJSON && !q.canvasImage && !q.text.trim()) {
+            const questionText = typeof q.text === 'string' ? q.text : '';
+            if (!q.canvasJSON && !q.canvasImage && !questionText.trim()) {
                 await Utils.showAlert('Validation Error', `Question ${i + 1} is missing content. Please add text or shapes to the editor.`);
                 valid = false;
                 break;
@@ -1491,7 +1490,7 @@ const examManager = {
                         break;
                     }
                 }
-                if (q.options.some(o => !o.text.trim())) {
+                if (q.options.some(o => typeof o.text !== 'string' || !o.text.trim())) {
                     await Utils.showAlert('Validation Error', `Question ${i + 1} has empty options.`);
                     valid = false;
                     break;
@@ -1513,7 +1512,7 @@ const examManager = {
                     valid = false;
                     break;
                 }
-                if (q.pairs.some(p => !p.left.trim() || !p.right.trim())) {
+                if (q.pairs.some(p => typeof p.left !== 'string' || typeof p.right !== 'string' || !p.left.trim() || !p.right.trim())) {
                     await Utils.showAlert('Validation Error', `Question ${i + 1} has empty matching items.`);
                     valid = false;
                     break;
