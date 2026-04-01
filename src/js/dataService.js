@@ -869,6 +869,31 @@ class DataService {
         }
     }
 
+    /**
+     * Subscribe to exam updates so clients can react immediately to schedule/status changes.
+     */
+    async subscribeToExams(callback) {
+        try {
+            return await this.pb.collection('exams').subscribe('*', (e) => {
+                callback(e);
+            });
+        } catch (error) {
+            console.error('Exam subscription error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Unsubscribe from exam updates.
+     */
+    async unsubscribeFromExams() {
+        try {
+            await this.pb.collection('exams').unsubscribe('*');
+        } catch (error) {
+            console.error('Exam unsubscribe error:', error);
+        }
+    }
+
 
     // --- Exams ---
 
@@ -886,7 +911,7 @@ class DataService {
                 const cached = await window.idb.getDashboardCache(cacheKey);
                 if (cached && cached.data && cached.data.length > 0) {
                     const age = Date.now() - (cached.cachedAt || 0);
-                    if (age < CACHE_MAX_AGE) {
+                    if (age < CACHE_MAX_AGE && this._examDataComplete(cached.data)) {
                         console.log(`📦 Serving exams from IDB cache (${Math.round(age / 1000)}s old)`);
                         return cached.data;
                     }
@@ -1487,18 +1512,59 @@ class DataService {
         };
     }
 
+    _buildResultExamSnapshot(exam) {
+        if (!exam) return {};
+        return {
+            exam_title: exam.title || '',
+            exam_subject: exam.subject || '',
+            exam_target_class: exam.targetClass || exam.target_class || '',
+            exam_duration: exam.duration ?? null,
+            exam_has_theory: !!(exam.hasTheory ?? exam.has_theory),
+            exam_theory_count: exam.theoryCount ?? exam.theory_count ?? 0
+        };
+    }
+
+    _mapResultExamSnapshot(dbResult) {
+        return {
+            examTitle: dbResult.exam_title || '',
+            examSubject: dbResult.exam_subject || '',
+            examTargetClass: dbResult.exam_target_class || '',
+            examDuration: dbResult.exam_duration ?? null,
+            examHasTheory: !!dbResult.exam_has_theory,
+            examTheoryCount: dbResult.exam_theory_count ?? 0
+        };
+    }
+
+    _resultSnapshotsComplete(results = []) {
+        return results.every(result => !!(result.examTitle || result.exam_title) && !!(result.examSubject || result.exam_subject));
+    }
+
+    _examDataComplete(exams = []) {
+        return exams.every(exam => !!exam && !!exam.id && !!exam.title && !!exam.subject);
+    }
+
     // --- Results ---
 
     async saveResult(resultData) {
+        const examSnapshot = this._buildResultExamSnapshot(resultData.examSnapshot || {});
+        const flags = {
+            ...(resultData.flags || {}),
+            _status: 'completed',
+            _studentName: resultData.studentName ?? (resultData.flags && resultData.flags._studentName) ?? ''
+        };
+        delete flags._reopenedForExtension;
+        delete flags._reopenedAt;
+        delete flags._previousScore;
+        delete flags._previousSubmittedAt;
         const data = {
             exam_id: resultData.examId,
             student_id: resultData.studentId,
             score: resultData.score,
             total_points: resultData.totalPoints,
             answers: resultData.answers,
-            flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '',
-                _reopenedForExtension: undefined, _reopenedAt: undefined, _previousScore: undefined, _previousSubmittedAt: undefined },
-            submitted_at: new Date().toISOString()
+            flags,
+            submitted_at: new Date().toISOString(),
+            ...examSnapshot
         };
 
         try {
@@ -1597,7 +1663,7 @@ class DataService {
                 const cached = await window.idb.getDashboardCache(cacheKey);
                 if (cached && cached.data && cached.data.length > 0) {
                     const age = Date.now() - (cached.cachedAt || 0);
-                    if (age < CACHE_MAX_AGE) {
+                    if (age < CACHE_MAX_AGE && this._resultSnapshotsComplete(cached.data)) {
                         return cached.data;
                     }
                 }
@@ -1680,7 +1746,7 @@ class DataService {
             const options = {
                 filter: filterString,
                 sort: '-submitted_at',
-                fields: 'id,exam_id,student_id,score,total_points,pass_score,passed,submitted_at,flags,created,updated',
+                fields: 'id,exam_id,student_id,score,total_points,pass_score,passed,submitted_at,flags,created,updated,exam_title,exam_subject,exam_target_class,exam_duration,exam_has_theory,exam_theory_count',
                 fullList: true
             };
 
@@ -1742,7 +1808,8 @@ class DataService {
             studentName: studentName,
             flags: dbResult.flags || {},
             status: status,
-            theoryScores: (dbResult.flags && dbResult.flags._theoryScores) ? dbResult.flags._theoryScores : {}
+            theoryScores: (dbResult.flags && dbResult.flags._theoryScores) ? dbResult.flags._theoryScores : {},
+            ...this._mapResultExamSnapshot(dbResult)
         };
     }
 
@@ -1781,8 +1848,52 @@ class DataService {
             studentName: studentName,
             flags: dbResult.flags || {},
             status: status,
-            theoryScores: (dbResult.flags && dbResult.flags._theoryScores) ? dbResult.flags._theoryScores : {}
+            theoryScores: (dbResult.flags && dbResult.flags._theoryScores) ? dbResult.flags._theoryScores : {},
+            ...this._mapResultExamSnapshot(dbResult)
         };
+    }
+
+    async backfillResultExamSnapshots() {
+        const resultRows = await this._rawList('results', {
+            fullList: true,
+            fields: 'id,exam_id,exam_title,exam_subject,exam_target_class,exam_duration,exam_has_theory,exam_theory_count'
+        });
+
+        const needsSnapshot = resultRows.filter(r =>
+            !r.exam_title ||
+            !r.exam_subject ||
+            r.exam_duration === undefined ||
+            r.exam_has_theory === undefined ||
+            r.exam_theory_count === undefined
+        );
+
+        if (needsSnapshot.length === 0) {
+            return { scanned: resultRows.length, updated: 0, skipped: 0 };
+        }
+
+        const examRows = await this._rawList('exams', {
+            fullList: true,
+            fields: 'id,title,subject,target_class,duration,has_theory,theory_count'
+        });
+        const examMap = new Map(examRows.map(exam => [exam.id, exam]));
+
+        let updated = 0;
+        let skipped = 0;
+        for (const row of needsSnapshot) {
+            const exam = examMap.get(row.exam_id);
+            if (!exam) {
+                skipped++;
+                continue;
+            }
+
+            await this.pb.collection('results').update(
+                row.id,
+                this._buildResultExamSnapshot(exam)
+            );
+            updated++;
+        }
+
+        return { scanned: resultRows.length, updated, skipped };
     }
 
     async updateResult(resultId, updates) {
@@ -2071,7 +2182,13 @@ class DataService {
                     pass_score: cleanPayload.pass_score || cleanPayload.passScore,
                     answers: cleanPayload.answers,
                     flags: cleanPayload.flags || {},
-                    submitted_at: cleanPayload.submitted_at || cleanPayload.submittedAt || new Date().toISOString()
+                    submitted_at: cleanPayload.submitted_at || cleanPayload.submittedAt || new Date().toISOString(),
+                    exam_title: cleanPayload.exam_title || cleanPayload.examTitle || '',
+                    exam_subject: cleanPayload.exam_subject || cleanPayload.examSubject || '',
+                    exam_target_class: cleanPayload.exam_target_class || cleanPayload.examTargetClass || '',
+                    exam_duration: cleanPayload.exam_duration ?? cleanPayload.examDuration ?? null,
+                    exam_has_theory: cleanPayload.exam_has_theory ?? cleanPayload.examHasTheory ?? false,
+                    exam_theory_count: cleanPayload.exam_theory_count ?? cleanPayload.examTheoryCount ?? 0
                 };
 
                 try {
