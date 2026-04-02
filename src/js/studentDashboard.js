@@ -144,7 +144,6 @@ const studentDashboard = {
     },
 
     _queueRealtimeRefresh: (reason = 'exam_change') => {
-        if (!navigator.onLine) return;
         if (studentDashboard._realtimeRefreshTimer) {
             clearTimeout(studentDashboard._realtimeRefreshTimer);
         }
@@ -167,7 +166,6 @@ const studentDashboard = {
 
     setupRealtimeExamSync: async () => {
         if (studentDashboard._realtimeSubscribed) return;
-        if (!navigator.onLine) return;
 
         try {
             await dataService.unsubscribeFromExams().catch(() => {});
@@ -597,43 +595,27 @@ const studentDashboard = {
         await studentDashboard.loadData();
     },
 
-    // Preload exams for offline use (opportunistic)
-    preloadExamsForOffline: async () => {
+    // Explicit offline prefetch helper (final definition)
+    preloadExamsForOffline: async (examId) => {
         if (!navigator.onLine) return;
         if (!window.idb || !window.idb.isIndexedDBAvailable()) return;
 
-        // Only preload available exams that haven't been taken
-        const availableExams = studentDashboard.exams.filter(exam => {
-            const taken = studentDashboard.results.some(r =>
-                r.examId === exam.id && !r.isPending
-            );
-            return !taken && exam.status === 'active';
-        });
+        const exam = studentDashboard.exams.find(e => e.id === examId);
+        if (!exam) return;
 
-        let preloadedCount = 0;
-
-        for (const exam of availableExams) {
-            try {
-                // Check if already cached with full questions
-                const cached = await window.idb.getExam(exam.id);
-                if (cached && cached.questions && cached.questions.length > 0) {
-                    continue; // Already cached
-                }
-
-                // Fetch full exam with questions
-                const fullExam = await dataService.getExamById(exam.id);
-                if (fullExam && fullExam.questions) {
-                    await window.idb.saveExam(fullExam);
-                    preloadedCount++;
-                    console.log(`📥 Preloaded exam: ${exam.title}`);
-                }
-            } catch (err) {
-                console.warn(`Could not preload exam ${exam.id}:`, err.message);
+        try {
+            const cached = await window.idb.getExam(exam.id);
+            if (cached && cached.questions && cached.questions.length > 0) {
+                return;
             }
-        }
 
-        if (preloadedCount > 0) {
-            console.log(`✅ Preloaded ${preloadedCount} exams for offline use`);
+            const fullExam = await dataService.getExamById(exam.id, exam.updatedAt);
+            if (fullExam && fullExam.questions) {
+                await window.idb.saveExam(fullExam);
+                console.log(`[OfflinePrefetch] Cached exam ${exam.id} for offline use`);
+            }
+        } catch (err) {
+            console.warn(`Could not preload exam ${exam.id}:`, err.message);
         }
     },
 
@@ -1056,21 +1038,10 @@ const studentDashboard = {
     },
 
     // Three-panel layout: select an exam to show in center + right panels
-    // Prefetch state for selected exam
-    _prefetchState: { examId: null, status: 'idle', promise: null },
 
     selectExam: (examId, tab) => {
         const exam = studentDashboard.exams.find(e => e.id === examId);
         if (!exam) return;
-
-        // Background prefetch of full exam for faster "Start Exam"
-        if (studentDashboard._prefetchState.examId !== examId) {
-            studentDashboard._prefetchState = { examId, status: 'loading', promise: null };
-            const prefetchPromise = dataService.getExamById(examId, exam.updatedAt)
-                .then(() => { studentDashboard._prefetchState.status = 'ready'; })
-                .catch(() => { studentDashboard._prefetchState.status = 'error'; });
-            studentDashboard._prefetchState.promise = prefetchPromise;
-        }
 
         // Highlight selected row
         document.querySelectorAll('.exam-list-item').forEach(el => el.classList.remove('selected'));
@@ -1361,11 +1332,6 @@ const studentDashboard = {
                     }
                 }
 
-                // Wait for any in-progress prefetch
-                const pf = studentDashboard._prefetchState;
-                if (pf.examId === examId && pf.status === 'loading' && pf.promise) {
-                    try { await pf.promise; } catch (e) { /* continue */ }
-                }
 
                 // Fetch full exam with freshness check — will re-fetch if stale
                 await dataService.getExamById(examId, serverUpdatedAt);

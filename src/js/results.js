@@ -7,6 +7,11 @@ const resultsController = {
     currentExam: null,
     theoryScores: {}, // { questionId: points }
 
+    _escapeHtml(str) {
+        if (typeof str !== 'string') return str;
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
     init: async () => {
         const params = new URLSearchParams(window.location.search);
         const resultId = params.get('id');
@@ -69,48 +74,48 @@ const resultsController = {
         }
 
         const media = question.mediaAttachments[mediaIndex];
+        const displayName = media.name || 'Question Image';
 
-        // Create lightbox overlay
         const overlay = document.createElement('div');
         overlay.id = 'results-media-lightbox';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            cursor: pointer;
-            padding: 20px;
-        `;
-        overlay.onclick = () => overlay.remove();
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;z-index:10000;cursor:pointer;padding:20px;';
 
-        overlay.innerHTML = `
-            <div style="position: relative; max-width: 95%; max-height: 95%; display: flex; flex-direction: column; align-items: center;" onclick="event.stopPropagation();">
-                <img src="${media.dataUrl}" alt="${media.name || 'Question Image'}" 
-                    style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5); object-fit: contain;">
-                <button onclick="this.parentElement.parentElement.remove()" 
-                    style="position: absolute; top: -15px; right: -15px; background: white; color: black; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 22px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">×</button>
-                <p style="text-align: center; color: white; margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
-                    ${media.name || 'Question Image'} • Click anywhere outside to close
-                </p>
-            </div>
-        `;
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:relative;max-width:95%;max-height:95%;display:flex;flex-direction:column;align-items:center;';
+
+        const img = document.createElement('img');
+        img.src = media.dataUrl;
+        img.alt = displayName;
+        img.style.cssText = 'max-width:100%;max-height:85vh;border-radius:8px;box-shadow:0 10px 50px rgba(0,0,0,0.5);object-fit:contain;';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '\u00d7';
+        closeBtn.style.cssText = 'position:absolute;top:-15px;right:-15px;background:white;color:black;border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:22px;font-weight:bold;box-shadow:0 2px 10px rgba(0,0,0,0.3);';
+
+        const caption = document.createElement('p');
+        caption.textContent = displayName + ' \u2022 Click anywhere outside to close';
+        caption.style.cssText = 'text-align:center;color:white;margin-top:15px;font-size:0.9rem;opacity:0.8;';
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(closeBtn);
+        wrapper.appendChild(caption);
+        overlay.appendChild(wrapper);
+
+        let escHandler;
+        const cleanup = () => {
+            document.removeEventListener('keydown', escHandler);
+            overlay.remove();
+        };
+        escHandler = (e) => {
+            if (e.key === 'Escape') cleanup();
+        };
+
+        overlay.addEventListener('click', cleanup);
+        wrapper.addEventListener('click', (e) => e.stopPropagation());
+        closeBtn.addEventListener('click', (e) => { e.stopPropagation(); cleanup(); });
+        document.addEventListener('keydown', escHandler);
 
         document.body.appendChild(overlay);
-
-        // Also allow ESC key to close
-        const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                overlay.remove();
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
     },
 
     saveTheoryScores: async () => {
@@ -343,7 +348,7 @@ const resultsController = {
                 optionsHtml = `
                     <div style="margin-bottom:10px; padding:10px; background:var(--inner-bg); border-radius:4px;">
                         <strong style="color:var(--accent-color);">Student's Answer:</strong>
-                        <div style="margin-top:8px; white-space:pre-wrap; line-height:1.6;">${studentAnswer}</div>
+                        <div style="margin-top:8px; white-space:pre-wrap; line-height:1.6;">${resultsController._escapeHtml(studentAnswer)}</div>
                     </div>
                     ${gradingHtml}
                 `;
@@ -457,19 +462,21 @@ const resultsController = {
 
             return `
             <div class="result-item ${isCorrect === null ? 'theory' : (isCorrect ? 'correct' : 'incorrect')}">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:10px;">
-                    <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                <div style="display:flex; flex-direction:column; margin-bottom:12px; gap:8px;">
+                    <div style="width:100%; overflow-wrap: anywhere; word-break: break-word; line-height:1.5;">
                         ${q.canvasImage
                     ? `<strong>Q${i + 1}.</strong> <img src="${q.canvasImage}" style="max-width:100%; border-radius:6px; display:block; margin-top:6px;" alt="Question content" />`
-                    : `<strong>Q${i + 1}. ${q.text}</strong>`
+                    : `<strong>Q${i + 1}.</strong> <span style="font-weight: normal">${resultsController._escapeHtml(q.text)}</span>`
                 }
-                        ${isFlagged ? '<span title="Flagged by student" style="font-size:1.2rem;">🚩</span>' : ''}
-                        ${q.type === 'theory' ? '<span style="font-size:0.75rem; color:var(--accent-color); margin-left:8px;">(THEORY)</span>' : ''}
-                        ${q.type === 'image_multi' ? '<span style="font-size:0.75rem; color:var(--primary-color); margin-left:8px;">(PICTURE COMPREHENSION)</span>' : ''}
                     </div>
-                    <span class="status-badge ${isCorrect === null ? 'theory' : (isCorrect ? 'correct' : 'incorrect')}" style="flex-shrink:0;">
-                        ${isCorrect === null ? 'Manual Grading' : (isCorrect ? `+${parseFloat(q.points) || 0.5} pts` : '0 pts')}
-                    </span>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span class="status-badge ${isCorrect === null ? 'theory' : (isCorrect ? 'correct' : 'incorrect')}">
+                            ${isCorrect === null ? 'Manual Grading' : (isCorrect ? `+${parseFloat(q.points) || 0.5} pts` : '0 pts')}
+                        </span>
+                        ${q.type === 'theory' ? '<span style="font-size:0.75rem; font-weight:700; color:var(--accent-color);">(THEORY)</span>' : ''}
+                        ${q.type === 'image_multi' ? '<span style="font-size:0.75rem; font-weight:700; color:var(--primary-color);">(PICTURE COMPREHENSION)</span>' : ''}
+                        ${isFlagged ? '<span title="Flagged by student" style="font-size:1.2rem; margin-top:-2px;">🚩</span>' : ''}
+                    </div>
                 </div>
                 ${mediaHtml}
                 <div>${optionsHtml}</div>

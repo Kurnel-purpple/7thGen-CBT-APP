@@ -1853,6 +1853,27 @@ class DataService {
         };
     }
 
+    async getResultById(resultId) {
+        try {
+            const result = await this.pb.collection('results').getOne(resultId);
+            const mappedResult = this._mapResult(result);
+
+            if (window.idb) {
+                await window.idb.saveResults([mappedResult]);
+            }
+
+            return mappedResult;
+        } catch (error) {
+            if (window.idb) {
+                try {
+                    const cached = await window.idb.getResult(resultId);
+                    if (cached) return cached;
+                } catch (e) { /* ignore */ }
+            }
+            throw error;
+        }
+    }
+
     async backfillResultExamSnapshots() {
         const resultRows = await this._rawList('results', {
             fullList: true,
