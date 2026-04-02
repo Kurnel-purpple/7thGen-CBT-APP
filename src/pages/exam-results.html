@@ -18,278 +18,86 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/results.css">
     <!-- Font Awesome for high-quality icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--card-bg);
-            border-radius: var(--radius-card);
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
-            border: 1px solid var(--border-color);
-        }
-
-        .results-table th,
-        .results-table td {
-            padding: 14px 16px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-color);
-            font-size: 0.9rem;
-        }
-
-        .results-table th {
-            background: var(--inner-bg);
-            font-weight: 700;
-            font-family: var(--font-heading);
-            color: var(--light-text);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .results-table tr:hover td {
-            background: var(--primary-light);
-        }
-
-        [data-theme="dark"] .results-table tr:hover td {
-            background: var(--dm-surface-3, #2C3150);
-        }
-
-        .score-pill {
-            padding: 4px 10px;
-            border-radius: var(--radius-pill);
-            font-size: 0.8rem;
-            font-weight: 700;
-            font-family: var(--font-heading);
-        }
-
-        .score-pill.pass {
-            background: rgba(46, 204, 113, 0.12);
-            color: var(--success-color);
-        }
-
-        .score-pill.fail {
-            background: rgba(231, 76, 60, 0.12);
-            color: var(--accent-color);
-        }
-
-        /* Mobile Card View */
-        .results-cards-container {
-            display: none;
-        }
-
-        .result-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .result-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .result-card-student {
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--text-color);
-        }
-
-        .result-card-body {
-            display: grid;
-            gap: 10px;
-        }
-
-        .result-card-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .result-card-label {
-            color: var(--light-text);
-            font-size: 0.9rem;
-        }
-
-        .result-card-value {
-            color: var(--text-color);
-            font-weight: 500;
-        }
-
-        .result-card-actions {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            gap: 8px;
-        }
-
-        /* Desktop button - full button with text */
-        .btn-back-desktop {
-            display: inline-block;
-        }
-
-        /* Mobile icon - clean icon without button styling */
-        .btn-back-mobile {
-            display: none;
-        }
-
-        /* Responsive: Show cards on mobile, table on desktop */
-        @media (max-width: 768px) {
-            .results-table-container {
-                display: none;
-            }
-
-            .results-cards-container {
-                display: block;
-            }
-
-            .main-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 15px 20px;
-            }
-
-            .logo {
-                flex: 1;
-                display: flex;
-                align-items: center;
-            }
-
-            .logo h1 {
-                font-size: 1.2rem;
-                margin: 0;
-            }
-
-            .user-menu {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-            }
-
-            /* Hide desktop button on mobile */
-            .btn-back-desktop {
-                display: none;
-            }
-
-            /* Show clean icon on mobile */
-            .btn-back-mobile {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: var(--card-bg);
-                color: var(--text-color);
-                font-size: 1.3rem;
-                transition: all 0.3s ease;
-                cursor: pointer;
-                border: none;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            }
-
-            .btn-back-mobile:hover {
-                transform: scale(1.05);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            }
-
-            .btn-back-mobile:active {
-                transform: scale(0.95);
-            }
-
-            /* Dark mode support for mobile icon */
-            [data-theme="dark"] .btn-back-mobile {
-                background: var(--dm-surface-2, #22263A);
-                color: var(--text-color);
-                box-shadow: var(--shadow-card);
-            }
-
-            [data-theme="dark"] .btn-back-mobile:hover {
-                background: var(--dm-surface-3, #2C3150);
-            }
-        }
-    </style>
 </head>
 
 <body>
     <div class="app-container no-sidebar">
-        <header class="main-header">
-            <div class="logo">
-                <h1 style="font-size: 1.1rem;">Class Results</h1>
-            </div>
-            <div class="user-menu" style="display:flex; align-items:center; gap:8px;">
-                <!-- Dark mode toggle injected by utils.js -->
-                <button onclick="window.location.href='teacher-dashboard.html'" class="btn btn-back-desktop">← Back to Dashboard</button>
-                <button onclick="window.location.href='teacher-dashboard.html'" class="btn-back-mobile topbar-icon-btn" aria-label="Back to Dashboard">
+        <!-- Topbar -->
+        <header class="main-header results-topbar exam-results-topbar">
+            <div class="topbar-left">
+                <button onclick="window.location.href='teacher-dashboard.html'" class="btn-back" aria-label="Back to Dashboard">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="window.location.href='teacher-dashboard.html'" class="btn-back-mobile" aria-label="Back to Dashboard">
                     <i class="fas fa-arrow-left"></i>
                 </button>
+                <div class="topbar-title-group">
+                    <h1 class="topbar-title" id="exam-title">Exam Results</h1>
+                    <span class="topbar-subtitle" id="exam-subtitle"></span>
+                </div>
+            </div>
+            <div class="topbar-center">
+                <!-- Inline stats -->
+                <div class="topbar-stats">
+                    <div class="topbar-stat">
+                        <i class="fas fa-chart-line"></i>
+                        <span class="topbar-stat-value" id="stats-avg">0%</span>
+                        <span class="topbar-stat-label">Avg</span>
+                    </div>
+                    <div class="topbar-stat">
+                        <i class="fas fa-check-circle"></i>
+                        <span class="topbar-stat-value" id="stats-pass-rate">0%</span>
+                        <span class="topbar-stat-label">Pass</span>
+                    </div>
+                    <div class="topbar-stat">
+                        <i class="fas fa-users"></i>
+                        <span class="topbar-stat-value" id="stats-total">0</span>
+                        <span class="topbar-stat-label">Total</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="topbar-right user-menu">
+                <!-- Action buttons -->
+                <div class="topbar-actions">
+                    <button id="save-all-theory-btn" class="topbar-action-btn save-theory-btn"
+                        style="display:none;"
+                        onclick="examResults.saveAllManualTheoryScores()">
+                        <i class="fas fa-save"></i>
+                        <span>Save All Theory</span>
+                    </button>
+                    <button class="topbar-action-btn" onclick="examResults.exportCSV()">
+                        <i class="fas fa-download"></i>
+                        <span>Export</span>
+                    </button>
+                </div>
+                <!-- Dark mode toggle injected by utils.js -->
             </div>
         </header>
 
-        <main class="main-content" style="display: block;">
+        <!-- Main Content -->
+        <main class="main-content results-content results-content--wide" style="display: block;">
 
-            <div class="section-header">
-                <h2 id="exam-title">Exam Results</h2>
-                <div class="filter-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button id="save-all-theory-btn" class="btn"
-                        style="display:none; background: var(--success-color, #2ecc71); color: white; border: none;"
-                        onclick="examResults.saveAllManualTheoryScores()">💾 Save All Theory Scores</button>
-                    <button class="btn" onclick="examResults.exportCSV()">Export CSV</button>
+            <!-- Desktop: Result Boxes -->
+            <div class="results-table-container">
+                <div id="results-body" class="result-boxes-container">
+                    <!-- Dynamic -->
+                    <div class="result-boxes-loading">
+                        <div class="loader" style="margin: 0 auto;"></div>
+                    </div>
                 </div>
-            </div>
-
-            <!-- Stats -->
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <div class="stat-number" id="stats-avg">0%</div>
-                    <div class="stat-label">Average Score</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="stats-pass-rate">0%</div>
-                    <div class="stat-label">Pass Rate</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="stats-total">0</div>
-                    <div class="stat-label">Submissions</div>
-                </div>
-            </div>
-
-            <!-- Desktop: Table View -->
-            <div class="results-table-container" style="overflow-x: auto;">
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th>Student</th>
-                            <th>Date</th>
-                            <th>Score</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="results-body">
-                        <!-- Dynamic -->
-                        <tr>
-                            <td colspan="5" style="text-align:center;">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
 
             <!-- Mobile: Card View -->
             <div class="results-cards-container" id="results-cards">
                 <!-- Dynamic cards will be inserted here -->
-                <p style="text-align: center; padding: 20px;">Loading...</p>
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loader" style="margin: 0 auto;"></div>
+                </div>
             </div>
 
         </main>

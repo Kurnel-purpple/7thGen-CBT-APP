@@ -2059,11 +2059,11 @@
                 // Fetch fresh data
                 const user = dataService.getCurrentUser();
                 const [exams, allResults] = await Promise.all([
-                    dataService.getExams({ teacherId: user.id, includeDeleted: true }),
-                    dataService.getResults()
+                    dataService.getExamSummaries({ teacherId: user.id, includeDeleted: true, forceRefresh: true }),
+                    dataService.getResultSummaries({ forceRefresh: true })
                 ]);
 
-                cachedExams = exams;
+                cachedExams = await hydrateFlagReviewExams(exams, allResults);
                 cachedResults = allResults;
 
                 processAndRenderUi(filterExamId);
@@ -2087,6 +2087,46 @@
                     body.innerHTML = `<p style="color:red">Error loading flags: ${e.message}</p>`;
                 }
             }
+        }
+
+        async function hydrateFlagReviewExams(exams, allResults) {
+            const activeFlagExamIds = new Set();
+
+            for (const res of allResults) {
+                const flagsObj = res.flags || {};
+                const hasActiveFlag = Object.entries(flagsObj).some(([k, v]) => {
+                    if (k.startsWith('_')) return false;
+                    if (typeof v === 'object') return false;
+                    return v === true || String(v).toLowerCase() === 'true';
+                });
+
+                if (hasActiveFlag && res.examId) {
+                    activeFlagExamIds.add(res.examId);
+                }
+            }
+
+            if (activeFlagExamIds.size === 0) {
+                return exams;
+            }
+
+            const hydratedExams = await Promise.all(exams.map(async (exam) => {
+                if (!activeFlagExamIds.has(exam.id)) {
+                    return exam;
+                }
+
+                if (Array.isArray(exam.questions) && exam.questions.length > 0) {
+                    return exam;
+                }
+
+                try {
+                    return await dataService.getExamById(exam.id, exam.updatedAt);
+                } catch (e) {
+                    console.warn(`Could not load full exam for flag review: ${exam.id}`, e);
+                    return exam;
+                }
+            }));
+
+            return hydratedExams;
         }
 
         function processAndRenderUi(filterExamId = null) {
@@ -2176,7 +2216,7 @@
                 console.log('🌐 Fetching fresh dashboard data...');
                 const [exams, results] = await Promise.all([
                     dataService.getExamSummaries({ teacherId: user.id, forceRefresh: true, includeDeleted: true }),
-                    dataService.getResults({ forceRefresh: true })
+                    dataService.getResultSummaries({ forceRefresh: true })
                 ]);
 
                 cachedExams = exams;
@@ -2440,9 +2480,10 @@
                 `;
 
                 flaggedQuestionIds.forEach(qId => {
+                    const examQuestions = Array.isArray(exam.questions) ? exam.questions : [];
                     // Find question by ID
-                    const qIndex = exam.questions.findIndex(q => q.id == qId);
-                    const question = (qIndex >= 0) ? exam.questions[qIndex] : null;
+                    const qIndex = examQuestions.findIndex(q => q.id == qId);
+                    const question = (qIndex >= 0) ? examQuestions[qIndex] : null;
                     const qText = question ? question.text : 'Question not found (ID ' + qId + ')';
                     const qImage = question ? question.canvasImage : null;
                     const displayIndex = (qIndex >= 0) ? qIndex + 1 : '?';

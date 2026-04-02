@@ -18,224 +18,62 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/results.css">
     <!-- Font Awesome for high-quality icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        .result-header {
-            background: var(--card-bg);
-            padding: 32px;
-            border-radius: var(--radius-card);
-            box-shadow: var(--shadow-card);
-            text-align: center;
-            margin-bottom: 24px;
-            border: 1px solid var(--border-color);
-        }
-
-        .score-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: var(--primary-light);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 20px;
-            font-size: 2.2rem;
-            font-weight: 700;
-            font-family: var(--font-heading);
-            color: var(--primary-color);
-            border: 4px solid var(--primary-color);
-        }
-
-        /* ... skipping status colors ... */
-
-        .result-item {
-            background: var(--card-bg);
-            padding: 20px 24px;
-            border-radius: var(--radius-card);
-            margin-bottom: 12px;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            box-shadow: var(--shadow-card);
-        }
-
-        /* ... skipping border colors ... */
-
-        .opt-row {
-            display: flex;
-            padding: 8px;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            color: var(--text-color);
-        }
-
-        .opt-row.selected {
-            background-color: var(--inner-bg);
-            font-weight: bold;
-        }
-
-        .opt-row.correct-answer {
-            background-color: rgba(46, 204, 113, 0.2);
-        }
-
-        .opt-row.wrong-answer {
-            background-color: rgba(231, 76, 60, 0.2);
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: white;
-        }
-
-        .status-badge.correct {
-            background-color: var(--success-color);
-        }
-
-        .status-badge.incorrect {
-            background-color: var(--accent-color);
-        }
-
-        .status-badge.theory {
-            background-color: var(--primary-color);
-        }
-
-        .result-header h2 {
-            font-family: var(--font-heading);
-            font-size: 1.4rem;
-            font-weight: 700;
-        }
-
-        /* Desktop button - full button with text */
-        .btn-back-desktop {
-            display: inline-block;
-        }
-
-        /* Mobile icon - clean icon without button styling */
-        .btn-back-mobile {
-            display: none;
-        }
-
-        /* Mobile view adjustments */
-        @media (max-width: 768px) {
-            .main-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 15px 20px;
-            }
-
-            .logo {
-                flex: 1;
-                display: flex;
-                align-items: center;
-            }
-
-            .logo h1 {
-                font-size: 1.2rem;
-                margin: 0;
-            }
-
-            .user-menu {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-            }
-
-            /* Hide desktop button on mobile */
-            .btn-back-desktop {
-                display: none;
-            }
-
-            /* Show clean icon on mobile */
-            .btn-back-mobile {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: var(--card-bg);
-                color: var(--text-color);
-                font-size: 1.3rem;
-                transition: all 0.3s ease;
-                cursor: pointer;
-                border: none;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            }
-
-            .btn-back-mobile:hover {
-                transform: scale(1.05);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            }
-
-            .btn-back-mobile:active {
-                transform: scale(0.95);
-            }
-
-            /* Dark mode support for mobile icon */
-            [data-theme="dark"] .btn-back-mobile {
-                background: var(--dm-surface-2, #22263A);
-                color: var(--text-color);
-                box-shadow: var(--shadow-card);
-            }
-
-            [data-theme="dark"] .btn-back-mobile:hover {
-                background: var(--dm-surface-3, #2C3150);
-            }
-        }
-    </style>
 </head>
 
 <body>
     <div class="app-container no-sidebar">
-        <header class="main-header">
-            <div class="logo">
-                <h1 style="font-size: 1.1rem;">Exam Results</h1>
-            </div>
-            <div class="user-menu" style="display:flex; align-items:center; gap:8px;">
-                <!-- Dark mode toggle injected by utils.js -->
-                <button onclick="window.history.back()" class="btn btn-back-desktop">← Back</button>
-                <button onclick="window.history.back()" class="btn-back-mobile topbar-icon-btn" aria-label="Go back">
+        <!-- Topbar -->
+        <header class="main-header results-topbar">
+            <div class="topbar-left">
+                <button onclick="window.history.back()" class="btn-back" aria-label="Go back">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back</span>
+                </button>
+                <button onclick="window.history.back()" class="btn-back-mobile" aria-label="Go back">
                     <i class="fas fa-arrow-left"></i>
                 </button>
+                <h1 class="topbar-title">Exam Results</h1>
+            </div>
+            <div class="topbar-right user-menu">
+                <!-- Dark mode toggle injected by utils.js -->
             </div>
         </header>
 
-        <main class="main-content" style="display: block; max-width: 800px; margin: 0 auto;">
+        <!-- Main Content -->
+        <main class="main-content results-content" style="display: block;">
 
-            <div id="loading" class="loader" style="margin: 50px auto;"></div>
+            <div id="loading" class="loader"></div>
 
             <div id="result-content" style="display: none;">
+                <!-- Score Hero Card -->
                 <div class="result-header">
-                    <h2 id="exam-title" style="margin-bottom: 5px;">Exam Title</h2>
-                    <p id="student-name" style="color: var(--light-text); margin-bottom: 20px;">Student Name</p>
+                    <h2 id="exam-title">Exam Title</h2>
+                    <p id="student-name" class="student-name">Student Name</p>
 
                     <div class="score-circle" id="score-circle">
                         0%
                     </div>
                     <div>
-                        <span id="pass-status" style="font-size: 1.2rem; font-weight: bold;">PASSED</span>
-                        <p id="points-summary" style="margin-top: 5px;">0 / 0 Points</p>
+                        <span id="pass-status" class="pass-status">PASSED</span>
+                        <p id="points-summary" class="points-summary">0 / 0 Points</p>
                     </div>
                 </div>
 
-                <h3>Question Breakdown</h3>
+                <!-- Question Breakdown -->
+                <h3 class="results-section-title">Question Breakdown</h3>
                 <div id="questions-list">
                     <!-- Dynamic -->
                 </div>
 
                 <!-- Theory Grading Save Button (only visible for teachers) -->
-                <div id="theory-grading-actions"
-                    style="display:none; margin-top:30px; padding:20px; background:var(--card-bg); border-radius:8px; text-align:center;">
-                    <button onclick="resultsController.saveTheoryScores()" class="btn btn-primary"
-                        style="padding:12px 30px; font-size:1rem;">
-                        💾 Save Theory Grades
+                <div id="theory-grading-actions" class="theory-grading-actions" style="display:none;">
+                    <button onclick="resultsController.saveTheoryScores()" class="btn btn-primary">
+                        <i class="fas fa-save" style="margin-right: 6px;"></i> Save Theory Grades
                     </button>
-                    <p style="margin-top:10px; font-size:0.85rem; color:var(--light-text);">
+                    <p>
                         This will update the student's total score including theory question points
                     </p>
                 </div>

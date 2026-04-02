@@ -1,0 +1,1056 @@
+/* ============================================================
+   RESULTS PAGES — Shared Styles
+   Used by: results.html (detail view) & exam-results.html (list)
+   Follows CLAUDE.md Google Drive–inspired design spec
+   ============================================================ */
+
+/* ---- Results Topbar ---- */
+.results-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    padding: 0 32px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+/* Exam results topbar — auto height to fit stats + actions */
+.exam-results-topbar {
+    height: auto;
+    padding: 12px 32px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.results-topbar .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.results-topbar .topbar-title {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0;
+}
+
+/* Title group with subtitle */
+.results-topbar .topbar-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.results-topbar .topbar-subtitle {
+    font-family: var(--font-family);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--light-text);
+    letter-spacing: 0.3px;
+    margin-top: 1px;
+}
+
+.results-topbar .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Back button — desktop (pill style) */
+.results-topbar .btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: var(--radius-pill);
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border: none;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.results-topbar .btn-back:hover {
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+    box-shadow: var(--shadow-hover);
+}
+
+.results-topbar .btn-back i {
+    font-size: 0.8rem;
+}
+
+/* Back button — mobile icon */
+.results-topbar .btn-back-mobile {
+    display: none;
+}
+
+/* ---- Topbar Inline Stats (exam-results page) ---- */
+.topbar-center {
+    display: flex;
+    justify-content: center;
+    flex: 1;
+}
+
+.topbar-stats {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.topbar-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.topbar-stat i {
+    font-size: 0.85rem;
+    opacity: 0.6;
+}
+
+.topbar-stat .topbar-stat-value {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.topbar-stat .topbar-stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--light-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Topbar actions group */
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Action buttons */
+.topbar-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-btn);
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Margin fallback for when JS overrides display to inline-block */
+.topbar-action-btn i {
+    margin-right: 4px;
+}
+
+.topbar-action-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.topbar-action-btn.save-theory-btn {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+.topbar-action-btn.save-theory-btn:hover {
+    opacity: 0.9;
+}
+
+/* ---- Results Content Area ---- */
+.results-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px;
+}
+
+.results-content--wide {
+    max-width: 1100px;
+}
+
+@media (min-width: 1024px) {
+    .results-content--wide {
+        max-width: none;
+        width: 75%;
+    }
+    
+    .exam-results-topbar .user-menu #theme-toggle {
+        position: fixed;
+        right: 32px;
+        top: 90px;
+        z-index: 1000;
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .exam-results-topbar .user-menu #theme-toggle:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+    
+    [data-theme="dark"] .exam-results-topbar .user-menu #theme-toggle {
+        background: var(--dm-surface-2, #22263A) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* ---- Loading Spinner ---- */
+.results-content .loader {
+    margin: 80px auto;
+}
+
+/* ============================================================
+   RESULT DETAIL PAGE — Score Hero Card
+   ============================================================ */
+.result-header {
+    background: var(--card-bg);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+    padding: 40px 32px;
+    text-align: center;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decorative blob shapes on the score card */
+.result-header::before,
+.result-header::after {
+    content: '';
+    position: absolute;
+    border-radius: 50% 30% 60% 40% / 40% 60% 30% 50%;
+    background: var(--primary-light);
+    opacity: 0.5;
+    z-index: 0;
+}
+
+.result-header::before {
+    width: 180px;
+    height: 180px;
+    top: -60px;
+    right: -40px;
+}
+
+.result-header::after {
+    width: 120px;
+    height: 120px;
+    bottom: -40px;
+    left: -20px;
+}
+
+.result-header > * {
+    position: relative;
+    z-index: 1;
+}
+
+.result-header h2 {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 4px;
+}
+
+.result-header .student-name {
+    color: var(--light-text);
+    font-size: 0.95rem;
+    margin-bottom: 28px;
+    font-weight: 500;
+}
+
+/* Score Circle */
+.score-circle {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px;
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.score-circle.pass {
+    background: rgba(46, 204, 113, 0.08);
+    color: var(--success-color);
+    border: 5px solid var(--success-color);
+    box-shadow: 0 0 0 8px rgba(46, 204, 113, 0.08);
+}
+
+.score-circle.fail {
+    background: rgba(231, 76, 60, 0.08);
+    color: var(--accent-color);
+    border: 5px solid var(--accent-color);
+    box-shadow: 0 0 0 8px rgba(231, 76, 60, 0.08);
+}
+
+/* Pass/Fail Status */
+.pass-status {
+    display: inline-block;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 20px;
+    border-radius: var(--radius-pill);
+    margin-bottom: 8px;
+}
+
+/* Points Summary */
+.points-summary {
+    color: var(--light-text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+/* ============================================================
+   QUESTION BREAKDOWN
+   ============================================================ */
+.results-section-title {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--light-text);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Individual question card */
+.result-item {
+    background: var(--card-bg);
+    padding: 20px 24px;
+    border-radius: var(--radius-card);
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    border-left: 4px solid var(--border-color);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.result-item:hover {
+    box-shadow: var(--shadow-card);
+}
+
+.result-item.correct {
+    border-left-color: var(--success-color);
+}
+
+.result-item.incorrect {
+    border-left-color: var(--accent-color);
+}
+
+.result-item.theory {
+    border-left-color: var(--primary-color);
+}
+
+/* Option rows */
+.opt-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: var(--radius-btn);
+    margin-bottom: 6px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    transition: background-color 0.15s ease;
+}
+
+.opt-row.selected {
+    background-color: var(--inner-bg);
+    font-weight: 600;
+}
+
+.opt-row.correct-answer {
+    background-color: rgba(46, 204, 113, 0.1);
+    border: 1px solid rgba(46, 204, 113, 0.25);
+}
+
+.opt-row.wrong-answer {
+    background-color: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+/* Status badge (points indicator per question) */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    letter-spacing: 0.3px;
+}
+
+.status-badge.correct {
+    background: rgba(46, 204, 113, 0.12);
+    color: var(--success-color);
+}
+
+.status-badge.incorrect {
+    background: rgba(231, 76, 60, 0.12);
+    color: var(--accent-color);
+}
+
+.status-badge.theory {
+    background: rgba(26, 115, 232, 0.12);
+    color: var(--primary-color);
+}
+
+/* Theory grading actions footer */
+.theory-grading-actions {
+    margin-top: 32px;
+    padding: 24px;
+    background: var(--card-bg);
+    border-radius: var(--radius-card);
+    text-align: center;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+}
+
+.theory-grading-actions .btn-primary {
+    padding: 12px 32px;
+    font-size: 0.95rem;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+.theory-grading-actions p {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--light-text);
+}
+
+/* ============================================================
+   EXAM RESULTS LIST PAGE — Result Boxes (Desktop)
+   ============================================================ */
+.result-boxes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.result-boxes-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--light-text);
+    font-size: 0.95rem;
+}
+
+.result-boxes-loading {
+    padding: 60px 20px;
+    text-align: center;
+}
+
+/* Single result box */
+.result-box {
+    background: var(--card-bg);
+    border-radius: var(--radius-card);
+    padding: 16px 20px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s ease;
+}
+
+.result-box:hover {
+    border-color: var(--primary-color);
+}
+
+/* Row 1: Student name | Status | View */
+.result-box-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.result-box-name {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.result-box-row1-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* View detail button */
+.btn-view-detail {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius-btn);
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border: none;
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-view-detail:hover {
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+}
+
+/* Row 2: Data cells */
+.result-box-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--border-color);
+}
+
+.result-box-cell {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.result-box-bold {
+    font-weight: 700;
+}
+
+.result-box-primary {
+    color: var(--primary-color);
+}
+
+/* Theory input group */
+.result-box-theory-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.result-box-theory-inputs input[type="number"] {
+    width: 60px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-btn);
+    background: var(--inner-bg);
+    color: var(--text-color);
+    font-size: 0.8rem;
+    font-family: var(--font-family);
+    text-align: center;
+    transition: border-color 0.2s ease;
+}
+
+.result-box-theory-inputs input[type="number"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+
+.result-box-divider {
+    font-size: 0.8rem;
+    color: var(--light-text);
+}
+
+.result-box-app-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--success-color);
+    background: rgba(46, 204, 113, 0.1);
+    padding: 2px 6px;
+    border-radius: var(--radius-btn);
+    letter-spacing: 0.3px;
+}
+
+/* Save button */
+.result-box-save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-btn);
+    background: var(--success-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.result-box-save-btn:hover {
+    opacity: 0.85;
+}
+
+.result-box-save-placeholder {
+    width: 32px;
+    flex-shrink: 0;
+}
+
+/* Row 3: Labels beneath row 2 */
+.result-box-labels {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 2px;
+}
+
+.result-box-labels span {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--light-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* Score Pill (shared) */
+.score-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    letter-spacing: 0.5px;
+}
+
+.score-pill.pass {
+    background: rgba(46, 204, 113, 0.12);
+    color: var(--success-color);
+}
+
+.score-pill.fail {
+    background: rgba(231, 76, 60, 0.12);
+    color: var(--accent-color);
+}
+
+/* ============================================================
+   EXAM RESULTS LIST PAGE — Mobile Cards
+   ============================================================ */
+.results-cards-container {
+    display: none;
+}
+
+.result-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.result-card:active {
+    transform: scale(0.98);
+}
+
+.result-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.result-card-student {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-color);
+    flex: 1;
+    min-width: 100px;
+}
+
+.result-card-body {
+    display: grid;
+    gap: 12px;
+}
+
+.result-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.result-card-label {
+    color: var(--light-text);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.result-card-value {
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.result-card-actions {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 8px;
+}
+
+.result-card-actions .btn {
+    flex: 1;
+    text-align: center;
+    border-radius: var(--radius-btn);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+/* ============================================================
+   DARK MODE OVERRIDES
+   ============================================================ */
+[data-theme="dark"] .results-topbar {
+    background: var(--dm-surface, #1A1D27);
+    border-bottom-color: var(--border-color);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .results-topbar .btn-back {
+    background: var(--primary-light);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .results-topbar .btn-back:hover {
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+}
+
+[data-theme="dark"] .result-header::before,
+[data-theme="dark"] .result-header::after {
+    background: var(--primary-light);
+    opacity: 0.3;
+}
+
+[data-theme="dark"] .score-circle.pass {
+    background: rgba(52, 168, 83, 0.1);
+    box-shadow: 0 0 0 8px rgba(52, 168, 83, 0.06);
+}
+
+[data-theme="dark"] .score-circle.fail {
+    background: rgba(234, 67, 53, 0.1);
+    box-shadow: 0 0 0 8px rgba(234, 67, 53, 0.06);
+}
+
+[data-theme="dark"] .result-item {
+    background: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .result-item:hover {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .opt-row.correct-answer {
+    background-color: rgba(52, 168, 83, 0.1);
+    border-color: rgba(52, 168, 83, 0.2);
+}
+
+[data-theme="dark"] .opt-row.wrong-answer {
+    background-color: rgba(234, 67, 53, 0.1);
+    border-color: rgba(234, 67, 53, 0.2);
+}
+
+[data-theme="dark"] .result-box {
+    background: var(--dm-surface, #1A1D27);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .result-box:hover {
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .result-box-theory-inputs input[type="number"] {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .result-box-theory-inputs input[type="number"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(77, 142, 240, 0.2);
+}
+
+[data-theme="dark"] .btn-view-detail {
+    background: var(--primary-light);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .btn-view-detail:hover {
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+}
+
+[data-theme="dark"] .result-card {
+    background: var(--dm-surface, #1A1D27);
+}
+
+[data-theme="dark"] .topbar-action-btn {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .topbar-action-btn:hover {
+    background: var(--dm-surface-3, #2C3150);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .topbar-action-btn.save-theory-btn {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+/* ============================================================
+   RESPONSIVE — TABLET (768px – 1024px)
+   ============================================================ */
+@media (max-width: 1024px) {
+    .results-content {
+        padding: 24px 20px;
+    }
+
+    .exam-results-topbar {
+        padding: 10px 20px;
+    }
+
+    .topbar-stats {
+        gap: 14px;
+    }
+
+    .topbar-stat .topbar-stat-label {
+        display: none;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE — MOBILE (< 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Topbar mobile */
+    .results-topbar {
+        height: 56px;
+        padding: 0 16px;
+    }
+
+    .exam-results-topbar {
+        height: auto;
+        padding: 12px 16px;
+        row-gap: 12px;
+    }
+
+    .exam-results-topbar .topbar-left {
+        flex: 1;
+        min-width: max-content;
+    }
+
+    .exam-results-topbar .topbar-right {
+        order: 2;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .exam-results-topbar .topbar-center {
+        order: 3;
+        width: 100%;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+        justify-content: center;
+    }
+
+    .results-topbar .btn-back {
+        display: none;
+    }
+
+    .results-topbar .btn-back-mobile {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--inner-bg);
+        color: var(--text-color);
+        font-size: 1rem;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .results-topbar .btn-back-mobile:hover {
+        background: var(--primary-light);
+        color: var(--primary-color);
+    }
+
+    .results-topbar .btn-back-mobile:active {
+        transform: scale(0.95);
+    }
+
+    [data-theme="dark"] .results-topbar .btn-back-mobile {
+        background: var(--dm-surface-2, #22263A);
+        color: var(--text-color);
+    }
+
+    [data-theme="dark"] .results-topbar .btn-back-mobile:hover {
+        background: var(--dm-surface-3, #2C3150);
+    }
+
+    .results-topbar .topbar-title {
+        font-size: 1rem;
+    }
+
+    /* Hide stats labels and compress on mobile */
+    .topbar-stats {
+        gap: 10px;
+    }
+
+    .topbar-stat .topbar-stat-label {
+        display: none;
+    }
+
+    .topbar-stat .topbar-stat-value {
+        font-size: 0.9rem;
+    }
+
+    /* Hide action button text on mobile, show icon only */
+    .topbar-actions .topbar-action-btn span {
+        display: none;
+    }
+
+    .topbar-actions .topbar-action-btn {
+        padding: 8px 10px;
+    }
+
+    .topbar-actions .topbar-action-btn i {
+        margin-right: 0;
+    }
+
+    /* Content area */
+    .results-content {
+        padding: 20px 16px;
+        max-width: 100%;
+    }
+
+    /* Score hero */
+    .result-header {
+        padding: 28px 20px;
+        margin-bottom: 24px;
+    }
+
+    .result-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .score-circle {
+        width: 120px;
+        height: 120px;
+        font-size: 1.4rem;
+    }
+
+    /* Question cards */
+    .result-item {
+        padding: 16px;
+        border-radius: var(--radius-btn);
+    }
+
+    /* Result boxes hidden on mobile */
+    .results-table-container {
+        display: none;
+    }
+
+    /* Cards shown on mobile */
+    .results-cards-container {
+        display: block;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE — SMALL MOBILE (< 480px)
+   ============================================================ */
+@media (max-width: 480px) {
+    .results-content {
+        padding: 16px 12px;
+    }
+
+    .result-header {
+        padding: 24px 16px;
+    }
+
+    .result-header::before,
+    .result-header::after {
+        display: none;
+    }
+
+    .score-circle {
+        width: 110px;
+        height: 110px;
+        font-size: 1.3rem;
+    }
+
+    .result-item {
+        padding: 14px;
+    }
+
+    .opt-row {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+}

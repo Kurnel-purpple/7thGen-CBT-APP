@@ -250,6 +250,22 @@ async function getResultsByStudent(studentId) {
     });
 }
 
+/**
+ * Get a single cached result by ID
+ * @param {string} resultId
+ */
+async function getResult(resultId) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('results', 'readonly');
+        const store = tx.objectStore('results');
+        const request = store.get(resultId);
+
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+    });
+}
+
 // ============================================
 // PENDING ANSWERS QUEUE (Offline Submissions)
 // ============================================
@@ -566,6 +582,7 @@ window.idb = {
 
     // Results
     saveResults,
+    getResult,
     getResultsByStudent,
 
     // Pending queue

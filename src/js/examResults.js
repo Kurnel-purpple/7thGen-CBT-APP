@@ -91,6 +91,56 @@ const examResults = {
         }, 0);
     },
 
+    _escapeHtml(str) {
+        if (typeof str !== 'string') return str;
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+    _csvCell(value) {
+        let str = String(value == null ? '' : value);
+        if (/^[=+\-@]/.test(str)) {
+            str = "'" + str;
+        }
+        str = str.replace(/"/g, '""');
+        return '"' + str + '"';
+    },
+
+    _processResults(rawResults, exam) {
+        const completedResults = rawResults.filter(r => r.status !== 'in-progress');
+        return completedResults.map(r => {
+            const { objectivePoints, theoryPoints, objectivePossible, theoryPossible, totalPossible } = examResults._calculatePoints(r, exam);
+            const calculatedPoints = objectivePoints + theoryPoints;
+            const passScore = exam.passScore || 50;
+            const isPassed = r.score >= passScore;
+
+            const manualScoreRaw = r.flags ? r.flags._manualTheoryScore : undefined;
+            const savedManual = (manualScoreRaw !== undefined && manualScoreRaw !== null && manualScoreRaw !== '')
+                ? parseFloat(manualScoreRaw) : null;
+            if (savedManual !== null && !isNaN(savedManual)) {
+                examResults.manualTheoryScores[r.id] = savedManual;
+            }
+            const manualTotalRaw = r.flags ? r.flags._manualTheoryTotal : undefined;
+            const savedManualTotal = (manualTotalRaw !== undefined && manualTotalRaw !== null && manualTotalRaw !== '')
+                ? parseFloat(manualTotalRaw) : null;
+            if (savedManualTotal !== null && !isNaN(savedManualTotal)) {
+                examResults.manualTheoryTotals[r.id] = savedManualTotal;
+            }
+
+            return {
+                ...r,
+                objectivePoints,
+                theoryPoints,
+                objectivePossible,
+                theoryPossible,
+                points: calculatedPoints,
+                totalPoints: totalPossible,
+                passed: isPassed,
+                manualTheoryScore: savedManual,
+                manualTheoryTotal: savedManualTotal
+            };
+        });
+    },
+
     init: async () => {
         const params = new URLSearchParams(window.location.search);
         const examId = params.get('examId');
@@ -122,47 +172,15 @@ const examResults = {
                 saveAllBtn.style.display = 'inline-block';
             }
 
-            document.getElementById('exam-title').textContent = exam.title + ' - Results';
+            // Title: show subject name + "Results", subtitle: class + term
+            document.getElementById('exam-title').textContent = (exam.subject || exam.title) + ' Results';
+            const subtitleEl = document.getElementById('exam-subtitle');
+            if (subtitleEl) {
+                const parts = [exam.targetClass, exam.title].filter(Boolean);
+                subtitleEl.textContent = parts.join(' \u00B7 ');
+            }
 
-            // V2E: Filter out in-progress session markers — only show completed submissions
-            // In-progress records have score:0, submittedAt:null, often no student name
-            const completedResults = rawResults.filter(r => r.status !== 'in-progress');
-
-            // Enhance Results with Calculations
-            examResults.results = completedResults.map(r => {
-                const { objectivePoints, theoryPoints, objectivePossible, theoryPossible, totalPossible } = examResults._calculatePoints(r, exam);
-                const calculatedPoints = objectivePoints + theoryPoints;
-                const passScore = exam.passScore || 50;
-                const isPassed = r.score >= passScore;
-
-                // Initialize manual theory score from saved data if available
-                // The manualTheoryScore is stored in flags._manualTheoryScore
-                const manualScoreRaw = r.flags ? r.flags._manualTheoryScore : undefined;
-                const savedManual = (manualScoreRaw !== undefined && manualScoreRaw !== null && manualScoreRaw !== '')
-                    ? parseFloat(manualScoreRaw) : null;
-                if (savedManual !== null && !isNaN(savedManual)) {
-                    examResults.manualTheoryScores[r.id] = savedManual;
-                }
-                const manualTotalRaw = r.flags ? r.flags._manualTheoryTotal : undefined;
-                const savedManualTotal = (manualTotalRaw !== undefined && manualTotalRaw !== null && manualTotalRaw !== '')
-                    ? parseFloat(manualTotalRaw) : null;
-                if (savedManualTotal !== null && !isNaN(savedManualTotal)) {
-                    examResults.manualTheoryTotals[r.id] = savedManualTotal;
-                }
-
-                return {
-                    ...r,
-                    objectivePoints,
-                    theoryPoints,
-                    objectivePossible,
-                    theoryPossible,
-                    points: calculatedPoints,
-                    totalPoints: totalPossible,
-                    passed: isPassed,
-                    manualTheoryScore: savedManual,
-                    manualTheoryTotal: savedManualTotal
-                };
-            });
+            examResults.results = examResults._processResults(rawResults, exam);
 
             examResults.renderStats();
             examResults.renderTable();
@@ -187,40 +205,7 @@ const examResults = {
                         examResults.currentExam = freshExam;
                         examResults.hasTheoryQuestions = freshExam.questions.some(q => q.type === 'theory');
 
-                        // V2E: Filter out in-progress session markers on refresh too
-                        const completedFresh = freshResults.filter(r => r.status !== 'in-progress');
-                        examResults.results = completedFresh.map(r => {
-                            const { objectivePoints, theoryPoints, objectivePossible, theoryPossible, totalPossible } = examResults._calculatePoints(r, freshExam);
-                            const calculatedPoints = objectivePoints + theoryPoints;
-                            const passScore = freshExam.passScore || 50;
-                            const isPassed = r.score >= passScore;
-
-                            const manualScoreRaw = r.flags ? r.flags._manualTheoryScore : undefined;
-                            const savedManual = (manualScoreRaw !== undefined && manualScoreRaw !== null && manualScoreRaw !== '')
-                                ? parseFloat(manualScoreRaw) : null;
-                            if (savedManual !== null && !isNaN(savedManual)) {
-                                examResults.manualTheoryScores[r.id] = savedManual;
-                            }
-                            const manualTotalRaw = r.flags ? r.flags._manualTheoryTotal : undefined;
-                            const savedManualTotal = (manualTotalRaw !== undefined && manualTotalRaw !== null && manualTotalRaw !== '')
-                                ? parseFloat(manualTotalRaw) : null;
-                            if (savedManualTotal !== null && !isNaN(savedManualTotal)) {
-                                examResults.manualTheoryTotals[r.id] = savedManualTotal;
-                            }
-
-                            return {
-                                ...r,
-                                objectivePoints,
-                                theoryPoints,
-                                objectivePossible,
-                                theoryPossible,
-                                points: calculatedPoints,
-                                totalPoints: totalPossible,
-                                passed: isPassed,
-                                manualTheoryScore: savedManual,
-                                manualTheoryTotal: savedManualTotal
-                            };
-                        });
+                        examResults.results = examResults._processResults(freshResults, freshExam);
 
                         examResults.renderStats();
                         examResults.renderTable();
@@ -291,29 +276,15 @@ const examResults = {
     },
 
     renderTable: () => {
-        const tbody = document.getElementById('results-body');
+        const container = document.getElementById('results-body');
         const hasTheory = examResults.hasTheoryQuestions;
 
         if (examResults.results.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${hasTheory ? 7 : 5}" style="text-align:center; padding: 30px;">No submissions yet.</td></tr>`;
+            container.innerHTML = '<div class="result-boxes-empty">No submissions yet.</div>';
             return;
         }
 
-        // Update table header if theory questions exist
-        const thead = tbody.parentElement.querySelector('thead tr');
-        if (thead && hasTheory) {
-            thead.innerHTML = `
-                <th>Student</th>
-                <th>Date</th>
-                <th>Obj. Score</th>
-                <th>Theory Score (Manual)</th>
-                <th>Total Score</th>
-                <th>Status</th>
-                <th>Actions</th>
-            `;
-        }
-
-        tbody.innerHTML = examResults.results.map(r => {
+        container.innerHTML = examResults.results.map(r => {
             const { effectivePoints, effectiveTotalPoints, percentage } = examResults._getEffectiveScore(r);
             const passScore = examResults.currentExam ? (examResults.currentExam.passScore || 50) : 50;
             const isPassed = percentage >= passScore;
@@ -328,65 +299,80 @@ const examResults = {
                 const hasAppTheory = r.theoryPoints > 0;
 
                 return `
-                <tr>
-                    <td>${r.studentName}</td>
-                    <td>${Utils.formatDate(r.submittedAt)}</td>
-                    <td style="font-weight:bold;">${r.objectivePoints.toFixed(1)}</td>
-                    <td>
-                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                            <input type="number" 
-                                id="manual-theory-${r.id}"
-                                value="${currentManual}" 
-                                min="0" step="0.5"
-                                placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
-                                style="width:70px; padding:5px 8px; border:1px solid var(--border-color); border-radius:6px; background:var(--inner-bg); color:var(--text-color); font-size:0.85rem;"
-                                onchange="examResults.onManualTheoryChange('${r.id}', this.value)"
-                                title="${hasAppTheory ? 'App-graded theory: ' + r.theoryPoints.toFixed(1) + ' pts. Enter here to override with pen-and-paper score.' : 'Enter theory score from pen-and-paper'}"
-                            />
-                            <span style="font-size:0.8rem; color:var(--light-text);">/</span>
-                            <input type="number"
-                                id="manual-theory-total-${r.id}"
-                                value="${currentManualTotal}"
-                                min="0" step="0.5"
-                                placeholder="${maxTheoryPoints.toFixed(1)}"
-                                style="width:70px; padding:5px 8px; border:1px solid var(--border-color); border-radius:6px; background:var(--inner-bg); color:var(--text-color); font-size:0.85rem;"
-                                onchange="examResults.onManualTheoryTotalChange('${r.id}', this.value)"
-                                title="Optional custom total for theory questions. Leave blank to use the exam theory total."
-                            />
-                            <span style="font-size:0.8rem; color:var(--light-text);">theory total</span>
-                            ${hasAppTheory ? '<span title="Theory already graded in app" style="font-size:0.75rem; color:var(--success-color);">✓ App</span>' : ''}
+                <div class="result-box">
+                    <div class="result-box-row1">
+                        <span class="result-box-name">${examResults._escapeHtml(r.studentName)}</span>
+                        <div class="result-box-row1-right">
+                            <span class="score-pill ${isPassed ? 'pass' : 'fail'}">${isPassed ? 'PASS' : 'FAIL'}</span>
+                            <button class="btn-view-detail" onclick="location.href='results.html?id=${r.id}'">
+                                <i class="fas fa-eye"></i> View
+                            </button>
                         </div>
-                    </td>
-                    <td style="font-weight:bold; color:var(--primary-color);">${effectivePoints.toFixed(1)}/${effectiveTotalPoints.toFixed(1)}</td>
-                    <td>
-                        <span class="score-pill ${isPassed ? 'pass' : 'fail'}">
-                            ${isPassed ? 'PASS' : 'FAIL'}
-                        </span>
-                    </td>
-                    <td>
-                        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="location.href='results.html?id=${r.id}'">View Detail</button>
-                            ${(currentManual !== '' || currentManualTotal !== '') ? `<button class="btn" style="padding: 4px 10px; font-size: 0.75rem; background:var(--success-color); color:white; border:none;" onclick="examResults.saveManualTheoryScore('${r.id}')">💾 Save</button>` : ''}
+                    </div>
+                    <div class="result-box-data-row" style="display:flex; justify-content:space-between; align-items:flex-start; padding-top:10px; border-top:1px solid var(--border-color); margin-top:8px;">
+                        <div style="display:flex; flex-direction:column; gap:4px; flex: 1.5;">
+                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Date</span>
+                            <span class="result-box-cell">${Utils.formatDate(r.submittedAt)}</span>
                         </div>
-                    </td>
-                </tr>
-            `;
+                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 1;">
+                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Obj. Score</span>
+                            <span class="result-box-cell result-box-bold">${r.objectivePoints.toFixed(1)}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 2.5;">
+                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Theory (Manual)</span>
+                            <div class="result-box-cell result-box-theory-inputs">
+                                <input type="number"
+                                    id="manual-theory-${r.id}"
+                                    value="${currentManual}"
+                                    min="0" step="0.5"
+                                    placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
+                                    onchange="examResults.onManualTheoryChange('${r.id}', this.value)"
+                                    title="${hasAppTheory ? 'App-graded: ' + r.theoryPoints.toFixed(1) + ' pts' : 'Enter theory score'}"
+                                />
+                                <span class="result-box-divider">/</span>
+                                <input type="number"
+                                    id="manual-theory-total-${r.id}"
+                                    value="${currentManualTotal}"
+                                    min="0" step="0.5"
+                                    placeholder="${maxTheoryPoints.toFixed(1)}"
+                                    onchange="examResults.onManualTheoryTotalChange('${r.id}', this.value)"
+                                    title="Custom total. Leave blank for default."
+                                />
+                                ${hasAppTheory ? '<span class="result-box-app-badge" title="App-graded">App</span>' : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 1;">
+                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Total</span>
+                            <span class="result-box-cell result-box-bold result-box-primary">${effectivePoints.toFixed(1)}/${effectiveTotalPoints.toFixed(1)}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end; width: 40px; margin-top:14px;">
+                            ${(currentManual !== '' || currentManualTotal !== '') ? `<button class="result-box-save-btn" onclick="examResults.saveManualTheoryScore('${r.id}')" title="Save theory score"><i class="fas fa-save"></i></button>` : '<span class="result-box-cell result-box-save-placeholder"></span>'}
+                        </div>
+                    </div>
+                </div>`;
             } else {
                 return `
-                <tr>
-                    <td>${r.studentName}</td>
-                    <td>${Utils.formatDate(r.submittedAt)}</td>
-                    <td style="font-weight:bold;">${effectivePoints.toFixed(1)}/${effectiveTotalPoints.toFixed(1)}</td>
-                    <td>
-                        <span class="score-pill ${isPassed ? 'pass' : 'fail'}">
-                            ${isPassed ? 'PASS' : 'FAIL'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="location.href='results.html?id=${r.id}'">View Detail</button>
-                    </td>
-                </tr>
-            `;
+                <div class="result-box">
+                    <div class="result-box-row1">
+                        <span class="result-box-name">${examResults._escapeHtml(r.studentName)}</span>
+                        <div class="result-box-row1-right">
+                            <span class="score-pill ${isPassed ? 'pass' : 'fail'}">${isPassed ? 'PASS' : 'FAIL'}</span>
+                            <button class="btn-view-detail" onclick="location.href='results.html?id=${r.id}'">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                    <div class="result-box-data-row" style="display:flex; justify-content:space-between; align-items:flex-start; padding-top:10px; border-top:1px solid var(--border-color); margin-top:8px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Date</span>
+                            <span class="result-box-cell">${Utils.formatDate(r.submittedAt)}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Score</span>
+                            <span class="result-box-cell result-box-bold result-box-primary">${effectivePoints.toFixed(1)}/${effectiveTotalPoints.toFixed(1)}</span>
+                        </div>
+                    </div>
+                </div>`;
             }
         }).join('');
     },
@@ -417,29 +403,31 @@ const examResults = {
 
                 theoryInputHtml = `
                     <div class="result-card-row" style="flex-direction:column; align-items:stretch; gap:6px; padding:10px; background:var(--inner-bg); border-radius:8px; margin-top:4px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
                             <span class="result-card-label">📝 Theory Score (Manual)</span>
                             ${hasAppTheory ? '<span style="font-size:0.7rem; padding:2px 6px; background:rgba(46,204,113,0.15); color:var(--success-color); border-radius:4px;">App: ' + r.theoryPoints.toFixed(1) + '</span>' : ''}
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <input type="number" 
-                                id="mobile-manual-theory-${r.id}"
-                                value="${currentManual}" 
-                                min="0" step="0.5"
-                                placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
-                                style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
-                                onchange="examResults.onManualTheoryChange('${r.id}', this.value, true)"
-                            />
-                            <span style="font-size:0.85rem; color:var(--light-text);">/</span>
-                            <input type="number"
-                                id="mobile-manual-theory-total-${r.id}"
-                                value="${currentManualTotal}"
-                                min="0" step="0.5"
-                                placeholder="${maxTheoryPoints.toFixed(1)}"
-                                style="flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
-                                onchange="examResults.onManualTheoryTotalChange('${r.id}', this.value, true)"
-                            />
-                            <button class="btn btn-primary" style="padding:6px 12px; font-size:0.8rem;" onclick="examResults.saveManualTheoryScore('${r.id}')">💾</button>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px; width: 100%;">
+                                <input type="number" 
+                                    id="mobile-manual-theory-${r.id}"
+                                    value="${currentManual}" 
+                                    min="0" step="0.5"
+                                    placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
+                                    style="flex:1; width:0; min-width:50px; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
+                                    onchange="examResults.onManualTheoryChange('${r.id}', this.value, true)"
+                                />
+                                <span style="font-size:0.85rem; color:var(--light-text); flex-shrink:0;">/</span>
+                                <input type="number"
+                                    id="mobile-manual-theory-total-${r.id}"
+                                    value="${currentManualTotal}"
+                                    min="0" step="0.5"
+                                    placeholder="${maxTheoryPoints.toFixed(1)}"
+                                    style="flex:1; width:0; min-width:50px; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
+                                    onchange="examResults.onManualTheoryTotalChange('${r.id}', this.value, true)"
+                                />
+                            </div>
+                            <button class="btn btn-primary" style="padding:10px 16px; font-size:0.85rem; width: 100%; border-radius: 8px; font-weight: 600;" onclick="examResults.saveManualTheoryScore('${r.id}')">💾 Save Score</button>
                         </div>
                         <div style="font-size:0.8rem; color:var(--light-text);">Leave theory total blank to keep the exam default of ${maxTheoryPoints.toFixed(1)}.</div>
                     </div>
@@ -449,7 +437,7 @@ const examResults = {
             return `
             <div class="result-card">
                 <div class="result-card-header">
-                    <div class="result-card-student">${r.studentName}</div>
+                    <div class="result-card-student">${examResults._escapeHtml(r.studentName)}</div>
                     <span class="score-pill ${isPassed ? 'pass' : 'fail'}">
                         ${isPassed ? 'PASS' : 'FAIL'}
                     </span>
@@ -681,8 +669,8 @@ const examResults = {
         });
 
         const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
+            headers.map(h => examResults._csvCell(h)).join(','),
+            ...rows.map(row => row.map(cell => examResults._csvCell(cell)).join(','))
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

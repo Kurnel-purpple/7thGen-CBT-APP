@@ -101,6 +101,60 @@ const examManager = {
         textarea.style.height = (textarea.scrollHeight) + 'px';
     },
 
+    _readFileAsDataUrl: (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (evt) => resolve(evt.target.result);
+        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+    }),
+
+    _loadImageElement: (dataUrl) => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = dataUrl;
+    }),
+
+    _optimizeImageFile: async (file) => {
+        const originalDataUrl = await examManager._readFileAsDataUrl(file);
+
+        try {
+            const img = await examManager._loadImageElement(originalDataUrl);
+            const maxDimension = 1600;
+            const needsResize = Math.max(img.width, img.height) > maxDimension;
+            const isLossySource = /image\/(jpe?g|webp)/i.test(file.type);
+
+            if (!needsResize && !isLossySource) {
+                return originalDataUrl;
+            }
+
+            const scale = needsResize ? (maxDimension / Math.max(img.width, img.height)) : 1;
+            const targetWidth = Math.max(1, Math.round(img.width * scale));
+            const targetHeight = Math.max(1, Math.round(img.height * scale));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return originalDataUrl;
+            }
+
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+            const outputType = isLossySource ? 'image/jpeg' : 'image/png';
+            const optimizedDataUrl = isLossySource
+                ? canvas.toDataURL(outputType, 0.82)
+                : canvas.toDataURL(outputType);
+
+            return optimizedDataUrl.length < originalDataUrl.length ? optimizedDataUrl : originalDataUrl;
+        } catch (err) {
+            console.warn('Could not optimize uploaded image, using original:', err.message || err);
+            return originalDataUrl;
+        }
+    },
+
     initMediaUploadHandlers: () => {
         const uploadArea = document.getElementById('media-upload-area');
         const fileInput = document.getElementById('media-file-input');
@@ -156,22 +210,22 @@ const examManager = {
         };
     },
 
-    handleMediaFiles: (files) => {
-        Array.from(files).forEach(file => {
+    handleMediaFiles: async (files) => {
+        for (const file of Array.from(files)) {
             if (!file.type.startsWith('image/')) {
                 Utils.showAlert('Invalid File', `${file.name} is not an image file.`);
-                return;
+                continue;
             }
 
-            const reader = new FileReader();
-            reader.onload = (evt) => {
+            try {
+                const dataUrl = await examManager._optimizeImageFile(file);
                 const mediaId = Utils.generateId();
                 const pendingQuestionId = examManager._pendingQuestionId || null;
 
                 const mediaItem = {
                     id: mediaId,
                     name: file.name,
-                    dataUrl: evt.target.result,
+                    dataUrl,
                     assignedToQuestion: pendingQuestionId, // Auto-assign if question was selected
                     uploadedAt: new Date().toISOString()
                 };
@@ -187,9 +241,11 @@ const examManager = {
                 }
 
                 examManager.renderMediaGallery();
-            };
-            reader.readAsDataURL(file);
-        });
+            } catch (err) {
+                console.warn(`Could not process uploaded media ${file.name}:`, err.message || err);
+                Utils.showAlert('Upload Error', `Could not process ${file.name}. Please try another image.`);
+            }
+        }
     },
 
     renderMediaGallery: () => {
@@ -326,6 +382,17 @@ const examManager = {
 
     getMediaForQuestion: (questionId) => {
         return examManager.uploadedMedia.filter(m => m.assignedToQuestion === questionId);
+    },
+
+    getPrimaryQuestionImage: (question) => {
+        const attachedMedia = examManager.getMediaForQuestion(question.id);
+        if (attachedMedia.length > 0) {
+            return attachedMedia[0].dataUrl;
+        }
+        if (Array.isArray(question.mediaAttachments) && question.mediaAttachments.length > 0) {
+            return question.mediaAttachments[0].dataUrl || null;
+        }
+        return question.image || null;
     },
 
     previewMedia: (mediaId) => {
@@ -687,7 +754,6 @@ const examManager = {
                     delete q.correctAnswer;
                     delete q.pairs;
                     delete q.subQuestions;
-                    q.points = points;
                 }
             }
         } else {
@@ -1483,7 +1549,7 @@ const examManager = {
             if (q.type === 'mcq' || q.type === 'image_mcq') {
                 // Image MCQ must have an image attached
                 if (q.type === 'image_mcq') {
-                    const hasImage = q.image || (examManager.getMediaForQuestion(q.id) && examManager.getMediaForQuestion(q.id).length > 0);
+                    const hasImage = examManager.getPrimaryQuestionImage(q);
                     if (!hasImage) {
                         await Utils.showAlert('Validation Error', `Question ${i + 1} (Image MCQ) needs an image. Use "+ Add Media" to attach one.`);
                         valid = false;
@@ -1522,7 +1588,7 @@ const examManager = {
                 // They will be manually graded
             } else if (q.type === 'image_multi') {
                 // Picture Comprehension validation — check both q.image and attached media
-                const hasImage = q.image || (examManager.getMediaForQuestion(q.id) && examManager.getMediaForQuestion(q.id).length > 0);
+                const hasImage = examManager.getPrimaryQuestionImage(q);
                 if (!hasImage) {
                     await Utils.showAlert('Validation Error', `Question ${i + 1} (Picture Comprehension) needs an image. Use "+ Add Media" to attach one.`);
                     valid = false;
@@ -1569,9 +1635,9 @@ const examManager = {
                     name: m.name,
                     dataUrl: m.dataUrl
                 }));
-                // For image-based question types, also set q.image so student-facing code works
+                // Avoid duplicating the same image payload in both mediaAttachments and q.image.
                 if (questionCopy.type === 'image_mcq' || questionCopy.type === 'image_multi') {
-                    questionCopy.image = attachedMedia[0].dataUrl;
+                    delete questionCopy.image;
                 }
             }
             return questionCopy;

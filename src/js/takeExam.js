@@ -46,6 +46,13 @@ const takeExam = {
         return shuffled;
     },
 
+    getPrimaryQuestionImage: (question) => {
+        if (question?.mediaAttachments?.[0]?.dataUrl) {
+            return question.mediaAttachments[0].dataUrl;
+        }
+        return question?.image || null;
+    },
+
     init: async () => {
         console.log('🚀 Exam Controller v3.1 Loaded');
         // Auth Check
@@ -473,8 +480,9 @@ const takeExam = {
 
             if (!q.type || q.type === 'mcq' || q.type === 'image_mcq') {
                 let imgHtml = '';
-                if (q.type === 'image_mcq' && q.image) {
-                    imgHtml = `<div style="margin-bottom:15px; cursor:pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)"><img src="${q.image}" style="max-width:100%; max-height:250px; border-radius:4px;"><div style="text-align:center; margin-top:4px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div></div>`;
+                const primaryImage = takeExam.getPrimaryQuestionImage(q);
+                if (q.type === 'image_mcq' && primaryImage) {
+                    imgHtml = `<div style="margin-bottom:15px; cursor:pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)"><img src="${primaryImage}" style="max-width:100%; max-height:250px; border-radius:4px;"><div style="text-align:center; margin-top:4px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div></div>`;
                 }
 
                 optionsHtml = imgHtml + q.options.map((opt) => {
@@ -539,9 +547,10 @@ const takeExam = {
             } else if (q.type === 'image_multi') {
                 // Picture Comprehension: One image with multiple sub-questions (A-E options each)
                 let imgHtml = '';
-                if (q.image) {
+                const primaryImage = takeExam.getPrimaryQuestionImage(q);
+                if (primaryImage) {
                     imgHtml = `<div style="margin-bottom: 20px; text-align: center; cursor: pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)">
-                        <img src="${q.image}" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <img src="${primaryImage}" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                         <div style="margin-top:6px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div>
                     </div>`;
                 }
@@ -582,7 +591,7 @@ const takeExam = {
                     </label>`}
                 </div>
 
-                ${q.mediaAttachments && q.mediaAttachments.length > 0 ? `
+                ${q.type !== 'image_mcq' && q.type !== 'image_multi' && q.mediaAttachments && q.mediaAttachments.length > 0 ? `
                     <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 10px; border: 1px solid var(--border-color);">
                         <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
                             ${q.mediaAttachments.map((media, mediaIdx) => `
