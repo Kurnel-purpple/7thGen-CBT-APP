@@ -105,9 +105,17 @@ const examResults = {
         return '"' + str + '"';
     },
 
+    _sortResultsByStudentName(results = []) {
+        return [...results].sort((a, b) => {
+            const nameA = (a.studentName || '').trim();
+            const nameB = (b.studentName || '').trim();
+            return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+        });
+    },
+
     _processResults(rawResults, exam) {
         const completedResults = rawResults.filter(r => r.status !== 'in-progress');
-        return completedResults.map(r => {
+        return examResults._sortResultsByStudentName(completedResults.map(r => {
             const { objectivePoints, theoryPoints, objectivePossible, theoryPossible, totalPossible } = examResults._calculatePoints(r, exam);
             const calculatedPoints = objectivePoints + theoryPoints;
             const passScore = exam.passScore || 50;
@@ -138,7 +146,7 @@ const examResults = {
                 manualTheoryScore: savedManual,
                 manualTheoryTotal: savedManualTotal
             };
-        });
+        }));
     },
 
     init: async () => {

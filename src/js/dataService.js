@@ -1180,14 +1180,16 @@ class DataService {
 
     async updateExam(id, updates) {
         try {
+            const existingExamRow = await this.pb.collection('exams').getOne(id);
+            const existingExam = this._mapExam(existingExamRow);
             const data = {};
             if (updates.title) data.title = updates.title;
             if (updates.subject) data.subject = updates.subject;
             if (updates.targetClass) data.target_class = updates.targetClass;
             if (updates.duration) data.duration = updates.duration;
-            if (updates.passScore) data.pass_score = updates.passScore;
+            if (updates.passScore !== undefined) data.pass_score = updates.passScore;
             if (updates.instructions) data.instructions = updates.instructions;
-            if (updates.questions) {
+            if (updates.questions !== undefined) {
                 data.questions = updates.questions;
                 const theoryQs = updates.questions.filter(q => q.type === 'theory');
                 data.question_count = updates.questions.length;
@@ -1199,6 +1201,15 @@ class DataService {
             if (updates.globalExtension !== undefined) data.global_extension = updates.globalExtension;
             if (updates.scheduledDate !== undefined) data.scheduled_date = updates.scheduledDate;
             if (updates.scrambleQuestions !== undefined) data.scramble_questions = updates.scrambleQuestions;
+
+            const mergedExamForRegrade = {
+                ...existingExam,
+                ...updates,
+                passScore: updates.passScore !== undefined ? updates.passScore : existingExam.passScore,
+                questions: updates.questions !== undefined ? updates.questions : existingExam.questions
+            };
+            const shouldRegradeResults =
+                this._getExamRegradeFingerprint(existingExam) !== this._getExamRegradeFingerprint(mergedExamForRegrade);
 
             const updated = await this.pb.collection('exams').update(id, data);
             const mappedExam = this._mapExam(updated);
@@ -1217,6 +1228,15 @@ class DataService {
                 }
             } catch (e) {
                 console.error('[VersionBump] Failed during updateExam:', e.message || e);
+            }
+
+            if (shouldRegradeResults) {
+                try {
+                    await this._regradeSubmittedResultsForExam(mappedExam);
+                } catch (regradeError) {
+                    console.error('Exam updated but result regrade failed:', regradeError);
+                    throw new Error('Exam updated, but submitted results could not be recalculated automatically.');
+                }
             }
 
             return mappedExam;
@@ -1541,6 +1561,211 @@ class DataService {
 
     _examDataComplete(exams = []) {
         return exams.every(exam => !!exam && !!exam.id && !!exam.title && !!exam.subject);
+    }
+
+    _gradeExamAnswers(exam, answers = {}) {
+        let score = 0;
+        let totalPoints = 0;
+
+        const questions = Array.isArray(exam && exam.questions) ? exam.questions : [];
+        questions.forEach(q => {
+            const points = parseFloat(q.points) || 0.5;
+
+            if (q.type === 'theory') {
+                return;
+            }
+
+            totalPoints += points;
+            const answer = answers[q.id];
+
+            if (q.type === 'fill_blank') {
+                if (answer && q.correctAnswer &&
+                    answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                    score += points;
+                }
+            } else if (q.type === 'match') {
+                if (answer) {
+                    let allCorrect = true;
+                    q.pairs.forEach((pair, idx) => {
+                        if (answer[idx] !== pair.right) allCorrect = false;
+                    });
+                    if (allCorrect) score += points;
+                }
+            } else if (q.type === 'image_multi') {
+                if (answer && q.subQuestions) {
+                    let correctCount = 0;
+                    q.subQuestions.forEach(subQ => {
+                        if (answer[subQ.id] === subQ.correctAnswer) {
+                            correctCount++;
+                        }
+                    });
+                    const pointsPerSubQ = points / q.subQuestions.length;
+                    score += correctCount * pointsPerSubQ;
+                }
+            } else if (answer && q.options) {
+                const correctOpt = q.options.find(o => o.isCorrect);
+                if (correctOpt && correctOpt.id === answer) {
+                    score += points;
+                }
+            }
+        });
+
+        return { score, totalPoints };
+    }
+
+    _getExamRegradeFingerprint(examLike = {}) {
+        const questions = Array.isArray(examLike.questions) ? examLike.questions : [];
+        const normalizedQuestions = questions.map(q => {
+            const base = {
+                id: q.id || null,
+                type: q.type || null,
+                points: Number.parseFloat(q.points) || 0
+            };
+
+            if (q.type === 'theory') {
+                return base;
+            }
+
+            if (q.type === 'fill_blank') {
+                return {
+                    ...base,
+                    correctAnswer: q.correctAnswer || ''
+                };
+            }
+
+            if (q.type === 'match') {
+                return {
+                    ...base,
+                    pairs: Array.isArray(q.pairs)
+                        ? q.pairs.map(pair => ({
+                            left: pair.left || '',
+                            right: pair.right || ''
+                        }))
+                        : []
+                };
+            }
+
+            if (q.type === 'image_multi') {
+                return {
+                    ...base,
+                    subQuestions: Array.isArray(q.subQuestions)
+                        ? q.subQuestions.map(subQ => ({
+                            id: subQ.id || null,
+                            correctAnswer: subQ.correctAnswer || ''
+                        }))
+                        : []
+                };
+            }
+
+            return {
+                ...base,
+                options: Array.isArray(q.options)
+                    ? q.options.map(opt => ({
+                        id: opt && typeof opt === 'object' ? opt.id || null : opt,
+                        isCorrect: !!(opt && typeof opt === 'object' && opt.isCorrect)
+                    }))
+                    : []
+            };
+        });
+
+        return JSON.stringify({
+            passScore: examLike.passScore ?? examLike.pass_score ?? 50,
+            questions: normalizedQuestions
+        });
+    }
+
+    _getTheoryScoreSummary(exam, flags = {}) {
+        const theoryPossible = (Array.isArray(exam && exam.questions) ? exam.questions : []).reduce((sum, q) => {
+            if (q.type !== 'theory') return sum;
+            return sum + (Number.parseFloat(q.points) || 0.5);
+        }, 0);
+
+        const toFiniteNumber = (value) => {
+            if (value === undefined || value === null || value === '') return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const manualTheoryScore = toFiniteNumber(flags._manualTheoryScore);
+        const manualTheoryTotal = toFiniteNumber(flags._manualTheoryTotal);
+        const theoryScores = (flags._theoryScores && typeof flags._theoryScores === 'object') ? flags._theoryScores : {};
+        const savedTheoryPoints = Object.values(theoryScores).reduce((sum, value) => {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? sum + parsed : sum;
+        }, 0);
+
+        return {
+            theoryPoints: manualTheoryScore !== null ? manualTheoryScore : savedTheoryPoints,
+            theoryTotalPoints: manualTheoryTotal !== null ? manualTheoryTotal : theoryPossible
+        };
+    }
+
+    async _regradeSubmittedResultsForExam(exam) {
+        if (!exam || !exam.id) {
+            return { scanned: 0, updated: 0, skipped: 0 };
+        }
+
+        const resultRows = await this._rawList('results', {
+            filter: `exam_id="${exam.id}"`,
+            fullList: true,
+            fields: 'id,exam_id,student_id,answers,score,total_points,pass_score,passed,submitted_at,flags,created,updated,exam_title,exam_subject,exam_target_class,exam_duration,exam_has_theory,exam_theory_count'
+        });
+
+        if (!Array.isArray(resultRows) || resultRows.length === 0) {
+            return { scanned: 0, updated: 0, skipped: 0 };
+        }
+
+        const regradedResults = [];
+        let updated = 0;
+        let skipped = 0;
+
+        for (const row of resultRows) {
+            const flags = row.flags || {};
+            const status = flags._status || 'completed';
+
+            if (status === 'in-progress') {
+                skipped++;
+                continue;
+            }
+
+            const answers = row.answers || {};
+            const { score: objectivePoints, totalPoints: objectiveTotalPoints } = this._gradeExamAnswers(exam, answers);
+            const { theoryPoints, theoryTotalPoints } = this._getTheoryScoreSummary(exam, flags);
+            const totalPoints = Number(objectiveTotalPoints) + Number(theoryTotalPoints);
+            const pointsScored = Number(objectivePoints) + Number(theoryPoints);
+            const passScore = exam.passScore ?? 50;
+            const percentage = totalPoints > 0 ? Math.round((pointsScored / totalPoints) * 100) : 0;
+
+            const updatedFlags = {
+                ...flags,
+                _objective_total_points: objectiveTotalPoints,
+                _objective_points_scored: objectivePoints,
+                _real_total_points: totalPoints,
+                _real_points_scored: pointsScored,
+                _lastRegradedAt: new Date().toISOString()
+            };
+
+            const rowUpdated = await this.pb.collection('results').update(row.id, {
+                score: percentage,
+                total_points: totalPoints,
+                pass_score: passScore,
+                passed: percentage >= passScore,
+                flags: updatedFlags,
+                ...this._buildResultExamSnapshot(exam)
+            });
+
+            regradedResults.push(this._mapResult(rowUpdated));
+            updated++;
+        }
+
+        if (window.idb && regradedResults.length > 0) {
+            try {
+                await window.idb.saveResults(regradedResults);
+            } catch (e) {
+                console.warn('Could not refresh cached results after regrade:', e);
+            }
+        }
+
+        return { scanned: resultRows.length, updated, skipped };
     }
 
     // --- Results ---
@@ -1964,6 +2189,99 @@ class DataService {
             return true;
         } catch (error) {
             console.error('Failed to delete result:', error);
+            throw error;
+        }
+    }
+
+    async autoSubmitInProgressResult(resultId) {
+        try {
+            const existing = await this.pb.collection('results').getOne(resultId);
+            const currentFlags = existing.flags || {};
+            const currentStatus = currentFlags._status || 'completed';
+
+            if (currentStatus !== 'in-progress') {
+                throw new Error('This exam is no longer in progress.');
+            }
+
+            const exam = await this.getExamById(existing.exam_id);
+            if (!exam) {
+                throw new Error('Exam details could not be loaded.');
+            }
+
+            const answers = existing.answers || {};
+            const { score, totalPoints } = this._gradeExamAnswers(exam, answers);
+            const objectiveScore = Number(score);
+            const objectiveTotalPoints = Number(totalPoints);
+            if (!Number.isFinite(objectiveScore) || !Number.isFinite(objectiveTotalPoints)) {
+                throw new Error('Auto-submit grading returned an invalid score.');
+            }
+
+            const toFiniteNumber = (value) => {
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? parsed : null;
+            };
+            const hasTheoryScores = !!(currentFlags._theoryScores && Object.keys(currentFlags._theoryScores).length);
+            const hasManualFlag = Object.keys(currentFlags).some(key => {
+                const normalized = String(key || '').toLowerCase();
+                return normalized.includes('manual') || normalized.includes('theorygraded');
+            });
+            const hasRealTotals =
+                toFiniteNumber(currentFlags._real_total_points) !== null ||
+                toFiniteNumber(currentFlags._real_points_scored) !== null;
+            const hasManualOrTheoryMarkers = hasTheoryScores || hasManualFlag || hasRealTotals;
+
+            let effectiveScorePoints = objectiveScore;
+            let effectiveTotalPoints = objectiveTotalPoints;
+            const existingRealTotalPoints = toFiniteNumber(currentFlags._real_total_points);
+            const existingRealScorePoints = toFiniteNumber(currentFlags._real_points_scored);
+            const previousObjectiveTotalPoints = toFiniteNumber(currentFlags._objective_total_points);
+            const previousObjectiveScorePoints = toFiniteNumber(currentFlags._objective_points_scored);
+            const canMergeManualTotals =
+                hasManualOrTheoryMarkers &&
+                existingRealTotalPoints !== null &&
+                existingRealScorePoints !== null &&
+                previousObjectiveTotalPoints !== null &&
+                previousObjectiveScorePoints !== null;
+
+            if (canMergeManualTotals) {
+                effectiveScorePoints = existingRealScorePoints - previousObjectiveScorePoints + objectiveScore;
+                effectiveTotalPoints = existingRealTotalPoints - previousObjectiveTotalPoints + objectiveTotalPoints;
+            }
+
+            const percentage = effectiveTotalPoints > 0 ? Math.round((effectiveScorePoints / effectiveTotalPoints) * 100) : 0;
+            const passScore = exam.passScore ?? 50;
+
+            const updatedFlags = {
+                ...currentFlags,
+                _status: 'completed',
+                _studentName: currentFlags._studentName || '',
+                _objective_total_points: objectiveTotalPoints,
+                _objective_points_scored: objectiveScore,
+                _real_total_points: effectiveTotalPoints,
+                _real_points_scored: effectiveScorePoints
+            };
+
+            delete updatedFlags._savedProgress;
+            delete updatedFlags._reopenedForExtension;
+            delete updatedFlags._reopenedAt;
+            delete updatedFlags._previousScore;
+            delete updatedFlags._previousSubmittedAt;
+
+            const updatePayload = {
+                score: percentage,
+                total_points: effectiveTotalPoints,
+                pass_score: passScore,
+                passed: percentage >= passScore,
+                submitted_at: new Date().toISOString(),
+                flags: updatedFlags,
+                ...this._buildResultExamSnapshot(exam)
+            };
+
+            const updated = await this.pb.collection('results').update(resultId, updatePayload);
+
+            return this._mapResult(updated);
+        } catch (error) {
+            console.error('Failed to auto-submit result:', error);
             throw error;
         }
     }
