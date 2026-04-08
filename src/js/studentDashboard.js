@@ -252,7 +252,10 @@ const studentDashboard = {
 
     loadData: async () => {
         const userId = studentDashboard.user.id;
+        const userClass = (studentDashboard.user.classLevel || '').trim();
         const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
+        const examsCacheKey = `exams_list:${userClass || 'global'}`;
+        const localStorageExamsCacheKey = `cbt_dashboard_exams_cache:${userClass || 'global'}`;
 
         let exams = [];
         let serverResults = [];
@@ -287,6 +290,7 @@ const studentDashboard = {
                 dataService.getExamSummaries({
                     status: 'active',
                     studentDashboard: true,
+                    ...(userClass && { targetClass: userClass }),
                     ...(forceRefresh && { forceRefresh: true })
                 }),
                 userId
@@ -303,12 +307,12 @@ const studentDashboard = {
                 if (useIndexedDB) {
                     // Save summaries to dashboard cache only — NOT to entity stores (exams/results)
                     // Summaries have questions:null / answers:null and would pollute full-entity stores
-                    await window.idb.saveDashboardCache('exams_list', exams);
+                    await window.idb.saveDashboardCache(examsCacheKey, exams);
                     await window.idb.saveDashboardCache(`results_${userId}`, serverResults);
                     console.log('✅ Dashboard data cached to IndexedDB');
                 } else {
                     // Fallback to localStorage
-                    localStorage.setItem('cbt_dashboard_exams_cache', JSON.stringify({
+                    localStorage.setItem(localStorageExamsCacheKey, JSON.stringify({
                         data: exams,
                         timestamp: Date.now()
                     }));
@@ -329,7 +333,7 @@ const studentDashboard = {
             try {
                 if (useIndexedDB) {
                     // Try IndexedDB first
-                    const cachedExams = await window.idb.getDashboardCache('exams_list');
+                    const cachedExams = await window.idb.getDashboardCache(examsCacheKey);
                     const cachedResults = await window.idb.getDashboardCache(`results_${userId}`);
 
                     if (cachedExams && cachedExams.data && Array.isArray(cachedExams.data) && cachedExams.data.length > 0) {
@@ -359,7 +363,7 @@ const studentDashboard = {
                     }
                 } else {
                     // Fallback to localStorage
-                    const cachedExams = JSON.parse(localStorage.getItem('cbt_dashboard_exams_cache') || 'null');
+                    const cachedExams = JSON.parse(localStorage.getItem(localStorageExamsCacheKey) || 'null');
                     const cachedResults = JSON.parse(localStorage.getItem(`cbt_dashboard_results_${userId}`) || 'null');
 
                     if (cachedExams && cachedExams.data) {
@@ -445,7 +449,12 @@ const studentDashboard = {
                 // Even without forceRefresh, the 2-min IDB cache TTL ensures fresh data
                 // within 2 minutes of any admin change.
                 const [freshExams, freshResults] = await Promise.all([
-                    dataService.getExamSummaries({ status: 'active', studentDashboard: true, ...(forceNet && { forceRefresh: true }) }),
+                    dataService.getExamSummaries({
+                        status: 'active',
+                        studentDashboard: true,
+                        ...(userClass && { targetClass: userClass }),
+                        ...(forceNet && { forceRefresh: true })
+                    }),
                     userId ? dataService.getResultSummaries({ studentId: userId, studentDashboard: true, forceRefresh: true }) : []
                 ]);
 
@@ -466,7 +475,7 @@ const studentDashboard = {
                 // Update dashboard cache with FRESH summaries only — NOT entity stores
                 if (window.idb) {
                     if (freshExams.length > 0) {
-                        await window.idb.saveDashboardCache('exams_list', freshExams);
+                        await window.idb.saveDashboardCache(examsCacheKey, freshExams);
                     }
                     if (freshResults.length > 0) {
                         await window.idb.saveDashboardCache(`results_${userId}`, freshResults);

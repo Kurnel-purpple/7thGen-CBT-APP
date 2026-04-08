@@ -2850,9 +2850,10 @@
         // Admin: Change exam target class
         async function changeExamClass(examId, newClass) {
             try {
-                await dataService.updateExam(examId, { targetClass: newClass });
-                // Update local data
                 const exam = allExams.find(e => e.id === examId);
+                const previousClass = exam ? exam.targetClass : undefined;
+                await dataService.updateExam(examId, { targetClass: newClass, _oldTargetClass: previousClass });
+                // Update local data
                 if (exam) exam.targetClass = newClass;
                 // Update class label on the card
                 const classLabel = document.getElementById('class-label-' + examId);

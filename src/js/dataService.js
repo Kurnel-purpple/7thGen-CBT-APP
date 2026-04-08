@@ -1182,10 +1182,13 @@ class DataService {
         try {
             const existingExamRow = await this.pb.collection('exams').getOne(id);
             const existingExam = this._mapExam(existingExamRow);
+            const resolvedTargetClass = updates.targetClass !== undefined
+                ? updates.targetClass
+                : existingExam.targetClass;
             const data = {};
             if (updates.title) data.title = updates.title;
             if (updates.subject) data.subject = updates.subject;
-            if (updates.targetClass) data.target_class = updates.targetClass;
+            if (updates.targetClass !== undefined) data.target_class = updates.targetClass;
             if (updates.duration) data.duration = updates.duration;
             if (updates.passScore !== undefined) data.pass_score = updates.passScore;
             if (updates.instructions) data.instructions = updates.instructions;
@@ -1222,9 +1225,9 @@ class DataService {
 
             // V2B+V2D: Bump dashboard version — awaited so failures are visible
             try {
-                await this._bumpDashboardVersion(mappedExam.targetClass);
-                if (updates.targetClass && updates._oldTargetClass && updates._oldTargetClass !== updates.targetClass) {
-                    await this._bumpDashboardVersion(updates._oldTargetClass);
+                await this._bumpDashboardVersion(resolvedTargetClass);
+                if (existingExam.targetClass && existingExam.targetClass !== resolvedTargetClass) {
+                    await this._bumpDashboardVersion(existingExam.targetClass);
                 }
             } catch (e) {
                 console.error('[VersionBump] Failed during updateExam:', e.message || e);
