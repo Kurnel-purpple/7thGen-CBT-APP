@@ -10,6 +10,8 @@ const takeExam = {
     flagged: {}, // { questionId: boolean }
     timer: null,
     _reopenedForExtension: false, // V2H: true if student re-enters after extension on completed exam
+    _splitImageModeActive: false,
+    _activeSplitImageQuestionIndex: null,
 
     // Seeded random shuffle for consistent scrambling per student
     scrambleArray: (array, seed) => {
@@ -51,6 +53,38 @@ const takeExam = {
             return question.mediaAttachments[0].dataUrl;
         }
         return question?.image || null;
+    },
+
+    getQuestionImageAssets: (question) => {
+        const assets = [];
+        const seen = new Set();
+        const pushAsset = (src, label) => {
+            if (!src || seen.has(src)) return;
+            seen.add(src);
+            assets.push({
+                src,
+                label: label || 'Question Image'
+            });
+        };
+
+        const primaryImage = takeExam.getPrimaryQuestionImage(question);
+        if (primaryImage) {
+            pushAsset(primaryImage, 'Reference Image');
+        }
+
+        if (Array.isArray(question?.mediaAttachments)) {
+            question.mediaAttachments.forEach((media, index) => {
+                if (media?.dataUrl) {
+                    pushAsset(media.dataUrl, media.name || `Attachment ${index + 1}`);
+                }
+            });
+        }
+
+        if (question?.canvasImage) {
+            pushAsset(question.canvasImage, 'Question Illustration');
+        }
+
+        return assets;
     },
 
     init: async () => {
@@ -297,6 +331,104 @@ const takeExam = {
         document.getElementById('exam-subject').textContent = takeExam.exam.subject;
     },
 
+    setSplitImageMode: (enabled) => {
+        const container = document.querySelector('.exam-container');
+        const panel = document.getElementById('exam-image-panel');
+        if (!container || !panel) return;
+
+        container.classList.toggle('split-image-mode', enabled);
+        panel.hidden = !enabled;
+        takeExam._splitImageModeActive = enabled;
+        if (!enabled) {
+            takeExam._activeSplitImageQuestionIndex = null;
+        }
+    },
+
+    closeSplitImagePanel: () => {
+        const panel = document.getElementById('exam-image-panel');
+        if (panel) {
+            panel.innerHTML = `
+                <div class="exam-image-panel-inner">
+                    <div class="exam-image-panel-empty">
+                        <h3>Reference Image</h3>
+                        <p>Click any question image when you want to view it in split screen.</p>
+                    </div>
+                </div>
+            `;
+        }
+        takeExam.setSplitImageMode(false);
+    },
+
+    openSplitImagePanel: (index = takeExam.currentQuestionIndex, preferredSrc = null) => {
+        const panel = document.getElementById('exam-image-panel');
+        if (!panel) return;
+
+        const card = document.getElementById(`q-card-${index}`);
+        if (!card) {
+            takeExam.closeSplitImagePanel();
+            return;
+        }
+
+        const encodedAssets = card.dataset.imageAssets;
+        if (!encodedAssets) {
+            takeExam.closeSplitImagePanel();
+            return;
+        }
+
+        let assets = [];
+        try {
+            assets = JSON.parse(decodeURIComponent(encodedAssets));
+        } catch (e) {
+            console.warn('[TakeExam] Could not parse question image assets:', e);
+            takeExam.closeSplitImagePanel();
+            return;
+        }
+
+        if (!Array.isArray(assets) || assets.length === 0) {
+            takeExam.closeSplitImagePanel();
+            return;
+        }
+
+        if (preferredSrc) {
+            const preferredIndex = assets.findIndex(asset => asset.src === preferredSrc);
+            if (preferredIndex > 0) {
+                const [preferredAsset] = assets.splice(preferredIndex, 1);
+                assets.unshift(preferredAsset);
+            }
+        }
+
+        const questionNumber = card.dataset.questionNumber || `${index + 1}`;
+        const imageFrames = assets.map((asset, assetIndex) => `
+            <div class="exam-image-frame">
+                <img src="${asset.src}" alt="${asset.label || `Question ${questionNumber} image ${assetIndex + 1}`}">
+                <div class="exam-image-frame-footer">
+                    <span>${asset.label || `Image ${assetIndex + 1}`}</span>
+                    <button type="button" class="exam-image-panel-btn" onclick="takeExam.showImageLightbox('${asset.src.replace(/'/g, "\\'")}')">Open Full Screen</button>
+                </div>
+            </div>
+        `).join('');
+
+        panel.innerHTML = `
+            <div class="exam-image-panel-inner">
+                <div class="exam-image-panel-header">
+                    <div class="exam-image-panel-header-row">
+                        <div>
+                            <span class="exam-image-panel-kicker">Question ${questionNumber}</span>
+                            <h3>Reference Image${assets.length > 1 ? 's' : ''}</h3>
+                        </div>
+                        <button type="button" class="exam-image-panel-close" onclick="takeExam.closeSplitImagePanel()" aria-label="Close split image view">×</button>
+                    </div>
+                </div>
+                <div class="exam-image-stack">
+                    ${imageFrames}
+                </div>
+            </div>
+        `;
+
+        takeExam._activeSplitImageQuestionIndex = index;
+        takeExam.setSplitImageMode(true);
+    },
+
     setupPalette: () => {
         const grid = document.getElementById('question-palette');
         const questions = (takeExam.mode === 'resolve' ? takeExam.subsetQuestions : takeExam.exam.questions) || [];
@@ -448,6 +580,10 @@ const takeExam = {
         htmlContent += sortedQuestions.map((q, index) => {
             // Add theory section header before first theory question
             let sectionHeader = '';
+            const imageAssets = takeExam.getQuestionImageAssets(q);
+            const encodedImageAssets = imageAssets.length > 0
+                ? encodeURIComponent(JSON.stringify(imageAssets))
+                : '';
 
             // Insert instruction banner if one is set on this question (stored as q.topInstruction)
             if (q.topInstruction) {
@@ -482,7 +618,7 @@ const takeExam = {
                 let imgHtml = '';
                 const primaryImage = takeExam.getPrimaryQuestionImage(q);
                 if (q.type === 'image_mcq' && primaryImage) {
-                    imgHtml = `<div style="margin-bottom:15px; cursor:pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)"><img src="${primaryImage}" style="max-width:100%; max-height:250px; border-radius:4px;"><div style="text-align:center; margin-top:4px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div></div>`;
+                    imgHtml = `<div class="question-split-trigger" style="margin-bottom:15px; cursor:pointer;" onclick="takeExam.openSplitImagePanel(${index}, '${primaryImage.replace(/'/g, "\\'")}')"><img src="${primaryImage}" style="max-width:100%; max-height:250px; border-radius:4px;"><div class="question-inline-media-note">Click image to open it in split view.</div></div>`;
                 }
 
                 optionsHtml = imgHtml + q.options.map((opt) => {
@@ -549,9 +685,9 @@ const takeExam = {
                 let imgHtml = '';
                 const primaryImage = takeExam.getPrimaryQuestionImage(q);
                 if (primaryImage) {
-                    imgHtml = `<div style="margin-bottom: 20px; text-align: center; cursor: pointer;" onclick="takeExam.showImageLightbox(this.querySelector('img').src)">
+                    imgHtml = `<div class="question-split-trigger" style="margin-bottom: 20px; text-align: center; cursor: pointer;" onclick="takeExam.openSplitImagePanel(${index}, '${primaryImage.replace(/'/g, "\\'")}')">
                         <img src="${primaryImage}" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <div style="margin-top:6px; font-size:0.75rem; color:var(--light-text);">Click image to enlarge</div>
+                        <div class="question-inline-media-note">Click image to open it in split view.</div>
                     </div>`;
                 }
 
@@ -582,7 +718,7 @@ const takeExam = {
 
             return `
             ${sectionHeader}
-            <div class="question-card" id="q-card-${index}" style="margin-bottom: 30px; ${takeExam.mode === 'resolve' ? 'border: 2px solid var(--accent-color);' : ''}">
+            <div class="question-card" id="q-card-${index}" data-question-number="${index + 1}" data-image-assets="${encodedImageAssets}" style="margin-bottom: 30px; ${takeExam.mode === 'resolve' ? 'border: 2px solid var(--accent-color);' : ''}">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
                     <span style="color: var(--primary-color); font-weight: bold;">Question ${index + 1} / ${sortedQuestions.length}</span>
                     ${takeExam.mode === 'resolve' ? '<span style="color:red; font-weight:bold;">ACTION REQUIRED</span>' :
@@ -592,17 +728,14 @@ const takeExam = {
                 </div>
 
                 ${q.type !== 'image_mcq' && q.type !== 'image_multi' && q.mediaAttachments && q.mediaAttachments.length > 0 ? `
-                    <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 10px; border: 1px solid var(--border-color);">
+                    <div class="question-split-trigger" style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 10px; border: 1px solid var(--border-color);">
                         <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-                            ${q.mediaAttachments.map((media, mediaIdx) => `
-                                <div style="position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s ease;" 
-                                    onclick="takeExam.showMediaLightbox('${q.id}', ${mediaIdx})"
-                                    onmouseover="this.style.transform='scale(1.02)'" 
-                                    onmouseout="this.style.transform='scale(1)'">
+                            ${q.mediaAttachments.map((media) => `
+                                <div style="position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer;" onclick="takeExam.openSplitImagePanel(${index}, '${media.dataUrl.replace(/'/g, "\\'")}')">
                                     <img src="${media.dataUrl}" alt="${media.name || 'Question Image'}" 
                                         style="max-width: 100%; max-height: 200px; display: block; object-fit: contain;">
                                     <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); padding: 8px; text-align: center;">
-                                        <span style="color: white; font-size: 0.75rem;">🔍 Click to enlarge</span>
+                                        <span style="color: white; font-size: 0.75rem;">Click to open in split view</span>
                                     </div>
                                 </div>
                             `).join('')}
@@ -641,6 +774,7 @@ const takeExam = {
 
         // Add floating question navigation bar
         takeExam._initQuestionNav(sortedQuestions.length);
+        takeExam.closeSplitImagePanel();
     },
 
     // Render read-only Tiptap content for student exam view

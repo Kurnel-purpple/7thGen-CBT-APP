@@ -52,22 +52,33 @@
                 <div class="timer-display" id="timer">00:00:00</div>
             </header>
 
-            <div class="question-area" id="question-area">
-                <div class="question-card">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                        <span style="color: var(--primary-color); font-weight: bold;">Question <span
-                                id="q-current-num">1</span> / <span id="q-total-num">10</span></span>
-                        <label style="cursor: pointer; display: flex; align-items: center; font-size: 0.9rem;">
-                            <input type="checkbox" id="flag-checkbox" style="margin-right: 5px;"> Flag for review
-                        </label>
+            <div class="exam-workspace" id="exam-workspace">
+                <aside class="exam-image-panel" id="exam-image-panel" hidden aria-live="polite">
+                    <div class="exam-image-panel-inner">
+                        <div class="exam-image-panel-empty">
+                            <h3>Reference Image</h3>
+                            <p>When you move to a question with an image, it will stay visible here while you answer.</p>
+                        </div>
                     </div>
+                </aside>
 
-                    <div class="q-text-display" id="q-text">
-                        Loading question...
-                    </div>
+                <div class="question-area" id="question-area">
+                    <div class="question-card">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                            <span style="color: var(--primary-color); font-weight: bold;">Question <span
+                                    id="q-current-num">1</span> / <span id="q-total-num">10</span></span>
+                            <label style="cursor: pointer; display: flex; align-items: center; font-size: 0.9rem;">
+                                <input type="checkbox" id="flag-checkbox" style="margin-right: 5px;"> Flag for review
+                            </label>
+                        </div>
 
-                    <div class="options-list" id="q-options">
-                        <!-- Options go here -->
+                        <div class="q-text-display" id="q-text">
+                            Loading question...
+                        </div>
+
+                        <div class="options-list" id="q-options">
+                            <!-- Options go here -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -129,8 +140,6 @@
                 style="width: 100%; padding: 14px; font-size: 1.1rem; border-radius: 8px; font-weight: 600;">Return to
                 Dashboard</button>
         </div>
-    </div>
-
     </div>
 
     <!-- Alert Modal -->
