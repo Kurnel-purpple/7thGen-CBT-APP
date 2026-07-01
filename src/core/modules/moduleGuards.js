@@ -1,77 +1,214 @@
 import { isModuleEnabled } from '../../config/index.js';
 
+function getSupportConfig() {
+    const cfg = (typeof window !== 'undefined' && window.__appConfig) || {};
+    const support = cfg.support || {};
+    return {
+        upgradeUrl: support.upgradeUrl || '',
+        contactEmail: support.contactEmail || ''
+    };
+}
+
+function makeStyleBlock() {
+    // Scoped styles for the unavailable screen. Uses the app's design tokens
+    // where available and falls back to safe literals.
+    const el = document.createElement('style');
+    el.textContent = `
+        body {
+            background: var(--bg, #F8F9FA);
+            color: var(--text-primary, #202124);
+            min-height: 100vh;
+            margin: 0;
+            font-family: var(--font-family, 'Nunito', sans-serif);
+        }
+        .mg-shell {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .mg-card {
+            width: 100%;
+            max-width: 520px;
+            background: var(--card-bg, #FFFFFF);
+            border: 1px solid var(--border, #E0E0E0);
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+            padding: 36px 32px 28px;
+            text-align: left;
+        }
+        [data-theme="dark"] .mg-card {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        }
+        .mg-lock {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: var(--primary-light, #E8F0FE);
+            color: var(--primary, #1A73E8);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+        .mg-eyebrow {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            color: var(--text-secondary, #5F6368);
+            margin-bottom: 6px;
+        }
+        .mg-title {
+            font-family: var(--font-heading, 'DM Sans', sans-serif);
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary, #202124);
+            margin: 0 0 12px;
+            line-height: 1.25;
+        }
+        .mg-body {
+            color: var(--text-secondary, #5F6368);
+            line-height: 1.6;
+            margin: 0 0 22px;
+            font-size: 0.95rem;
+        }
+        .mg-body a {
+            color: var(--primary, #1A73E8);
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .mg-body a:hover { text-decoration: underline; }
+        .mg-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .mg-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-family: var(--font-family, 'Nunito', sans-serif);
+            font-weight: 700;
+            font-size: 0.88rem;
+            border: 1.5px solid var(--border, #E0E0E0);
+            background: var(--card-bg, #FFFFFF);
+            color: var(--text-primary, #202124);
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .mg-btn:hover {
+            border-color: var(--primary, #1A73E8);
+            color: var(--primary, #1A73E8);
+        }
+        .mg-btn.primary {
+            background: var(--primary, #1A73E8);
+            border-color: var(--primary, #1A73E8);
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.25);
+        }
+        .mg-btn.primary:hover {
+            background: var(--primary-dark, #1557B0);
+            border-color: var(--primary-dark, #1557B0);
+            color: #FFFFFF;
+        }
+        .mg-btn.ghost {
+            background: transparent;
+            border-color: transparent;
+            color: var(--text-secondary, #5F6368);
+            padding: 10px 12px;
+        }
+        .mg-btn.ghost:hover {
+            background: var(--inner-bg, #F1F3F4);
+            color: var(--text-primary, #202124);
+        }
+    `;
+    return el;
+}
+
+function iconLock() {
+    return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>';
+}
+
+function iconExternal() {
+    return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+}
+
+function iconMail() {
+    return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><polyline points="22 6 12 13 2 6"/></svg>';
+}
+
+function isPlaceholderUrl(url) {
+    if (!url) return true;
+    return /example\.com|placeholder|your-website/i.test(url);
+}
+
+function safeText(value) {
+    const div = document.createElement('div');
+    div.textContent = String(value == null ? '' : value);
+    return div.innerHTML;
+}
+
 export function renderModuleUnavailable(moduleName = 'This module', options = {}) {
     const safeModuleName = String(moduleName || 'This module');
-    const title = String(options.title || `${safeModuleName} is not enabled`);
-    const message = String(options.message || 'This feature is not available for this school configuration right now.');
-    const actionLabel = String(options.actionLabel || 'Go Back');
+    const title = String(options.title || `${safeModuleName} isn't enabled on your plan`);
     const actionHref = options.actionHref ? String(options.actionHref) : null;
+    const support = getSupportConfig();
+    const hasUrl = !!support.upgradeUrl && !isPlaceholderUrl(support.upgradeUrl);
+    const hasEmail = !!support.contactEmail;
 
     document.body.textContent = '';
+    document.head.appendChild(makeStyleBlock());
 
-    const appContainer = document.createElement('div');
-    appContainer.className = 'app-container no-sidebar';
+    const shell = document.createElement('div');
+    shell.className = 'mg-shell';
 
-    const main = document.createElement('main');
-    main.className = 'main-content';
-    main.style.display = 'flex';
-    main.style.alignItems = 'center';
-    main.style.justifyContent = 'center';
-    main.style.minHeight = '100vh';
-    main.style.padding = '24px';
+    const card = document.createElement('section');
+    card.className = 'mg-card';
+    card.setAttribute('role', 'alert');
 
-    const section = document.createElement('section');
-    section.style.maxWidth = '520px';
-    section.style.width = '100%';
-    section.style.background = 'var(--card-bg)';
-    section.style.border = '1px solid var(--border-color)';
-    section.style.borderRadius = '24px';
-    section.style.boxShadow = 'var(--shadow-card, 0 12px 40px rgba(0,0,0,0.08))';
-    section.style.padding = '32px';
-    section.style.textAlign = 'center';
+    // Body copy — three variants depending on which support channels
+    // the client config has filled in.
+    let bodyLinks = '';
+    if (hasUrl && hasEmail) {
+        bodyLinks = `visit <a href="${safeText(support.upgradeUrl)}" target="_blank" rel="noopener">the main website</a> to add this feature to your application, or contact your developer at <a href="mailto:${safeText(support.contactEmail)}">${safeText(support.contactEmail)}</a>.`;
+    } else if (hasUrl) {
+        bodyLinks = `visit <a href="${safeText(support.upgradeUrl)}" target="_blank" rel="noopener">the main website</a> to add this feature to your application.`;
+    } else if (hasEmail) {
+        bodyLinks = `contact your developer at <a href="mailto:${safeText(support.contactEmail)}">${safeText(support.contactEmail)}</a>.`;
+    } else {
+        bodyLinks = `contact your developer to have it added to your plan.`;
+    }
 
-    const badge = document.createElement('div');
-    badge.textContent = 'M';
-    badge.style.width = '72px';
-    badge.style.height = '72px';
-    badge.style.margin = '0 auto 18px';
-    badge.style.borderRadius = '20px';
-    badge.style.background = 'var(--primary-light, rgba(74,144,226,0.12))';
-    badge.style.color = 'var(--primary-color)';
-    badge.style.display = 'flex';
-    badge.style.alignItems = 'center';
-    badge.style.justifyContent = 'center';
-    badge.style.fontSize = '2rem';
-    badge.style.fontWeight = '800';
+    const actionsHtml = [];
+    if (hasUrl) {
+        actionsHtml.push(`<a class="mg-btn primary" href="${safeText(support.upgradeUrl)}" target="_blank" rel="noopener">${iconExternal()}<span>Visit main website</span></a>`);
+    }
+    if (hasEmail) {
+        const subject = encodeURIComponent(`Enable ${safeModuleName} for my school`);
+        actionsHtml.push(`<a class="mg-btn${hasUrl ? '' : ' primary'}" href="mailto:${safeText(support.contactEmail)}?subject=${subject}">${iconMail()}<span>Email developer</span></a>`);
+    }
+    actionsHtml.push(`<button class="mg-btn ghost" type="button" id="mg-back-btn">Go back</button>`);
 
-    const heading = document.createElement('h1');
-    heading.textContent = title;
-    heading.style.margin = '0 0 12px';
-    heading.style.fontSize = '1.5rem';
-    heading.style.color = 'var(--text-color)';
+    card.innerHTML = `
+        <div class="mg-lock" aria-hidden="true">${iconLock()}</div>
+        <span class="mg-eyebrow">Feature Locked</span>
+        <h1 class="mg-title">${safeText(title)}</h1>
+        <p class="mg-body">To get access to this feature, ${bodyLinks}</p>
+        <div class="mg-actions">${actionsHtml.join('')}</div>
+    `;
 
-    const paragraph = document.createElement('p');
-    paragraph.textContent = message;
-    paragraph.style.margin = '0 0 24px';
-    paragraph.style.lineHeight = '1.6';
-    paragraph.style.color = 'var(--light-text)';
+    shell.appendChild(card);
+    document.body.appendChild(shell);
 
-    const actionBtn = document.createElement('button');
-    actionBtn.id = 'module-unavailable-action';
-    actionBtn.className = 'btn btn-primary';
-    actionBtn.style.minWidth = '160px';
-    actionBtn.textContent = actionLabel;
-
-    section.appendChild(badge);
-    section.appendChild(heading);
-    section.appendChild(paragraph);
-    section.appendChild(actionBtn);
-    main.appendChild(section);
-    appContainer.appendChild(main);
-    document.body.appendChild(appContainer);
-
-    if (actionBtn) {
-        actionBtn.onclick = () => {
+    const backBtn = document.getElementById('mg-back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
             if (actionHref) {
                 window.location.href = actionHref;
                 return;
@@ -81,7 +218,7 @@ export function renderModuleUnavailable(moduleName = 'This module', options = {}
                 return;
             }
             window.location.href = '../index.html';
-        };
+        });
     }
 }
 

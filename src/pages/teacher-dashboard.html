@@ -245,6 +245,149 @@
         #sidebar-theme-toggle:hover {
             color: #FFFFFF !important;
         }
+
+        /* ============================================================
+           Exam Bulk Actions (teacher dashboard)
+           ============================================================ */
+        #exam-bulk-toggle.active {
+            background-color: rgba(255, 255, 255, 0.14);
+            color: #fff;
+        }
+        #exam-bulk-toggle.active .nav-icon { color: #fff; }
+
+        .exam-select-all-row {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            margin: 8px 0 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+        body.exam-bulk-mode .exam-select-all-row { display: flex; }
+
+        .exam-bulk-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* Card-level checkbox — hidden until bulk mode.
+           When rendered inside a .card-wrap (folder-tab template), it lives
+           at the far-left of the tab area (top-left of the wrap). When the
+           template doesn't use a wrap (older path), it sits at the top-left
+           of the .exam-card itself. */
+        .exam-card-checkbox {
+            display: none;
+            position: absolute;
+            top: 4px;
+            left: 6px;
+            z-index: 5;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.65);
+        }
+        body.exam-bulk-mode .exam-card-checkbox { display: block; }
+        body.exam-bulk-mode .exam-card { position: relative; cursor: pointer; }
+        /* When the card lives inside a .card-wrap (folder-tab template), the
+           wrap becomes the positioning ancestor so the checkbox aligns to the
+           top-left of the tab area, not the card body. */
+        body.exam-bulk-mode .card-wrap .exam-card { position: static; }
+        /* Nudge the tab title right so the checkbox doesn't cover the folder icon */
+        body.exam-bulk-mode .card-wrap .folder-tab {
+            padding-left: 34px;
+        }
+        body.exam-bulk-mode .exam-card.exam-card-selected {
+            outline: 2px solid var(--primary-color, #1A73E8);
+            outline-offset: -2px;
+            background: var(--primary-light, rgba(26, 115, 232, 0.06));
+        }
+        /* Suppress the card's normal interactive footer buttons in bulk mode
+           so a click on the card doesn't fire Edit/Results/Extensions. */
+        body.exam-bulk-mode .exam-card .exam-card-footer,
+        body.exam-bulk-mode .exam-card .exam-card-icons,
+        body.exam-bulk-mode .exam-card .exam-meta button {
+            pointer-events: none;
+            opacity: 0.55;
+        }
+
+        /* Floating action bar */
+        .exam-bulk-bar {
+            display: none;
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            z-index: 200;
+            width: min(92vw, 640px);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+            padding: 10px 14px;
+        }
+        body.exam-bulk-mode .exam-bulk-bar.has-selection { display: block; }
+        .exam-bulk-bar-inner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .exam-bulk-count {
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+        .exam-bulk-count strong {
+            color: var(--primary-color);
+            font-weight: 800;
+        }
+        .exam-bulk-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .exam-bulk-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .exam-bulk-btn:hover {
+            background: var(--primary-light, rgba(26,115,232,0.08));
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .exam-bulk-btn-danger {
+            color: var(--accent-color, #EA4335);
+            border-color: rgba(234, 67, 53, 0.35);
+        }
+        .exam-bulk-btn-danger:hover {
+            background: rgba(234, 67, 53, 0.1);
+            color: var(--accent-color, #EA4335);
+            border-color: var(--accent-color, #EA4335);
+        }
+
+        @media (max-width: 640px) {
+            .exam-bulk-bar { left: 12px; right: 12px; transform: none; width: auto; }
+            .exam-bulk-actions .exam-bulk-btn span { display: none; }
+            .exam-bulk-actions .exam-bulk-btn { padding: 8px 10px; }
+        }
     </style>
 </head>
 
@@ -300,6 +443,10 @@
                 <button class="sidebar-nav-item" style="background-color: rgba(46,204,113,0.15); color: rgba(255,255,255,0.9);" onclick="prepareDevice()">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
                     <span class="sidebar-nav-label">Prepare Offline</span>
+                </button>
+                <button id="exam-bulk-toggle" class="sidebar-nav-item" onclick="toggleExamBulkMode(); closeSidebarMobile();">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><polyline points="7 6 8 7 10 5" stroke-width="2.4"/></svg></span>
+                    <span class="sidebar-nav-label" id="exam-bulk-toggle-label">Bulk Actions</span>
                 </button>
             </nav>
 
@@ -414,6 +561,13 @@
                 <span style="color: var(--light-text); font-size: 0.85rem; cursor: pointer;">See all &rsaquo;</span>
             </div>
 
+            <!-- Exam Bulk Select-all row (shown when Bulk Actions mode is on) -->
+            <div id="exam-select-all-row" class="exam-select-all-row">
+                <input type="checkbox" class="exam-bulk-checkbox" id="exam-select-all" onchange="handleExamSelectAll(this)">
+                <label for="exam-select-all" style="cursor:pointer; font-weight:600; font-size:0.9rem; color:var(--text-color);">Select all active exams</label>
+                <span class="exam-select-hint" id="exam-select-hint" style="margin-left:auto; color:var(--light-text); font-size:0.82rem;">Tap cards to toggle</span>
+            </div>
+
             <!-- Exams Grid -->
             <div id="exams-grid" class="exam-grid">
                 <!-- Javascript will populate this -->
@@ -434,6 +588,27 @@
                 </div>
                 <div id="archived-grid" class="exam-grid" style="display: none;">
                     <!-- Archived exams will be populated here -->
+                </div>
+            </div>
+
+            <!-- Exam bulk actions floating bar (only shown in bulk mode with a selection) -->
+            <div id="exam-bulk-bar" class="exam-bulk-bar" role="region" aria-label="Bulk exam actions">
+                <div class="exam-bulk-bar-inner">
+                    <span class="exam-bulk-count"><strong id="exam-bulk-count">0</strong> selected</span>
+                    <div class="exam-bulk-actions">
+                        <button type="button" class="exam-bulk-btn" onclick="bulkArchiveExams()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                            <span>Archive</span>
+                        </button>
+                        <button type="button" class="exam-bulk-btn" onclick="bulkAddExamsToQuestionBank()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 20l9-5-9-5-9 5 9 5z"/><path d="M12 12l9-5-9-5-9 5 9 5z"/></svg>
+                            <span>Add to Question Bank</span>
+                        </button>
+                        <button type="button" class="exam-bulk-btn exam-bulk-btn-danger" onclick="bulkDeleteExams()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                            <span>Delete</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -865,6 +1040,9 @@
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../modules/cbt/js/cbtDataService.js"></script>
+    <!-- Question Bank extension is loaded here so "Add to Question Bank"
+         bulk action on the exam cards can call importExamQuestionsToBank. -->
+    <script src="../modules/question_bank/js/questionBankDataService.js"></script>
     <script src="../js/auth.js"></script>
     <script>
         // Global Flag Helper
@@ -1393,6 +1571,7 @@
 
                     return `
                     <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}" data-archived="${isArchived}" ${isArchived ? 'style="opacity: 0.7;"' : ''}>
+                        <input type="checkbox" class="exam-card-checkbox" data-exam-id="${exam.id}" ${isArchived ? 'data-archived="1"' : ''} onclick="event.stopPropagation();" onchange="handleExamCardCheckboxChange(this)" aria-label="Select ${exam.title}">
                         <div class="exam-card-header">
                             <span class="exam-subject">${exam.subject || 'General'}</span>
                             <div class="exam-card-icons">
@@ -1519,6 +1698,189 @@
                 grid.style.display = 'none';
                 icon.textContent = '▶';
             }
+        };
+
+        // --- Exam bulk-actions mode ---
+        window.toggleExamBulkMode = function () {
+            const active = document.body.classList.toggle('exam-bulk-mode');
+            const toggle = document.getElementById('exam-bulk-toggle');
+            const label = document.getElementById('exam-bulk-toggle-label');
+            if (toggle) toggle.classList.toggle('active', active);
+            if (label) label.textContent = active ? 'Exit bulk mode' : 'Bulk Actions';
+            if (!active) {
+                document.querySelectorAll('.exam-card-checkbox:checked').forEach(cb => { cb.checked = false; });
+                document.querySelectorAll('.exam-card.exam-card-selected').forEach(c => c.classList.remove('exam-card-selected'));
+                const selectAll = document.getElementById('exam-select-all');
+                if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+            }
+            updateExamBulkUI();
+        };
+
+        window.handleExamSelectAll = function (checkbox) {
+            // Only toggle cards in the ACTIVE grid — archived ones stay untouched
+            // unless the user picks them individually.
+            const grid = document.getElementById('exams-grid');
+            if (!grid) return;
+            grid.querySelectorAll('.exam-card-checkbox').forEach(cb => { cb.checked = !!checkbox.checked; });
+            syncExamCardSelectionClass();
+            updateExamBulkUI();
+        };
+
+        // Resolve the visual "card" element that should get the selection
+        // outline. The checkbox may be a child of .exam-card (old template)
+        // or a sibling of it inside .card-wrap (folder-tab template).
+        function findCardForCheckbox(cb) {
+            const wrap = cb.closest('.card-wrap');
+            if (wrap) return wrap.querySelector('.exam-card') || wrap;
+            return cb.closest('.exam-card');
+        }
+
+        window.handleExamCardCheckboxChange = function (checkbox) {
+            const card = findCardForCheckbox(checkbox);
+            if (card) card.classList.toggle('exam-card-selected', !!checkbox.checked);
+
+            // Keep the Select-all state in sync — but only relative to the
+            // active grid it controls.
+            const grid = document.getElementById('exams-grid');
+            const selectAll = document.getElementById('exam-select-all');
+            if (grid && selectAll) {
+                const boxes = grid.querySelectorAll('.exam-card-checkbox');
+                const checked = grid.querySelectorAll('.exam-card-checkbox:checked');
+                selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+                selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+            }
+            updateExamBulkUI();
+        };
+
+        function syncExamCardSelectionClass() {
+            document.querySelectorAll('.exam-card-checkbox').forEach(cb => {
+                const card = findCardForCheckbox(cb);
+                if (card) card.classList.toggle('exam-card-selected', !!cb.checked);
+            });
+        }
+
+        function getSelectedExamIds() {
+            return Array.from(document.querySelectorAll('.exam-card-checkbox:checked'))
+                .map(cb => cb.dataset.examId)
+                .filter(Boolean);
+        }
+
+        function updateExamBulkUI() {
+            const bar = document.getElementById('exam-bulk-bar');
+            const countEl = document.getElementById('exam-bulk-count');
+            const ids = getSelectedExamIds();
+            if (countEl) countEl.textContent = String(ids.length);
+            if (bar) bar.classList.toggle('has-selection', ids.length > 0);
+        }
+
+        // Delegated click on exam cards / folder-tabs so tapping anywhere on
+        // the card toggles selection in bulk mode (mobile-friendly). Ignores
+        // the checkbox itself (which already handles its own toggle) and
+        // anything with stopPropagation.
+        document.addEventListener('click', (event) => {
+            if (!document.body.classList.contains('exam-bulk-mode')) return;
+            if (event.target.closest('.exam-card-checkbox')) return;
+            const wrap = event.target.closest('.card-wrap');
+            const card = event.target.closest('.exam-card');
+            const container = wrap || card;
+            if (!container) return;
+            const cb = container.querySelector('.exam-card-checkbox');
+            if (!cb) return;
+            cb.checked = !cb.checked;
+            handleExamCardCheckboxChange(cb);
+        }, true);
+
+        // --- Exam bulk actions: Archive / Delete / Add to Question Bank ---
+        window.bulkArchiveExams = async function () {
+            const ids = getSelectedExamIds();
+            if (!ids.length) return;
+            // Filter out those that are already archived
+            const toArchive = ids.filter(id => {
+                const cb = document.querySelector(`.exam-card-checkbox[data-exam-id="${id}"]`);
+                return cb && cb.dataset.archived !== '1';
+            });
+            if (!toArchive.length) {
+                await Utils.showAlert('Already archived', 'The selected exams are already archived.');
+                return;
+            }
+            const ok = await Utils.showConfirm(
+                'Archive exams',
+                `Archive ${toArchive.length} exam${toArchive.length === 1 ? '' : 's'}? They will be hidden from students.`
+            );
+            if (!ok) return;
+            let ok_ = 0, failed = 0;
+            for (const id of toArchive) {
+                try { await dataService.updateExam(id, { status: 'archived' }); ok_++; }
+                catch (e) { console.error('[bulk archive] failed', id, e); failed++; }
+            }
+            if (failed > 0) await Utils.showAlert('Archive complete', `Archived ${ok_}. ${failed} failed.`);
+            location.reload();
+        };
+
+        window.bulkDeleteExams = async function () {
+            const ids = getSelectedExamIds();
+            if (!ids.length) return;
+            const ok = await Utils.showConfirm(
+                'Delete exams',
+                `Delete ${ids.length} exam${ids.length === 1 ? '' : 's'}? This can't be undone. All associated results will also be lost.`
+            );
+            if (!ok) return;
+            let ok_ = 0, failed = 0;
+            for (const id of ids) {
+                try { await dataService.deleteExam(id); ok_++; }
+                catch (e) { console.error('[bulk delete] failed', id, e); failed++; }
+            }
+            if (failed > 0) await Utils.showAlert('Delete complete', `Deleted ${ok_}. ${failed} failed.`);
+            location.reload();
+        };
+
+        window.bulkAddExamsToQuestionBank = async function () {
+            const ids = getSelectedExamIds();
+            if (!ids.length) return;
+            if (!dataService.importExamQuestionsToBank) {
+                await Utils.showAlert(
+                    'Question Bank unavailable',
+                    'The Question Bank module does not appear to be loaded on this page.'
+                );
+                return;
+            }
+            const ok = await Utils.showConfirm(
+                'Add to Question Bank',
+                `Add questions from ${ids.length} exam${ids.length === 1 ? '' : 's'} to the Question Bank? Duplicates will be skipped automatically.`
+            );
+            if (!ok) return;
+
+            let importedTotal = 0, skippedTotal = 0, failedExams = 0;
+            for (const id of ids) {
+                try {
+                    const exam = await dataService.getExamById(id);
+                    if (!exam || !Array.isArray(exam.questions) || exam.questions.length === 0) {
+                        continue;
+                    }
+                    const meta = {
+                        examId: exam.id,
+                        subject: exam.subject || '',
+                        schoolLevel: exam.schoolLevel || '',
+                        targetClass: exam.targetClass || 'All',
+                        title: exam.title || '',
+                        term: exam.term || ''
+                    };
+                    const result = await dataService.importExamQuestionsToBank(meta, exam.questions);
+                    importedTotal += result.imported || 0;
+                    skippedTotal += result.skipped || 0;
+                } catch (e) {
+                    console.error('[bulk add-to-QB] failed for exam', id, e);
+                    failedExams++;
+                }
+            }
+
+            const parts = [`Added ${importedTotal} question${importedTotal === 1 ? '' : 's'}.`];
+            if (skippedTotal) parts.push(`Skipped ${skippedTotal} (empty or duplicates).`);
+            if (failedExams) parts.push(`${failedExams} exam${failedExams === 1 ? '' : 's'} could not be read.`);
+            await Utils.showAlert('Question Bank updated', parts.join(' '));
+
+            // Exit bulk mode after a successful import
+            if (document.body.classList.contains('exam-bulk-mode')) toggleExamBulkMode();
         };
 
         // --- Secret Delete Logic ---
@@ -2384,6 +2746,7 @@
                     : '';
 
                 return `
+                    <input type="checkbox" class="exam-card-checkbox" data-exam-id="${exam.id}" ${isArchived ? 'data-archived="1"' : ''} onclick="event.stopPropagation();" onchange="handleExamCardCheckboxChange(this)" aria-label="Select ${exam.title}">
                     <div class="folder-tab">
                         <div class="folder-icon"></div>
                         <span class="tab-title">${exam.title}</span>
@@ -2393,7 +2756,7 @@
                             <span class="tab-dot" title="Flagged - Click to review" style="cursor:pointer;" onclick="event.stopPropagation(); openFlagReviewModalForExam('${exam.id}')"><span class="dot dot-red"></span>${redCount}</span>
                         </div>
                     </div>
-                    <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}">
+                    <div class="exam-card" data-exam-id="${exam.id}" data-exam-title="${exam.title}" ${isArchived ? 'data-archived="true"' : ''}>
                         <div class="card-stripe"></div>
                         <div class="exam-card-body">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">

@@ -92,6 +92,14 @@ export const defaultConfig = {
         backendKey: 'shared-main-1'
     },
 
+    // Shown on the "module isn't enabled" screen. Global fallback — a client
+    // config can override either field to show a school-specific link/email.
+    // TODO: replace upgradeUrl with the real add-modules page once it ships.
+    support: {
+        upgradeUrl: 'https://gen7-sms.example.com/features',
+        contactEmail: 'gen7thtech@gmail.com'
+    },
+
     // Footer Information
     footer: {
         text: "© 2026 corneliusajayi123@gmail.com",
