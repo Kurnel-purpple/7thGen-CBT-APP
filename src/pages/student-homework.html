@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>My Homework</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/homework/css/homework.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+                <div class="sidebar-brand">
+                    <div><span class="sidebar-brand-text">Gen7 CBT</span></div>
+                    <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+                </div>
+
+                <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+
+                <nav class="sidebar-nav">
+                    <a href="student-homework.html" class="sidebar-nav-item active">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+                        <span class="sidebar-nav-label">My Homework</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-divider"></div>
+
+                <div class="hw-sidebar-stats" aria-label="Homework stats">
+                    <div class="hw-sidebar-stats-label">At a glance</div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">Open tasks</span>
+                        <span class="hw-sidebar-stat-value" id="hw-stat-open">0</span>
+                    </div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">Due in 7 days</span>
+                        <span class="hw-sidebar-stat-value" id="hw-stat-due-soon">0</span>
+                    </div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">Submitted</span>
+                        <span class="hw-sidebar-stat-value" id="hw-stat-submitted">0</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+                <nav class="sidebar-nav" id="module-nav-items"></nav>
+            </div>
+
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">S</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Student</div>
+                        <div class="sidebar-profile-role" id="hw-student-class">Student</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button id="hw-logout-btn" class="dropdown-item" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <div class="app-main-wrapper">
+            <header class="main-header">
+                <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <div class="topbar-search">
+                    <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" class="topbar-search-input" placeholder="Search assignments..." id="hw-student-search">
+                </div>
+
+                <div class="topbar-actions"></div>
+            </header>
+
+            <main class="main-content hw-main">
+                <!-- LIST VIEW (primary) -->
+                <section class="hw-list-view" id="hw-list-view">
+                    <header class="hw-page-head">
+                        <span class="hw-page-eyebrow">Student Workspace</span>
+                        <h1 class="hw-page-title">My Homework</h1>
+                        <p class="hw-page-subtitle">Tap an assignment to open it. Tap the response icon to submit your work.</p>
+                    </header>
+
+                    <section class="hw-section">
+                        <div class="hw-section-head">
+                            <div>
+                                <span class="hw-section-eyebrow">Assignment List</span>
+                                <h2 class="hw-section-title">All assignments</h2>
+                            </div>
+                            <span class="hw-section-meta" id="hw-list-meta">0 total</span>
+                        </div>
+                        <div id="hw-student-list" class="hw-list" aria-live="polite"></div>
+                    </section>
+                </section>
+
+                <!-- DETAIL VIEW (revealed on row click) -->
+                <section class="hw-detail-view" id="hw-detail-view">
+                    <button type="button" class="hw-back-btn" id="hw-back-to-list" aria-label="Back to assignment list">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+                        <span>Back to assignments</span>
+                    </button>
+                    <div id="hw-student-detail"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Response modal (submit / edit) -->
+    <div class="hw-modal" id="hw-response-modal" role="dialog" aria-modal="true" aria-labelledby="hw-response-title" hidden>
+        <div class="hw-modal-backdrop" data-hw-close-response></div>
+        <div class="hw-modal-card" role="document">
+            <div class="hw-modal-head">
+                <div>
+                    <span class="hw-section-eyebrow" id="hw-response-eyebrow">Your Response</span>
+                    <h3 id="hw-response-title">Submit Homework</h3>
+                </div>
+                <button type="button" class="hw-modal-close" data-hw-close-response aria-label="Close">&times;</button>
+            </div>
+            <div class="hw-modal-body">
+                <div class="hw-grade-meta">
+                    <div><span class="hw-muted">Assignment</span> <strong id="hw-response-assignment"></strong></div>
+                    <div><span class="hw-muted">Due</span> <strong id="hw-response-due"></strong></div>
+                </div>
+                <form id="hw-submit-form">
+                    <div class="hw-form-group full">
+                        <label for="hw-submit-text">Your response</label>
+                        <textarea id="hw-submit-text" placeholder="Type your answer, summary, or reflection here." required></textarea>
+                    </div>
+                    <div class="hw-form-actions">
+                        <button type="submit" class="btn-primary" id="hw-submit-btn">Submit Homework</button>
+                        <button type="button" class="hw-ghost-btn" data-hw-close-response>Cancel</button>
+                    </div>
+                    <div id="hw-submit-status" class="hw-status" role="status"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.toggleSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active');
+            if (closeBtn) closeBtn.style.display = sidebar.classList.contains('mobile-open') ? 'flex' : 'none';
+        };
+        window.closeSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            if (closeBtn) closeBtn.style.display = 'none';
+        };
+        window.toggleThemeFromSidebar = function () {
+            var html = document.documentElement;
+            var current = html.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        };
+        window.toggleTabletSidebar = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            if (!sidebar) return;
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+            }
+        };
+        window.toggleSidebarProfileDropdown = function () {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+    </script>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        var ok = await bootstrapModulePage({
+            moduleId: 'homework',
+            moduleName: 'Homework',
+            title: 'Homework module is not enabled',
+            message: 'The homework feature is not available for this school configuration.',
+            currentModuleId: 'homework',
+            renderNav: true,
+            globalScripts: [
+                '../core/shared/academicEntities.js',
+                '../js/utils.js',
+                '../js/dataService.js',
+                '../js/auth.js',
+                '../modules/homework/js/homeworkDataService.js',
+                '../modules/homework/js/studentHomework.js'
+            ]
+        });
+
+        if (ok && window.studentHomework?.init) {
+            window.studentHomework.init();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,64 @@
+/* Master Admin extras — only the bits not already covered by homework.css */
+
+.ma-modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.ma-module-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    background: var(--card-bg);
+}
+
+.ma-module-row:hover {
+    border-color: rgba(26, 115, 232, 0.4);
+    background: var(--inner-bg);
+}
+
+.ma-module-row input[type="checkbox"] {
+    margin: 2px 0 0;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.ma-module-row input[type="checkbox"]:checked + .ma-module-meta .ma-module-name {
+    color: var(--primary);
+}
+
+.ma-module-row:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.ma-module-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ma-module-name {
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.ma-module-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}

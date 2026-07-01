@@ -1,33 +1,36 @@
-const CACHE_NAME = 'cbt-exam-v19';
+const CACHE_NAME = 'cbt-exam-v20';
 const ASSETS = [
 
     './',
     './index.html',
     './pages/student-dashboard.html',
     './pages/teacher-dashboard.html',
+    './pages/admin-dashboard.html',
     './pages/create-exam.html',
     './pages/take-exam.html',
+    './pages/exam-results.html',
     './pages/results.html',
     './pages/register.html',
     './css/main.css',
     './css/auth.css',
     './css/dashboard.css',
-    './css/exam.css',
-    './js/idb.js',
+    './modules/cbt/css/exam.css',
+    './modules/cbt/css/results.css',
+    './modules/cbt/js/idb.js',
     './js/utils.js',
     './js/dataService.js',
     './js/auth.js',
-    './js/studentDashboard.js',
-    './js/takeExam.js',
-    './js/teacherDashboard.js',
-    './js/examManager.js',
-    './js/timer.js',
+    './modules/cbt/js/studentDashboard.js',
+    './modules/cbt/js/takeExam.js',
+    './modules/cbt/js/examManager.js',
+    './modules/cbt/js/examResults.js',
+    './modules/cbt/js/timer.js',
     './manifest.json'
 ];
 
 // Install Event - Pre-cache static assets
 self.addEventListener('install', (e) => {
-    console.log('[Service Worker] Install v19');
+    console.log('[Service Worker] Install v20');
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('[Service Worker] Caching all: app shell and content');
@@ -50,7 +53,7 @@ self.addEventListener('install', (e) => {
 
 // Activate Event (Cleanup old caches + claim clients immediately)
 self.addEventListener('activate', (e) => {
-    console.log('[Service Worker] Activate v19');
+    console.log('[Service Worker] Activate v20');
     e.waitUntil(
         caches.keys().then((keyList) => {
             const keepCaches = [CACHE_NAME, CACHE_NAME + '-api'];
@@ -60,16 +63,12 @@ self.addEventListener('activate', (e) => {
                     return caches.delete(key);
                 }
             }));
-        })
+        }).then(() => self.clients.claim())
     );
-    // Take control of all clients immediately
-    return self.clients.claim();
 });
 
 // Fetch Event - Smart caching strategy
 self.addEventListener('fetch', (e) => {
-    const url = new URL(e.request.url);
-
     // 0. Ignore non-http/https requests (file:// etc)
     if (!e.request.url.startsWith('http')) {
         return;
@@ -101,7 +100,9 @@ self.addEventListener('fetch', (e) => {
                                 headers: headers
                             });
                             caches.open(CACHE_NAME + '-api').then(cache => {
-                                cache.put(e.request, timedResponse);
+                                cache.put(e.request, timedResponse).catch(() => {
+                                    // Silently ignore cache write failures (e.g. cross-origin responses)
+                                });
                             });
                         }
                         return response;

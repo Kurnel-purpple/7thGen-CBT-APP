@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Data Service Module (PocketBase Version)
  * Handles persistence using PocketBase Client.
  */
@@ -24,7 +24,8 @@ const _perf = {
 class DataService {
     constructor() {
         // Initialize PocketBase client
-        this.pb = new PocketBase('https://gen7-cbt-app.fly.dev'); // Production PocketBase on Fly.io
+        const backendBaseUrl = window.__backendConfig?.baseUrl || 'https://gen7-cbt-app.fly.dev';
+        this.pb = new PocketBase(backendBaseUrl); // Production PocketBase on Fly.io
         this.pb.autoCancellation(false);
 
         // Restore auth state from localStorage
@@ -34,7 +35,7 @@ class DataService {
                 const authData = JSON.parse(savedAuth);
                 if (authData.token) {
                     this.pb.authStore.save(authData.token, authData.model);
-                    console.log('✅ Auth restored for:', authData.model?.email);
+                    console.log('? Auth restored for:', authData.model?.email);
                 }
             } catch (e) {
                 console.warn('Failed to restore auth state:', e);
@@ -532,6 +533,69 @@ class DataService {
         return cached ? JSON.parse(cached) : null;
     }
 
+    getSchoolContext() {
+        const user = this.getCurrentUser();
+        const runtime = window.__clientRuntime || null;
+        const schoolVersion = user?.schoolVersion || runtime?.school?.schoolVersion || null;
+
+        return {
+            clientId: runtime?.clientId || null,
+            schoolVersion,
+            userId: user?.id || user?.user || null,
+            role: user?.role || null
+        };
+    }
+
+    getAcademicCatalog(options = {}) {
+        const catalog = window.academicEntities?.getCatalog(options) || {
+            levelLabels: {},
+            classesByLevel: {},
+            subjectsByLevel: {}
+        };
+
+        return {
+            ...catalog,
+            school: this.getSchoolContext()
+        };
+    }
+
+    async getAcademicEntities(options = {}) {
+        const {
+            includeStudents = false,
+            includeTeachers = false,
+            includeAllClasses = false,
+            schoolVersion
+        } = options;
+
+        const school = this.getSchoolContext();
+        const scopedSchoolVersion = schoolVersion || school.schoolVersion || undefined;
+        const catalog = this.getAcademicCatalog({ includeAll: includeAllClasses });
+        const result = {
+            school,
+            levelLabels: catalog.levelLabels,
+            classesByLevel: catalog.classesByLevel,
+            subjectsByLevel: catalog.subjectsByLevel,
+            students: [],
+            teachers: []
+        };
+
+        if (includeStudents) {
+            result.students = await this.getUsers({
+                role: 'student',
+                schoolVersion: scopedSchoolVersion
+            });
+        }
+
+        if (includeTeachers) {
+            result.teachers = await this.getUsers({
+                role: 'teacher',
+                schoolVersion: scopedSchoolVersion
+            });
+        }
+
+        return result;
+    }
+
     async logout() {
         try {
             this.pb.authStore.clear();
@@ -628,7 +692,7 @@ class DataService {
                 }
             } catch (checkErr) {
                 // 404 = no conflict found, that's good - proceed
-                if (checkErr.status !== 404 && checkErr.message.includes('already taken')) {
+                if (checkErr.status !== 404) {
                     throw checkErr;
                 }
             }
@@ -806,14 +870,21 @@ class DataService {
         }
 
         try {
-            let filterString = '';
+            const clauses = [];
+            const params = {};
+
             if (cacheFilters.role) {
-                filterString = `role="${cacheFilters.role}"`;
+                clauses.push('role = {:role}');
+                params.role = cacheFilters.role;
             }
             if (cacheFilters.schoolVersion) {
-                if (filterString) filterString += ' && ';
-                filterString += `school_version="${cacheFilters.schoolVersion}"`;
+                clauses.push('school_version = {:schoolVersion}');
+                params.schoolVersion = cacheFilters.schoolVersion;
             }
+
+            const filterString = clauses.length > 0
+                ? this.pb.filter(clauses.join(' && '), params)
+                : '';
 
             const users = await this.pb.collection('profiles').getFullList({
                 filter: filterString,
@@ -912,10 +983,10 @@ class DataService {
                 if (cached && cached.data && cached.data.length > 0) {
                     const age = Date.now() - (cached.cachedAt || 0);
                     if (age < CACHE_MAX_AGE && this._examDataComplete(cached.data)) {
-                        console.log(`📦 Serving exams from IDB cache (${Math.round(age / 1000)}s old)`);
+                        console.log(`?? Serving exams from IDB cache (${Math.round(age / 1000)}s old)`);
                         return cached.data;
                     }
-                    console.log(`🔄 Cache expired (${Math.round(age / 1000)}s old), fetching fresh data...`);
+                    console.log(`?? Cache expired (${Math.round(age / 1000)}s old), fetching fresh data...`);
                 }
             } catch (e) {
                 console.warn('IDB Cache read error:', e);
@@ -999,7 +1070,7 @@ class DataService {
                 if (cached && cached.data && cached.data.length > 0) {
                     const age = Date.now() - (cached.cachedAt || 0);
                     if (age < CACHE_MAX_AGE) {
-                        console.log(`📦 Serving exam summaries from cache (${Math.round(age / 1000)}s old)`);
+                        console.log(`?? Serving exam summaries from cache (${Math.round(age / 1000)}s old)`);
                         _perf.end(_p, { source: 'cache', count: cached.data.length });
                         return cached.data;
                     }
@@ -1076,22 +1147,22 @@ class DataService {
                 if (cachedExam) {
                     // Reject summaries that leaked into the exams store (questions is null/missing)
                     if (!Array.isArray(cachedExam.questions) || cachedExam.questions.length === 0) {
-                        console.warn(`⚠️ Exam ${id} in IDB has no questions (likely a summary), skipping cache`);
+                        console.warn(`?? Exam ${id} in IDB has no questions (likely a summary), skipping cache`);
                         // Clean up the polluted entry
                         try { await window.idb.deleteExam(id); } catch (_) { /* best effort cleanup */ }
                     } else if (summaryUpdatedAt && cachedExam.updatedAt === summaryUpdatedAt) {
                         // If we have a summary timestamp, check freshness
-                        console.log(`📦 Serving exam ${id} from IDB (fresh)`);
+                        console.log(`?? Serving exam ${id} from IDB (fresh)`);
                         _perf.end(_p, { source: 'cache-fresh' });
                         return cachedExam;
                     } else if (!summaryUpdatedAt) {
                         // No summary to compare — serve cached as before
-                        console.log(`📦 Serving exam ${id} from IDB`);
+                        console.log(`?? Serving exam ${id} from IDB`);
                         _perf.end(_p, { source: 'cache' });
                         return cachedExam;
                     } else {
                         // Summary is newer — fall through to network fetch
-                        console.log(`🔄 Exam ${id} stale in IDB, fetching fresh...`);
+                        console.log(`?? Exam ${id} stale in IDB, fetching fresh...`);
                     }
                 }
             } catch (e) { console.warn(e); }
@@ -1421,7 +1492,7 @@ class DataService {
                 }
 
                 await window.idb.saveDashboardCache(key, list);
-                console.log(`🔄 Smart-updated cache for ${key}`);
+                console.log(`?? Smart-updated cache for ${key}`);
             }
         } catch (e) {
             console.warn('Cache manual update failed', e);
@@ -1951,7 +2022,7 @@ class DataService {
                 if (cached && cached.data && cached.data.length > 0) {
                     const age = Date.now() - (cached.cachedAt || 0);
                     if (age < CACHE_MAX_AGE) {
-                        console.log(`📦 Serving result summaries from cache (${Math.round(age / 1000)}s old)`);
+                        console.log(`?? Serving result summaries from cache (${Math.round(age / 1000)}s old)`);
                         _perf.end(_p, { source: 'cache', count: cached.data.length });
                         return cached.data;
                     }
@@ -2177,9 +2248,8 @@ class DataService {
             const updated = await this.pb.collection('results').update(resultId, data);
             return this._mapResult(updated);
         } catch (error) {
-            // If no data returned (auth issue), return success indicator
             if (error.status === 403) {
-                return { id: resultId, ...updates };
+                console.error('[DataService] 403 Forbidden updating result', resultId, '— user lacks permission');
             }
             throw error;
         }
@@ -2384,7 +2454,7 @@ class DataService {
                     };
                     await this.pb.collection('results').update(r.id, {
                         flags: updatedFlags,
-                        submitted_at: ''
+                        submitted_at: null
                     });
                     reopened++;
                     console.log(`[Extension] Reopened result ${r.id} for student ${r.student_id}`);
@@ -2508,7 +2578,7 @@ class DataService {
 
         if (pending.length === 0) return { synced: 0, pending: 0 };
 
-        console.log(`📤 Syncing ${pending.length} pending submissions...`);
+        console.log(`?? Syncing ${pending.length} pending submissions...`);
         const failed = [];
         let syncedCount = 0;
 
@@ -2564,7 +2634,7 @@ class DataService {
         // Update storage with failed submissions only
         localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
 
-        console.log(`✅ Sync complete: ${syncedCount} sent, ${failed.length} pending`);
+        console.log(`? Sync complete: ${syncedCount} sent, ${failed.length} pending`);
         return { synced: syncedCount, pending: failed.length };
     }
 
@@ -2597,10 +2667,6 @@ class DataService {
             if (filters.fromId) {
                 if (filterString) filterString += ' && ';
                 filterString += `from_id="${filters.fromId}"`;
-            }
-            if (filters.toId) {
-                if (filterString) filterString += ' && ';
-                filterString += `to_id="${filters.toId}"`;
             }
             if (filters.schoolVersion) {
                 if (filterString) filterString += ' && ';
@@ -2670,37 +2736,40 @@ class DataService {
      * Generates a 6-digit code and sends it to the school admin
      */
     async requestPasswordReset(username) {
-        console.log('🔄 PASSWORD RESET: Starting for', username);
+        console.log('?? PASSWORD RESET: Starting for', username);
         try {
             const adminPb = new PocketBase(this.pb.baseUrl);
-            const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
-            const ADMIN_PASS = "Finest1709";
+            const adminEmail = window.__backendConfig?.adminEmail;
+            const adminPass = window.__backendConfig?.adminPass;
+            if (!adminEmail || !adminPass) {
+                throw new Error('Admin credentials are not configured. Contact your system administrator.');
+            }
 
-            console.log('🔄 PASSWORD RESET: Authenticating admin...');
-            await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
+            console.log('?? PASSWORD RESET: Authenticating admin...');
+            await adminPb.admins.authWithPassword(adminEmail, adminPass);
 
             // 1. Find the user record
-            console.log('🔄 PASSWORD RESET: Searching for user record...');
+            console.log('?? PASSWORD RESET: Searching for user record...');
             let userRecord;
             try {
                 userRecord = await adminPb.collection('users').getFirstListItem(
                     `username="${username}" || email="${username}@${this.PROXY_DOMAIN}" || full_name="${username}"`
                 );
-                console.log('✅ PASSWORD RESET: Found user', userRecord.id, userRecord.username);
+                console.log('? PASSWORD RESET: Found user', userRecord.id, userRecord.username);
             } catch (e) {
-                console.error('❌ PASSWORD RESET: User search failed', e.message);
+                console.error('? PASSWORD RESET: User search failed', e.message);
                 adminPb.authStore.clear();
                 throw new Error('User not found. Please check your Student ID / Username.');
             }
 
             // 2. Get the profile
-            console.log('🔄 PASSWORD RESET: Fetching profile for user', userRecord.id);
+            console.log('?? PASSWORD RESET: Fetching profile for user', userRecord.id);
             let profile;
             try {
                 profile = await adminPb.collection('profiles').getFirstListItem(`user="${userRecord.id}"`);
-                console.log('✅ PASSWORD RESET: Found profile', profile.id, 'School:', profile.school_version);
+                console.log('? PASSWORD RESET: Found profile', profile.id, 'School:', profile.school_version);
             } catch (e) {
-                console.error('❌ PASSWORD RESET: Profile search failed', e.message);
+                console.error('? PASSWORD RESET: Profile search failed', e.message);
                 // We proceed anyway but school version might be missing
                 profile = { school_version: '' };
             }
@@ -2709,7 +2778,7 @@ class DataService {
             const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
             // 4. Find the admin(s)
-            console.log('🔄 PASSWORD RESET: Locating administrators...');
+            console.log('?? PASSWORD RESET: Locating administrators...');
             let admins = [];
             try {
                 const schoolVersion = (profile.school_version || '').trim();
@@ -2720,16 +2789,16 @@ class DataService {
                 }
 
                 if (admins.length === 0) {
-                    console.log('⚠️ PASSWORD RESET: No direct school admin found, falling back to global...');
+                    console.log('?? PASSWORD RESET: No direct school admin found, falling back to global...');
                     const globalAdmins = await adminPb.collection('profiles').getFullList({
                         filter: 'role="admin"',
                         perPage: 3
                     });
                     admins = globalAdmins;
                 }
-                console.log(`✅ PASSWORD RESET: Found ${admins.length} target admin(s)`);
+                console.log(`? PASSWORD RESET: Found ${admins.length} target admin(s)`);
             } catch (e) {
-                console.warn('⚠️ PASSWORD RESET: Admin search error', e.message);
+                console.warn('?? PASSWORD RESET: Admin search error', e.message);
             }
 
             if (admins.length === 0) {
@@ -2737,19 +2806,19 @@ class DataService {
             }
 
             // 5. Send message(s)
-            console.log('🔄 PASSWORD RESET: Creating notification messages...');
+            console.log('?? PASSWORD RESET: Creating notification messages...');
             for (const admin of admins) {
                 try {
                     await adminPb.collection('messages').create({
                         from_id: userRecord.id,
                         to_id: admin.user || admin.id,
-                        message: `🗝️ PASSWORD RESET REQUEST\nUser: ${username}\nReset Code: ${resetCode}\nSchool: ${profile.school_version || 'Unknown'}`,
+                        message: `??? PASSWORD RESET REQUEST\nUser: ${username}\nReset Code: ${resetCode}\nSchool: ${profile.school_version || 'Unknown'}`,
                         school_version: profile.school_version || '',
                         read: false
                     });
-                    console.log('✅ PASSWORD RESET: Message sent to admin', admin.id);
+                    console.log('? PASSWORD RESET: Message sent to admin', admin.id);
                 } catch (msgErr) {
-                    console.error('❌ PASSWORD RESET: Failed to send message to admin', admin.id, msgErr.message);
+                    console.error('? PASSWORD RESET: Failed to send message to admin', admin.id, msgErr.message);
                 }
             }
 
@@ -2764,7 +2833,7 @@ class DataService {
             adminPb.authStore.clear();
             return { success: true };
         } catch (error) {
-            console.error('❌ PASSWORD RESET: Final error', error);
+            console.error('? PASSWORD RESET: Final error', error);
             throw error;
         }
     }
@@ -2782,11 +2851,14 @@ class DataService {
             if (resetInfo.code !== enteredCode) throw new Error('Invalid reset code.');
 
             // Perform update using system admin
-            const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
-            const ADMIN_PASS = "Finest1709";
+            const adminEmail = window.__backendConfig?.adminEmail;
+            const adminPass = window.__backendConfig?.adminPass;
+            if (!adminEmail || !adminPass) {
+                throw new Error('Admin credentials are not configured. Contact your system administrator.');
+            }
 
             const adminPb = new PocketBase(this.pb.baseUrl);
-            await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
+            await adminPb.admins.authWithPassword(adminEmail, adminPass);
 
             // Find the user record ID safely
             const user = await adminPb.collection('users').getFirstListItem(
@@ -2815,17 +2887,20 @@ class DataService {
      * Returns the username without maintaining the login session.
      */
     async recoverUsername(fullName, password) {
-        console.log('🔄 USERNAME RECOVERY: Starting for', fullName);
+        console.log('?? USERNAME RECOVERY: Starting for', fullName);
         try {
             const adminPb = new PocketBase(this.pb.baseUrl);
-            const ADMIN_EMAIL = "corneliusajayi123@gmail.com";
-            const ADMIN_PASS = "Finest1709";
+            const adminEmail = window.__backendConfig?.adminEmail;
+            const adminPass = window.__backendConfig?.adminPass;
+            if (!adminEmail || !adminPass) {
+                throw new Error('Admin credentials are not configured. Contact your system administrator.');
+            }
 
-            console.log('🔄 USERNAME RECOVERY: Authenticating admin...');
-            await adminPb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
+            console.log('?? USERNAME RECOVERY: Authenticating admin...');
+            await adminPb.admins.authWithPassword(adminEmail, adminPass);
 
             // 1. Search for users by full_name (case-insensitive search)
-            console.log('🔄 USERNAME RECOVERY: Searching for user by name...');
+            console.log('?? USERNAME RECOVERY: Searching for user by name...');
             let userRecord;
             try {
                 // Try exact match first
@@ -2852,7 +2927,7 @@ class DataService {
                 throw new Error('No account found with that name. Please check your full name and try again.');
             }
 
-            console.log('✅ USERNAME RECOVERY: Found user', userRecord.id, userRecord.username);
+            console.log('? USERNAME RECOVERY: Found user', userRecord.id, userRecord.username);
 
             // 2. Verify password by attempting authentication
             const verifyPb = new PocketBase(this.pb.baseUrl);
@@ -2876,11 +2951,11 @@ class DataService {
             const recoveredUsername = userRecord.username || userRecord.email.split('@')[0];
 
             adminPb.authStore.clear();
-            console.log('✅ USERNAME RECOVERY: Success! Username:', recoveredUsername);
+            console.log('? USERNAME RECOVERY: Success! Username:', recoveredUsername);
             return { username: recoveredUsername };
 
         } catch (error) {
-            console.error('❌ USERNAME RECOVERY: Error', error);
+            console.error('? USERNAME RECOVERY: Error', error);
             throw error;
         }
     }
@@ -2924,9 +2999,10 @@ window.dataService = new DataService();
  */
 DataService.prototype._updateLocalCache = async function (type, action, item) {
     try {
-        const db = await this.getDB();
-        const tx = db.transaction('store', 'readwrite');
-        const store = tx.objectStore('store');
+        if (!window.idb || !window.idb.openDB) return;
+        const db = await window.idb.openDB();
+        const tx = db.transaction('dashboardCache', 'readwrite');
+        const store = tx.objectStore('dashboardCache');
 
         // Find all cached items that might need updating
         const request = store.openCursor();
@@ -2936,8 +3012,8 @@ DataService.prototype._updateLocalCache = async function (type, action, item) {
             if (cursor) {
                 const { cacheKey, data: rawData } = cursor.value;
 
-                // Only handle list-type caches for now
-                if (cacheKey.includes('?')) {
+                // Only handle list-type caches
+                if (cacheKey.startsWith('exams_') || cacheKey.startsWith('examSummaries_') || cacheKey.startsWith('results_') || cacheKey.startsWith('resultSummaries_')) {
                     const isWrapped = rawData && rawData.data;
                     let data = isWrapped ? rawData.data : rawData;
 
@@ -2988,7 +3064,7 @@ DataService.prototype._updateLocalCache = async function (type, action, item) {
                             data: finalData,
                             cachedAt: Date.now()
                         });
-                        console.log(`✅ Cache updated for ${cacheKey}`);
+                        console.log(`? Cache updated for ${cacheKey}`);
                     }
                 }
 
@@ -2999,3 +3075,4 @@ DataService.prototype._updateLocalCache = async function (type, action, item) {
         console.warn('Failed to update local cache:', err);
     }
 };
+

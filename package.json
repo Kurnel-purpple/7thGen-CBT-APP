@@ -41,7 +41,6 @@
     "@capacitor/android": "^8.1.0",
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
-    "@capacitor/ios": "^8.1.0",
     "dotenv": "^17.2.3",
     "electron-updater": "^6.3.9"
   },

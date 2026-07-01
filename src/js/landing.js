@@ -111,6 +111,25 @@
         // Mobile nav buttons
         wireButton('landing-mobile-login', showLoginView);
 
+        // Hidden operator entry: triple-click the brand to reach the
+        // master-admin sign-in page. Silent (no visual hint) on purpose.
+        var brand = document.querySelector('.landing-brand');
+        if (brand) {
+            var clickCount = 0;
+            var clickTimer = null;
+            brand.addEventListener('click', function (event) {
+                event.preventDefault();
+                clickCount++;
+                if (clickTimer) clearTimeout(clickTimer);
+                if (clickCount >= 3) {
+                    clickCount = 0;
+                    window.location.href = 'pages/master-login.html';
+                    return;
+                }
+                clickTimer = setTimeout(function () { clickCount = 0; }, 600);
+            });
+        }
+
         // Scroll reveal animations
         initScrollReveal();
 

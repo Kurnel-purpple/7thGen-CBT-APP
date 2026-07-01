@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>Report Cards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/report_cards/css/report-cards.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+                <div class="sidebar-brand">
+                    <div>
+                        <span class="sidebar-brand-text">Gen7 CBT</span>
+                    </div>
+                    <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+                </div>
+
+                <!-- Dark Mode Toggle -->
+                <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
+                    <span id="sidebar-theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span>
+                </button>
+
+                <nav class="sidebar-nav">
+                    <a href="#" class="sidebar-nav-item active" data-rc-nav="generate">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
+                        <span class="sidebar-nav-label">Generate</span>
+                    </a>
+                    <a href="#" class="sidebar-nav-item" data-rc-nav="review">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                        <span class="sidebar-nav-label">Review & Publish</span>
+                    </a>
+                    <a href="#" class="sidebar-nav-item" data-rc-nav="view">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+                        <span class="sidebar-nav-label">Published</span>
+                    </a>
+                    <a href="#" class="sidebar-nav-item" data-rc-nav="access-codes" id="rc-nav-access-codes" style="display:none;">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+                        <span class="sidebar-nav-label">Access Codes</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-divider"></div>
+
+                <!-- Cross-module navigation -->
+                <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+                <nav class="sidebar-nav" id="module-nav-items"></nav>
+            </div>
+
+            <!-- Sidebar Profile -->
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">T</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Teacher</div>
+                        <div class="sidebar-profile-role">Teacher</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button id="rc-logout-btn" class="dropdown-item" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile sidebar overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <!-- ========== MAIN ========== -->
+        <div class="app-main-wrapper">
+            <!-- Topbar -->
+            <header class="app-topbar">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <div>
+                        <div class="topbar-page-title">Report Cards</div>
+                        <div id="topbar-subtitle" style="font-size:0.75rem; color:var(--light-text);">Generate Report Cards</div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content" style="padding: 0 32px 32px;">
+
+                <!-- ===== VIEW: Generate ===== -->
+                <div class="rc-view active" id="rc-view-generate">
+                    <section class="rc-hero">
+                        <h2>Generate Report Cards</h2>
+                        <p>Select a class and term to generate report cards from exam results and attendance data. You can review and add remarks before publishing.</p>
+                    </section>
+
+                    <section class="rc-panel">
+                        <form id="rc-generate-form">
+                            <div class="rc-form-grid">
+                                <div class="rc-form-group">
+                                    <label for="rc-class">Class</label>
+                                    <select id="rc-class" required>
+                                        <option value="">Select Class</option>
+                                    </select>
+                                </div>
+                                <div class="rc-form-group">
+                                    <label for="rc-term">Term</label>
+                                    <select id="rc-term" required>
+                                        <option value="">Select Term</option>
+                                        <option value="1st Term">1st Term</option>
+                                        <option value="2nd Term">2nd Term</option>
+                                        <option value="3rd Term">3rd Term</option>
+                                    </select>
+                                </div>
+                                <div class="rc-form-group">
+                                    <label for="rc-session">Session (optional)</label>
+                                    <input id="rc-session" type="text" placeholder="e.g. 2025/2026" />
+                                </div>
+                            </div>
+
+                            <div class="rc-form-grid" style="margin-top:16px;">
+                                <div class="rc-form-group">
+                                    <label for="rc-date-start">Attendance From</label>
+                                    <input id="rc-date-start" type="date" />
+                                </div>
+                                <div class="rc-form-group">
+                                    <label for="rc-date-end">Attendance To</label>
+                                    <input id="rc-date-end" type="date" />
+                                </div>
+                            </div>
+
+                            <div style="margin-top:20px;">
+                                <button id="rc-generate-btn" type="submit" class="btn btn-primary" style="font-size:0.9rem; font-weight:700;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="vertical-align:-2px; margin-right:4px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    Generate Report Cards
+                                </button>
+                            </div>
+                            <div id="rc-gen-status" class="rc-gen-status"></div>
+                        </form>
+                    </section>
+                </div>
+
+                <!-- ===== VIEW: Review & Publish ===== -->
+                <div class="rc-view" id="rc-view-review">
+                    <section class="rc-hero">
+                        <h2>Review & Publish</h2>
+                        <p>Review generated report cards, add teacher/principal remarks, then publish them for students to view.</p>
+                    </section>
+
+                    <section class="rc-panel">
+                        <div class="rc-filter-bar">
+                            <div class="rc-form-group">
+                                <label for="rc-review-class-filter">Class</label>
+                                <select id="rc-review-class-filter">
+                                    <option value="">All Classes</option>
+                                </select>
+                            </div>
+                            <div class="rc-form-group">
+                                <label for="rc-review-term-filter">Term</label>
+                                <select id="rc-review-term-filter">
+                                    <option value="">All Terms</option>
+                                    <option value="1st Term">1st Term</option>
+                                    <option value="2nd Term">2nd Term</option>
+                                    <option value="3rd Term">3rd Term</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="rc-bulk-actions">
+                            <button id="rc-publish-selected-btn" class="btn btn-primary" style="display:none; font-size:0.85rem; font-weight:700;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="vertical-align:-2px; margin-right:4px;"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                                Publish Selected (<span class="rc-sel-count">0</span>)
+                            </button>
+                            <button id="rc-delete-selected-btn" class="ghost-cta ghost-cta-danger" style="display:none;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                Delete Selected (<span class="rc-sel-count">0</span>)
+                            </button>
+                        </div>
+
+                        <div id="rc-review-list"></div>
+                    </section>
+                </div>
+
+                <!-- ===== VIEW: Published ===== -->
+                <div class="rc-view" id="rc-view-view">
+                    <section class="rc-hero">
+                        <h2>Published Report Cards</h2>
+                        <p>View all published report cards. Students can also see these from their dashboard.</p>
+                    </section>
+
+                    <section class="rc-panel">
+                        <div id="rc-published-list"></div>
+                    </section>
+                </div>
+
+                <!-- ===== VIEW: Access Codes (Admin only) ===== -->
+                <div class="rc-view" id="rc-view-access-codes">
+                    <section class="rc-hero">
+                        <h2>Class Access Codes</h2>
+                        <p>Generate 6-digit access codes for each class. Teachers need these codes to access the Report Cards page for their assigned class.</p>
+                    </section>
+
+                    <section class="rc-panel">
+                        <div id="rc-access-codes-list"></div>
+                    </section>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ========== ACCESS GATE MODAL (Teachers) ========== -->
+    <div class="rc-access-overlay" id="rc-access-modal">
+        <div class="rc-access-card">
+            <button id="rc-access-close-btn" class="rc-access-close" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div class="rc-access-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary, #1A73E8)" stroke-width="1.5" width="48" height="48">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0110 0v4"/>
+                </svg>
+            </div>
+            <h2 class="rc-access-title">Report Card Access</h2>
+            <p class="rc-access-desc">Enter the 6-digit access code provided by your school admin to continue.</p>
+            <div class="rc-access-input-row">
+                <input type="text" id="rc-access-code-input" class="rc-access-input" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="000000" autocomplete="off">
+            </div>
+            <button id="rc-access-submit-btn" class="btn btn-primary rc-access-btn">Enter</button>
+            <p id="rc-access-error" class="rc-access-error" style="display:none;"></p>
+        </div>
+    </div>
+
+    <!-- ========== DETAIL MODAL ========== -->
+    <div class="rc-detail-overlay" id="rc-detail-modal">
+        <div class="rc-detail-card">
+            <div class="rc-detail-header">
+                <div>
+                    <div class="rc-detail-name">Student Name</div>
+                    <div class="rc-detail-meta">Class | Term | Position</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="rc-badge rc-badge-draft rc-detail-status">Draft</span>
+                    <button id="rc-detail-close" class="rc-detail-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="rc-detail-body">
+                <h4 style="margin:0 0 10px; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--light-text); font-weight:700;">Subjects</h4>
+                <table class="rc-detail-subjects">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th style="text-align:center;">Score</th>
+                            <th style="text-align:center;">%</th>
+                            <th style="text-align:center;">Grade</th>
+                            <th>Remark</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="rc-detail-average">Average: —</div>
+
+                <h4 style="margin:0 0 10px; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--light-text); font-weight:700;">Attendance</h4>
+                <div class="rc-detail-attendance"></div>
+
+                <div class="rc-remarks-section">
+                    <h4>Teacher's Remarks</h4>
+                    <textarea id="rc-teacher-remarks" placeholder="Write teacher's remarks for this student..."></textarea>
+                </div>
+                <div class="rc-remarks-section" style="margin-top:12px;">
+                    <h4>Principal's Remarks</h4>
+                    <textarea id="rc-principal-remarks" placeholder="Write principal's remarks..."></textarea>
+                </div>
+            </div>
+            <div class="rc-detail-footer">
+                <button id="rc-save-remarks-btn" class="btn btn-primary" style="font-size:0.88rem; font-weight:700;">Save Remarks</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar helper scripts -->
+    <script>
+        window.toggleSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active');
+            if (closeBtn) closeBtn.style.display = sidebar.classList.contains('mobile-open') ? 'flex' : 'none';
+        };
+        window.closeSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            if (closeBtn) closeBtn.style.display = 'none';
+        };
+        window.toggleThemeFromSidebar = function() {
+            var html = document.documentElement;
+            var current = html.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            var icon = document.getElementById('sidebar-theme-icon');
+            if (icon) {
+                icon.innerHTML = next === 'dark'
+                    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+            }
+        };
+        window.toggleTabletSidebar = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            var icon = document.getElementById('sidebar-expand-icon');
+            if (!sidebar) return;
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6');
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            }
+        };
+        window.toggleSidebarProfileDropdown = function() {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+        // Restore sidebar state
+        (function() {
+            if (localStorage.getItem('sidebar-collapsed') === '1' && window.innerWidth > 1024) {
+                var s = document.getElementById('app-sidebar');
+                var w = document.querySelector('.app-main-wrapper');
+                if (s) s.classList.add('sidebar-collapsed');
+                if (w) w.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        try {
+            var ok = await bootstrapModulePage({
+                moduleId: 'report_cards',
+                moduleName: 'Report Cards',
+                title: 'Report Cards module is not enabled',
+                message: 'The report cards feature is not available for this school configuration.',
+                currentModuleId: 'report_cards',
+                renderNav: true,
+                globalScripts: [
+                    '../core/shared/academicEntities.js',
+                    '../js/utils.js',
+                    '../js/dataService.js',
+                    '../js/auth.js'
+                ],
+                moduleScripts: [
+                    '../modules/attendance/js/attendanceDataService.js',
+                    '../modules/report_cards/js/reportCardDataService.js',
+                    '../modules/report_cards/js/reportCardDashboard.js'
+                ]
+            });
+
+            if (ok && window.reportCardDashboard?.init) {
+                window.reportCardDashboard.init();
+            }
+
+            // Bind logout after auth is loaded
+            var logoutBtn = document.getElementById('rc-logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function() {
+                    if (typeof auth !== 'undefined' && auth.logout) {
+                        auth.logout();
+                    } else {
+                        window.location.href = '../index.html';
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('[ReportCards] Failed to bootstrap module page:', err);
+        }
+    </script>
+</body>
+
+</html>

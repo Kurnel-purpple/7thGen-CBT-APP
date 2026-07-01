@@ -238,9 +238,33 @@ body:has(.app-container.no-sidebar) {
     left: 0;
     top: 0;
     z-index: 100;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+/* Scrollable area — everything above the fixed profile footer */
+.sidebar-scrollable {
+    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    transition: transform 0.3s ease;
+    min-height: 0;
+}
+
+.sidebar-scrollable::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scrollable::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+}
+
+.sidebar-scrollable::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.3);
 }
 
 .sidebar-brand {
@@ -314,7 +338,6 @@ body:has(.app-container.no-sidebar) {
 
 /* Sidebar Navigation */
 .sidebar-nav {
-    flex: 1;
     padding: 8px 12px;
     display: flex;
     flex-direction: column;
@@ -396,11 +419,11 @@ body:has(.app-container.no-sidebar) {
     font-family: var(--font-heading);
 }
 
-/* Sidebar Profile */
+/* Sidebar Profile — pinned at bottom of sidebar */
 .sidebar-profile {
     padding: 16px;
     border-top: 1px solid rgba(255,255,255,0.1);
-    margin-top: auto;
+    flex-shrink: 0;
 }
 
 .sidebar-profile-info {
@@ -837,7 +860,6 @@ body:has(.app-container.no-sidebar) {
 #flag-review-body,
 #edit-q-text,
 .q-text {
-    word-wrap: break-word;
     overflow-wrap: break-word;
     white-space: pre-wrap;
     max-width: 100%;
@@ -859,7 +881,7 @@ body:has(.app-container.no-sidebar) {
 }
 
 .flag-item div[style*="font-style: italic"] {
-    word-break: break-word;
+    overflow-wrap: break-word;
     line-height: 1.6;
 }
 
@@ -931,7 +953,9 @@ body:has(.app-container.no-sidebar) {
 /* ============================================================
    HAMBURGER & MOBILE MENU (legacy — used on some pages)
    ============================================================ */
-.hamburger-btn {
+.hamburger-btn,
+.mobile-menu-btn,
+.topbar-hamburger {
     display: none;
     background: none;
     border: none;
@@ -1877,7 +1901,9 @@ body:has(.app-container.no-sidebar) {
         padding: 0 16px;
     }
 
-    .hamburger-btn {
+    .hamburger-btn,
+    .mobile-menu-btn,
+    .topbar-hamburger {
         display: flex;
         align-items: center;
         justify-content: center;

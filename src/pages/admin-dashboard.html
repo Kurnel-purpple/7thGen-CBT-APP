@@ -162,6 +162,14 @@
             background: var(--inner-bg);
             color: var(--light-text);
         }
+        .status-locked {
+            background: rgba(234, 67, 53, 0.12);
+            color: #c62828;
+        }
+        [data-theme="dark"] .status-locked {
+            background: rgba(234, 67, 53, 0.15);
+            color: #ef5350;
+        }
 
         /* Collapsible Groups */
         .collapsible-group {
@@ -849,6 +857,8 @@
             background: var(--border-color);
             margin: 6px 0;
         }
+        /* Hide module-tagged elements until JS reveals enabled ones (prevents flash) */
+        [data-module]:not(.module-revealed) { display: none !important; }
     </style>
 </head>
 
@@ -856,17 +866,18 @@
     <div class="app-container">
         <!-- ========== SIDEBAR ========== -->
         <aside class="app-sidebar" id="app-sidebar">
+            <!-- Tablet expand/collapse toggle (outside scrollable to avoid overflow clipping) -->
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Expand sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
             <div class="sidebar-brand">
                 <div>
                     <span class="sidebar-brand-text">Gen7 CBT</span>
                 </div>
                 <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
             </div>
-
-            <!-- Tablet expand/collapse toggle -->
-            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Expand sidebar">
-                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
 
             <!-- Dark Mode Toggle -->
             <button id="sidebar-theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
@@ -878,20 +889,24 @@
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
                     <span class="sidebar-nav-label">Dashboard</span>
                 </a>
-                <button class="sidebar-nav-item" onclick="showAdminSection('exams'); closeSidebarMobile();">
+                <button class="sidebar-nav-item" data-module="cbt" onclick="showAdminSection('exams'); closeSidebarMobile();">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
                     <span class="sidebar-nav-label">Exams</span>
                     <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="sidebar-exam-count">0</span>
                 </button>
-                <button class="sidebar-nav-item" onclick="scrollToSection('messaging-section'); closeSidebarMobile();">
+                <button class="sidebar-nav-item" data-module="cbt" onclick="scrollToSection('messaging-section'); closeSidebarMobile();">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
                     <span class="sidebar-nav-label">Messages</span>
                 </button>
-                <button class="sidebar-nav-item" onclick="scrollToSection('general-results-section'); closeSidebarMobile();">
+                <button class="sidebar-nav-item" data-module="cbt" onclick="scrollToSection('general-results-section'); closeSidebarMobile();">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
                     <span class="sidebar-nav-label">Results</span>
                 </button>
             </nav>
+
+            <!-- Cross-module navigation (injected by sidebarBuilder) -->
+            <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+            <nav class="sidebar-nav" id="module-nav-items"></nav>
 
             <div class="sidebar-divider"></div>
 
@@ -905,7 +920,7 @@
             </div>
 
             <!-- Mini Stats in Sidebar — clickable navigation -->
-            <div class="sidebar-stats-mini">
+            <div class="sidebar-stats-mini" data-module="cbt">
                 <div class="sidebar-stat-item" data-section="teachers" onclick="showAdminSection('teachers'); closeSidebarMobile();">
                     <div class="stat-val" id="stat-teachers-m">0</div>
                     <div class="stat-lbl">Teachers</div>
@@ -925,8 +940,9 @@
             </div>
 
             <div class="sidebar-divider"></div>
+            </div><!-- /.sidebar-scrollable -->
 
-            <!-- Sidebar Profile -->
+            <!-- Sidebar Profile — pinned at bottom -->
             <div class="sidebar-profile" style="position: relative;">
                 <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
                     <div class="sidebar-profile-avatar" id="sidebar-avatar">A</div>
@@ -997,8 +1013,15 @@
             <!-- ========== MAIN CONTENT ========== -->
             <main class="main-content" style="padding: 24px;">
 
+                <!-- Empty state when no modules are enabled -->
+                <div id="no-modules-message" style="display:none; text-align:center; padding:64px 24px; color:var(--light-text);">
+                    <div style="width:72px; height:72px; margin:0 auto 18px; border-radius:20px; background:var(--primary-light, rgba(74,144,226,0.12)); color:var(--primary-color); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:800;">M</div>
+                    <h2 style="margin:0 0 12px; color:var(--text-color);">CBT module is not available</h2>
+                    <p style="margin:0; line-height:1.6;">The exam and assessment management features are not available for this school configuration.</p>
+                </div>
+
                 <!-- Prepare for Exams Banner -->
-                <div id="prepare-exams-banner" class="prepare-exams-banner" style="display:none;">
+                <div id="prepare-exams-banner" class="prepare-exams-banner" data-module="cbt" style="display:none;">
                     <div class="prepare-banner-content">
                         <div class="prepare-banner-info">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1018,7 +1041,7 @@
                 </div>
 
                 <!-- Teachers Section (hidden by default) -->
-                <div id="teachers-section" class="admin-section" style="display:none;">
+                <div id="teachers-section" class="admin-section" data-module="cbt" style="display:none;">
                     <div class="section">
                         <div class="section-header" style="display:flex; flex-direction:column; gap:12px;">
                             <h2 style="margin:0;">
@@ -1036,7 +1059,7 @@
                 </div>
 
                 <!-- Students Section (hidden by default) -->
-                <div id="students-section" class="admin-section" style="display:none;">
+                <div id="students-section" class="admin-section" data-module="cbt" style="display:none;">
                     <div class="section">
                         <div class="section-header" style="display:flex; flex-direction:column; gap:12px;">
                             <h2 style="margin:0;">
@@ -1057,7 +1080,7 @@
                 </div>
 
                 <!-- Exams List Page (replaces old modal) -->
-                <div id="exams-list-section" class="admin-section" style="display:none;">
+                <div id="exams-list-section" class="admin-section" data-module="cbt" style="display:none;">
                     <div class="section">
                         <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                             <div>
@@ -1075,6 +1098,10 @@
                                     <option value="draft">Drafts Only</option>
                                     <option value="archived">Archived Only</option>
                                 </select>
+                                <button class="btn" onclick="makeAllExamsUnavailable()" style="padding:7px 14px; font-size:0.82rem; background:var(--error-color, #e74c3c); color:#fff; border:none; border-radius:var(--radius-btn); cursor:pointer;" title="Set all active exams to Draft">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                                    Make All Unavailable
+                                </button>
                                 <button class="btn" onclick="closeExamsPage()" style="padding:7px 16px; font-size:0.82rem;">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
                                     Back
@@ -1088,7 +1115,7 @@
                 </div>
 
                 <!-- All Exams Section (toggled by stat card click) -->
-                <div id="exams-section-wrapper" class="admin-section">
+                <div id="exams-section-wrapper" class="admin-section" data-module="cbt">
                     <div id="exams-section"></div>
                     <div class="section">
                         <div class="section-header responsive-header" onclick="openExamsModal('all')"
@@ -1116,6 +1143,7 @@
                 </div>
 
                 <!-- Messaging Section -->
+                <div data-module="cbt">
                 <div id="messaging-section"></div>
                 <div class="section">
                     <div class="section-header">
@@ -1156,9 +1184,10 @@
                         </div>
                     </div>
                 </div>
+                </div>
 
                 <!-- General Results Section -->
-                <div class="section" id="general-results-section">
+                <div class="section" id="general-results-section" data-module="cbt">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <h2>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1570,14 +1599,41 @@
 
     <!-- Configuration System -->
     <script type="module">
-        import { initConfig } from '../config/index.js';
+        import { initConfig, isModuleEnabled } from '../config/index.js';
+        import { renderModuleNavItems } from '../core/ui/sidebarBuilder.js';
         await initConfig();
+
+        const cbtEnabled = isModuleEnabled('cbt');
+        window.__cbtEnabled = cbtEnabled;
+
+        // Reveal elements for each enabled module (hidden by default via CSS)
+        if (cbtEnabled) {
+            document.querySelectorAll('[data-module="cbt"]').forEach(el => {
+                el.classList.add('module-revealed');
+            });
+        }
+
+        // Show empty state if no module sections were revealed
+        const hasRevealedModules = document.querySelector('[data-module].module-revealed');
+        if (!hasRevealedModules) {
+            const msg = document.getElementById('no-modules-message');
+            if (msg) msg.style.display = '';
+        }
+
+        // Inject cross-module nav links (admin sees all modules)
+        const navContainer = document.getElementById('module-nav-items');
+        const navDivider = document.getElementById('module-nav-divider');
+        if (navContainer) {
+            const hasItems = renderModuleNavItems(navContainer, { currentModuleId: null, role: 'admin' });
+            if (hasItems && navDivider) navDivider.style.display = '';
+        }
     </script>
 
     <!-- Scripts -->
-    <script src="../js/idb.js"></script>
+    <script src="../modules/cbt/js/idb.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
+    <script src="../modules/cbt/js/cbtDataService.js"></script>
     <script src="../js/auth.js"></script>
 
     <script>
@@ -1765,7 +1821,12 @@
                 const schoolInput = document.getElementById('school-id-input');
                 if (schoolInput) schoolInput.value = currentUser.schoolVersion;
                 currentVersion = currentUser.schoolVersion;
+            }
 
+            // Gate CBT-specific runtime (data fetches, subscriptions, listeners)
+            if (!window.__cbtEnabled) return;
+
+            if (currentVersion) {
                 // Show cached data instantly, then refresh in background
                 const hadCache = await loadFromCache();
                 if (hadCache) {
@@ -1786,6 +1847,31 @@
                     } catch (e) {
                         console.warn('[ResultSnapshotBackfill] Background backfill failed:', e);
                     }
+
+                    // One-time migration: convert draft exams (from old bulk-lock) to active + _adminLocked
+                    if (localStorage.getItem('_draftToLockedMigrationDone')) return;
+                    try {
+                        const draftExams = await dataService.getExamSummaries({ status: 'draft', includeDeleted: false });
+                        let migrated = 0;
+                        for (const exam of draftExams) {
+                            try {
+                                const ext = { ...(exam.extensions || {}), _adminLocked: true, _adminLockedAt: new Date().toISOString() };
+                                await dataService.updateExam(exam.id, { status: 'active', extensions: ext });
+                                migrated++;
+                            } catch (e) {
+                                console.warn(`[DraftMigration] Failed to migrate exam ${exam.id}:`, e.message);
+                            }
+                        }
+                        if (migrated > 0) {
+                            console.log(`[DraftMigration] Converted ${migrated} draft exam(s) to active + _adminLocked`);
+                            showToast(`${migrated} draft exam(s) migrated to locked status`, 'success');
+                            // Refresh display
+                            if (typeof loadData === 'function') loadData();
+                        }
+                        localStorage.setItem('_draftToLockedMigrationDone', '1');
+                    } catch (e) {
+                        console.warn('[DraftMigration] Migration failed:', e);
+                    }
                 }, 1500);
             }
 
@@ -1793,22 +1879,28 @@
             loadMessageHistory();
 
             // Setup teacher select listener
-            document.getElementById('teacher-select').addEventListener('change', (e) => {
-                const hint = document.getElementById('teacher-count-hint');
-                if (e.target.value === 'ALL_TEACHERS') {
-                    hint.textContent = `This will send to all ${allTeachers.length} teachers in ${currentVersion}.`;
-                    hint.style.display = 'block';
-                } else {
-                    hint.style.display = 'none';
-                }
-            });
+            const teacherSelect = document.getElementById('teacher-select');
+            if (teacherSelect) {
+                teacherSelect.addEventListener('change', (e) => {
+                    const hint = document.getElementById('teacher-count-hint');
+                    if (e.target.value === 'ALL_TEACHERS') {
+                        hint.textContent = `This will send to all ${allTeachers.length} teachers in ${currentVersion}.`;
+                        hint.style.display = 'block';
+                    } else {
+                        hint.style.display = 'none';
+                    }
+                });
+            }
 
             // Allow pressing Enter to load
-            document.getElementById('school-id-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handleLoadSchool();
-                }
-            });
+            const schoolInput = document.getElementById('school-id-input');
+            if (schoolInput) {
+                schoolInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        handleLoadSchool();
+                    }
+                });
+            }
         }
 
 
@@ -2741,8 +2833,15 @@
                 const teacher = allTeachers.find(t => t.id === exam.createdBy || t.user === exam.createdBy);
                 const teacherName = teacher ? (teacher.full_name || teacher.username || 'Teacher') : 'Unknown Teacher';
 
+                const isAdminLocked = exam.extensions && exam.extensions._adminLocked;
                 let statusClass = 'status-draft';
-                if (exam.status === 'active') statusClass = 'status-active';
+                let statusLabel = exam.status;
+                if (exam.status === 'active' && isAdminLocked) {
+                    statusClass = 'status-locked';
+                    statusLabel = 'locked';
+                } else if (exam.status === 'active') {
+                    statusClass = 'status-active';
+                }
                 if (exam.status === 'archived') statusClass = 'status-archived';
 
                 const scheduledInfo = exam.scheduledDate
@@ -2764,7 +2863,7 @@
                                             <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${exam.questionCount || 0} Qs</span>
                                         </div>
                                     </div>
-                                    <span class="status-badge ${statusClass}">${exam.status}</span>
+                                    <span class="status-badge ${statusClass}">${statusLabel}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
                                     <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--light-text);">
@@ -2979,16 +3078,23 @@
             btn.textContent = 'Updating...';
 
             try {
+                const exam = allExams.find(e => e.id === examId);
+                // Clear _adminLocked if it was set
+                const updatedExt = { ...(exam && exam.extensions || {}) };
+                delete updatedExt._adminLocked;
+                delete updatedExt._adminLockedAt;
+
                 await dataService.updateExam(examId, {
                     scheduledDate: '',
-                    status: 'active'
+                    status: 'active',
+                    extensions: updatedExt
                 });
 
                 // Update local data
-                const exam = allExams.find(e => e.id === examId);
                 if (exam) {
                     exam.scheduledDate = '';
                     exam.status = 'active';
+                    exam.extensions = updatedExt;
                 }
 
                 showToast('Exam is now available immediately on all computers');
@@ -3008,6 +3114,81 @@
                 btn.disabled = false;
                 btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg> Make Available Now`;
             }
+        }
+
+        async function makeAllExamsUnavailable() {
+            const availableExams = allExams.filter(e => e.status === 'active' && !(e.extensions && e.extensions._adminLocked));
+            if (availableExams.length === 0) {
+                await showAlert('No Available Exams', 'There are no available exams to lock.');
+                return;
+            }
+
+            const confirmed = await Utils.showConfirm(
+                'Make All Exams Unavailable',
+                `This will lock ${availableExams.length} active exam${availableExams.length > 1 ? 's' : ''}, making them immediately unavailable to all students.\n\nTeachers can still see their exams. Students can still view their past results.\n\nAre you sure?`
+            );
+            if (!confirmed) return;
+
+            // Show progress overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'bulk-unavailable-overlay';
+            overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:var(--card-bg, #fff); border-radius:16px; padding:32px 40px; text-align:center; min-width:300px; box-shadow:0 12px 40px rgba(0,0,0,0.2);';
+            card.innerHTML = `
+                <div class="loader" style="margin:0 auto 16px; width:36px; height:36px;"></div>
+                <div style="font-weight:700; font-size:1rem; color:var(--text-color); margin-bottom:6px;" id="bulk-progress-title">Making exams unavailable...</div>
+                <div style="font-size:0.85rem; color:var(--light-text);" id="bulk-progress-detail">0 / ${availableExams.length}</div>
+                <div style="margin-top:14px; height:6px; background:var(--border-color, #e0e0e0); border-radius:3px; overflow:hidden;">
+                    <div id="bulk-progress-bar" style="height:100%; width:0%; background:var(--primary-color); border-radius:3px; transition:width 0.2s ease;"></div>
+                </div>
+            `;
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+
+            const progressBar = document.getElementById('bulk-progress-bar');
+            const progressDetail = document.getElementById('bulk-progress-detail');
+            const progressTitle = document.getElementById('bulk-progress-title');
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < availableExams.length; i++) {
+                try {
+                    const ext = { ...(availableExams[i].extensions || {}), _adminLocked: true, _adminLockedAt: new Date().toISOString() };
+                    await dataService.updateExam(availableExams[i].id, { extensions: ext });
+                    availableExams[i].extensions = ext;
+                    successCount++;
+                } catch (err) {
+                    console.error(`Failed to lock exam ${availableExams[i].id}:`, err);
+                    failCount++;
+                }
+                const pct = Math.round(((i + 1) / availableExams.length) * 100);
+                progressBar.style.width = pct + '%';
+                progressDetail.textContent = `${i + 1} / ${availableExams.length}`;
+            }
+
+            // Show completion state briefly
+            progressBar.style.width = '100%';
+            if (failCount > 0) {
+                progressTitle.textContent = `Done — ${failCount} failed`;
+                progressBar.style.background = 'var(--warning-color, #f1c40f)';
+            } else {
+                progressTitle.textContent = 'All exams are now unavailable';
+                progressBar.style.background = 'var(--success-color, #2ecc71)';
+            }
+            progressDetail.textContent = `${successCount} updated${failCount > 0 ? `, ${failCount} failed` : ''}`;
+
+            await new Promise(r => setTimeout(r, 1200));
+            overlay.remove();
+
+            if (failCount > 0) {
+                showToast(`${successCount} exams made unavailable, ${failCount} failed`, 'warning');
+            } else {
+                showToast(`All ${successCount} exams are now unavailable`, 'success');
+            }
+
+            filterExams();
+            displayExams(allExams);
         }
 
         // --- Extensions Logic ---

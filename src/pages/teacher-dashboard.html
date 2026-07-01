@@ -252,16 +252,18 @@
     <div class="app-container">
         <!-- ========== SIDEBAR ========== -->
         <aside class="app-sidebar" id="app-sidebar">
+            <!-- Sidebar expand/collapse toggle (outside scrollable to avoid overflow clipping) -->
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
             <div class="sidebar-brand">
                 <div>
                     <span class="sidebar-brand-text">Gen7 CBT</span>
                 </div>
                 <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
             </div>
-            <!-- Sidebar expand/collapse toggle -->
-            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
-                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
 
             <!-- Dark Mode Toggle (icon only, no border/text) -->
             <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
@@ -301,6 +303,10 @@
                 </button>
             </nav>
 
+            <!-- Cross-module navigation (injected by sidebarBuilder) -->
+            <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+            <nav class="sidebar-nav" id="module-nav-items"></nav>
+
             <div class="sidebar-divider"></div>
 
             <!-- School ID in sidebar -->
@@ -312,8 +318,9 @@
                     <button onclick="saveTeacherSchoolId()" class="btn" style="padding:6px 10px; font-size:0.75rem; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:6px; flex-shrink:0;">Save</button>
                 </div>
             </div>
+            </div><!-- /.sidebar-scrollable -->
 
-            <!-- Sidebar Profile (clickable with dropdown) -->
+            <!-- Sidebar Profile (clickable with dropdown) — pinned at bottom -->
             <div class="sidebar-profile" style="position: relative;">
                 <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
                     <div class="sidebar-profile-avatar" id="sidebar-avatar">T</div>
@@ -832,14 +839,32 @@
     <!-- Configuration System -->
     <script type="module">
         import { initConfig } from '../config/index.js';
-        // Initialize configuration before other scripts
+        import { ensureModuleEnabled } from '../core/modules/moduleGuards.js';
+        import { renderModuleNavItems } from '../core/ui/sidebarBuilder.js';
         await initConfig();
+        if (!ensureModuleEnabled('cbt', {
+            moduleName: 'CBT',
+            title: 'CBT module is not enabled',
+            message: 'The exam/assessment feature is not available for this school configuration.'
+        })) {
+            throw new Error('CBT module is not enabled — halting page scripts.');
+        }
+        // Inject cross-module nav links (filtered by user role)
+        let _navRole = 'teacher';
+        try { _navRole = JSON.parse(localStorage.getItem('cbt_user_meta') || '{}').role || 'teacher'; } catch(e) {}
+        const navContainer = document.getElementById('module-nav-items');
+        const navDivider = document.getElementById('module-nav-divider');
+        if (navContainer) {
+            const hasItems = renderModuleNavItems(navContainer, { currentModuleId: 'cbt', role: _navRole });
+            if (hasItems && navDivider) navDivider.style.display = '';
+        }
     </script>
 
 
-    <script src="../js/idb.js"></script>
+    <script src="../modules/cbt/js/idb.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
+    <script src="../modules/cbt/js/cbtDataService.js"></script>
     <script src="../js/auth.js"></script>
     <script>
         // Global Flag Helper

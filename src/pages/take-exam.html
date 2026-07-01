@@ -17,7 +17,7 @@
     </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/exam.css">
+    <link rel="stylesheet" href="../modules/cbt/css/exam.css">
 </head>
 
 <body>
@@ -157,19 +157,28 @@
     <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
     <!-- Configuration System -->
     <script type="module">
-        import { initConfig } from '../config/index.js';
-        // Initialize configuration before other scripts
-        await initConfig();
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        await bootstrapModulePage({
+            moduleId: 'cbt',
+            moduleName: 'CBT',
+            title: 'CBT module is not enabled',
+            message: 'The exam/assessment feature is not available for this school configuration.',
+            globalScripts: [
+                '../modules/cbt/js/idb.js',
+                '../js/utils.js',
+                '../js/dataService.js'
+            ],
+            moduleScripts: [
+                '../modules/cbt/js/cbtDataService.js',
+                '../modules/cbt/js/timer.js',
+                '../modules/cbt/js/takeExam.js'
+            ],
+            moduleModuleScripts: [
+                '../modules/cbt/js/tiptapRenderer.js'
+            ]
+        });
     </script>
-
-
-    <script src="../js/idb.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/dataService.js"></script>
-    <script src="../js/timer.js"></script>
-    <!-- Tiptap renderer (no Tiptap dependency — sets window.TiptapRenderer) -->
-    <script type="module" src="../js/tiptapRenderer.js"></script>
-    <script src="../js/takeExam.js"></script>
 </body>
 
 </html>

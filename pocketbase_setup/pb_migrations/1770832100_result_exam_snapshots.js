@@ -3,103 +3,108 @@ migrate((db) => {
   const dao = new Dao(db)
   const collection = dao.findCollectionByNameOrId("yimvumzld545ks8")
 
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "rsltexam1",
-    "name": "exam_title",
-    "type": "text",
-    "required": false,
-    "presentable": false,
-    "unique": false,
-    "options": {
-      "min": null,
-      "max": null,
-      "pattern": ""
+  // Idempotent: only add fields the schema doesn't already have.
+  // (Some production databases were left in a partial state by an earlier
+  // deploy where this migration crashed mid-way; trying to re-add the same
+  // fields would error with "duplicate column" and lock the boot loop.)
+  const fields = [
+    {
+      "system": false,
+      "id": "rsltexam1",
+      "name": "exam_title",
+      "type": "text",
+      "required": false,
+      "presentable": false,
+      "unique": false,
+      "options": { "min": null, "max": null, "pattern": "" }
+    },
+    {
+      "system": false,
+      "id": "rsltexam2",
+      "name": "exam_subject",
+      "type": "text",
+      "required": false,
+      "presentable": false,
+      "unique": false,
+      "options": { "min": null, "max": null, "pattern": "" }
+    },
+    {
+      "system": false,
+      "id": "rsltexam3",
+      "name": "exam_target_class",
+      "type": "text",
+      "required": false,
+      "presentable": false,
+      "unique": false,
+      "options": { "min": null, "max": null, "pattern": "" }
+    },
+    {
+      "system": false,
+      "id": "rsltexam4",
+      "name": "exam_duration",
+      "type": "number",
+      "required": false,
+      "presentable": false,
+      "unique": false,
+      "options": { "min": null, "max": null, "noDecimal": false }
+    },
+    {
+      "system": false,
+      "id": "rsltexam5",
+      "name": "exam_has_theory",
+      "type": "bool",
+      "required": false,
+      "presentable": false,
+      "unique": false,
+      "options": {}
+    },
+    {
+      "system": false,
+      "id": "rsltexam6",
+      "name": "exam_theory_count",
+      "type": "number",
+      "required": false,
+      "presentable": false,
+      "unique": false,
+      "options": { "min": null, "max": null, "noDecimal": false }
     }
-  }))
+  ]
 
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "rsltexam2",
-    "name": "exam_subject",
-    "type": "text",
-    "required": false,
-    "presentable": false,
-    "unique": false,
-    "options": {
-      "min": null,
-      "max": null,
-      "pattern": ""
+  let added = 0
+  for (const f of fields) {
+    if (!collection.schema.getFieldByName(f.name)) {
+      collection.schema.addField(new SchemaField(f))
+      added++
     }
-  }))
+  }
 
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "rsltexam3",
-    "name": "exam_target_class",
-    "type": "text",
-    "required": false,
-    "presentable": false,
-    "unique": false,
-    "options": {
-      "min": null,
-      "max": null,
-      "pattern": ""
+  if (added === 0) {
+    // Schema already has every field — nothing to persist. Treat as success
+    // so PocketBase records the migration and stops re-running it.
+    return null
+  }
+
+  try {
+    return dao.saveCollection(collection)
+  } catch (e) {
+    const msg = String((e && e.message) || e || "")
+    // Production databases that were partially migrated may have the columns
+    // present at the SQL level even though the schema record doesn't list
+    // them. In that case saveCollection raises "duplicate column"; treat
+    // that as already-applied so the migration commits and is not retried.
+    if (msg.indexOf("duplicate column") !== -1) {
+      return null
     }
-  }))
-
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "rsltexam4",
-    "name": "exam_duration",
-    "type": "number",
-    "required": false,
-    "presentable": false,
-    "unique": false,
-    "options": {
-      "min": null,
-      "max": null,
-      "noDecimal": false
-    }
-  }))
-
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "rsltexam5",
-    "name": "exam_has_theory",
-    "type": "bool",
-    "required": false,
-    "presentable": false,
-    "unique": false,
-    "options": {}
-  }))
-
-  collection.schema.addField(new SchemaField({
-    "system": false,
-    "id": "rsltexam6",
-    "name": "exam_theory_count",
-    "type": "number",
-    "required": false,
-    "presentable": false,
-    "unique": false,
-    "options": {
-      "min": null,
-      "max": null,
-      "noDecimal": false
-    }
-  }))
-
-  return dao.saveCollection(collection)
+    throw e
+  }
 }, (db) => {
   const dao = new Dao(db)
   const collection = dao.findCollectionByNameOrId("yimvumzld545ks8")
 
-  collection.schema.removeField("rsltexam1")
-  collection.schema.removeField("rsltexam2")
-  collection.schema.removeField("rsltexam3")
-  collection.schema.removeField("rsltexam4")
-  collection.schema.removeField("rsltexam5")
-  collection.schema.removeField("rsltexam6")
+  const ids = ["rsltexam1", "rsltexam2", "rsltexam3", "rsltexam4", "rsltexam5", "rsltexam6"]
+  for (const id of ids) {
+    try { collection.schema.removeField(id) } catch (_) { /* already gone */ }
+  }
 
   return dao.saveCollection(collection)
 })

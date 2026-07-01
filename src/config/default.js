@@ -82,6 +82,16 @@ export const defaultConfig = {
         landingPage: true
     },
 
+    modules: {
+        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework'],
+        settings: {}
+    },
+
+    tenancy: {
+        mode: 'shared',
+        backendKey: 'shared-main-1'
+    },
+
     // Footer Information
     footer: {
         text: "© 2026 corneliusajayi123@gmail.com",

@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <!-- Tiptap editor loaded as ES module — sets window.TiptapEditor before DOMContentLoaded -->
-    <script type="module" src="../js/tiptapEditor.js"></script>
+    <script type="module" src="../modules/cbt/js/tiptapEditor.js"></script>
     <!-- Quill.js Rich Text Editor -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
@@ -469,8 +469,12 @@
                     <div class="term-col">
                         <div class="form-group">
                             <label for="exam-title">Term</label>
-                            <input type="text" id="exam-title" class="form-control" required
-                                placeholder="e.g. 1st Term">
+                            <select id="exam-title" class="form-control" required>
+                                <option value="" disabled selected>Select Term</option>
+                                <option value="1st Term">1st Term</option>
+                                <option value="2nd Term">2nd Term</option>
+                                <option value="3rd Term">3rd Term</option>
+                            </select>
                         </div>
                     </div>
                     <div class="schedule-cols">
@@ -552,6 +556,20 @@
                                 <label><input type="radio" name="exam-scramble" id="exam-scramble-no" value="no" checked> No</label>
                                 <label><input type="radio" name="exam-scramble" id="exam-scramble-yes" value="yes"> Yes</label>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save to Question Bank toggle -->
+                <div id="save-to-qb-row" style="display:none; margin-top:8px; padding:14px 18px; background:var(--inner-bg); border-radius:var(--border-radius, 12px); border:1px solid var(--border-color);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                        <div style="flex:1; min-width:200px;">
+                            <div style="font-weight:700; font-size:0.92rem; color:var(--text-color);">Save questions to Question Bank</div>
+                            <div style="font-size:0.8rem; color:var(--light-text); margin-top:2px;">Automatically add this exam's questions to your reusable question bank when you publish.</div>
+                        </div>
+                        <div class="scramble-radio-group">
+                            <label><input type="radio" name="exam-save-to-qb" id="exam-save-to-qb-no" value="no" checked> No</label>
+                            <label><input type="radio" name="exam-save-to-qb" id="exam-save-to-qb-yes" value="yes"> Yes</label>
                         </div>
                     </div>
                 </div>
@@ -847,15 +865,43 @@ Import<span class="desktop-text import-btn-long"> Questions</span>
     <!-- Configuration System -->
     <script type="module">
         import { initConfig } from '../config/index.js';
-        // Initialize configuration before other scripts
+        import { ensureModuleEnabled } from '../core/modules/moduleGuards.js';
         await initConfig();
+        if (!ensureModuleEnabled('cbt', {
+            moduleName: 'CBT',
+            title: 'CBT module is not enabled',
+            message: 'The exam/assessment feature is not available for this school configuration.'
+        })) {
+            throw new Error('CBT module is not enabled — halting page scripts.');
+        }
     </script>
 
 
-    <script src="../js/idb.js"></script>
+    <script src="../modules/cbt/js/idb.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
+    <script src="../modules/cbt/js/cbtDataService.js"></script>
     <script src="../js/auth.js"></script>
+
+    <!-- Show "Save to Question Bank" toggle when QB module is enabled -->
+    <script>
+        // Deferred check — __moduleLoader is set by initConfig() inside a type="module" script,
+        // which runs asynchronously. We poll briefly to catch it once it's ready.
+        (function showQbToggle() {
+            var attempts = 0;
+            function check() {
+                var qbEnabled = window.__moduleLoader && window.__moduleLoader.isModuleEnabled('question_bank');
+                var qbRow = document.getElementById('save-to-qb-row');
+                if (qbEnabled && qbRow) {
+                    qbRow.style.display = '';
+                } else if (attempts < 20) {
+                    attempts++;
+                    setTimeout(check, 150);
+                }
+            }
+            check();
+        })();
+    </script>
     <script>
         // Set user name
         const user = dataService.getCurrentUser();
@@ -906,6 +952,9 @@ Import<span class="desktop-text import-btn-long"> Questions</span>
         };
 
         const levelLabels = { secondary: 'Secondary', primary: 'Primary' };
+
+        // Expose academic data for examManager.applyDraft() to populate hidden selects
+        window.__academicData = { subjectsByLevel, classesByLevel, levelLabels };
 
         // Steps Chain interaction
         let _activeDropdown = null;
@@ -1096,8 +1145,8 @@ Import<span class="desktop-text import-btn-long"> Questions</span>
             }
         });
     </script>
-    <script src="../js/bulkImportParser.js"></script>
-    <script src="../js/examManager.js"></script>
+    <script src="../modules/cbt/js/bulkImportParser.js"></script>
+    <script src="../modules/cbt/js/examManager.js"></script>
     <script>
         // Init examManager — check if DOM is already ready (scripts at end of body)
         if (document.readyState === 'loading') {
