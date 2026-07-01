@@ -306,6 +306,74 @@
             font-size: 0.9rem;
         }
 
+        /* Message selection mode */
+        .msg-history-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .msg-history-head h3 { margin: 0; font-size: 0.95rem; }
+        .msg-clear-toggle {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .msg-clear-toggle:hover { background: var(--primary-light, rgba(26,115,232,0.08)); }
+        .msg-clear-toggle.active { color: var(--accent-color); }
+        .msg-select-all-row {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        #message-history-container.selection-mode .msg-select-all-row { display: flex; }
+        .msg-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .msg-checkbox-wrap {
+            display: none;
+            align-items: flex-start;
+            padding-top: 2px;
+            margin-right: 10px;
+        }
+        #message-history-container.selection-mode .msg-checkbox-wrap { display: flex; }
+        #message-history-container.selection-mode .message-item {
+            display: flex;
+            align-items: flex-start;
+        }
+        #message-history-container.selection-mode .message-item > .msg-msg-body { flex: 1; min-width: 0; }
+        .msg-delete-link {
+            background: none;
+            border: none;
+            color: var(--accent-color);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            visibility: hidden;
+        }
+        .msg-delete-link:hover { background: rgba(231, 76, 60, 0.08); text-decoration: underline; }
+        #message-history-container.selection-mode .msg-delete-link.has-selection { visibility: visible; }
+
         /* Buttons */
         .btn {
             padding: 10px 20px;
@@ -1174,11 +1242,23 @@
                             </button>
                         </div>
                         <div class="message-history">
-                            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 0.95rem;">Message History</h3>
+                            <div class="msg-history-head">
+                                <h3>Message History</h3>
+                                <button type="button" id="msg-clear-toggle" class="msg-clear-toggle" onclick="toggleMessageSelectionMode()">Clear</button>
+                            </div>
                             <div id="message-history-container">
-                                <div class="empty-state">
-                                    <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-                                    <p>No messages sent yet</p>
+                                <div class="msg-select-all-row">
+                                    <input type="checkbox" class="msg-checkbox" id="msg-select-all" onchange="handleMessageSelectAll(this)">
+                                    <label for="msg-select-all" style="cursor:pointer;">Select all messages</label>
+                                    <button type="button" class="msg-delete-link" id="msg-delete-link" onclick="bulkDeleteSelectedMessages()" style="margin-left:auto;">
+                                        Delete <span id="msg-selected-count">0</span> message<span id="msg-plural">s</span>
+                                    </button>
+                                </div>
+                                <div id="message-history-list">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+                                        <p>No messages sent yet</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3603,18 +3683,19 @@
 
 
         function displayMessageHistory() {
-            const container = document.getElementById('message-history-container');
+            const listEl = document.getElementById('message-history-list');
 
             // Filter messages for current version
             const versionMessages = messageHistory.filter(m => m.schoolVersion === currentVersion);
 
             if (versionMessages.length === 0) {
-                container.innerHTML = `
+                listEl.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
                         <p>No messages sent yet</p>
                     </div>
                 `;
+                exitMessageSelectionMode();
                 return;
             }
 
@@ -3633,7 +3714,7 @@
                 groupedMessages[contactId].messages.push(msg);
             });
 
-            container.innerHTML = Object.entries(groupedMessages).map(([contactId, group]) => {
+            listEl.innerHTML = Object.entries(groupedMessages).map(([contactId, group]) => {
                 const groupId = `msg-group-${contactId}`;
                 // Sort messages within group by timestamp, newest first
                 group.messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -3643,14 +3724,23 @@
                     const formattedDate = date.toLocaleString();
                     const isReset = msg.message.includes('PASSWORD RESET REQUEST');
                     const safeMessage = escapeHtml(msg.message).replace(/\n/g, '<br>');
+                    // Local-only messages have numeric IDs and no DB record — hide
+                    // the checkbox for them since deleteMessage would 404.
+                    const isDbMessage = typeof msg.id === 'string' && msg.id.length > 0;
+                    const checkboxHtml = isDbMessage
+                        ? `<span class="msg-checkbox-wrap"><input type="checkbox" class="msg-checkbox msg-item-checkbox" data-msg-id="${escapeHtml(msg.id)}" onchange="handleMessageCheckboxChange()"></span>`
+                        : '';
 
                     return `
                         <div class="message-item ${msg.isSent ? 'sent' : 'received'} ${isReset ? 'reset-request' : ''}" style="margin-bottom: 10px;">
-                            <div class="message-header">
-                                <span class="message-direction">${msg.isSent ? 'Sent' : 'Received'}</span>
-                                <span class="message-date">${formattedDate}</span>
+                            ${checkboxHtml}
+                            <div class="msg-msg-body">
+                                <div class="message-header">
+                                    <span class="message-direction">${msg.isSent ? 'Sent' : 'Received'}</span>
+                                    <span class="message-date">${formattedDate}</span>
+                                </div>
+                                <div class="message-content">${safeMessage}</div>
                             </div>
-                            <div class="message-content">${safeMessage}</div>
                         </div>
                     `;
                 }).join('');
@@ -3667,7 +3757,104 @@
                     </div>
                 `;
             }).join('');
+
+            // If we're still in selection mode after a re-render, expand every
+            // group so checkboxes are reachable.
+            const container = document.getElementById('message-history-container');
+            if (container && container.classList.contains('selection-mode')) {
+                container.querySelectorAll('.collapsible-header').forEach(h => h.classList.add('active'));
+                container.querySelectorAll('.collapsible-content').forEach(c => c.classList.add('active'));
+                updateMessageSelectionUI();
+            }
         }
+
+        // --- Message selection mode ---
+        window.toggleMessageSelectionMode = function () {
+            const container = document.getElementById('message-history-container');
+            const toggle = document.getElementById('msg-clear-toggle');
+            if (!container) return;
+            const active = container.classList.toggle('selection-mode');
+            if (toggle) {
+                toggle.textContent = active ? 'Cancel' : 'Clear';
+                toggle.classList.toggle('active', active);
+            }
+            if (active) {
+                // Auto-expand every collapsible group so the user can see all checkboxes
+                container.querySelectorAll('.collapsible-header').forEach(h => h.classList.add('active'));
+                container.querySelectorAll('.collapsible-content').forEach(c => c.classList.add('active'));
+            } else {
+                container.querySelectorAll('.msg-item-checkbox').forEach(cb => { cb.checked = false; });
+                const selectAll = document.getElementById('msg-select-all');
+                if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+            }
+            updateMessageSelectionUI();
+        };
+
+        function exitMessageSelectionMode() {
+            const container = document.getElementById('message-history-container');
+            const toggle = document.getElementById('msg-clear-toggle');
+            if (container) container.classList.remove('selection-mode');
+            if (toggle) { toggle.textContent = 'Clear'; toggle.classList.remove('active'); }
+        }
+
+        window.handleMessageSelectAll = function (checkbox) {
+            const container = document.getElementById('message-history-container');
+            if (!container) return;
+            container.querySelectorAll('.msg-item-checkbox').forEach(cb => { cb.checked = !!checkbox.checked; });
+            updateMessageSelectionUI();
+        };
+
+        window.handleMessageCheckboxChange = function () {
+            const boxes = document.querySelectorAll('#message-history-container .msg-item-checkbox');
+            const checked = document.querySelectorAll('#message-history-container .msg-item-checkbox:checked');
+            const selectAll = document.getElementById('msg-select-all');
+            if (selectAll) {
+                selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+                selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+            }
+            updateMessageSelectionUI();
+        };
+
+        function updateMessageSelectionUI() {
+            const link = document.getElementById('msg-delete-link');
+            const countEl = document.getElementById('msg-selected-count');
+            const pluralEl = document.getElementById('msg-plural');
+            const count = document.querySelectorAll('#message-history-container .msg-item-checkbox:checked').length;
+            if (countEl) countEl.textContent = String(count);
+            if (pluralEl) pluralEl.textContent = count === 1 ? '' : 's';
+            if (link) link.classList.toggle('has-selection', count > 0);
+        }
+
+        window.bulkDeleteSelectedMessages = async function () {
+            const boxes = Array.from(document.querySelectorAll('#message-history-container .msg-item-checkbox:checked'));
+            if (!boxes.length) return;
+            const ok = await showConfirm(
+                'Delete messages',
+                `Delete ${boxes.length} message${boxes.length === 1 ? '' : 's'}? This can't be undone.`
+            );
+            if (!ok) return;
+
+            const ids = boxes.map(cb => cb.dataset.msgId).filter(Boolean);
+            let deleted = 0, failed = 0;
+            for (const id of ids) {
+                try {
+                    await dataService.deleteMessage(id);
+                    deleted++;
+                } catch (e) {
+                    console.error('[bulk delete] failed for', id, e);
+                    failed++;
+                }
+            }
+            // Drop successful deletes from local state too
+            const deletedSet = new Set(ids.slice(0, deleted));
+            messageHistory = messageHistory.filter(m => !deletedSet.has(m.id));
+
+            exitMessageSelectionMode();
+            displayMessageHistory();
+            if (failed > 0) {
+                await Utils.showAlert('Delete complete', `Deleted ${deleted}. ${failed} could not be deleted.`);
+            }
+        };
 
         async function handleLogout() {
             if (await showConfirm('Logout', 'Are you sure you want to logout?')) {

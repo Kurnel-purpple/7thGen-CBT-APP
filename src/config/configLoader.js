@@ -92,6 +92,7 @@ class ConfigLoader {
             },
             tenancy: { ...defaultCfg.tenancy, ...clientCfg.tenancy },
             school: { ...(defaultCfg.school || {}), ...(clientCfg.school || {}) },
+            support: { ...(defaultCfg.support || {}), ...(clientCfg.support || {}) },
             footer: { ...defaultCfg.footer, ...clientCfg.footer },
             pageTitles: { ...defaultCfg.pageTitles, ...clientCfg.pageTitles }
         };
