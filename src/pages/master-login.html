@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Operator Sign-In</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body {
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            overflow-y: auto;
+            height: auto;
+        }
+        .ml-shell {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+            padding: 36px 32px 32px;
+        }
+        [data-theme="dark"] .ml-shell {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        .ml-mark {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.04em;
+        }
+        .ml-eyebrow {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .ml-title {
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 6px;
+            line-height: 1.2;
+        }
+        .ml-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin: 0 0 22px;
+        }
+        .ml-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+        .ml-form-group label {
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .ml-form-group input {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 11px 14px;
+            font: inherit;
+            font-family: var(--font-family);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        [data-theme="dark"] .ml-form-group input {
+            background: var(--dm-surface-2, #22263A);
+        }
+        .ml-form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.18);
+        }
+        .ml-submit {
+            width: 100%;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-family: var(--font-family);
+            margin-top: 4px;
+            transition: background-color 0.15s ease, transform 0.1s ease;
+        }
+        .ml-submit:hover { background: var(--primary-dark); }
+        .ml-submit:active { transform: scale(0.99); }
+        .ml-submit:disabled { opacity: 0.6; cursor: wait; }
+        .ml-error {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(234, 67, 53, 0.1);
+            border: 1px solid rgba(234, 67, 53, 0.3);
+            color: #c0392b;
+            display: none;
+        }
+        [data-theme="dark"] .ml-error { color: #ea4335; }
+        .ml-foot {
+            margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .ml-foot a {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .ml-foot a:hover { color: var(--primary); }
+        .ml-foot-mark {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="ml-shell" role="main">
+        <div class="ml-mark" aria-hidden="true">G7</div>
+        <div class="ml-eyebrow">Platform Operations</div>
+        <h1 class="ml-title">Operator Sign-In</h1>
+        <p class="ml-subtitle">This sign-in is reserved for the platform's super-admin. Tenant admins, teachers and students should use the regular login screen.</p>
+
+        <form id="ml-form" novalidate>
+            <div class="ml-form-group">
+                <label for="ml-username">Username or email</label>
+                <input id="ml-username" type="text" autocomplete="username" required>
+            </div>
+            <div class="ml-form-group">
+                <label for="ml-password">Password</label>
+                <input id="ml-password" type="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="ml-submit" id="ml-submit">Sign in</button>
+            <div id="ml-error" class="ml-error" role="alert"></div>
+        </form>
+
+        <div class="ml-foot">
+            <a href="../index.html">&larr; Back to landing page</a>
+            <span class="ml-foot-mark">Gen7 SMS</span>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        import { loadScripts } from '../core/modules/pageBootstrap.js';
+
+        await initConfig();
+        await loadScripts([
+            '../js/utils.js',
+            '../js/dataService.js'
+        ]);
+
+        const form = document.getElementById('ml-form');
+        const usernameInput = document.getElementById('ml-username');
+        const passwordInput = document.getElementById('ml-password');
+        const submitBtn = document.getElementById('ml-submit');
+        const errorEl = document.getElementById('ml-error');
+
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+        function clearError() {
+            errorEl.textContent = '';
+            errorEl.style.display = 'none';
+        }
+
+        // If the operator is already signed in as super_admin, send them straight in.
+        try {
+            const cached = window.dataService?.getCurrentUser?.();
+            if (cached && cached.role === 'super_admin') {
+                window.location.href = 'master-admin.html';
+            }
+        } catch (_) { /* ignore */ }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (submitBtn.disabled) return;
+            clearError();
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            if (!username || !password) {
+                showError('Enter both your operator username and password.');
+                return;
+            }
+
+            const originalLabel = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in...';
+
+            try {
+                const user = await window.dataService.login(username, password);
+                if (user?.role === 'super_admin') {
+                    window.location.href = 'master-admin.html';
+                    return;
+                }
+                // Wrong role — kill the session immediately so a teacher's creds
+                // don't grant master-admin context just because they typed them
+                // into this page.
+                try { await window.dataService.logout(); } catch (_) { /* ignore */ }
+                showError('This sign-in is reserved for platform operators.');
+                submitBtn.textContent = originalLabel;
+                submitBtn.disabled = false;
+            } catch (err) {
+                console.error('Operator sign-in error:', err);
+                if (err?.name === 'AbortError' || /AbortError/i.test(err?.message || '')) {
+                    showError('Sign-in interrupted. Try again.');
+                } else {
+                    showError(err?.message || 'Incorrect credentials. Please try again.');
+                }
+                submitBtn.textContent = originalLabel;
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

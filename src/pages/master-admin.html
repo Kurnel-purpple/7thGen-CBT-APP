@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>Master Admin</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/homework/css/homework.css">
+    <link rel="stylesheet" href="../css/master-admin.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+                <div class="sidebar-brand">
+                    <div><span class="sidebar-brand-text">Gen7 SMS</span></div>
+                    <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+                </div>
+
+                <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+
+                <nav class="sidebar-nav">
+                    <a href="master-admin.html" class="sidebar-nav-item active">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+                        <span class="sidebar-nav-label">Tenants</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-divider"></div>
+
+                <div class="hw-sidebar-stats" aria-label="Tenant stats">
+                    <div class="hw-sidebar-stats-label">Platform</div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">Tenants</span>
+                        <span class="hw-sidebar-stat-value" id="ma-stat-total">0</span>
+                    </div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">Active</span>
+                        <span class="hw-sidebar-stat-value" id="ma-stat-active">0</span>
+                    </div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">On trial</span>
+                        <span class="hw-sidebar-stat-value" id="ma-stat-trial">0</span>
+                    </div>
+                    <div class="hw-sidebar-stat">
+                        <span class="hw-sidebar-stat-name">Suspended</span>
+                        <span class="hw-sidebar-stat-value" id="ma-stat-suspended">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">S</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Super Admin</div>
+                        <div class="sidebar-profile-role">Platform Owner</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button id="ma-logout-btn" class="dropdown-item" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <div class="app-main-wrapper">
+            <header class="main-header">
+                <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <div class="topbar-search">
+                    <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" class="topbar-search-input" placeholder="Search tenants..." id="ma-search-input">
+                </div>
+
+                <div class="topbar-actions">
+                    <button class="header-create-exam-btn" id="ma-create-cta" type="button" style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; padding:8px 16px; border-radius:8px; font-weight:700; border:1.5px solid var(--primary); color:var(--primary); background:transparent; cursor:pointer;">
+                        <span style="font-size:1rem; line-height:1;">+</span>
+                        <span>New Tenant</span>
+                    </button>
+                </div>
+            </header>
+
+            <main class="main-content hw-main">
+                <header class="hw-page-head">
+                    <span class="hw-page-eyebrow">Platform Operations</span>
+                    <h1 class="hw-page-title">Tenants</h1>
+                    <p class="hw-page-subtitle">Each row is a school. Toggle modules to control what they have access to. Set plans, extend trials, suspend or delete.</p>
+                </header>
+
+                <section class="hw-section">
+                    <div class="hw-section-head">
+                        <div>
+                            <span class="hw-section-eyebrow">All Tenants</span>
+                            <h2 class="hw-section-title">Schools on the platform</h2>
+                        </div>
+                        <span class="hw-section-meta" id="ma-list-meta">0 total</span>
+                    </div>
+                    <div id="ma-tenants-list" class="hw-list" aria-live="polite"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Tenant editor modal (create / edit) -->
+    <div class="hw-modal" id="ma-tenant-modal" role="dialog" aria-modal="true" aria-labelledby="ma-tenant-title" hidden>
+        <div class="hw-modal-backdrop" data-ma-close-tenant></div>
+        <div class="hw-modal-card wide" role="document">
+            <div class="hw-modal-head">
+                <div>
+                    <span class="hw-section-eyebrow" id="ma-tenant-eyebrow">New Tenant</span>
+                    <h3 id="ma-tenant-title">Add Tenant</h3>
+                </div>
+                <button type="button" class="hw-modal-close" data-ma-close-tenant aria-label="Close">&times;</button>
+            </div>
+            <div class="hw-modal-body">
+                <form id="ma-tenant-form" novalidate>
+                    <input type="hidden" id="ma-tenant-id" value="">
+                    <div class="hw-form-grid">
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-name">School name</label>
+                            <input id="ma-tenant-name" type="text" placeholder="e.g. SEATOS Schools" required>
+                        </div>
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-school-version">School version</label>
+                            <input id="ma-tenant-school-version" type="text" placeholder="e.g. SEATOS-2026" required>
+                        </div>
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-client-id">Client (branding)</label>
+                            <input id="ma-tenant-client-id" type="text" placeholder="default or seatos">
+                        </div>
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-contact">Contact email</label>
+                            <input id="ma-tenant-contact" type="email" placeholder="admin@school.edu">
+                        </div>
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-plan">Plan</label>
+                            <select id="ma-tenant-plan">
+                                <option value="trial">Trial</option>
+                                <option value="basic">Basic</option>
+                                <option value="pro">Pro</option>
+                                <option value="enterprise">Enterprise</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-status">Status</label>
+                            <select id="ma-tenant-status">
+                                <option value="trial">Trial</option>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="expired">Expired</option>
+                            </select>
+                        </div>
+                        <div class="hw-form-group">
+                            <label for="ma-tenant-expires">Plan expires</label>
+                            <input id="ma-tenant-expires" type="date">
+                        </div>
+                        <div class="hw-form-group full">
+                            <label>Modules enabled</label>
+                            <div class="ma-modules-grid" id="ma-modules-grid"></div>
+                        </div>
+                        <div class="hw-form-group full">
+                            <label for="ma-tenant-notes">Internal notes</label>
+                            <textarea id="ma-tenant-notes" placeholder="Anything you want to remember about this tenant"></textarea>
+                        </div>
+                    </div>
+                    <div class="hw-form-actions">
+                        <button type="submit" class="btn-primary" id="ma-save-btn">Save tenant</button>
+                        <button type="button" class="hw-ghost-btn" data-ma-close-tenant>Cancel</button>
+                        <button type="button" class="hw-ghost-btn" id="ma-delete-btn" style="display:none; color:#c0392b; margin-left:auto;">Delete tenant</button>
+                    </div>
+                    <div id="ma-tenant-status-msg" class="hw-status" role="status"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.toggleSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active');
+            if (closeBtn) closeBtn.style.display = sidebar.classList.contains('mobile-open') ? 'flex' : 'none';
+        };
+        window.closeSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            if (closeBtn) closeBtn.style.display = 'none';
+        };
+        window.toggleThemeFromSidebar = function () {
+            var html = document.documentElement;
+            var current = html.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        };
+        window.toggleTabletSidebar = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            if (!sidebar) return;
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+            }
+        };
+        window.toggleSidebarProfileDropdown = function () {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+    </script>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        import { loadScripts } from '../core/modules/pageBootstrap.js';
+
+        await initConfig();
+        await loadScripts([
+            '../js/utils.js',
+            '../js/dataService.js',
+            '../js/auth.js',
+            '../js/tenantService.js',
+            '../js/masterAdmin.js'
+        ]);
+
+        if (window.masterAdmin?.init) {
+            await window.masterAdmin.init();
+        }
+    </script>
+</body>
+
+</html>

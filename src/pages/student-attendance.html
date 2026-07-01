@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>My Attendance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/attendance/css/attendance.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+            <div class="sidebar-brand">
+                <div>
+                    <span class="sidebar-brand-text">Gen7 CBT</span>
+                </div>
+                <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
+                <span id="sidebar-theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span>
+            </button>
+
+            <nav class="sidebar-nav">
+                <a href="student-attendance.html" class="sidebar-nav-item active">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></span>
+                    <span class="sidebar-nav-label">My Attendance</span>
+                </a>
+            </nav>
+
+            <!-- Cross-module navigation -->
+            <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+            <nav class="sidebar-nav" id="module-nav-items"></nav>
+
+            <div class="sidebar-divider"></div>
+            </div>
+
+            <!-- Sidebar Profile -->
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">S</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Student</div>
+                        <div class="sidebar-profile-role">Student</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button class="dropdown-item" onclick="auth.logout()" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile sidebar overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <!-- ========== MAIN WRAPPER ========== -->
+        <div class="app-main-wrapper">
+        <!-- Topbar -->
+        <header class="main-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <button id="mobile-menu-btn" class="mobile-menu-btn" onclick="toggleSidebarMobile()">&#9776;</button>
+                <div>
+                    <h1 style="margin:0; font-size:1.15rem; font-weight:800;">My Attendance</h1>
+                    <p style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;" id="attendance-subtitle">View your attendance record</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content" style="display:flex; flex-direction:column; padding:0; overflow:hidden; flex:1; min-height:0;">
+
+            <!-- Loading State -->
+            <div id="loading-state" style="display:flex; align-items:center; justify-content:center; flex:1; color:var(--light-text);">
+                <p>Loading your attendance...</p>
+            </div>
+
+            <!-- Student Attendance Content -->
+            <div id="student-attendance-content" style="display:none; flex:1; flex-direction:column; min-height:0; overflow-y:auto;">
+
+                <!-- Tab Switcher -->
+                <div class="attendance-controls" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                    <div class="attendance-view-tabs" style="gap:8px;">
+                        <button class="attendance-tab active" data-student-tab="attendance" onclick="studentAttendanceTabs.switch('attendance')">Attendance</button>
+                        <button class="attendance-tab" data-student-tab="subjects" onclick="studentAttendanceTabs.switch('subjects')">My Subjects</button>
+                    </div>
+                </div>
+
+                <!-- Subjects Registration View -->
+                <div id="subjects-view" style="display:none; flex-direction:column; padding:20px 28px; gap:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+                        <div>
+                            <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-color);">Available Subjects</h2>
+                            <p style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;">Register to be added to your teachers' attendance sheets.</p>
+                        </div>
+                        <button class="btn btn-outline" id="subjects-refresh-btn" style="padding:6px 12px;">Refresh</button>
+                    </div>
+                    <div id="subjects-list">
+                        <div class="attendance-empty"><p style="color:var(--light-text);">Loading subjects…</p></div>
+                    </div>
+                </div>
+
+                <!-- Attendance View Wrapper (original content) -->
+                <div id="attendance-view-wrap" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+
+                <!-- Stats Cards -->
+                <div class="student-stats-grid" id="stats-grid">
+                    <div class="student-stat-card">
+                        <div class="student-stat-value" id="stat-rate" style="color:#27ae60;">--%</div>
+                        <div class="student-stat-label">Attendance Rate</div>
+                    </div>
+                    <div class="student-stat-card">
+                        <div class="student-stat-value" id="stat-present-count" style="color:#27ae60;">0</div>
+                        <div class="student-stat-label">Present</div>
+                    </div>
+                    <div class="student-stat-card">
+                        <div class="student-stat-value" id="stat-absent-count" style="color:#e74c3c;">0</div>
+                        <div class="student-stat-label">Absent</div>
+                    </div>
+                    <div class="student-stat-card">
+                        <div class="student-stat-value" id="stat-late-count" style="color:#f39c12;">0</div>
+                        <div class="student-stat-label">Late</div>
+                    </div>
+                </div>
+
+                <!-- Date Range Controls -->
+                <div class="attendance-controls" style="border-top:1px solid var(--border-color);">
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>From</label>
+                        <input type="date" id="student-start-date" onchange="studentAttendance.loadAttendance()">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>To</label>
+                        <input type="date" id="student-end-date" onchange="studentAttendance.loadAttendance()">
+                    </div>
+                </div>
+
+                <!-- Attendance Day List -->
+                <div class="student-attendance-list" id="attendance-day-list">
+                    <div class="attendance-empty">
+                        <p style="color:var(--light-text);">No attendance records found for this period.</p>
+                    </div>
+                </div>
+
+                <!-- Attendance Grid (new sheet-based view) -->
+                <div style="padding:20px 28px 4px;">
+                    <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-color);">By Sheet</h2>
+                    <p style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;">Your attendance across each subject and the form register.</p>
+                </div>
+                <div id="student-grid-wrap" style="padding:12px 28px 24px; display:flex; flex-direction:column; gap:16px;">
+                    <div class="attendance-empty"><p style="color:var(--light-text);">Loading your attendance grid…</p></div>
+                </div>
+                </div>
+            </div>
+
+        </main>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation (mobile only) -->
+    <nav class="bottom-nav" role="navigation" aria-label="Mobile navigation">
+        <a href="student-attendance.html" class="bottom-nav-item active">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></span>
+            <span>Attendance</span>
+        </a>
+        <a href="student-dashboard.html" class="bottom-nav-item">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
+            <span>Exams</span>
+        </a>
+    </nav>
+
+    <!-- Sidebar toggle scripts -->
+    <script>
+        window.toggleSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                if (overlay) overlay.classList.toggle('visible');
+            }
+        };
+        window.closeSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('visible');
+        };
+        window.toggleThemeFromSidebar = function() {
+            var curr = document.documentElement.getAttribute('data-theme');
+            var next = curr === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            var icon = document.getElementById('sidebar-theme-icon');
+            var sunSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+            var moonSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+            if (icon) icon.innerHTML = next === 'dark' ? sunSvg : moonSvg;
+        };
+        window.toggleTabletSidebar = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            var icon = document.getElementById('sidebar-expand-icon');
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6');
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            }
+        };
+        window.toggleSidebarProfileDropdown = function() {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+        (function() {
+            if (localStorage.getItem('sidebar-collapsed') === '1' && window.innerWidth > 1024) {
+                var s = document.getElementById('app-sidebar');
+                var w = document.querySelector('.app-main-wrapper');
+                if (s) s.classList.add('sidebar-collapsed');
+                if (w) w.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        var ok = await bootstrapModulePage({
+            moduleId: 'attendance',
+            moduleName: 'Attendance',
+            title: 'Attendance module is not enabled',
+            message: 'The attendance feature is not available for this school configuration.',
+            currentModuleId: 'attendance',
+            renderNav: true,
+            role: 'student',
+            globalScripts: [
+                '../js/utils.js',
+                '../js/dataService.js',
+                '../js/auth.js'
+            ],
+            moduleScripts: [
+                '../modules/attendance/js/attendanceDataService.js',
+                '../modules/attendance/js/attendanceSheetsDataService.js',
+                '../modules/attendance/js/studentAttendance.js',
+                '../modules/attendance/js/studentSubjectRegistration.js',
+                '../modules/attendance/js/studentAttendanceGrid.js'
+            ]
+        });
+
+        if (ok && window.studentAttendance?.init) {
+            window.studentAttendance.init();
+        }
+        if (ok && window.studentSubjectRegistration?.init) {
+            window.studentSubjectRegistration.init();
+        }
+        if (ok && window.studentAttendanceGrid?.init) {
+            window.studentAttendanceGrid.init();
+        }
+    </script>
+
+    <script>
+        window.studentAttendanceTabs = {
+            switch: function(view) {
+                var aWrap = document.getElementById('attendance-view-wrap');
+                var sWrap = document.getElementById('subjects-view');
+                document.querySelectorAll('[data-student-tab]').forEach(function(b) {
+                    b.classList.toggle('active', b.getAttribute('data-student-tab') === view);
+                });
+                if (view === 'subjects') {
+                    if (aWrap) aWrap.style.display = 'none';
+                    if (sWrap) sWrap.style.display = 'flex';
+                    if (window.studentSubjectRegistration?.refresh) window.studentSubjectRegistration.refresh();
+                } else {
+                    if (sWrap) sWrap.style.display = 'none';
+                    if (aWrap) aWrap.style.display = 'flex';
+                    if (window.studentAttendanceGrid?.refresh) window.studentAttendanceGrid.refresh();
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>

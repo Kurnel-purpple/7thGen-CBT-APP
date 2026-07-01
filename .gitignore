@@ -2,6 +2,9 @@ node_modules
 .env
 dist
 .DS_Store
+ADDON_ARCHITECTURE_PLAN.md
+MODULE_SYSTEM_TECHNICAL_BLUEPRINT.md
+MODULE_SYSTEM_IMPLEMENTATION_CHECKLIST.md
 
 # Capacitor Android build outputs (keep source, ignore build artifacts)
 android/.gradle

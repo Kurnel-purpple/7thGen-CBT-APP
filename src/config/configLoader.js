@@ -81,6 +81,17 @@ class ConfigLoader {
             },
             typography: { ...defaultCfg.typography, ...clientCfg.typography },
             features: { ...defaultCfg.features, ...clientCfg.features },
+            modules: {
+                ...defaultCfg.modules,
+                ...clientCfg.modules,
+                enabled: clientCfg.modules?.enabled || defaultCfg.modules?.enabled || [],
+                settings: {
+                    ...(defaultCfg.modules?.settings || {}),
+                    ...(clientCfg.modules?.settings || {})
+                }
+            },
+            tenancy: { ...defaultCfg.tenancy, ...clientCfg.tenancy },
+            school: { ...(defaultCfg.school || {}), ...(clientCfg.school || {}) },
             footer: { ...defaultCfg.footer, ...clientCfg.footer },
             pageTitles: { ...defaultCfg.pageTitles, ...clientCfg.pageTitles }
         };

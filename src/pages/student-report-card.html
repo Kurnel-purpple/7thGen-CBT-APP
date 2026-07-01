@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>My Report Card</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/report_cards/css/report-cards.css">
+    <style>
+        /* ============================================================
+           STUDENT REPORT CARD — Two-Panel Layout
+           ============================================================ */
+        .src-layout {
+            display: flex;
+            gap: 0;
+            height: calc(100vh - 64px);
+        }
+
+        /* Left: card list */
+        .src-list-panel {
+            width: 280px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-color);
+            background: var(--card-bg);
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        .src-list-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--light-text);
+            padding: 0 16px 12px;
+        }
+
+        .src-card-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 14px 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s;
+            font-family: inherit;
+        }
+        .src-card-item:hover {
+            background: var(--inner-bg, rgba(0,0,0,0.02));
+        }
+        .src-card-item.active {
+            background: var(--primary-light, rgba(74, 144, 226, 0.08));
+            border-left: 3px solid var(--primary-color);
+        }
+        [data-theme="dark"] .src-card-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+        [data-theme="dark"] .src-card-item.active {
+            background: rgba(77, 142, 240, 0.12);
+        }
+
+        .src-card-term {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--text-color);
+            margin-bottom: 2px;
+        }
+        .src-card-class {
+            font-size: 0.78rem;
+            color: var(--light-text);
+        }
+        .src-card-score {
+            font-size: 0.78rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* Right: detail view */
+        .src-detail-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px 32px;
+            background: var(--bg-color, #f8f9fa);
+        }
+        [data-theme="dark"] .src-detail-panel {
+            background: var(--bg-color, #0f1117);
+        }
+
+        .src-detail-header h2 {
+            margin: 0 0 6px;
+            font-size: 1.3rem;
+            font-family: var(--font-heading);
+            font-weight: 700;
+        }
+        .src-detail-meta {
+            font-size: 0.85rem;
+            color: var(--light-text);
+            margin-bottom: 24px;
+        }
+
+        .src-section {
+            margin-bottom: 24px;
+        }
+        .src-section h4 {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--light-text);
+            margin: 0 0 10px;
+        }
+        .src-remarks {
+            margin: 0;
+            padding: 14px 16px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .src-empty-detail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--light-text);
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* Mobile: single panel */
+        @media (max-width: 768px) {
+            .src-layout { flex-direction: column; height: auto; }
+            .src-list-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border-color); max-height: 200px; }
+            .src-detail-panel { padding: 20px 16px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+                <div class="sidebar-brand">
+                    <div><span class="sidebar-brand-text">Gen7 CBT</span></div>
+                    <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+                </div>
+
+                <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
+                    <span id="sidebar-theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span>
+                </button>
+
+                <nav class="sidebar-nav">
+                    <a href="student-dashboard.html" class="sidebar-nav-item">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+                        <span class="sidebar-nav-label">Dashboard</span>
+                    </a>
+                    <a href="student-report-card.html" class="sidebar-nav-item active">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+                        <span class="sidebar-nav-label">My Report Card</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+                <nav class="sidebar-nav" id="module-nav-items"></nav>
+            </div>
+
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">S</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Student</div>
+                        <div class="sidebar-profile-role">Student</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button class="dropdown-item" onclick="if(typeof auth!=='undefined'&&auth.logout){auth.logout()}else{window.location.href='../index.html'}" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <!-- ========== MAIN ========== -->
+        <div class="app-main-wrapper">
+            <header class="app-topbar">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <div class="topbar-page-title">My Report Card</div>
+                </div>
+            </header>
+
+            <div class="src-layout">
+                <!-- Left panel: card list -->
+                <div class="src-list-panel">
+                    <div class="src-list-title">Report Cards</div>
+                    <div id="src-card-list"></div>
+                </div>
+
+                <!-- Right panel: detail -->
+                <div class="src-detail-panel">
+                    <div id="src-detail">
+                        <div class="src-empty-detail">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin-bottom:12px; opacity:0.5;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            <p>Select a report card to view details.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar helper scripts -->
+    <script>
+        window.toggleSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active');
+            if (closeBtn) closeBtn.style.display = sidebar.classList.contains('mobile-open') ? 'flex' : 'none';
+        };
+        window.closeSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            if (closeBtn) closeBtn.style.display = 'none';
+        };
+        window.toggleThemeFromSidebar = function() {
+            var html = document.documentElement;
+            var current = html.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            var icon = document.getElementById('sidebar-theme-icon');
+            if (icon) {
+                icon.innerHTML = next === 'dark'
+                    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+            }
+        };
+        window.toggleTabletSidebar = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            var icon = document.getElementById('sidebar-expand-icon');
+            if (!sidebar) return;
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6');
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            }
+        };
+        window.toggleSidebarProfileDropdown = function() {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+        (function() {
+            if (localStorage.getItem('sidebar-collapsed') === '1' && window.innerWidth > 1024) {
+                var s = document.getElementById('app-sidebar');
+                var w = document.querySelector('.app-main-wrapper');
+                if (s) s.classList.add('sidebar-collapsed');
+                if (w) w.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        try {
+            var ok = await bootstrapModulePage({
+                moduleId: 'report_cards',
+                moduleName: 'Report Cards',
+                title: 'Report Cards module is not enabled',
+                message: 'The report cards feature is not available for this school configuration.',
+                currentModuleId: 'report_cards',
+                renderNav: true,
+                globalScripts: [
+                    '../core/shared/academicEntities.js',
+                    '../js/utils.js',
+                    '../js/dataService.js',
+                    '../js/auth.js'
+                ],
+                moduleScripts: [
+                    '../modules/report_cards/js/reportCardDataService.js',
+                    '../modules/report_cards/js/studentReportCard.js'
+                ]
+            });
+
+            if (ok && window.studentReportCard?.init) {
+                window.studentReportCard.init();
+            }
+        } catch (err) {
+            console.error('[ReportCards] Failed to bootstrap student report card page:', err);
+        }
+    </script>
+</body>
+
+</html>

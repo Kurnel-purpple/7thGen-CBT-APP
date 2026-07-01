@@ -7,4 +7,4 @@ Client configuration files are gitignored for privacy.
 Each deployment environment should have its own client configs.
 
 ## Creating a New Client
-Run: `node generate-client-config.js`
+Add a new JS file in this directory matching the client ID.

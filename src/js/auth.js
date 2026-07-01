@@ -51,6 +51,8 @@ const auth = {
                 window.location.href = 'pages/teacher-dashboard.html';
             } else if (user.role === 'admin') {
                 window.location.href = 'pages/admin-dashboard.html';
+            } else if (user.role === 'super_admin') {
+                window.location.href = 'pages/master-admin.html';
             } else {
                 auth.showError('Unknown user role.');
                 submitBtn.textContent = originalBtnText;

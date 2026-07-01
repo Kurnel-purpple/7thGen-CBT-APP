@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>Module Runtime Diagnostics</title>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+
+<body>
+    <div class="app-container no-sidebar">
+        <header class="main-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <button class="btn" onclick="window.history.back()">Back</button>
+                <div>
+                    <h1 style="margin:0; font-size:1.25rem;">Module Runtime Diagnostics</h1>
+                    <p style="margin:4px 0 0; color:var(--light-text); font-size:0.92rem;">Hidden helper page for checking module/bootstrap state during rollout.</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content" style="display:block; padding:24px;">
+            <section style="max-width:1000px; margin:0 auto; display:grid; gap:18px;">
+                <article style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:20px; padding:20px;">
+                    <h2 style="margin:0 0 12px;">Summary</h2>
+                    <div id="summary" style="color:var(--light-text);">Loading...</div>
+                </article>
+
+                <article style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:20px; padding:20px;">
+                    <h2 style="margin:0 0 12px;">Client Runtime</h2>
+                    <pre id="runtime-json" style="white-space:pre-wrap; word-break:break-word; color:var(--text-color);"></pre>
+                </article>
+
+                <article style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:20px; padding:20px;">
+                    <h2 style="margin:0 0 12px;">Backend Config</h2>
+                    <pre id="backend-json" style="white-space:pre-wrap; word-break:break-word; color:var(--text-color);"></pre>
+                </article>
+
+                <article style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:20px; padding:20px;">
+                    <h2 style="margin:0 0 12px;">Module Loader Snapshot</h2>
+                    <pre id="module-json" style="white-space:pre-wrap; word-break:break-word; color:var(--text-color);"></pre>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initConfig, getClientRuntime, getBackendConfig, getEnabledModules, getModuleSnapshot } from '../config/index.js';
+
+        await initConfig();
+
+        const runtime = getClientRuntime();
+        const backend = getBackendConfig();
+        const snapshot = getModuleSnapshot();
+        const enabledModules = (getEnabledModules() || []).join(', ') || 'none';
+
+        const summary = document.getElementById('summary');
+        const summaryRows = [
+            ['Client:', runtime?.clientId || 'unknown'],
+            ['Enabled modules:', enabledModules],
+            ['Backend:', `${backend?.backendKey || 'unknown'} (${backend?.mode || 'unknown'})`]
+        ];
+
+        summary.textContent = '';
+        summaryRows.forEach(([label, value]) => {
+            const row = document.createElement('div');
+            const strong = document.createElement('strong');
+            strong.textContent = label;
+            row.appendChild(strong);
+            row.appendChild(document.createTextNode(` ${value}`));
+            summary.appendChild(row);
+        });
+
+        document.getElementById('runtime-json').textContent = JSON.stringify(runtime, null, 2);
+        document.getElementById('backend-json').textContent = JSON.stringify(backend, null, 2);
+        document.getElementById('module-json').textContent = JSON.stringify(snapshot, null, 2);
+    </script>
+</body>
+
+</html>

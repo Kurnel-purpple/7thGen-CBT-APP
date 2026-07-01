@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>Attendance Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/attendance/css/attendance.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg id="sidebar-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+            <div class="sidebar-brand">
+                <div>
+                    <span class="sidebar-brand-text">Gen7 CBT</span>
+                </div>
+                <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7); transition:color 0.2s;">
+                <span id="sidebar-theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span>
+            </button>
+
+            <nav class="sidebar-nav">
+                <a href="attendance.html" class="sidebar-nav-item active">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></span>
+                    <span class="sidebar-nav-label">Mark Attendance</span>
+                </a>
+                <button class="sidebar-nav-item" onclick="attendanceDashboard.switchView('history'); closeSidebarMobile();">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                    <span class="sidebar-nav-label">History</span>
+                </button>
+                <button class="sidebar-nav-item" onclick="attendanceDashboard.switchView('sheets'); closeSidebarMobile();">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg></span>
+                    <span class="sidebar-nav-label">Sheets</span>
+                </button>
+            </nav>
+
+            <!-- Cross-module navigation -->
+            <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+            <nav class="sidebar-nav" id="module-nav-items"></nav>
+
+            <div class="sidebar-divider"></div>
+            </div>
+
+            <!-- Sidebar Profile -->
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">T</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Teacher</div>
+                        <div class="sidebar-profile-role">Teacher</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button class="dropdown-item" onclick="auth.logout()" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile sidebar overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <!-- ========== MAIN WRAPPER ========== -->
+        <div class="app-main-wrapper">
+        <!-- Topbar -->
+        <header class="main-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <button id="mobile-menu-btn" class="mobile-menu-btn" onclick="toggleSidebarMobile()">&#9776;</button>
+                <div>
+                    <h1 style="margin:0; font-size:1.15rem; font-weight:800;">Attendance</h1>
+                    <p style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;" id="attendance-subtitle">Mark and review student attendance</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content" style="display:flex; flex-direction:column; padding:0; overflow:hidden; flex:1; min-height:0;">
+
+            <!-- Loading State -->
+            <div id="loading-state" style="display:flex; align-items:center; justify-content:center; flex:1; color:var(--light-text);">
+                <p>Loading attendance...</p>
+            </div>
+
+            <!-- Mark View -->
+            <div id="mark-view" style="display:none; flex:1; flex-direction:column; min-height:0;">
+                <!-- Controls -->
+                <div class="attendance-controls">
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>Class</label>
+                        <select id="class-select" onchange="attendanceDashboard.onClassChange()">
+                            <option value="">Select a class...</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>Sheet</label>
+                        <select id="sheet-select" onchange="attendanceDashboard.onSheetChange()" disabled>
+                            <option value="">Pick a class first</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>Date / Session</label>
+                        <select id="date-select" onchange="attendanceDashboard.onDateChange()" disabled>
+                            <option value="">Pick a sheet first</option>
+                        </select>
+                    </div>
+                    <div class="attendance-view-tabs">
+                        <button class="attendance-tab active" onclick="attendanceDashboard.switchView('mark')" data-view="mark">Mark</button>
+                        <button class="attendance-tab" onclick="attendanceDashboard.switchView('history')" data-view="history">History</button>
+                    </div>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="attendance-stats-bar" id="stats-bar">
+                    <span class="stat-pill present"><span class="stat-dot"></span> Present: <span id="stat-present">0</span></span>
+                    <span class="stat-pill absent"><span class="stat-dot"></span> Absent: <span id="stat-absent">0</span></span>
+                    <span class="stat-pill ph"><span class="stat-dot"></span> PH: <span id="stat-ph">0</span></span>
+                    <span class="stat-pill mtb"><span class="stat-dot"></span> MTB: <span id="stat-mtb">0</span></span>
+                    <span class="stat-pill unmarked"><span class="stat-dot"></span> Unmarked: <span id="stat-unmarked">0</span></span>
+                </div>
+
+                <!-- Student List -->
+                <div class="attendance-list" id="student-list">
+                    <div class="attendance-empty">
+                        <div class="attendance-empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                        </div>
+                        <p style="font-weight:700; font-size:1rem; color:var(--text-color);">Select a class to begin</p>
+                        <p style="font-size:0.88rem;">Choose a class from the dropdown above to load students.</p>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="attendance-actions" id="action-bar" style="display:none;">
+                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('present')">Mark All Present</button>
+                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('absent')" style="border-color:#e74c3c; color:#e74c3c;">Mark All Absent</button>
+                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('ph')" style="border-color:#f39c12; color:#f39c12;">Mark All PH</button>
+                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('mtb')" style="border-color:#8e44ad; color:#8e44ad;">Mark All MTB</button>
+                    <button class="btn" onclick="attendanceDashboard.saveAttendance()" style="margin-left:auto; background:var(--primary-color); color:white;">
+                        Save Attendance
+                    </button>
+                </div>
+            </div>
+
+            <!-- History View -->
+            <div id="history-view" style="display:none; flex:1; flex-direction:column; min-height:0;">
+                <!-- Controls (reuses class + date range) -->
+                <div class="attendance-controls">
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>Class</label>
+                        <select id="history-class-select" onchange="attendanceDashboard.onHistoryClassChange()">
+                            <option value="">Select a class...</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>From</label>
+                        <input type="date" id="history-start-date" onchange="attendanceDashboard.loadHistory()">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <label>To</label>
+                        <input type="date" id="history-end-date" onchange="attendanceDashboard.loadHistory()">
+                    </div>
+                    <div class="attendance-view-tabs">
+                        <button class="attendance-tab" onclick="attendanceDashboard.switchView('mark')" data-view="mark">Mark</button>
+                        <button class="attendance-tab active" onclick="attendanceDashboard.switchView('history')" data-view="history">History</button>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div style="flex:1; overflow:auto; padding:20px 28px;" id="history-content">
+                    <div class="attendance-empty">
+                        <div class="attendance-empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <p style="font-weight:700; font-size:1rem; color:var(--text-color);">Select a class to view history</p>
+                        <p style="font-size:0.88rem;">Choose a class and date range to view attendance records.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sheets View -->
+            <div id="sheets-view" style="display:none; flex:1; flex-direction:column; min-height:0;">
+                <!-- Sheets list sub-view -->
+                <div id="sheets-list-wrap" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+                    <div class="attendance-controls" style="justify-content:flex-end;">
+                        <div class="attendance-view-tabs" style="gap:8px;">
+                            <button class="attendance-tab" onclick="attendanceDashboard.switchView('mark')" data-view="mark">Mark</button>
+                            <button class="attendance-tab" onclick="attendanceDashboard.switchView('history')" data-view="history">History</button>
+                            <button class="attendance-tab active" onclick="attendanceDashboard.switchView('sheets')" data-view="sheets">Sheets</button>
+                            <button class="btn" id="sheets-new-btn" style="background:var(--primary-color); color:white; font-weight:700; padding:8px 14px; border-radius:10px;">+ New Sheet</button>
+                        </div>
+                    </div>
+                    <div style="flex:1; overflow:auto; padding:20px 28px;" id="sheets-list">
+                        <div class="attendance-empty"><p style="color:var(--light-text);">Loading sheets…</p></div>
+                    </div>
+                </div>
+
+                <!-- Sheet grid sub-view -->
+                <div id="sheet-grid-wrap" style="display:none; flex-direction:column; flex:1; min-height:0;">
+                    <div class="attendance-controls" style="justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <button class="btn btn-outline" onclick="attendanceSheetsDashboard.closeGrid()" style="padding:6px 12px;">&larr; Back</button>
+                            <div>
+                                <h2 id="sheet-grid-title" style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-color);">Sheet</h2>
+                                <p id="sheet-grid-subtitle" style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;"></p>
+                            </div>
+                        </div>
+                        <div id="sheet-grid-status" style="font-size:0.82rem; color:var(--light-text);"></div>
+                    </div>
+                    <div id="sheet-grid-container" class="sheet-grid-container">
+                        <div class="attendance-empty"><p style="color:var(--light-text);">Loading sheet…</p></div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+        </div>
+    </div>
+
+    <!-- ========== SHEET BUILDER MODAL ========== -->
+    <div class="sheet-builder-modal" id="sheet-builder-modal" style="display:none;">
+        <div class="sheet-builder-scrim" onclick="attendanceSheetsDashboard.closeBuilder()"></div>
+        <div class="sheet-builder-card" role="dialog" aria-modal="true">
+            <div class="sheet-builder-header">
+                <h3 id="sheet-builder-title">New Attendance Sheet</h3>
+                <button class="sheet-builder-close" onclick="attendanceSheetsDashboard.closeBuilder()" aria-label="Close">&times;</button>
+            </div>
+            <form id="sheet-builder-form" class="sheet-builder-body">
+                <div class="sb-row">
+                    <div class="sb-field">
+                        <label>Sheet type</label>
+                        <div class="sb-radio-group">
+                            <label class="sb-radio"><input type="radio" name="sb-kind" value="subject" checked> Subject period</label>
+                            <label class="sb-radio"><input type="radio" name="sb-kind" value="form"> Form teacher (master)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sb-row sb-grid-2">
+                    <div class="sb-field">
+                        <label for="sb-class">Class</label>
+                        <select id="sb-class" required><option value="">Select class…</option></select>
+                    </div>
+                    <div class="sb-field" id="sb-subject-wrap">
+                        <label for="sb-subject">Subject</label>
+                        <input id="sb-subject" type="text" placeholder="e.g. Mathematics" />
+                    </div>
+                </div>
+
+                <div class="sb-row sb-grid-2">
+                    <div class="sb-field">
+                        <label for="sb-term">Term</label>
+                        <select id="sb-term" required>
+                            <option value="">Select term…</option>
+                            <option value="1st Term">1st Term</option>
+                            <option value="2nd Term">2nd Term</option>
+                            <option value="3rd Term">3rd Term</option>
+                        </select>
+                    </div>
+                    <div class="sb-field">
+                        <label for="sb-session">Session <span style="color:var(--light-text); font-weight:400;">(optional)</span></label>
+                        <input id="sb-session" type="text" placeholder="e.g. 2025/2026" />
+                    </div>
+                </div>
+
+                <div class="sb-row sb-grid-2">
+                    <div class="sb-field">
+                        <label for="sb-start">Term start date</label>
+                        <input id="sb-start" type="date" required />
+                    </div>
+                    <div class="sb-field">
+                        <label for="sb-end">Term end date</label>
+                        <input id="sb-end" type="date" required />
+                    </div>
+                </div>
+
+                <div class="sb-row" id="sb-weekdays-row">
+                    <div class="sb-field">
+                        <label>Meeting days <span style="color:var(--light-text); font-weight:400;">(for subject sheets)</span></label>
+                        <div class="sb-weekdays">
+                            <label class="sb-weekday"><input type="checkbox" data-wd="1" checked> Mon</label>
+                            <label class="sb-weekday"><input type="checkbox" data-wd="2" checked> Tue</label>
+                            <label class="sb-weekday"><input type="checkbox" data-wd="3" checked> Wed</label>
+                            <label class="sb-weekday"><input type="checkbox" data-wd="4" checked> Thu</label>
+                            <label class="sb-weekday"><input type="checkbox" data-wd="5" checked> Fri</label>
+                            <label class="sb-weekday"><input type="checkbox" data-wd="6"> Sat</label>
+                            <label class="sb-weekday"><input type="checkbox" data-wd="0"> Sun</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sb-row">
+                    <div class="sb-preview" id="sb-preview">Set dates to preview columns.</div>
+                </div>
+
+                <div class="sb-row">
+                    <div class="sb-field">
+                        <label>Manually added students <span style="color:var(--light-text); font-weight:400;">(supplement auto-roster)</span></label>
+                        <div class="sb-roster" id="sb-roster-panel">
+                            <div style="color:var(--light-text); font-size:0.85rem;">Select a class to load students.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sb-actions">
+                    <button type="button" class="btn btn-outline" onclick="attendanceSheetsDashboard.closeBuilder()">Cancel</button>
+                    <button type="submit" class="btn" style="background:var(--primary-color); color:white;">Save Sheet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation (mobile only) -->
+    <nav class="bottom-nav" role="navigation" aria-label="Mobile navigation">
+        <a href="attendance.html" class="bottom-nav-item active">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></span>
+            <span>Mark</span>
+        </a>
+        <button class="bottom-nav-item" onclick="attendanceDashboard.switchView('history')">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span>History</span>
+        </button>
+        <a href="teacher-dashboard.html" class="bottom-nav-item">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
+            <span>Exams</span>
+        </a>
+    </nav>
+
+    <!-- Sidebar toggle scripts -->
+    <script>
+        window.toggleSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                if (overlay) overlay.classList.toggle('visible');
+            }
+        };
+        window.closeSidebarMobile = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('visible');
+        };
+        window.toggleThemeFromSidebar = function() {
+            var curr = document.documentElement.getAttribute('data-theme');
+            var next = curr === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            var icon = document.getElementById('sidebar-theme-icon');
+            var sunSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+            var moonSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+            if (icon) icon.innerHTML = next === 'dark' ? sunSvg : moonSvg;
+        };
+        window.toggleTabletSidebar = function() {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            var icon = document.getElementById('sidebar-expand-icon');
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6');
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+                var polyline = icon ? icon.querySelector('polyline') : null;
+                if (polyline) polyline.setAttribute('points', expanded ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            }
+        };
+        window.toggleSidebarProfileDropdown = function() {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+        // Restore sidebar state
+        (function() {
+            if (localStorage.getItem('sidebar-collapsed') === '1' && window.innerWidth > 1024) {
+                var s = document.getElementById('app-sidebar');
+                var w = document.querySelector('.app-main-wrapper');
+                if (s) s.classList.add('sidebar-collapsed');
+                if (w) w.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        var ok = await bootstrapModulePage({
+            moduleId: 'attendance',
+            moduleName: 'Attendance',
+            title: 'Attendance module is not enabled',
+            message: 'The attendance feature is not available for this school configuration.',
+            currentModuleId: 'attendance',
+            renderNav: true,
+            globalScripts: [
+                '../core/shared/academicEntities.js',
+                '../js/utils.js',
+                '../js/dataService.js',
+                '../js/auth.js'
+            ],
+            moduleScripts: [
+                '../modules/attendance/js/attendanceDataService.js',
+                '../modules/attendance/js/attendanceSheetsDataService.js',
+                '../modules/attendance/js/attendanceDashboard.js',
+                '../modules/attendance/js/attendanceSheetsDashboard.js'
+            ]
+        });
+
+        if (ok && window.attendanceDashboard?.init) {
+            window.attendanceDashboard.init();
+        }
+        if (ok && window.attendanceSheetsDashboard?.init) {
+            window.attendanceSheetsDashboard.init();
+        }
+    </script>
+</body>
+
+</html>
