@@ -1450,6 +1450,7 @@
                 <div id="reset-user-error"
                     style="color: #EA4335; font-size: 0.85rem; display: none; background: rgba(234,67,53,0.1); padding: 10px; border-radius: 6px; border: 1px solid #EA4335; margin-bottom: 15px;">
                 </div>
+                <div id="reset-user-picker" style="display:none; margin-bottom: 15px; max-height: 260px; overflow-y: auto;"></div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--border-color);">
                     <button class="btn"
                         style="background: transparent; border: 1px solid var(--border-color); color: var(--light-text);"
@@ -4483,6 +4484,8 @@
             if (errEl2) errEl2.style.display = 'none';
             var succEl = document.getElementById('reset-password-success');
             if (succEl) succEl.style.display = 'none';
+            var picker = document.getElementById('reset-user-picker');
+            if (picker) { picker.style.display = 'none'; picker.innerHTML = ''; }
             resetTargetUserId = null;
         };
 
@@ -4491,54 +4494,68 @@
             resetTargetUserId = null;
         };
 
-        window.generateResetCode = async function () {
-            var username = document.getElementById('reset-target-username').value.trim();
+        window.generateResetCode = async function (preselectedUserId) {
+            var input = document.getElementById('reset-target-username').value.trim();
             var errorEl = document.getElementById('reset-user-error');
             var btn = document.getElementById('reset-generate-btn');
+            var pickerEl = document.getElementById('reset-user-picker');
 
-            if (!username) {
-                errorEl.textContent = 'Please enter a username.';
+            if (!input) {
+                errorEl.textContent = 'Please enter a username, full name, or student ID.';
                 errorEl.style.display = 'block';
                 return;
             }
 
             errorEl.style.display = 'none';
+            if (pickerEl) pickerEl.style.display = 'none';
             btn.disabled = true;
             btn.textContent = 'Searching...';
 
             try {
-                var adminPb = dataService.pb;
-                var sanitizedUsername = escapePbFilterValue(username);
+                // Look the user up via the server-side admin endpoint. The lookup
+                // runs with full privileges on the server but is authorized against
+                // THIS admin's own token — no superuser credentials in the browser,
+                // and results are scoped to the admin's own school.
+                var payload = preselectedUserId
+                    ? { userId: preselectedUserId }
+                    : { query: input };
+
+                var resp = await dataService.pb.send('/api/cbt/admin/find-users', {
+                    method: 'POST',
+                    body: payload
+                });
+                var candidates = (resp && resp.candidates) || [];
+
+                if (candidates.length === 0) {
+                    throw new Error('No user matched "' + input + '". Try their full name, student ID or the email prefix they log in with.');
+                }
 
                 var userRecord;
-                try {
-                    userRecord = await adminPb.collection('users').getFirstListItem(
-                        'username="' + sanitizedUsername + '" || email="' + sanitizedUsername + '@cbtapp.proxy" || full_name="' + sanitizedUsername + '"'
-                    );
-                } catch (e) {
-                    throw new Error('User not found. Check the username and try again.');
+                if (candidates.length === 1) {
+                    userRecord = candidates[0];
+                } else {
+                    renderResetUserCandidates(candidates);
+                    return; // Wait for the admin to click a candidate
                 }
 
                 // Generate 6-digit code
                 var code = Math.floor(100000 + Math.random() * 900000).toString();
 
                 // Store code in localStorage (admin's device) with 30-min expiry
+                var storageKey = userRecord.username || userRecord.email || userRecord.id;
                 var resetData = {
                     code: code,
                     userId: userRecord.id,
-                    username: userRecord.username || username,
-                    fullName: userRecord.full_name || username,
+                    username: userRecord.username || storageKey,
+                    fullName: userRecord.full_name || userRecord.username || input,
                     expires: Date.now() + (30 * 60 * 1000)
                 };
-                localStorage.setItem('cbt_admin_reset_' + (userRecord.username || username), JSON.stringify(resetData));
+                localStorage.setItem('cbt_admin_reset_' + storageKey, JSON.stringify(resetData));
 
-                // Also store on the user's reset key so they can use it from login page
-                // This stores it as a message to the admin (already existing flow)
                 resetTargetUserId = userRecord.id;
-                // Show step 2
                 document.getElementById('reset-step-1').style.display = 'none';
                 document.getElementById('reset-step-2').style.display = 'block';
-                document.getElementById('reset-target-name').textContent = userRecord.full_name || userRecord.username || username;
+                document.getElementById('reset-target-name').textContent = userRecord.full_name || userRecord.username || input;
                 document.getElementById('reset-code-display').textContent = code;
 
             } catch (err) {
@@ -4546,9 +4563,35 @@
                 errorEl.style.display = 'block';
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Generate Code';
+                btn.textContent = 'Find User';
             }
         };
+
+        function renderResetUserCandidates(list) {
+            var picker = document.getElementById('reset-user-picker');
+            if (!picker) return;
+            picker.innerHTML = '<div style="font-size:0.82rem; color:var(--light-text); margin-bottom:8px;">Multiple matches — pick the right user:</div>'
+                + list.map(function (u) {
+                    var name = escapeHtml(u.full_name || u.username || 'Unnamed');
+                    var meta = [];
+                    if (u.username) meta.push(escapeHtml(u.username));
+                    if (u.email) meta.push(escapeHtml(String(u.email).split('@')[0]));
+                    if (u.role) meta.push(escapeHtml(u.role));
+                    return '<button type="button" class="reset-candidate" data-uid="' + escapeHtml(u.id) + '"'
+                        + ' style="display:block; width:100%; text-align:left; background:var(--card-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; margin-bottom:6px; cursor:pointer;">'
+                        + '<div style="font-weight:600; color:var(--text-color); font-size:0.9rem;">' + name + '</div>'
+                        + '<div style="font-size:0.78rem; color:var(--light-text); margin-top:2px;">' + meta.join(' · ') + '</div>'
+                        + '</button>';
+                }).join('');
+            picker.style.display = 'block';
+            picker.querySelectorAll('.reset-candidate').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    generateResetCode(btn.getAttribute('data-uid'));
+                });
+                btn.addEventListener('mouseenter', function () { btn.style.borderColor = 'var(--primary-color)'; });
+                btn.addEventListener('mouseleave', function () { btn.style.borderColor = 'var(--border-color)'; });
+            });
+        }
 
         window.applyDirectPasswordReset = async function () {
             var newPass = document.getElementById('reset-new-password').value;
@@ -4585,11 +4628,12 @@
             btn.textContent = 'Updating...';
 
             try {
-                var adminPb = dataService.pb;
-
-                await adminPb.collection('users').update(resetTargetUserId, {
-                    password: newPass,
-                    passwordConfirm: newPass
+                // Reset via the server-side admin endpoint — authorized against the
+                // admin's own token and scoped to their school; no superuser
+                // credentials are exposed to the browser.
+                await dataService.pb.send('/api/cbt/admin/reset-password', {
+                    method: 'POST',
+                    body: { userId: resetTargetUserId, newPassword: newPass }
                 });
 
                 successEl.textContent = 'Password has been reset successfully! The user can now log in with the new password.';
