@@ -323,16 +323,30 @@
             }
         };
 
-        // Cache the resolved download URLs so we don't call the API repeatedly
+        // Cache the resolved download URLs so we don't call the API repeatedly.
+        // Persisted in localStorage for 1h: GitHub's anonymous API allows only
+        // 60 requests/hour per IP, which a shared school network can exhaust.
         let resolvedDownloadUrls = null;
+        const DOWNLOAD_ASSETS_CACHE_TTL = 60 * 60 * 1000;
 
         async function fetchLatestReleaseAssets() {
             // Return cached result if available
             if (resolvedDownloadUrls) return resolvedDownloadUrls;
 
-            try {
-                const releaseFilter = window.__appConfig?.client?.releaseFilter || null;
+            const releaseFilter = window.__appConfig?.client?.releaseFilter || null;
+            const cacheKey = 'download_assets_cache:' + (releaseFilter || 'latest');
 
+            const readCache = () => {
+                try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch (e) { return null; }
+            };
+
+            const cached = readCache();
+            if (cached && Date.now() - cached.at < DOWNLOAD_ASSETS_CACHE_TTL) {
+                resolvedDownloadUrls = cached.assets;
+                return resolvedDownloadUrls;
+            }
+
+            try {
                 let assets;
                 if (!releaseFilter) {
                     const resp = await fetch(GITHUB_RELEASES_BASE + '/latest');
@@ -351,9 +365,23 @@
                     name: a.name,
                     url: a.browser_download_url
                 }));
+                // Persistence is best-effort: a storage failure (quota, private
+                // mode) must not discard the successfully fetched URLs.
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), assets: resolvedDownloadUrls }));
+                } catch (persistErr) {
+                    console.warn('[Download Banner] Could not persist asset cache:', persistErr.message);
+                }
                 return resolvedDownloadUrls;
             } catch (err) {
                 console.warn('[Download Banner] Could not fetch release assets:', err.message);
+                // Expired cache beats no data (e.g. API rate-limited) — the URLs
+                // only go stale when a new release ships, and even then they
+                // still point at a real, slightly older installer.
+                if (cached && cached.assets && cached.assets.length) {
+                    resolvedDownloadUrls = cached.assets;
+                    return resolvedDownloadUrls;
+                }
                 return null;
             }
         }

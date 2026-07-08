@@ -8,6 +8,21 @@ let mainWindow;
 let tray;
 let updateDownloadInProgress = false;
 
+// Two instances sharing one userData profile corrupt Chromium's disk cache /
+// quota database on Windows. Second launch focuses the existing window instead.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
+}
+
 // ============================================
 // AUTO-UPDATER CONFIGURATION
 // ============================================

@@ -596,7 +596,7 @@
                 <div class="exam-bulk-bar-inner">
                     <span class="exam-bulk-count"><strong id="exam-bulk-count">0</strong> selected</span>
                     <div class="exam-bulk-actions">
-                        <button type="button" class="exam-bulk-btn" onclick="bulkArchiveExams()">
+                        <button type="button" class="exam-bulk-btn" onclick="bulkArchiveExams(this)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                             <span>Archive</span>
                         </button>
@@ -604,7 +604,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 20l9-5-9-5-9 5 9 5z"/><path d="M12 12l9-5-9-5-9 5 9 5z"/></svg>
                             <span>Add to Question Bank</span>
                         </button>
-                        <button type="button" class="exam-bulk-btn exam-bulk-btn-danger" onclick="bulkDeleteExams()">
+                        <button type="button" class="exam-bulk-btn exam-bulk-btn-danger" onclick="bulkDeleteExams(this)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
                             <span>Delete</span>
                         </button>
@@ -1594,8 +1594,8 @@
                                     ${scheduleInfo}
                                 </div>
                                 ${isArchived
-                            ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}')">📤 Restore</button>`
-                            : `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--light-text); background: transparent; border: 1px solid #e0e0e0;" onclick="window.archiveExam('${exam.id}')">📥 Archive</button>`
+                            ? `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--success-color); background: transparent; border: 1px solid #e0e0e0;" onclick="window.unarchiveExam('${exam.id}', this)">📤 Restore</button>`
+                            : `<button class="btn" style="font-size: 0.75rem; padding: 3px 8px; color: var(--light-text); background: transparent; border: 1px solid #e0e0e0;" onclick="window.archiveExam('${exam.id}', this)">📥 Archive</button>`
                         }
                             </div>
                         </div>
@@ -1642,26 +1642,36 @@
         });
 
         // --- Archive Logic ---
-        window.archiveExam = async (examId) => {
+        window.archiveExam = async (examId, btn) => {
             if (!(await Utils.showConfirm('Archive Exam', 'Archive this exam? It will be hidden from students and moved to the Archived section.'))) return;
 
+            const stopBtn = Utils.startButtonLoader(btn, 'Archiving...');
+            const card = btn ? btn.closest('.exam-card') : document.querySelector(`.exam-card[data-exam-id="${examId}"]`);
+            const stopCard = Utils.startElementLoader(card);
             try {
                 await dataService.updateExam(examId, { status: 'archived' });
-                // Refresh the page to update the UI
+                // Refresh the page to update the UI (loader stays visible until reload)
                 location.reload();
             } catch (err) {
+                stopBtn();
+                stopCard();
                 Utils.showAlert('Error', 'Failed to archive exam: ' + err.message);
             }
         };
 
-        window.unarchiveExam = async (examId) => {
+        window.unarchiveExam = async (examId, btn) => {
             if (!(await Utils.showConfirm('Restore Exam', 'Restore this exam? It will become visible to students again.'))) return;
 
+            const stopBtn = Utils.startButtonLoader(btn, 'Restoring...');
+            const card = btn ? btn.closest('.exam-card') : document.querySelector(`.exam-card[data-exam-id="${examId}"]`);
+            const stopCard = Utils.startElementLoader(card);
             try {
                 await dataService.updateExam(examId, { status: 'active' });
-                // Refresh the page to update the UI
+                // Refresh the page to update the UI (loader stays visible until reload)
                 location.reload();
             } catch (err) {
+                stopBtn();
+                stopCard();
                 Utils.showAlert('Error', 'Failed to restore exam: ' + err.message);
             }
         };
@@ -1792,7 +1802,7 @@
         }, true);
 
         // --- Exam bulk actions: Archive / Delete / Add to Question Bank ---
-        window.bulkArchiveExams = async function () {
+        window.bulkArchiveExams = async function (btn) {
             const ids = getSelectedExamIds();
             if (!ids.length) return;
             // Filter out those that are already archived
@@ -1809,16 +1819,20 @@
                 `Archive ${toArchive.length} exam${toArchive.length === 1 ? '' : 's'}? They will be hidden from students.`
             );
             if (!ok) return;
+            const stopLoader = Utils.startButtonLoader(btn, 'Archiving...');
             let ok_ = 0, failed = 0;
             for (const id of toArchive) {
                 try { await dataService.updateExam(id, { status: 'archived' }); ok_++; }
                 catch (e) { console.error('[bulk archive] failed', id, e); failed++; }
             }
-            if (failed > 0) await Utils.showAlert('Archive complete', `Archived ${ok_}. ${failed} failed.`);
+            if (failed > 0) {
+                stopLoader();
+                await Utils.showAlert('Archive complete', `Archived ${ok_}. ${failed} failed.`);
+            }
             location.reload();
         };
 
-        window.bulkDeleteExams = async function () {
+        window.bulkDeleteExams = async function (btn) {
             const ids = getSelectedExamIds();
             if (!ids.length) return;
             const ok = await Utils.showConfirm(
@@ -1826,12 +1840,16 @@
                 `Delete ${ids.length} exam${ids.length === 1 ? '' : 's'}? This can't be undone. All associated results will also be lost.`
             );
             if (!ok) return;
+            const stopLoader = Utils.startButtonLoader(btn, 'Deleting...');
             let ok_ = 0, failed = 0;
             for (const id of ids) {
                 try { await dataService.deleteExam(id); ok_++; }
                 catch (e) { console.error('[bulk delete] failed', id, e); failed++; }
             }
-            if (failed > 0) await Utils.showAlert('Delete complete', `Deleted ${ok_}. ${failed} failed.`);
+            if (failed > 0) {
+                stopLoader();
+                await Utils.showAlert('Delete complete', `Deleted ${ok_}. ${failed} failed.`);
+            }
             location.reload();
         };
 
@@ -2773,8 +2791,8 @@
                             <div class="exam-card-actions">
                                 ${!isArchived ? `<button class="pill-btn" onclick="event.stopPropagation(); window.openExtensionsModal('${exam.id}')">${cardSvg.ext}Extensions</button>` : ''}
                                 ${isArchived
-                                    ? `<button class="pill-btn pill-restore" onclick="event.stopPropagation(); window.unarchiveExam('${exam.id}')">${cardSvg.restore}Restore</button>`
-                                    : `<button class="pill-btn" onclick="event.stopPropagation(); window.archiveExam('${exam.id}')">${cardSvg.archive}Archive</button>`
+                                    ? `<button class="pill-btn pill-restore" onclick="event.stopPropagation(); window.unarchiveExam('${exam.id}', this)">${cardSvg.restore}Restore</button>`
+                                    : `<button class="pill-btn" onclick="event.stopPropagation(); window.archiveExam('${exam.id}', this)">${cardSvg.archive}Archive</button>`
                                 }
                             </div>
                         </div>

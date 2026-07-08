@@ -835,6 +835,39 @@
             }
         }
 
+        /* Exams list section header — mobile: Back sits left of the title row
+           (space-between), filter + Make All Unavailable drop to their own row */
+        @media (max-width: 768px) {
+            #exams-list-section .exams-list-controls {
+                display: contents; /* children become flex items of the header */
+            }
+            #exams-list-section .exams-back-btn {
+                order: -1; /* first item — far left of the title row */
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            #exams-list-section .exams-list-titlewrap {
+                text-align: right;
+            }
+            #exams-list-section .exams-list-titlewrap h2 {
+                justify-content: flex-end;
+                font-size: 1.05rem;
+            }
+            #exams-list-section #exam-filter {
+                order: 1;
+                flex: 1 1 40%;
+            }
+            #exams-list-section .exams-make-all-btn {
+                order: 2;
+                flex: 1 1 40%;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+            }
+        }
+
         /* Exams list section + cards — small mobile */
         @media (max-width: 500px) {
             .exam-card { padding: 14px !important; }
@@ -843,9 +876,16 @@
                 align-items: flex-start;
                 gap: 8px;
             }
+            /* Card info in 2 columns (space-between) to keep cards short */
             .exam-meta {
-                flex-direction: column;
-                gap: 6px !important;
+                display: grid;
+                grid-template-columns: 1fr auto;
+                column-gap: 12px;
+                row-gap: 6px;
+            }
+            .exam-meta > span:nth-child(even) {
+                justify-self: end;
+                text-align: right;
             }
             .exam-card select {
                 flex: 1;
@@ -1154,15 +1194,15 @@
                 <!-- Exams List Page (replaces old modal) -->
                 <div id="exams-list-section" class="admin-section" data-module="cbt" style="display:none;">
                     <div class="section">
-                        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                            <div>
+                        <div class="section-header exams-list-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <div class="exams-list-titlewrap">
                                 <h2 id="exams-list-title" style="margin:0; display:flex; align-items:center; gap:8px;">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
                                     All School Exams
                                 </h2>
                                 <p id="exams-list-subtitle" style="margin:4px 0 0; font-size:0.8rem; color:var(--light-text);"></p>
                             </div>
-                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <div class="exams-list-controls" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                 <select id="exam-filter" onchange="filterExams()"
                                     style="padding:7px 12px; font-size:0.82rem; border-radius:var(--radius-btn); border:1px solid var(--border-color); background:var(--inner-bg); color:var(--text-color); cursor:pointer;">
                                     <option value="all">All Status</option>
@@ -1170,11 +1210,11 @@
                                     <option value="draft">Drafts Only</option>
                                     <option value="archived">Archived Only</option>
                                 </select>
-                                <button class="btn" onclick="makeAllExamsUnavailable()" style="padding:7px 14px; font-size:0.82rem; background:var(--error-color, #e74c3c); color:#fff; border:none; border-radius:var(--radius-btn); cursor:pointer;" title="Set all active exams to Draft">
+                                <button class="btn exams-make-all-btn" onclick="makeAllExamsUnavailable()" style="padding:7px 14px; font-size:0.82rem; background:var(--error-color, #e74c3c); color:#fff; border:none; border-radius:var(--radius-btn); cursor:pointer;" title="Set all active exams to Draft">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                                     Make All Unavailable
                                 </button>
-                                <button class="btn" onclick="closeExamsPage()" style="padding:7px 16px; font-size:0.82rem;">
+                                <button class="btn exams-back-btn" onclick="closeExamsPage()" style="padding:7px 16px; font-size:0.82rem;">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
                                     Back
                                 </button>
@@ -2970,13 +3010,13 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
-                                    <select id="status-${exam.id}" onchange="changeExamStatus('${exam.id}', this.value)"
+                                    <select id="status-${exam.id}" onchange="changeExamStatus('${exam.id}', this.value, this)"
                                         style="padding: 6px 10px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); font-size: 0.82rem; cursor: pointer; background: var(--card-bg); color: var(--text-color);">
                                         <option value="active" ${exam.status === 'active' ? 'selected' : ''}>Active</option>
                                         <option value="draft" ${exam.status === 'draft' ? 'selected' : ''}>Draft</option>
                                         <option value="archived" ${exam.status === 'archived' ? 'selected' : ''}>Archived</option>
                                     </select>
-                                    <select id="class-${exam.id}" onchange="changeExamClass('${exam.id}', this.value)"
+                                    <select id="class-${exam.id}" onchange="changeExamClass('${exam.id}', this.value, this)"
                                         style="padding: 6px 10px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); font-size: 0.82rem; cursor: pointer; background: var(--card-bg); color: var(--text-color);">
                                         <option value="All" ${exam.targetClass === 'All' ? 'selected' : ''}>All Classes</option>
                                         ${getClassOptions(exam.targetClass)}
@@ -3007,7 +3047,8 @@
         }
 
         // Admin: Change exam status (active/draft/archived)
-        async function changeExamStatus(examId, newStatus) {
+        async function changeExamStatus(examId, newStatus, selectEl) {
+            const stopLoader = Utils.startElementLoader(document.getElementById(`exam-card-${examId}`));
             try {
                 await dataService.updateExam(examId, { status: newStatus });
                 // Update local data
@@ -3030,11 +3071,14 @@
             } catch (err) {
                 console.error('Failed to change exam status:', err);
                 showAlert('Error', 'Failed to change exam status: ' + err.message);
+            } finally {
+                stopLoader();
             }
         }
 
         // Admin: Change exam target class
-        async function changeExamClass(examId, newClass) {
+        async function changeExamClass(examId, newClass, selectEl) {
+            const stopLoader = Utils.startElementLoader(document.getElementById(`exam-card-${examId}`));
             try {
                 const exam = allExams.find(e => e.id === examId);
                 const previousClass = exam ? exam.targetClass : undefined;
@@ -3057,6 +3101,8 @@
             } catch (err) {
                 console.error('Failed to change exam class:', err);
                 showAlert('Error', 'Failed to change exam class: ' + err.message);
+            } finally {
+                stopLoader();
             }
         }
 
