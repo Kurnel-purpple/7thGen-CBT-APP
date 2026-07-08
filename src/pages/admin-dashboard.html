@@ -970,6 +970,10 @@
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
                     <span class="sidebar-nav-label">Results</span>
                 </button>
+                <button class="sidebar-nav-item" data-module="cbt" onclick="openPrepareExams(); closeSidebarMobile();" title="Pre-download all active exams so students load instantly on this computer">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                    <span class="sidebar-nav-label">Prepare Exams</span>
+                </button>
             </nav>
 
             <!-- Cross-module navigation (injected by sidebarBuilder) -->
@@ -2034,7 +2038,6 @@
                 });
 
                 displayExams(allExams);
-                showPrepareBanner();
                 console.log('⚡ Rendered from cache');
                 return true;
             } catch (e) {
@@ -2088,9 +2091,6 @@
 
                 // Display exams
                 displayExams(allExams);
-
-                // Show prepare banner now that data is loaded
-                showPrepareBanner();
 
                 // Setup real-time subscription
                 setupRealTimeUpdates();
@@ -2210,12 +2210,17 @@
         }
 
         // --- Prepare for Exams: Pre-cache all active exams for student use on this computer ---
-        function showPrepareBanner() {
-            const banner = document.getElementById('prepare-exams-banner');
-            if (banner && allExams && allExams.length > 0) {
-                banner.style.display = 'block';
+        // Triggered from the sidebar "Prepare Exams" item; the banner is hidden by
+        // default and only appears as the progress surface while preparing.
+        window.openPrepareExams = function () {
+            if (!allExams || allExams.length === 0) {
+                showToast('Load a school first before preparing exams.');
+                return;
             }
-        }
+            const banner = document.getElementById('prepare-exams-banner');
+            if (banner) banner.style.display = 'block';
+            handlePrepareExams();
+        };
 
         window.handlePrepareExams = async function () {
             const btn = document.getElementById('prepare-exams-btn');

@@ -44,7 +44,12 @@ class ThemeApplier {
 
     /**
      * Get client ID from various sources
-     * Priority: 1. Domain, 2. URL param, 3. localStorage, 4. Meta tag, 5. Default
+     * Priority: 1. Domain, 2. URL param, 3. Meta tag (client builds), 4. localStorage, 5. Default
+     *
+     * The meta tag must beat localStorage: client builds (Electron/APK) bake their
+     * identity into the meta tag at release time, and a stale clientId left in
+     * localStorage by a previously-run default build would otherwise override it
+     * forever (Electron app data survives uninstall/reinstall).
      */
     getClientId() {
         console.log('🔍 Detecting client ID...');
@@ -67,23 +72,28 @@ class ThemeApplier {
             return urlClient;
         }
 
-        // 3. Check localStorage
+        // 3. Check meta tag — authoritative for client builds. A 'default' meta
+        // falls through so localStorage (e.g. client-switcher) still works there.
+        const metaClient = document.querySelector('meta[name="client-id"]');
+        const metaClientId = metaClient ? metaClient.content.trim() : '';
+        if (metaClientId && metaClientId !== 'default') {
+            console.log(`✅ Client ID from meta tag: ${metaClientId}`);
+            localStorage.setItem('clientId', metaClientId); // Update localStorage to match
+            return metaClientId;
+        }
+
+        // 4. Check localStorage
         const storedClient = localStorage.getItem('clientId');
         if (storedClient) {
             console.log(`✅ Client ID from localStorage: ${storedClient}`);
             return storedClient;
         }
 
-        // 4. Check meta tag
-        const metaClient = document.querySelector('meta[name="client-id"]');
-        if (metaClient) {
-            const clientId = metaClient.content;
-            console.log(`✅ Client ID from meta tag: ${clientId}`);
-            localStorage.setItem('clientId', clientId); // Store for future use
-            return clientId;
+        // 5. Default (also the meta tag's value when it says 'default')
+        if (metaClientId === 'default') {
+            console.log('✅ Client ID from meta tag: default');
+            return 'default';
         }
-
-        // 5. Default
         console.log('⚠️ No client ID found, using default');
         return 'default';
     }
