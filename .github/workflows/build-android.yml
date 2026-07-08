@@ -40,22 +40,89 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Derive version from tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RAW="${{ github.event.inputs.version }}"
+          else
+            RAW="${GITHUB_REF_NAME}"   # e.g. v1.9.1-seatos
+          fi
+          # strip leading "v" and any "-client" suffix -> 1.9.1
+          VERSION="$(echo "$RAW" | sed -E 's/^v//; s/-.*$//')"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Could not parse a semver version from '$RAW'" >&2
+            exit 1
+          fi
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          # monotonic versionCode so Android accepts each release as an upgrade
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "Building Android version $VERSION (versionCode $VERSION_CODE)"
+
+      - name: Set Android versionName/versionCode
+        run: |
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ steps.version.outputs.version_code }}/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"${{ steps.version.outputs.version }}\"/" android/app/build.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build Debug APK
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" ]]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/gen7cbt-release.keystore
+            cat > android/keystore.properties <<EOF
+          storeFile=gen7cbt-release.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=${ANDROID_KEY_ALIAS:-gen7cbt}
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+            echo "HAS_KEYSTORE=true" >> "$GITHUB_ENV"
+            echo "Release keystore configured."
+          else
+            echo "HAS_KEYSTORE=false" >> "$GITHUB_ENV"
+            echo "::warning::ANDROID_KEYSTORE_BASE64 secret not set — building DEBUG apk. Debug builds are signed with a throwaway key, so installed apps CANNOT be updated in place. Add the keystore secrets to fix this."
+          fi
+
+      - name: Build Release APK
+        if: env.HAS_KEYSTORE == 'true'
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Build Debug APK (fallback — no keystore secrets)
+        if: env.HAS_KEYSTORE == 'false'
         working-directory: android
         run: ./gradlew assembleDebug
+
+      - name: Collect APK
+        run: |
+          mkdir -p apk-out
+          if [[ "$HAS_KEYSTORE" == "true" ]]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "apk-out/Gen7-CBT-Exam-${{ steps.version.outputs.version }}.apk"
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "apk-out/Gen7-CBT-Exam-${{ steps.version.outputs.version }}-debug.apk"
+          fi
+          ls -l apk-out
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: android-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: apk-out/*.apk
           if-no-files-found: error
 
   release-android:

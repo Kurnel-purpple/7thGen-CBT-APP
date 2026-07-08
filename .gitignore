@@ -10,7 +10,9 @@ MODULE_SYSTEM_IMPLEMENTATION_CHECKLIST.md
 android/.gradle
 *.keystore
 *.jks
+*.keystore.*.bak
 android/keystore.properties
+android/keystore-base64.txt
 android/app/build
 android/build
 android/.idea

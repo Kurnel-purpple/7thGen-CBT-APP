@@ -6,6 +6,7 @@ const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 let tray;
+let updateDownloadInProgress = false;
 
 // ============================================
 // AUTO-UPDATER CONFIGURATION
@@ -43,6 +44,7 @@ function setupAutoUpdater() {
         }).then(result => {
             if (result.response === 0) {
                 // User wants to download
+                updateDownloadInProgress = true;
                 autoUpdater.downloadUpdate();
 
                 // Show progress notification
@@ -76,6 +78,7 @@ function setupAutoUpdater() {
     // Update downloaded
     autoUpdater.on('update-downloaded', (info) => {
         console.log('[AutoUpdater] Update downloaded:', info.version);
+        updateDownloadInProgress = false;
 
         // Clear taskbar progress
         if (mainWindow) {
@@ -101,11 +104,28 @@ function setupAutoUpdater() {
     autoUpdater.on('error', (error) => {
         console.error('[AutoUpdater] Error:', error.message);
 
-        // Only show error dialog if it's a real error (not just offline)
-        if (!error.message.includes('net::ERR_INTERNET_DISCONNECTED') &&
-            !error.message.includes('net::ERR_NETWORK_CHANGED')) {
-            // Silently fail - don't bother user
+        // Background checks fail silently (offline etc.), but a failed
+        // user-initiated download must not disappear into the void.
+        if (!updateDownloadInProgress) return;
+        updateDownloadInProgress = false;
+
+        if (mainWindow) {
+            mainWindow.setProgressBar(-1);
         }
+
+        dialog.showMessageBox(mainWindow, {
+            type: 'error',
+            title: 'Update Download Failed',
+            message: 'The update could not be downloaded.',
+            detail: `${error.message}\n\nYou can download the latest installer manually from the releases page.`,
+            buttons: ['Open Releases Page', 'Close'],
+            defaultId: 0,
+            cancelId: 1
+        }).then(result => {
+            if (result.response === 0) {
+                require('electron').shell.openExternal('https://github.com/Kurnel-purpple/7thGen-CBT-APP/releases/latest');
+            }
+        });
     });
 }
 
