@@ -13,8 +13,7 @@
     'use strict';
 
     const REPO_API = 'https://api.github.com/repos/Kurnel-purpple/7thGen-CBT-APP/releases';
-    const CHECK_THROTTLE_MS = 6 * 60 * 60 * 1000; // re-check at most every 6h
-    const LS_LAST_CHECK = 'android_update_last_check';
+    const CHECK_THROTTLE_MS = 30 * 60 * 1000; // re-check at most every 30 min
     const LS_CACHED_RESULT = 'android_update_cached_result';
     const LS_DISMISSED_VERSION = 'android_update_dismissed_version';
 
@@ -93,15 +92,23 @@
         };
     }
 
-    async function getLatestReleaseThrottled() {
-        const last = parseInt(localStorage.getItem(LS_LAST_CHECK) || '0', 10);
-        const cachedRaw = localStorage.getItem(LS_CACHED_RESULT);
-        if (cachedRaw && Date.now() - last < CHECK_THROTTLE_MS) {
-            try { return JSON.parse(cachedRaw); } catch (e) { /* fall through to refetch */ }
-        }
+    async function getLatestReleaseThrottled(installedVersion) {
+        // Cache is only valid for the app version that wrote it, so the first
+        // launch after an update always does a fresh check.
+        try {
+            const cached = JSON.parse(localStorage.getItem(LS_CACHED_RESULT) || 'null');
+            if (cached && cached.installed === installedVersion &&
+                Date.now() - cached.at < CHECK_THROTTLE_MS) {
+                return cached.latest;
+            }
+        } catch (e) { /* fall through to refetch */ }
+
         const latest = await fetchLatestRelease();
-        localStorage.setItem(LS_LAST_CHECK, Date.now().toString());
-        localStorage.setItem(LS_CACHED_RESULT, JSON.stringify(latest));
+        localStorage.setItem(LS_CACHED_RESULT, JSON.stringify({
+            at: Date.now(),
+            installed: installedVersion,
+            latest: latest
+        }));
         return latest;
     }
 
@@ -158,7 +165,7 @@
             const installed = await getInstalledVersion();
             if (!installed) return;
 
-            const latest = await getLatestReleaseThrottled();
+            const latest = await getLatestReleaseThrottled(installed);
             if (!latest || !latest.version) return;
 
             if (!isNewer(latest.version, installed)) return;
