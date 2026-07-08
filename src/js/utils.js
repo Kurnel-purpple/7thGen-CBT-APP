@@ -2,6 +2,11 @@
  * Utility functions for CBT Exam App
  */
 
+// Loader state per element: overlapping loader calls on the same element must
+// share the true pre-loader snapshot, and only the last stop() restores it.
+const _buttonLoaderStates = new WeakMap();
+const _elementLoaderStates = new WeakMap();
+
 const Utils = {
     /**
      * Generate a unique ID
@@ -321,6 +326,107 @@ const Utils = {
             btn.onmouseenter = () => btn.style.opacity = '0.9';
             btn.onmouseleave = () => btn.style.opacity = '1';
         });
+    },
+
+    /**
+     * Show an inline spinner inside a button (or any element) while an async
+     * action runs, so the user can see the app is working on their request.
+     *
+     * Usage:
+     *   const stop = Utils.startButtonLoader(btn, 'Archiving...');
+     *   try { await doWork(); } finally { stop(); }
+     *
+     * @param {HTMLElement} el - button/element that triggered the action
+     * @param {string} [label] - optional text next to the spinner
+     * @returns {Function} restore function — returns the element to its original state
+     */
+    startButtonLoader: (el, label = '') => {
+        if (!el) return () => { };
+
+        // Inject spinner CSS once
+        if (!document.getElementById('utils-loader-style')) {
+            const style = document.createElement('style');
+            style.id = 'utils-loader-style';
+            style.textContent = `
+                @keyframes utils-spin { to { transform: rotate(360deg); } }
+                .utils-btn-spinner {
+                    display: inline-block;
+                    width: 13px; height: 13px;
+                    border: 2px solid currentColor;
+                    border-top-color: transparent;
+                    border-radius: 50%;
+                    animation: utils-spin 0.7s linear infinite;
+                    vertical-align: -2px;
+                    flex-shrink: 0;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        let state = _buttonLoaderStates.get(el);
+        if (!state) {
+            state = {
+                count: 0,
+                original: {
+                    html: el.innerHTML,
+                    disabled: el.disabled,
+                    pointerEvents: el.style.pointerEvents,
+                    opacity: el.style.opacity
+                }
+            };
+            _buttonLoaderStates.set(el, state);
+        }
+        state.count++;
+
+        el.innerHTML = `<span class="utils-btn-spinner"></span>${label ? ' ' + label : ''}`;
+        el.disabled = true;
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.75';
+
+        let restored = false;
+        return () => {
+            if (restored) return;
+            restored = true;
+            state.count--;
+            if (state.count > 0) return; // another loader still active on this element
+            _buttonLoaderStates.delete(el);
+            el.innerHTML = state.original.html;
+            el.disabled = state.original.disabled;
+            el.style.pointerEvents = state.original.pointerEvents;
+            el.style.opacity = state.original.opacity;
+        };
+    },
+
+    /**
+     * Dim an element (e.g. a card) while work happens on it.
+     * @returns {Function} restore function
+     */
+    startElementLoader: (el) => {
+        if (!el) return () => { };
+        let state = _elementLoaderStates.get(el);
+        if (!state) {
+            state = {
+                count: 0,
+                original: { opacity: el.style.opacity, pointerEvents: el.style.pointerEvents }
+            };
+            _elementLoaderStates.set(el, state);
+        }
+        state.count++;
+
+        el.style.opacity = '0.5';
+        el.style.pointerEvents = 'none';
+        el.style.transition = 'opacity 0.2s ease';
+
+        let restored = false;
+        return () => {
+            if (restored) return;
+            restored = true;
+            state.count--;
+            if (state.count > 0) return; // another loader still active on this element
+            _elementLoaderStates.delete(el);
+            el.style.opacity = state.original.opacity;
+            el.style.pointerEvents = state.original.pointerEvents;
+        };
     }
 };
 
