@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
     "dotenv": "^17.2.3",
@@ -79,6 +80,7 @@
       "publisherName": "Gen7 CBT"
     },
     "nsis": {
+      "artifactName": "Gen7-CBT-Exam-Setup-${version}.${ext}",
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
@@ -91,6 +93,7 @@
         "dmg",
         "zip"
       ],
+      "artifactName": "Gen7-CBT-Exam-${version}-${arch}.${ext}",
       "category": "public.app-category.education"
     },
     "publish": {
