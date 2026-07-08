@@ -76,8 +76,7 @@
             "x64"
           ]
         }
-      ],
-      "publisherName": "Gen7 CBT"
+      ]
     },
     "nsis": {
       "artifactName": "Gen7-CBT-Exam-Setup-${version}.${ext}",
