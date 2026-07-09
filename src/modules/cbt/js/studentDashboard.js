@@ -173,32 +173,17 @@ const studentDashboard = {
     },
 
     setupRealtimeExamSync: async () => {
-        if (studentDashboard._realtimeSubscribed) return;
-
-        try {
-            await dataService.unsubscribeFromExams().catch(() => {});
-            await dataService.subscribeToExams((event) => {
-                const exam = event.record || {};
-                const userClass = (studentDashboard.user?.classLevel || '').trim();
-                const targetClass = (exam.target_class || exam.targetClass || 'All').trim();
-                const relevantToStudent = targetClass === 'All' || (userClass && targetClass === userClass);
-
-                if (!relevantToStudent) return;
-
-                console.log(
-                    `[RealtimeRefresh] Exam ${event.action || 'update'} received for ${exam.id || 'unknown'}`
-                );
-                studentDashboard._queueRealtimeRefresh(`exam_${event.action || 'update'}`);
-            });
-
-            studentDashboard._realtimeSubscribed = true;
-            window.addEventListener('beforeunload', () => {
-                studentDashboard.teardownRealtimeExamSync();
-            }, { once: true });
-        } catch (error) {
-            studentDashboard._realtimeSubscribed = false;
-            console.warn('[RealtimeRefresh] Exam subscription unavailable, using polling/focus refresh only', error);
-        }
+        // [Bandwidth] The realtime exams subscription is intentionally disabled.
+        // PocketBase realtime pushes the ENTIRE exam record — questions JSON with
+        // embedded base64 images, often several MB — to every connected client on
+        // every save. Extension grants and status toggles during an exam session
+        // multiplied that into gigabytes across a lab of machines. The dashboard
+        // already background-refreshes summaries (a few KB) every 2 minutes and on
+        // tab focus, which is plenty for exam-list changes.
+        if (studentDashboard._legacyRealtimeCleaned) return;
+        studentDashboard._legacyRealtimeCleaned = true;
+        // Drop any subscription left over from a previous app version
+        dataService.unsubscribeFromExams().catch(() => {});
     },
 
     syncResults: async () => {

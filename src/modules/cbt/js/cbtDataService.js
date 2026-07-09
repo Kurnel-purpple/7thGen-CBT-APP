@@ -233,7 +233,7 @@
             const options = {
                 filter: filterString,
                 sort: '-created',
-                fields: 'id,title,subject,target_class,duration,pass_score,status,created_by,created,updated,scheduled_date,scramble_questions,question_count,has_theory,theory_count,extensions,global_extension,school_level,theory_instructions',
+                fields: 'id,title,subject,target_class,duration,pass_score,status,created_by,created,updated,scheduled_date,scramble_questions,question_count,has_theory,theory_count,extensions,global_extension,school_level,theory_instructions,content_updated',
                 fullList: true
             };
 
@@ -261,34 +261,71 @@
         }
     };
 
+    // Every exam field EXCEPT the heavy `questions` JSON (which embeds base64
+    // images and dominates the record size). Used to refresh metadata
+    // (extensions, status, schedule) without re-downloading the content.
+    const EXAM_LIGHT_FIELDS = 'id,title,subject,target_class,duration,pass_score,instructions,status,created_by,created,updated,scheduled_date,scramble_questions,question_count,has_theory,theory_count,extensions,global_extension,school_level,theory_instructions,content_updated';
+
     ds.getExamById = async function(id, summaryUpdatedAt) {
         const _p = _perf.start('getExamById');
         // 1. Try IDB first with freshness check
+        let cachedExam = null;
         if (window.idb) {
             try {
-                const cachedExam = await window.idb.getExam(id);
-                if (cachedExam) {
+                cachedExam = await window.idb.getExam(id);
+                if (cachedExam && (!Array.isArray(cachedExam.questions) || cachedExam.questions.length === 0)) {
                     // Reject summaries that leaked into the exams store (questions is null/missing)
-                    if (!Array.isArray(cachedExam.questions) || cachedExam.questions.length === 0) {
-                        console.warn(`⚠️ Exam ${id} in IDB has no questions (likely a summary), skipping cache`);
-                        // Clean up the polluted entry
-                        try { await window.idb.deleteExam(id); } catch (_) { /* best effort cleanup */ }
-                    } else if (summaryUpdatedAt && cachedExam.updatedAt === summaryUpdatedAt) {
-                        // If we have a summary timestamp, check freshness
-                        console.log(`📦 Serving exam ${id} from IDB (fresh)`);
-                        _perf.end(_p, { source: 'cache-fresh' });
-                        return cachedExam;
-                    } else if (!summaryUpdatedAt) {
-                        // No summary to compare — serve cached as before
-                        console.log(`📦 Serving exam ${id} from IDB`);
-                        _perf.end(_p, { source: 'cache' });
-                        return cachedExam;
-                    } else {
-                        // Summary is newer — fall through to network fetch
-                        console.log(`🔄 Exam ${id} stale in IDB, fetching fresh...`);
-                    }
+                    console.warn(`⚠️ Exam ${id} in IDB has no questions (likely a summary), skipping cache`);
+                    // Clean up the polluted entry
+                    try { await window.idb.deleteExam(id); } catch (_) { /* best effort cleanup */ }
+                    cachedExam = null;
                 }
             } catch (e) { console.warn(e); }
+        }
+
+        if (cachedExam) {
+            if (summaryUpdatedAt && cachedExam.updatedAt === summaryUpdatedAt) {
+                // Record unchanged since the summary was fetched
+                console.log(`📦 Serving exam ${id} from IDB (fresh)`);
+                _perf.end(_p, { source: 'cache-fresh' });
+                return cachedExam;
+            }
+            if (!summaryUpdatedAt) {
+                // No summary to compare — serve cached as before
+                console.log(`📦 Serving exam ${id} from IDB`);
+                _perf.end(_p, { source: 'cache' });
+                return cachedExam;
+            }
+
+            // Record changed since our copy — but "changed" is usually an
+            // extension grant / status toggle, not a question edit. Fetch the
+            // light metadata (a few KB) and keep the cached questions when the
+            // content marker proves them still valid.
+            try {
+                const meta = await this.pb.collection('exams').getOne(id, { fields: EXAM_LIGHT_FIELDS });
+                if (meta.content_updated && cachedExam.contentUpdated &&
+                    meta.content_updated === cachedExam.contentUpdated) {
+                    // _mapExam (not _mapExamSummary) so light fields like
+                    // `instructions` survive the merge; questions come from cache
+                    const merged = { ...this._mapExam(meta), questions: cachedExam.questions };
+                    if (window.idb) {
+                        await window.idb.saveExam(merged);
+                    }
+                    console.log(`📦 Exam ${id}: metadata refreshed, questions served from IDB`);
+                    _perf.end(_p, { source: 'cache+meta' });
+                    return merged;
+                }
+                console.log(`🔄 Exam ${id} content changed, fetching full exam...`);
+            } catch (e) {
+                console.warn(`Light exam fetch failed for ${id}:`, e.message);
+                if (!navigator.onLine) {
+                    // Offline: a slightly stale cached exam beats an error
+                    _perf.end(_p, { source: 'cache-offline' });
+                    return cachedExam;
+                }
+                // Online but light fetch failed (e.g. older server without the
+                // fields support) — fall through to the full fetch as before
+            }
         }
 
         try {
@@ -710,7 +747,8 @@
             theoryInstructions: dbExam.theory_instructions ?? null,
             questionCount: dbExam.question_count ?? questions.length,
             hasTheory: dbExam.has_theory ?? questions.some(q => q.type === 'theory'),
-            theoryCount: dbExam.theory_count ?? questions.filter(q => q.type === 'theory').length
+            theoryCount: dbExam.theory_count ?? questions.filter(q => q.type === 'theory').length,
+            contentUpdated: dbExam.content_updated || null
         };
     };
 
@@ -736,7 +774,8 @@
             theoryInstructions: dbExam.theory_instructions ?? null,
             questionCount: dbExam.question_count || 0,
             hasTheory: dbExam.has_theory || false,
-            theoryCount: dbExam.theory_count || 0
+            theoryCount: dbExam.theory_count || 0,
+            contentUpdated: dbExam.content_updated || null
         };
     };
 
