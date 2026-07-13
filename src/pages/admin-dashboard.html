@@ -822,6 +822,48 @@
         }
         [data-theme="dark"] .topbar-search-results { background: var(--dm-surface-2, #22263A); }
 
+        /* Mobile search: icon in the header expands the search bar in place */
+        .mobile-search-toggle { display: none; }
+        .mobile-search-close { display: none; }
+        @media (max-width: 768px) {
+            .mobile-search-toggle { display: flex; }
+            body.mobile-search-open .main-header { position: relative; }
+            /* Expanded: the search bar takes over the header row */
+            body.mobile-search-open .topbar-search {
+                display: block;
+                position: absolute;
+                left: 8px;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                max-width: none;
+                margin: 0;
+                z-index: 60;
+            }
+            body.mobile-search-open .topbar-search-input { padding-right: 46px; }
+            body.mobile-search-open .mobile-search-close {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: absolute;
+                right: 4px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 36px;
+                height: 36px;
+                border: none;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--light-text);
+                cursor: pointer;
+                z-index: 61;
+            }
+            /* Hide the rest of the header while searching so the bar owns the row */
+            body.mobile-search-open .main-header .hamburger-btn,
+            body.mobile-search-open .main-header .topbar-actions { visibility: hidden; }
+            .topbar-search-results { max-height: 60vh; }
+        }
+
         /* Results filters: term + class on one row, justified apart */
         .results-filters-row {
             display: flex;
@@ -1514,10 +1556,16 @@
                 <div class="topbar-search">
                     <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="text" class="topbar-search-input" placeholder="Search..." id="topbar-search" autocomplete="off">
+                    <button type="button" class="mobile-search-close" onclick="toggleMobileSearch(false)" aria-label="Close search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                     <div id="topbar-search-results" class="topbar-search-results" role="listbox" aria-label="Search results"></div>
                 </div>
 
                 <div class="topbar-actions">
+                    <button class="topbar-icon-btn mobile-search-toggle" onclick="toggleMobileSearch()" title="Search" aria-label="Open search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    </button>
                     <button class="topbar-icon-btn" onclick="openChatModal()" title="Messages">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
                     </button>
@@ -2911,6 +2959,19 @@
             if (panel) { panel.classList.remove('open'); panel.innerHTML = ''; }
         }
 
+        // Mobile: the header search icon expands the search bar in place
+        window.toggleMobileSearch = function (force) {
+            const open = typeof force === 'boolean' ? force : !document.body.classList.contains('mobile-search-open');
+            document.body.classList.toggle('mobile-search-open', open);
+            const input = document.getElementById('topbar-search');
+            if (open) {
+                setTimeout(() => input?.focus(), 60);
+            } else {
+                closeTopbarSearchResults();
+                if (input) input.blur();
+            }
+        };
+
         // Global search across teachers (by name) and exams (by subject,
         // term, or class) — available before opening any teacher's card
         function renderTopbarSearchResults(query) {
@@ -2989,6 +3050,7 @@
         window.openTeacherFromSearch = function (teacherId) {
             const t = allTeachers.find(x => String(x.id) === String(teacherId));
             closeTopbarSearchResults();
+            toggleMobileSearch(false);
             if (!t) return;
             if (activeAdminSection !== 'teachers') showAdminSection('teachers');
             // Filter the teachers grid down to this teacher's card
@@ -2998,6 +3060,7 @@
 
         window.openExamFromSearch = function (examId) {
             closeTopbarSearchResults();
+            toggleMobileSearch(false);
             openExamsModal('all');
             // Highlight the card once the list has rendered
             setTimeout(() => {
@@ -3049,7 +3112,11 @@
                 if (!e.target.closest('.topbar-search')) closeTopbarSearchResults();
             });
             input.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') { closeTopbarSearchResults(); input.blur(); }
+                if (e.key === 'Escape') {
+                    closeTopbarSearchResults();
+                    toggleMobileSearch(false);
+                    input.blur();
+                }
             });
         })();
 

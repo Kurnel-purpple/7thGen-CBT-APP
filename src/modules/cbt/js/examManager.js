@@ -744,9 +744,14 @@ const examManager = {
             examManager._modalSubQuestions = [];
         }
 
-        // Set points
+        // Set points — new questions are prefilled with the rule default for
+        // the count this question brings the exam to (30 → 1, 40 → 0.5, else 1)
         const pointsInput = document.getElementById('modal-points');
-        if (pointsInput) pointsInput.value = isEdit ? q.points : 0.5;
+        const pointsPrefill = isEdit
+            ? q.points
+            : examManager._defaultPointsForCount(examManager._objectiveQuestions().length + 1);
+        if (pointsInput) pointsInput.value = pointsPrefill;
+        examManager._modalPointsPrefill = parseFloat(pointsPrefill);
 
         // Update type selector buttons
         examManager._updateModalTypeButtons();
@@ -797,6 +802,9 @@ const examManager = {
         const type = examManager._modalType;
         const pointsInput = document.getElementById('modal-points');
         const points = pointsInput ? parseFloat(pointsInput.value) || 0 : 0.5;
+        // Typing a value different from the prefill marks this question as
+        // manually priced — the auto default rule then leaves it alone
+        const pointsManuallyChanged = points !== examManager._modalPointsPrefill;
 
         // Harvest Tiptap content
         let text = '';
@@ -825,6 +833,7 @@ const examManager = {
                 q.canvasJSON = canvasJSON;
                 q.canvasImage = canvasImage;
                 q.points = points;
+                if (pointsManuallyChanged) q._manualPoints = true;
                 if (type === 'mcq' || type === 'true_false' || type === 'image_mcq') {
                     q.options = examManager._modalOptions;
                     delete q.correctAnswer;
@@ -863,6 +872,7 @@ const examManager = {
                 canvasImage: canvasImage,
                 points: points
             };
+            if (pointsManuallyChanged) newQ._manualPoints = true;
             if (type === 'mcq' || type === 'true_false' || type === 'image_mcq') {
                 newQ.options = examManager._modalOptions;
             } else if (type === 'fill_blank') {
@@ -889,6 +899,7 @@ const examManager = {
         }
 
         examManager.closeAddQuestionModal();
+        examManager.applyDefaultPoints();
         examManager.renderQuestions();
 
         // Scroll to the new/edited card
@@ -1169,11 +1180,62 @@ const examManager = {
         examManager.renderQuestions();
     },
 
+    // ── Smart default points ──────────────────────────────
+    // Rule (exact table): 30 objective questions → 1pt each,
+    // 40 → 0.5pt each, any other count → 1pt each.
+    _defaultPointsForCount: (count) => {
+        if (count === 30) return 1;
+        if (count === 40) return 0.5;
+        return 1;
+    },
+
+    _objectiveQuestions: () => examManager.questions.filter(q => q.type !== 'theory'),
+
+    // Re-apply the rule default to every objective question the teacher
+    // hasn't manually priced. Runs whenever the objective count changes.
+    applyDefaultPoints: () => {
+        const objective = examManager._objectiveQuestions();
+        const def = examManager._defaultPointsForCount(objective.length);
+        objective.forEach(q => {
+            if (!q._manualPoints) q.points = def;
+        });
+    },
+
+    // "Automatically adjust points on all questions": one value applied to
+    // every question. Marked as 'bulk' so the rule default won't fight it
+    // and the manual-points confirm at publish won't nag about it.
+    applyBulkPoints: async () => {
+        const input = document.getElementById('bulk-points-input');
+        const value = parseFloat(input ? input.value : '');
+        if (!value || value <= 0) {
+            await Utils.showAlert('Invalid points', 'Enter a points value greater than 0 first.');
+            return;
+        }
+        if (examManager.questions.length === 0) {
+            await Utils.showAlert('No questions', 'Add questions to the exam first.');
+            return;
+        }
+        const n = examManager.questions.length;
+        const ok = await Utils.showConfirm(
+            'Apply to all questions',
+            `Set ${value} point${value === 1 ? '' : 's'} on all ${n} question${n === 1 ? '' : 's'}?\n\nIf students have already taken this exam, their results are automatically re-scored with the new points when you save.`
+        );
+        if (!ok) return;
+        examManager.questions.forEach(q => {
+            q.points = value;
+            q._manualPoints = 'bulk';
+        });
+        examManager.renderQuestions();
+        if (input) input.value = '';
+        Utils.showToast(`All ${n} questions set to ${value} pt${value === 1 ? '' : 's'}`, 'success');
+    },
+
     removeQuestion: async (id) => {
         // Ensure String comparison
         const targetId = String(id);
         if (await Utils.showConfirm('Remove Question', 'Are you sure you want to remove this question?')) {
             examManager.questions = examManager.questions.filter(q => String(q.id) !== targetId);
+            examManager.applyDefaultPoints();
             examManager.renderQuestions();
         }
     },
@@ -1364,9 +1426,12 @@ const examManager = {
             return;
         }
 
-        // Get points value from import modal (default to 0.5)
+        // Get points value from import modal (default to 0.5). If the teacher
+        // typed a custom value, the imported questions are manually priced;
+        // otherwise the smart default rule reprices them after import.
         const importPointsInput = document.getElementById('import-points');
         const importPoints = importPointsInput ? parseFloat(importPointsInput.value) || 0.5 : 0.5;
+        const importManuallyPriced = !!(importPointsInput && importPointsInput.value !== importPointsInput.defaultValue);
 
         // ===== BulkImportParser-based parsing =====
         if (!window.BulkImportParser) {
@@ -1392,7 +1457,8 @@ const examManager = {
                     canvasJSON: null,
                     canvasImage: null,
                     options: appOptions,
-                    points: importPoints
+                    points: importPoints,
+                    _manualPoints: importManuallyPriced || undefined
                 });
                 addedCount++;
             } else if (q.type === 'theory' && q.text.trim()) {
@@ -1402,13 +1468,15 @@ const examManager = {
                     text: q.text,
                     canvasJSON: null,
                     canvasImage: null,
-                    points: importPoints
+                    points: importPoints,
+                    _manualPoints: importManuallyPriced || undefined
                 });
                 addedCount++;
             }
         });
 
         if (addedCount > 0) {
+            examManager.applyDefaultPoints();
             examManager.renderQuestions();
             examManager.closeImportModal();
             await Utils.showAlert('Success', `Successfully imported ${addedCount} questions.`);
@@ -1707,6 +1775,22 @@ const examManager = {
         }
 
         if (!valid) return;
+
+        // Confirm manually priced questions before publishing: if the teacher
+        // typed custom points that differ from the automatic rule default,
+        // make sure that was intentional
+        const objectiveQs = examManager._objectiveQuestions();
+        const ruleDefault = examManager._defaultPointsForCount(objectiveQs.length);
+        const manuallyPriced = objectiveQs.filter(q =>
+            q._manualPoints === true && parseFloat(q.points) !== ruleDefault
+        );
+        if (manuallyPriced.length > 0) {
+            const keep = await Utils.showConfirm(
+                'Confirm custom points',
+                `You manually set the points on ${manuallyPriced.length} question${manuallyPriced.length === 1 ? '' : 's'}.\n\nThe automatic default for ${objectiveQs.length} objective question${objectiveQs.length === 1 ? '' : 's'} is ${ruleDefault} point${ruleDefault === 1 ? '' : 's'} each.\n\nKeep your custom points?`
+            );
+            if (!keep) return;
+        }
 
         // Set publishing state AFTER validation passes
         examManager._isPublishing = true;

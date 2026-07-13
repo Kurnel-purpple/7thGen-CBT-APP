@@ -214,7 +214,11 @@
             if (!studentSubjectScores[sid][subject]) {
                 studentSubjectScores[sid][subject] = { scores: [], totalPoints: [] };
             }
-            studentSubjectScores[sid][subject].scores.push(r.score || 0);
+            // result.score is stored as a PERCENTAGE (0–100), not raw marks —
+            // convert to raw points against the exam's total so subject sums
+            // like "13.5 / 30" stay dimensionally sane (was producing 63/15).
+            var rawPoints = ((r.score || 0) / 100) * (r.totalPoints || 0);
+            studentSubjectScores[sid][subject].scores.push(Math.round(rawPoints * 10) / 10);
             studentSubjectScores[sid][subject].totalPoints.push(r.totalPoints || 0);
         });
 
@@ -247,6 +251,7 @@
             var subjects = Object.keys(subjectMap).map(function(subject) {
                 var data = subjectMap[subject];
                 var totalScore = data.scores.reduce(function(a, b) { return a + b; }, 0);
+                totalScore = Math.round(totalScore * 10) / 10;
                 var totalPossible = data.totalPoints.reduce(function(a, b) { return a + b; }, 0);
                 var percentage = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
                 var grade = computeGrade(percentage);
