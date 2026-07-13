@@ -388,6 +388,161 @@
             .exam-bulk-actions .exam-bulk-btn span { display: none; }
             .exam-bulk-actions .exam-bulk-btn { padding: 8px 10px; }
         }
+
+        /* ------------------------------------------------------------
+           Admin chat (teacher side)
+           ------------------------------------------------------------ */
+        .teacher-chat {
+            display: flex;
+            flex-direction: column;
+            height: 440px;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--inner-bg);
+        }
+        .chat-thread-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .chat-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .chat-thread-title { font-weight: 700; font-size: 0.92rem; color: var(--text-color); }
+        .chat-thread-sub { font-size: 0.74rem; color: var(--light-text); }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-date-sep {
+            align-self: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--light-text);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 3px 12px;
+            border-radius: 50px;
+            margin: 12px 0 8px;
+        }
+        .chat-bubble-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+        .chat-bubble-row.sent { justify-content: flex-end; }
+        .chat-bubble-row.received { justify-content: flex-start; }
+        .chat-bubble {
+            max-width: 78%;
+            padding: 8px 12px;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .chat-bubble-row.sent .chat-bubble {
+            background: var(--primary-color);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble-row.received .chat-bubble {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble-meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            font-size: 0.64rem;
+            opacity: 0.75;
+            margin-top: 3px;
+        }
+        .chat-msg-delete {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.15s;
+            flex-shrink: 0;
+            display: flex;
+        }
+        .chat-bubble-row:hover .chat-msg-delete { opacity: 0.7; }
+        .chat-msg-delete:hover { color: var(--accent-color, #EA4335); opacity: 1 !important; }
+        .chat-composer {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+        }
+        .chat-composer textarea {
+            flex: 1;
+            resize: none;
+            border: 1.5px solid var(--border-color);
+            border-radius: 18px;
+            padding: 9px 14px;
+            max-height: 120px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            background: var(--inner-bg);
+            color: var(--text-color);
+        }
+        .chat-composer textarea:focus { outline: none; border-color: var(--primary-color); }
+        .chat-send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .chat-send-btn:hover { transform: scale(1.05); }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .chat-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--light-text);
+            text-align: center;
+            padding: 24px;
+            font-size: 0.9rem;
+        }
+        .chat-empty svg { opacity: 0.4; }
+        @media (max-width: 768px) {
+            .teacher-chat { height: 62vh; }
+            .chat-bubble { max-width: 86%; }
+        }
     </style>
 </head>
 
@@ -538,20 +693,36 @@
 
         <main class="main-content" style="display: block;">
 
-            <!-- Admin Messages Section -->
+            <!-- Admin Chat Section -->
             <div id="messages-section" style="display: none; margin-bottom: 20px;">
                 <div class="section-header" style="cursor: pointer;" onclick="toggleMessagesSection()">
                     <h3 class="section-title" style="display: flex; align-items: center; gap: 10px;">
-                        📬 Messages from Admin
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        Chat with Admin
                         <span id="unread-count"
                             style="background: #e74c3c; color: white; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px;">0</span>
                     </h3>
                     <span id="messages-toggle-icon" style="font-size: 1.2rem;">▼</span>
                 </div>
-                <div id="messages-container"
-                    style="background: var(--card-bg); border-radius: 10px; padding: 15px; border: 1px solid var(--border-color);">
-                    <!-- Messages will be loaded here -->
-                    <p style="color: var(--light-text); text-align: center;">Loading messages...</p>
+                <div id="messages-container" class="teacher-chat">
+                    <div class="chat-thread-header">
+                        <div class="chat-avatar" id="admin-chat-avatar">A</div>
+                        <div style="min-width:0;">
+                            <div class="chat-thread-title" id="admin-chat-title">Admin</div>
+                            <div class="chat-thread-sub" id="admin-chat-sub">School administrator</div>
+                        </div>
+                    </div>
+                    <div class="chat-messages" id="teacher-chat-messages">
+                        <div class="chat-empty">
+                            <p>Loading messages...</p>
+                        </div>
+                    </div>
+                    <div class="chat-composer">
+                        <textarea id="teacher-chat-input" rows="1" placeholder="Message your admin..."></textarea>
+                        <button type="button" class="chat-send-btn" id="teacher-chat-send" onclick="sendTeacherChatMessage()" aria-label="Send message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1095,142 +1266,384 @@
         };
 
 
-        // Admin Messages Functions
-        let messagesExpanded = true;
+        // ============================================================
+        // Admin Chat (two-way messaging with the school admin)
+        // ============================================================
+        let messagesExpanded = false;
+        let teacherChatMessages = [];
+        let adminContact = null;        // { id, name } — the admin this teacher chats with
+        let teacherChatUserId = null;
+        let isMessageSubscribed = false;
+
+        function escapeChatHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function chatInitials(name) {
+            const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return 'A';
+            return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+        }
+
+        function fmtChatTime(d) {
+            return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function fmtChatDay(d) {
+            const date = new Date(d);
+            const now = new Date();
+            const startOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+            const diffDays = Math.round((startOf(now) - startOf(date)) / 86400000);
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        }
 
         async function loadAdminMessages(teacherId) {
-            const section = document.getElementById('messages-section');
-            const container = document.getElementById('messages-container');
-            const unreadBadge = document.getElementById('unread-count');
-            const bellBadge = document.getElementById('messages-badge');
-            const mobileBadge = document.getElementById('mobile-messages-badge');
-
-            // Hide section by default - only show if there are messages
-            // section.style.display = 'none'; // Keep section state if already loaded
+            const container = document.getElementById('teacher-chat-messages');
+            const user = dataService.getCurrentUser();
+            teacherChatUserId = user?.id || teacherId;
 
             try {
-                // Fetch messages sent to this teacher
-                const messages = await dataService.getMessages({ toId: teacherId });
-                console.log('Loaded messages for teacher:', teacherId, messages);
+                const [receivedRaw, sentRaw] = await Promise.all([
+                    dataService.getMessages({ toId: teacherChatUserId }),
+                    dataService.getMessages({ fromId: teacherChatUserId })
+                ]);
 
-                if (messages && messages.length > 0) {
-                    // Show the section only if there are messages
-                    section.style.display = 'block';
+                const mapRec = (msg, isSent) => ({
+                    id: msg.id,
+                    fromId: msg.from_id,
+                    toId: msg.to_id,
+                    message: msg.message,
+                    created: msg.created,
+                    read: !!msg.read,
+                    isSent,
+                    senderName: msg.expand?.from_id?.full_name || msg.expand?.from_id?.name || msg.expand?.from_id?.username || ''
+                });
 
-                    // Count unread
-                    const unreadCount = messages.filter(m => !m.read).length;
+                const seen = new Set();
+                teacherChatMessages = [...receivedRaw.map(m => mapRec(m, false)), ...sentRaw.map(m => mapRec(m, true))]
+                    .filter(m => {
+                        if (seen.has(m.id)) return false;
+                        seen.add(m.id);
+                        return true;
+                    })
+                    .sort((a, b) => new Date(a.created) - new Date(b.created));
 
-                    // Update section badge
-                    unreadBadge.textContent = unreadCount;
-                    unreadBadge.style.display = unreadCount > 0 ? 'inline' : 'none';
+                await resolveAdminContact(user);
+                renderTeacherChat();
+                updateTeacherChatBadges();
 
-                    // Update navbar bell badge + show/hide header bell
-                    const bellBtn = document.getElementById('messages-bell');
-                    if (bellBadge) {
-                        bellBadge.textContent = unreadCount;
-                        bellBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
-                    }
-                    // Show header bell only when there are unread messages
-                    if (bellBtn) {
-                        bellBtn.style.display = unreadCount > 0 ? 'flex' : 'none';
-                    }
-                    // Update mobile badge
-                    if (mobileBadge) {
-                        mobileBadge.textContent = unreadCount;
-                        mobileBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
-                    }
-
-                    // Render messages
-                    container.innerHTML = messages.map(msg => {
-                        const date = new Date(msg.created_at);
-                        const formattedDate = date.toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        });
-                        const isUnread = !msg.read;
-
-                        return `
-                            <div class="message-card" id="message-${msg.id}" style="
-                                background: ${isUnread ? 'var(--inner-bg)' : 'var(--card-bg)'}; 
-                                padding: 15px; 
-                                border-radius: 8px; 
-                                margin-bottom: 10px; 
-                                border-left: 4px solid ${isUnread ? '#e74c3c' : '#27ae60'};
-                                border: 1px solid var(--border-color);
-                            ">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <span style="font-weight: 600; color: var(--text-color);">
-                                        ${isUnread ? '🔴 New' : '✅ Read'} - From: ${msg.expand?.from_id?.full_name || 'Admin'}
-                                    </span>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span style="font-size: 0.85rem; color: var(--light-text);">${formattedDate}</span>
-                                        <button onclick="deleteMessage('${msg.id}')" 
-                                            style="background: transparent; border: none; cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 2px 5px;"
-                                            title="Delete message">🗑️</button>
-                                    </div>
-                                </div>
-                                <p style="margin: 0; color: var(--text-color); line-height: 1.5;">${msg.message}</p>
-                                <div style="margin-top: 10px; display: flex; gap: 10px;">
-                                    ${isUnread ? `<button onclick="markMessageRead('${msg.id}')" class="btn" style="font-size: 0.8rem; padding: 5px 10px; background: var(--primary-color); color: white; border: none; border-radius: 4px;">✓ Mark as Read</button>` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                } else {
-                    // No messages
-                    section.style.display = 'none'; // Keep section hidden by default
-                    if (unreadBadge) unreadBadge.style.display = 'none';
-                    if (bellBadge) bellBadge.style.display = 'none';
-                    if (mobileBadge) mobileBadge.style.display = 'none';
-
-                    // IMPORTANT: Update container so if user opens it manually (via bell), they see "No messages" instead of "Loading..."
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: var(--light-text);">
-                            <div style="font-size: 2rem; margin-bottom: 10px;">📭</div>
-                            <p>No messages from admin</p>
-                        </div>
-                    `;
-
-                    section.style.display = 'none';
-                    unreadBadge.style.display = 'none';
-                    if (bellBadge) bellBadge.style.display = 'none';
-                    if (mobileBadge) mobileBadge.style.display = 'none';
+                // Always show the section so the teacher can start a conversation;
+                // auto-open the thread when there are unread messages
+                const unread = teacherChatMessages.filter(m => !m.isSent && !m.read).length;
+                const section = document.getElementById('messages-section');
+                if (section) section.style.display = 'block';
+                if (unread > 0 && !messagesExpanded) {
+                    setMessagesExpanded(true, false);
+                } else if (!messagesExpanded) {
+                    setMessagesExpanded(false, false);
                 }
 
-                // Setup real-time messaging
-                setupMessageSubscription(teacherId);
-
+                setupMessageSubscription(teacherChatUserId);
             } catch (error) {
                 console.error('Error loading messages:', error);
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: var(--light-text);">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
-                        <p>Could not load messages</p>
-                        <small style="opacity: 0.7;">${error.message || 'Database not available'}</small>
-                    </div>
-                `;
+                if (container) {
+                    container.innerHTML = `
+                        <div class="chat-empty">
+                            <p>Could not load messages</p>
+                            <small style="opacity:0.7;">${escapeChatHtml(error.message || 'Database not available')}</small>
+                        </div>
+                    `;
+                }
             }
         }
 
-        let isMessageSubscribed = false;
+        // Figure out which admin this teacher talks to: prefer whoever is in
+        // the existing thread, otherwise look up the school's admin profile.
+        async function resolveAdminContact(user) {
+            for (let i = teacherChatMessages.length - 1; i >= 0 && !adminContact; i--) {
+                const m = teacherChatMessages[i];
+                const counterpart = m.isSent ? m.toId : m.fromId;
+                if (counterpart && counterpart !== teacherChatUserId) {
+                    const named = teacherChatMessages.find(x => !x.isSent && x.senderName);
+                    adminContact = { id: counterpart, name: named?.senderName || 'Admin' };
+                }
+            }
+
+            // No conversation yet — find the school admin
+            if (!adminContact) {
+                try {
+                    const admins = await dataService.getUsers({ role: 'admin', schoolVersion: user?.schoolVersion });
+                    if (admins && admins.length > 0) {
+                        adminContact = {
+                            id: admins[0].user || admins[0].id,
+                            name: admins[0].full_name || admins[0].username || 'Admin'
+                        };
+                    }
+                } catch (e) {
+                    console.warn('Could not resolve school admin:', e);
+                }
+            }
+
+            const titleEl = document.getElementById('admin-chat-title');
+            const avatarEl = document.getElementById('admin-chat-avatar');
+            const subEl = document.getElementById('admin-chat-sub');
+            if (adminContact) {
+                if (titleEl) titleEl.textContent = adminContact.name;
+                if (avatarEl) avatarEl.textContent = chatInitials(adminContact.name);
+                if (subEl) subEl.textContent = 'School administrator';
+            } else if (subEl) {
+                subEl.textContent = 'No admin found for your school yet';
+            }
+
+            initTeacherChatComposer();
+        }
+
+        function renderTeacherChat() {
+            const container = document.getElementById('teacher-chat-messages');
+            if (!container) return;
+
+            if (!teacherChatMessages.length) {
+                container.innerHTML = `
+                    <div class="chat-empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        <p>No messages yet — send your admin a message below</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            let lastDay = '';
+            teacherChatMessages.forEach(m => {
+                const day = fmtChatDay(m.created);
+                if (day !== lastDay) {
+                    html += `<div class="chat-date-sep">${day}</div>`;
+                    lastDay = day;
+                }
+                const ticks = m.isSent
+                    ? `<span title="${m.read ? 'Read' : 'Sent'}">${m.read ? '&#10003;&#10003;' : '&#10003;'}</span>`
+                    : '';
+                // Delete is only offered on the teacher's own messages; received
+                // messages are shared records owned by the admin's side of the chat.
+                const deleteBtn = m.isSent ? `
+                    <button type="button" class="chat-msg-delete" onclick="deleteTeacherChatMessage('${escapeChatHtml(m.id)}')" title="Delete message">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                    </button>
+                ` : '';
+                html += `
+                    <div class="chat-bubble-row ${m.isSent ? 'sent' : 'received'}">
+                        ${deleteBtn}
+                        <div class="chat-bubble">${escapeChatHtml(m.message)}<div class="chat-bubble-meta">${fmtChatTime(m.created)}${ticks}</div></div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateTeacherChatBadges() {
+            const unreadCount = teacherChatMessages.filter(m => !m.isSent && !m.read).length;
+            const unreadBadge = document.getElementById('unread-count');
+            const bellBadge = document.getElementById('messages-badge');
+            const bellBtn = document.getElementById('messages-bell');
+            const topbarBadge = document.getElementById('topbar-messages-badge');
+            const mobileBadge = document.getElementById('mobile-messages-badge');
+
+            if (unreadBadge) {
+                unreadBadge.textContent = unreadCount;
+                unreadBadge.style.display = unreadCount > 0 ? 'inline' : 'none';
+            }
+            if (bellBadge) {
+                bellBadge.textContent = unreadCount;
+                bellBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+            }
+            if (bellBtn) bellBtn.style.display = unreadCount > 0 ? 'flex' : 'none';
+            if (topbarBadge) topbarBadge.style.display = unreadCount > 0 ? 'block' : 'none';
+            if (mobileBadge) {
+                mobileBadge.textContent = unreadCount;
+                mobileBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+            }
+        }
+
+        // Mark every unread received message as read (called when the chat is opened)
+        function markTeacherThreadRead() {
+            const unread = teacherChatMessages.filter(m => !m.isSent && !m.read);
+            if (!unread.length) return;
+            unread.forEach(m => { m.read = true; });
+            updateTeacherChatBadges();
+            renderTeacherChat();
+            Promise.allSettled(unread.map(m => dataService.markMessageAsRead(m.id)))
+                .then(results => {
+                    const failed = results.filter(r => r.status === 'rejected').length;
+                    if (failed) console.warn(`[chat] ${failed} read-receipts failed to save`);
+                });
+        }
+
+        function setMessagesExpanded(expanded, scroll) {
+            messagesExpanded = expanded;
+            const container = document.getElementById('messages-container');
+            const icon = document.getElementById('messages-toggle-icon');
+            if (container) container.style.display = expanded ? 'flex' : 'none';
+            if (icon) icon.textContent = expanded ? '▼' : '▶';
+            if (expanded) {
+                markTeacherThreadRead();
+                const messagesEl = document.getElementById('teacher-chat-messages');
+                if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+                if (scroll) {
+                    const section = document.getElementById('messages-section');
+                    if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
+
+        window.openMessagesSection = function () {
+            const section = document.getElementById('messages-section');
+            if (section) section.style.display = 'block';
+            setMessagesExpanded(true, true);
+        };
+
+        window.toggleMessagesSection = function () {
+            setMessagesExpanded(!messagesExpanded, false);
+        };
+
+        function initTeacherChatComposer() {
+            const input = document.getElementById('teacher-chat-input');
+            if (!input || input._chatInit) return;
+            input._chatInit = true;
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendTeacherChatMessage();
+                }
+            });
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            });
+        }
+
+        window.sendTeacherChatMessage = async function () {
+            const input = document.getElementById('teacher-chat-input');
+            const sendBtn = document.getElementById('teacher-chat-send');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+
+            if (!adminContact) {
+                await Utils.showAlert('No admin found', 'Could not find an admin for your school yet. Ask your admin to load your school in their dashboard first.');
+                return;
+            }
+
+            const user = dataService.getCurrentUser();
+            sendBtn.disabled = true;
+            try {
+                const created = await dataService.sendMessage({
+                    fromId: teacherChatUserId,
+                    toId: adminContact.id,
+                    message: text,
+                    schoolVersion: user?.schoolVersion || ''
+                });
+                teacherChatMessages.push({
+                    id: created.id,
+                    fromId: created.from_id,
+                    toId: created.to_id,
+                    message: created.message,
+                    created: created.created,
+                    read: false,
+                    isSent: true,
+                    senderName: ''
+                });
+                input.value = '';
+                input.style.height = 'auto';
+                renderTeacherChat();
+            } catch (err) {
+                console.error('[chat] send failed:', err);
+                await Utils.showAlert('Error', 'Failed to send message: ' + err.message);
+            } finally {
+                sendBtn.disabled = false;
+            }
+        };
+
+        window.deleteTeacherChatMessage = async function (messageId) {
+            // Teachers may only delete their own messages — deleting a received
+            // message would hard-delete the shared record from the admin's chat too.
+            const msg = teacherChatMessages.find(m => m.id === messageId);
+            if (!msg || !msg.isSent) return;
+            const ok = await Utils.showConfirm('Delete message', 'Delete this message? This can\'t be undone.');
+            if (!ok) return;
+            try {
+                await dataService.deleteMessage(messageId);
+                teacherChatMessages = teacherChatMessages.filter(m => m.id !== messageId);
+                renderTeacherChat();
+                updateTeacherChatBadges();
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                await Utils.showAlert('Error', 'Failed to delete message: ' + error.message);
+            }
+        };
+
         async function setupMessageSubscription(teacherId) {
             if (isMessageSubscribed) return;
-
             try {
                 await dataService.subscribeToMessages(async (e) => {
-                    if (e.action === 'create' && e.record.to_id === teacherId) {
-                        console.log('📬 New message received real-time!');
-                        await loadAdminMessages(teacherId);
+                    const rec = e.record;
+                    if (e.action === 'create' && rec.to_id === teacherId) {
+                        if (teacherChatMessages.some(m => m.id === rec.id)) return;
+                        teacherChatMessages.push({
+                            id: rec.id,
+                            fromId: rec.from_id,
+                            toId: rec.to_id,
+                            message: rec.message,
+                            created: rec.created,
+                            read: !!rec.read,
+                            isSent: false,
+                            senderName: adminContact?.name || ''
+                        });
+                        if (!adminContact) {
+                            adminContact = { id: rec.from_id, name: 'Admin' };
+                            initTeacherChatComposer();
+                        }
+                        const section = document.getElementById('messages-section');
+                        if (section) section.style.display = 'block';
+                        renderTeacherChat();
+                        if (messagesExpanded) {
+                            markTeacherThreadRead();
+                        } else {
+                            updateTeacherChatBadges();
+                        }
 
-                        // Small alert for new message
+                        // Small toast for new message
                         const toast = document.createElement('div');
-                        toast.textContent = '📩 New message from Admin!';
-                        toast.style.cssText = 'position: fixed; bottom: 80px; left: 20px; background: #e67e22; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s;';
+                        toast.textContent = 'New message from Admin';
+                        toast.style.cssText = 'position: fixed; bottom: 80px; left: 20px; background: var(--primary-color, #1A73E8); color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2);';
                         document.body.appendChild(toast);
                         setTimeout(() => {
                             toast.style.opacity = '0';
                             toast.style.transition = 'opacity 0.3s';
                             setTimeout(() => toast.remove(), 300);
                         }, 3000);
+                    } else if (e.action === 'update') {
+                        const m = teacherChatMessages.find(x => x.id === rec.id);
+                        if (m) {
+                            m.read = !!rec.read;
+                            renderTeacherChat();
+                            updateTeacherChatBadges();
+                        }
+                    } else if (e.action === 'delete') {
+                        const before = teacherChatMessages.length;
+                        teacherChatMessages = teacherChatMessages.filter(x => x.id !== rec.id);
+                        if (teacherChatMessages.length !== before) {
+                            renderTeacherChat();
+                            updateTeacherChatBadges();
+                        }
                     }
                 });
                 isMessageSubscribed = true;
@@ -1238,71 +1651,6 @@
                 console.warn('Message subscription failed:', err);
             }
         }
-
-
-        // Function to open messages section when bell is clicked
-        window.openMessagesSection = function () {
-            const section = document.getElementById('messages-section');
-            const container = document.getElementById('messages-container');
-            const icon = document.getElementById('messages-toggle-icon');
-
-            // Ensure section is visible
-            section.style.display = 'block';
-
-            // Expand messages container
-            messagesExpanded = true;
-            container.style.display = 'block';
-            if (icon) icon.textContent = '▼';
-
-            // Scroll to messages section
-            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        };
-
-        window.toggleMessagesSection = function () {
-            const container = document.getElementById('messages-container');
-            const icon = document.getElementById('messages-toggle-icon');
-            messagesExpanded = !messagesExpanded;
-            container.style.display = messagesExpanded ? 'block' : 'none';
-            icon.textContent = messagesExpanded ? '▼' : '▶';
-        };
-
-        window.markMessageRead = async function (messageId) {
-            try {
-                await dataService.markMessageAsRead(messageId);
-                // Refresh messages
-                const user = dataService.getCurrentUser();
-                if (user) {
-                    await loadAdminMessages(user.profileId || user.id);
-                }
-            } catch (error) {
-                console.error('Error marking message as read:', error);
-            }
-        };
-
-        window.deleteMessage = async function (messageId) {
-            if (!(await Utils.showConfirm('Delete Message', 'Are you sure you want to delete this message?'))) {
-                return;
-            }
-
-            try {
-                await dataService.deleteMessage(messageId);
-                // Remove from DOM immediately for snappy UI
-                const msgElement = document.getElementById(`message-${messageId}`);
-                if (msgElement) {
-                    msgElement.style.opacity = '0';
-                    msgElement.style.transition = 'opacity 0.3s';
-                    setTimeout(() => msgElement.remove(), 300);
-                }
-                // Refresh to update counters
-                const user = dataService.getCurrentUser();
-                if (user) {
-                    setTimeout(() => loadAdminMessages(user.profileId || user.id), 400);
-                }
-            } catch (error) {
-                console.error('Error deleting message:', error);
-                await Utils.showAlert('Error', 'Failed to delete message: ' + error.message);
-            }
-        };
 
 
         // Connection Monitoring

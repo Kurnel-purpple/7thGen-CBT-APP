@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gen7 School Suite — Presentation</title>
+    <link rel="icon" type="image/png" href="../assets/icon.png">
+</head>
+<body>
+<style>
+  :root {
+    --ink: #0B0B0D;
+    --ink-2: #141418;
+    --ink-3: #1D1D23;
+    --chalk: #F3EFE7;
+    --chalk-dim: #B9B4A8;
+    --muted: #8B877E;
+    --orange: #F4511E;
+    --orange-soft: rgba(244, 81, 30, 0.14);
+    --line: rgba(243, 239, 231, 0.14);
+    --pass: #3FA860;
+    --pend: #E8A13C;
+    --flag: #D64545;
+
+    --bg: var(--ink);
+    --fg: var(--chalk);
+    --fg-dim: var(--chalk-dim);
+    --fg-muted: var(--muted);
+    --card: var(--ink-2);
+    --card-2: var(--ink-3);
+    --rule: var(--line);
+
+    --font-display: Georgia, 'Times New Roman', 'Noto Serif', serif;
+    --font-body: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Cascadia Code', Consolas, 'Courier New', ui-monospace, monospace;
+  }
+
+  /* This deck deliberately commits to the Gen7 brand world (ink + orange),
+     with paper slides as its own internal counter-theme. */
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--chalk);
+    font-family: var(--font-body);
+    overflow: hidden;
+  }
+
+  .deck { position: fixed; inset: 0; }
+
+  /* ── Chrome ─────────────────────────────────────────── */
+  .progress {
+    position: absolute; top: 0; left: 0; height: 3px;
+    background: var(--orange);
+    width: 0%;
+    transition: width 0.4s ease;
+    z-index: 40;
+  }
+  .chrome {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 28px 0;
+    z-index: 30;
+    pointer-events: none;
+  }
+  .brand-chip {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px;
+    color: var(--fg-dim); text-transform: uppercase;
+  }
+  .g7-mini {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: #0A0A0A; border: 1px solid rgba(243,239,231,0.22);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 13px;
+    color: #F3EFE7; letter-spacing: 0;
+  }
+  .g7-mini b { color: var(--orange); font-weight: 700; }
+  .counter {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 3px;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .counter b { color: var(--orange); font-weight: 400; }
+
+  /* ── Slides ─────────────────────────────────────────── */
+  .slides { position: absolute; inset: 0; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    padding: 72px min(7vw, 90px) 84px;
+    box-sizing: border-box;
+    background: var(--bg); color: var(--fg);
+    opacity: 0;
+    transform: translateX(6%);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+    pointer-events: none;
+    visibility: hidden;
+    overflow-y: auto;
+  }
+  .slide.is-active {
+    opacity: 1; transform: translateX(0);
+    pointer-events: auto; visibility: visible;
+  }
+  .slide.is-left { transform: translateX(-6%); }
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .progress { transition: none; }
+  }
+
+  /* Paper counter-theme */
+  .slide--paper {
+    --bg: #F3EFE7; --fg: #17150F; --fg-dim: #4C463A; --fg-muted: #7C7566;
+    --card: #FFFDF8; --card-2: #EAE4D6; --rule: rgba(23, 21, 15, 0.16);
+    background:
+      linear-gradient(rgba(23,21,15,0.045) 1px, transparent 1px) 0 0 / 100% 34px,
+      var(--bg);
+  }
+
+  /* Faint answer-grid texture on ink slides */
+  .slide--grid {
+    background:
+      linear-gradient(rgba(243,239,231,0.035) 1px, transparent 1px) 0 0 / 100% 44px,
+      linear-gradient(90deg, rgba(243,239,231,0.03) 1px, transparent 1px) 0 0 / 44px 100%,
+      var(--bg);
+  }
+
+  /* Content container: keeps slide content centered and measured on wide
+     screens instead of hugging the left padding edge */
+  .wrap {
+    width: 100%;
+    max-width: 1140px;
+    /* auto top/bottom margins = vertically centered when the slide has room,
+       but content stays reachable (scrolls from the top) when it overflows */
+    margin: auto;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px; letter-spacing: 3.5px; text-transform: uppercase;
+    color: var(--orange);
+    margin: 0 0 18px;
+  }
+  .eyebrow::before { content: '¶ '; color: var(--fg-muted); }
+  h1, h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.06;
+    margin: 0;
+    text-wrap: balance;
+    color: var(--fg);
+  }
+  h1 { font-size: clamp(2.6rem, 6.4vw, 5.4rem); }
+  h2 { font-size: clamp(2rem, 4.6vw, 3.6rem); }
+  .lede {
+    font-size: clamp(1.02rem, 1.6vw, 1.28rem);
+    line-height: 1.65;
+    color: var(--fg-dim);
+    max-width: 34em;
+    margin: 22px 0 0;
+  }
+  .accent { color: var(--orange); }
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: clamp(28px, 5vw, 72px);
+    align-items: center;
+  }
+  @media (max-width: 880px) {
+    .two-col { grid-template-columns: 1fr; gap: 30px; }
+    .slide { padding: 64px 6vw 96px; justify-content: flex-start; }
+  }
+
+  .points { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 14px; max-width: 34em; }
+  .points li {
+    position: relative;
+    padding-left: 26px;
+    font-size: clamp(0.95rem, 1.4vw, 1.08rem); line-height: 1.55; color: var(--fg-dim);
+  }
+  .points li::before {
+    content: '›';
+    position: absolute; left: 2px; top: 0;
+    font-family: var(--font-mono); color: var(--orange);
+    font-size: 1.15em; line-height: 1.35;
+  }
+  .points b { color: var(--fg); font-weight: 600; }
+
+  .kicker {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--fg-muted); margin-top: 26px;
+  }
+
+  /* ── Cover ──────────────────────────────────────────── */
+  .cover-mark {
+    width: 96px; height: 96px; border-radius: 26px;
+    background: #0A0A0A;
+    border: 1px solid rgba(243,239,231,0.25);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(243,239,231,0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 44px;
+    color: #F3EFE7; margin-bottom: 34px;
+  }
+  .cover-mark b { color: var(--orange); font-weight: 700; }
+  .cover-foot {
+    position: absolute; bottom: 84px; left: min(7vw, 90px); right: min(7vw, 90px);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px;
+    color: var(--fg-muted); text-transform: uppercase;
+  }
+  .cover-foot .hint b { color: var(--orange); font-weight: 400; }
+
+  /* ── Module map ─────────────────────────────────────── */
+  .mod-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 34px;
+  }
+  @media (max-width: 880px) { .mod-grid { grid-template-columns: repeat(2, 1fr); } }
+  .mod {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
+    padding: 18px 18px 16px;
+  }
+  .mod .mod-n {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--orange); display: block; margin-bottom: 10px;
+  }
+  .mod h3 { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--fg); }
+  .mod p { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--fg-muted); }
+  .mod--lead { grid-column: span 2; background: linear-gradient(135deg, var(--orange-soft), transparent 60%), var(--card); border-color: rgba(244,81,30,0.35); }
+  @media (max-width: 880px) { .mod--lead { grid-column: span 2; } }
+
+  /* ── Product vignettes (shared) ─────────────────────── */
+  .shot {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .slide--paper .shot { box-shadow: 0 22px 50px rgba(23,21,15,0.18); }
+  .shot-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--rule);
+    background: var(--card-2);
+  }
+  .shot-title { font-weight: 600; color: var(--fg); font-size: 12.5px; }
+  .chip {
+    font-family: var(--font-mono); font-size: 11.5px; padding: 3px 10px;
+    border-radius: 50px; border: 1px solid var(--rule); color: var(--fg-dim);
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .chip--timer { color: var(--orange); border-color: rgba(244,81,30,0.5); background: var(--orange-soft); }
+  .shot-body { padding: 16px; }
+
+  /* Exam vignette */
+  .q-text { color: var(--fg); line-height: 1.5; margin: 0 0 12px; font-size: 13.5px; }
+  .q-num { font-family: var(--font-mono); color: var(--orange); margin-right: 8px; }
+  .opt {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--rule); border-radius: 10px;
+    padding: 9px 12px; margin-bottom: 8px; color: var(--fg-dim);
+  }
+  .opt i {
+    width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--fg-muted);
+    flex-shrink: 0; font-style: normal;
+  }
+  .opt.sel { border-color: var(--orange); color: var(--fg); background: var(--orange-soft); }
+  .opt.sel i { border-color: var(--orange); background: var(--orange); box-shadow: inset 0 0 0 3px var(--card); }
+  .palette { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .pal {
+    width: 26px; height: 26px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 10.5px;
+    border: 1px solid var(--rule); color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .pal--done { background: rgba(63,168,96,0.18); border-color: rgba(63,168,96,0.55); color: var(--pass); }
+  .pal--flag { border-color: var(--flag); color: var(--flag); }
+  .pal--now  { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+  /* Teacher card vignette */
+  .dotrow { display: flex; gap: 10px; }
+  .dot {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .dot i { width: 10px; height: 10px; border-radius: 50%; font-style: normal; }
+  .dot--g i { background: var(--pass); } .dot--y i { background: var(--pend); } .dot--r i { background: var(--flag); }
+  .dot--y { outline: 1px dashed rgba(232,161,60,0.6); outline-offset: 4px; border-radius: 4px; }
+  .mrow {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--rule);
+  }
+  .mrow:last-child { border-bottom: none; }
+  .mrow .who { color: var(--fg); font-size: 12.5px; }
+  .mrow .who small { display: block; color: var(--fg-muted); font-size: 10.5px; margin-top: 1px; }
+  .btn-chip {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.5px;
+    padding: 4px 10px; border-radius: 50px;
+    background: var(--orange); color: #fff; white-space: nowrap;
+  }
+  .btn-chip--ghost { background: transparent; border: 1px solid var(--rule); color: var(--fg-dim); }
+
+  /* Results table vignette */
+  .rt { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .rt th {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--fg-muted); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule);
+  }
+  .rt td { padding: 8px 10px; border-bottom: 1px solid var(--rule); color: var(--fg-dim); font-size: 12.5px; }
+  .rt tr:last-child td { border-bottom: none; }
+  .rt .num { text-align: center; font-family: var(--font-mono); }
+  .ok { color: var(--pass); font-weight: 600; } .warn { color: var(--pend); font-weight: 600; } .bad { color: var(--flag); font-weight: 600; }
+
+  /* Report card vignette */
+  .grade {
+    font-family: var(--font-mono); font-weight: 700;
+  }
+  .pos-pill {
+    display: inline-block; font-family: var(--font-mono); font-size: 11px;
+    background: var(--orange); color: #fff; border-radius: 50px; padding: 3px 12px;
+  }
+
+  /* Chat vignette */
+  .bub { max-width: 78%; padding: 8px 12px; border-radius: 13px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.45; }
+  .bub small { display: block; font-family: var(--font-mono); font-size: 9.5px; opacity: 0.7; margin-top: 4px; text-align: right; }
+  .bub--in { background: var(--card-2); color: var(--fg); border-bottom-left-radius: 4px; }
+  .bub--out { background: var(--orange); color: #fff; border-bottom-right-radius: 4px; margin-left: auto; }
+  .composer {
+    display: flex; gap: 8px; align-items: center; margin-top: 12px;
+    border-top: 1px solid var(--rule); padding-top: 12px;
+  }
+  .composer .field {
+    flex: 1; border: 1px solid var(--rule); border-radius: 50px;
+    padding: 8px 14px; color: var(--fg-muted); font-size: 12px;
+  }
+  .composer .send {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--orange);
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    font-size: 14px;
+  }
+
+  /* Admin stats vignette */
+  .stat-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat {
+    flex: 1; min-width: 82px; background: var(--card-2); border: 1px solid var(--rule);
+    border-radius: 10px; padding: 10px 8px; text-align: center;
+  }
+  .stat b { display: block; font-family: var(--font-mono); font-size: 18px; font-weight: 400; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .stat span { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--fg-muted); }
+  .stat--hot b { color: var(--orange); }
+  .btn-chip--danger { background: transparent; border: 1px solid rgba(214,69,69,0.55); color: var(--flag); }
+
+  /* Question bank vignette */
+  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tag-row .chip { background: var(--card-2); }
+  .qb-hit { font-family: var(--font-mono); font-size: 11.5px; color: var(--pass); margin: 2px 0 12px; }
+  .diff { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 50px; border: 1px solid var(--rule); color: var(--fg-muted); }
+  .diff--e { color: var(--pass); border-color: rgba(63,168,96,0.5); }
+  .diff--h { color: var(--flag); border-color: rgba(214,69,69,0.5); }
+
+  /* Attendance vignette */
+  .att { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 10px; flex-shrink: 0; }
+  .att--p { background: rgba(63,168,96,0.16); color: var(--pass); border: 1px solid rgba(63,168,96,0.5); }
+  .att--a { background: rgba(214,69,69,0.12); color: var(--flag); border: 1px solid rgba(214,69,69,0.5); }
+  .att-set { display: flex; gap: 5px; }
+  .shot-stack { display: grid; gap: 16px; }
+
+  /* Devices */
+  .devices { display: flex; align-items: flex-end; gap: 20px; justify-content: center; }
+  .laptop { flex: 1; max-width: 420px; }
+  .laptop .screen {
+    border: 1px solid var(--rule); border-radius: 12px 12px 0 0;
+    background: var(--card); padding: 14px; height: 170px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .laptop .base { height: 10px; background: var(--card-2); border: 1px solid var(--rule); border-top: none; border-radius: 0 0 14px 14px; }
+  .skel { border-radius: 6px; background: var(--card-2); }
+  .skel--bar { height: 12px; width: 55%; }
+  .skel--row { height: 26px; }
+  .skel--accent { background: var(--orange-soft); border: 1px solid rgba(244,81,30,0.4); }
+  .phone {
+    width: 110px; height: 210px; border: 1px solid var(--rule); border-radius: 20px;
+    background: var(--card); padding: 12px 10px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .os-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 22px; }
+  .os-tag {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    border: 1px solid var(--rule); border-radius: 50px; padding: 6px 14px; color: var(--fg-dim);
+  }
+  .os-tag b { color: var(--orange); font-weight: 400; }
+
+  /* Big statement slides */
+  .statement h2 { font-size: clamp(2.4rem, 6vw, 4.6rem); max-width: 14em; }
+  .strike { text-decoration: line-through; text-decoration-color: var(--orange); text-decoration-thickness: 3px; color: var(--fg-muted); }
+
+  /* Scramble visual */
+  .scramble { display: flex; gap: 8px; margin-top: 26px; flex-wrap: wrap; }
+  .scr-col { display: grid; gap: 6px; }
+  .scr {
+    font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim);
+    border: 1px solid var(--rule); border-radius: 8px; padding: 5px 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .scr b { color: var(--orange); font-weight: 400; }
+  .scr-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; color: var(--fg-muted); text-transform: uppercase; margin-bottom: 2px; }
+
+  /* CTA */
+  .cta-line { font-family: var(--font-mono); font-size: clamp(0.85rem, 1.6vw, 1.05rem); letter-spacing: 1px; color: var(--fg-dim); margin-top: 34px; }
+  .cta-line b { color: var(--orange); font-weight: 400; }
+
+  /* ── Nav ────────────────────────────────────────────── */
+  .nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px 20px; z-index: 30;
+  }
+  .dots { display: flex; gap: 7px; }
+  .dots button {
+    width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0;
+    background: rgba(139,135,126,0.45); cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .dots button:hover { transform: scale(1.4); }
+  .dots button.on { background: var(--orange); transform: scale(1.25); }
+  .dots button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+  .arrows { display: flex; gap: 10px; }
+  .arrows button {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid rgba(243,239,231,0.25); background: rgba(11,11,13,0.6);
+    color: #F3EFE7; font-size: 16px; cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .arrows button:hover { border-color: var(--orange); background: rgba(244,81,30,0.18); }
+  .arrows button:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+</style>
+
+<div class="deck">
+  <div class="progress" id="progress"></div>
+  <div class="chrome">
+    <a class="brand-chip" href="../index.html" title="Back to Gen7 home" style="text-decoration:none; pointer-events:auto;"><span class="g7-mini">G<b>7</b></span> Gen7 School Suite</a>
+    <span class="counter" id="counter"><b>01</b> / 16</span>
+  </div>
+
+  <main class="slides" id="slides">
+
+    <!-- 1 · Cover -->
+    <section class="slide slide--grid">
+      <div class="wrap">
+        <div class="cover-mark">G<b>7</b></div>
+        <h1>Exams, results &amp;<br>records — <span class="accent">one platform.</span></h1>
+        <p class="lede">Gen7 is the school management suite built for how Nigerian schools actually run: three terms, real exam halls, unreliable internet — and result sheets due yesterday.</p>
+      </div>
+      <div class="cover-foot">
+        <span>Computer-Based Testing · Records · Reports</span>
+        <span class="hint">Use <b>→</b> arrow keys or swipe</span>
+      </div>
+    </section>
+
+    <!-- 2 · Problem -->
+    <section class="slide statement">
+      <div class="wrap">
+        <p class="eyebrow">The old way</p>
+        <h2><span class="strike">Photocopied question papers.</span><br>
+            <span class="strike">Marking scripts till midnight.</span><br>
+            <span class="strike">Result-day chaos.</span></h2>
+        <p class="lede">Every term, your teachers spend weeks setting, invigilating, marking and compiling by hand. Gen7 gives those weeks back — and gives you records you can trust.</p>
+      </div>
+    </section>
+
+    <!-- 3 · Platform map -->
+    <section class="slide">
+      <div class="wrap">
+      <p class="eyebrow">One suite · six modules</p>
+      <h2>Everything a term needs.</h2>
+      <div class="mod-grid">
+        <div class="mod mod--lead">
+          <span class="mod-n">01 · CBT EXAMS</span>
+          <h3>Computer-Based Testing</h3>
+          <p>Set exams in minutes, deliver them on any device, grade objectives instantly — with anti-malpractice controls built in.</p>
+        </div>
+        <div class="mod">
+          <span class="mod-n">02</span>
+          <h3>Question Bank</h3>
+          <p>Reuse every question you've ever set. Generate a fresh exam from the bank by class, subject and difficulty.</p>
+        </div>
+        <div class="mod">
+          <span class="mod-n">03</span>
+          <h3>Report Cards</h3>
+          <p>Per-subject grades, averages and class positions compiled automatically from results.</p>
+        </div>
+        <div class="mod">
+          <span class="mod-n">04</span>
+          <h3>Attendance</h3>
+          <p>Daily class registers with present / absent / holiday tracking and full history.</p>
+        </div>
+        <div class="mod">
+          <span class="mod-n">05</span>
+          <h3>Homework</h3>
+          <p>Assignments set, submitted and graded inside the same platform.</p>
+        </div>
+        <div class="mod">
+          <span class="mod-n">06</span>
+          <h3>Messaging</h3>
+          <p>A real chat between admin and teachers — broadcasts, read receipts, instant delivery.</p>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <!-- 4 · Student exam experience -->
+    <section class="slide">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Module 01 · Exam day</p>
+          <h2>Students sit the exam. The app does the rest.</h2>
+          <ul class="points">
+            <li><b>Instant grading</b> — objective scores appear the second a student submits.</li>
+            <li><b>Pick up where you stopped</b> — power cut mid-exam? Answers are saved continuously; students resume on any machine.</li>
+            <li><b>Question palette</b> — answered, flagged and current questions at a glance.</li>
+            <li><b>7 question types</b> — MCQ, true/false, fill-in, matching, image-based and full theory.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Exam screen preview">
+          <div class="shot-bar">
+            <span class="shot-title">Mathematics · 2nd Term</span>
+            <span class="chip chip--timer">00:42:17</span>
+          </div>
+          <div class="shot-body">
+            <p class="q-text"><span class="q-num">Q7.</span>Simplify: 3x + 2(x − 4) = 12. Find x.</p>
+            <div class="opt"><i></i> x = 2</div>
+            <div class="opt sel"><i></i> x = 4</div>
+            <div class="opt"><i></i> x = 5</div>
+            <div class="opt"><i></i> x = 8</div>
+            <div class="palette">
+              <span class="pal pal--done">1</span><span class="pal pal--done">2</span>
+              <span class="pal pal--done">3</span><span class="pal pal--flag">4</span>
+              <span class="pal pal--done">5</span><span class="pal pal--done">6</span>
+              <span class="pal pal--now">7</span><span class="pal">8</span>
+              <span class="pal">9</span><span class="pal">10</span>
+              <span class="pal">11</span><span class="pal">12</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 · Offline -->
+    <section class="slide statement slide--grid">
+      <div class="wrap">
+        <p class="eyebrow">Built for real exam halls</p>
+        <h2>No internet?<br><span class="accent">No problem.</span></h2>
+        <ul class="points">
+          <li><b>Prepare-for-Exams mode</b> pre-loads every exam onto hall computers before the first student sits down.</li>
+          <li>If the network drops mid-exam, answers keep saving <b>locally</b> — and sync automatically the moment it returns.</li>
+          <li>Students never see an error. Teachers never lose a script.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 6 · Integrity -->
+    <section class="slide">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Exam integrity</p>
+          <h2>Malpractice doesn't stand a chance.</h2>
+          <ul class="points">
+            <li><b>Per-student scrambling</b> — every candidate sees the questions in a different order.</li>
+            <li><b>Scheduled release</b> — exams unlock at the exact date and time you set, on trusted server time, not the student's device clock.</li>
+            <li><b>One-click lockdown</b> — the admin can make every exam unavailable instantly.</li>
+            <li><b>Idle auto-logout</b> — abandoned student sessions close themselves.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="scramble" aria-label="Question scrambling illustration">
+            <div class="scr-col">
+              <div class="scr-label">Candidate A</div>
+              <span class="scr"><b>Q3</b> → Q1 → Q7 → Q2</span>
+            </div>
+            <div class="scr-col">
+              <div class="scr-label">Candidate B</div>
+              <span class="scr"><b>Q7</b> → Q4 → Q1 → Q9</span>
+            </div>
+            <div class="scr-col">
+              <div class="scr-label">Candidate C</div>
+              <span class="scr"><b>Q2</b> → Q8 → Q5 → Q1</span>
+            </div>
+          </div>
+          <p class="kicker">Same exam · three different papers</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 · Teacher creation -->
+    <section class="slide slide--paper">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">For teachers</p>
+          <h2>A whole exam, set in minutes.</h2>
+          <ul class="points">
+            <li><b>Rich question editor</b> — a built-in word processor with formatting, diagrams and images.</li>
+            <li><b>Bulk paste import</b> — paste an entire typed exam; Gen7 detects questions, options and theory sections automatically.</li>
+            <li><b>Reusable forever</b> — one click sends every question into the school's Question Bank.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Bulk import preview">
+          <div class="shot-bar">
+            <span class="shot-title">Bulk Import</span>
+            <span class="chip">40 questions detected</span>
+          </div>
+          <div class="shot-body" style="font-family: var(--font-mono); font-size: 11.5px; line-height: 1.8; color: var(--fg-dim);">
+            1. Photosynthesis occurs in the…<br>
+            &nbsp;&nbsp;(a) mitochondria <span class="ok">(b) chloroplast ✓</span><br>
+            &nbsp;&nbsp;(c) nucleus (d) ribosome<br>
+            <span style="color: var(--orange);">THEORY</span><br>
+            1. Define osmosis.<br>
+            &nbsp;&nbsp;a. Give two examples.<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;i. …in plants &nbsp;ii. …in animals
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Question Bank -->
+    <section class="slide slide--paper">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Module 02 · Question Bank</p>
+          <h2>Never set the same question twice.</h2>
+          <ul class="points">
+            <li>Every question your teachers have ever set, stored and searchable by <b>class, subject and difficulty</b>.</li>
+            <li><b>Generate an exam</b> — choose the criteria and question count; Gen7 assembles a fresh paper from the bank in seconds.</li>
+            <li>Duplicates are detected and skipped automatically, so the bank stays clean as it grows.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Question bank generator preview">
+          <div class="shot-bar">
+            <span class="shot-title">Question Bank · Generate Exam</span>
+            <span class="chip">1,248 in bank</span>
+          </div>
+          <div class="shot-body">
+            <div class="tag-row">
+              <span class="chip">JSS 3</span>
+              <span class="chip">Mathematics</span>
+              <span class="chip">40 questions</span>
+              <span class="chip">Mixed difficulty</span>
+            </div>
+            <p class="qb-hit">✓ 142 matching questions found</p>
+            <div class="mrow">
+              <span class="who">Simplify 3x + 2(x − 4)…<small>Algebra · used 2nd Term 2025</small></span>
+              <span class="diff diff--e">Easy</span>
+            </div>
+            <div class="mrow">
+              <span class="who">A trader sells at 15% profit…<small>Percentages · used 1st Term 2025</small></span>
+              <span class="diff">Medium</span>
+            </div>
+            <div class="mrow">
+              <span class="who">Solve the simultaneous equations…<small>Algebra · new</small></span>
+              <span class="diff diff--h">Hard</span>
+            </div>
+            <div style="margin-top: 14px; text-align: right;">
+              <span class="btn-chip">Generate Exam</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 · Live control -->
+    <section class="slide">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">During the exam</p>
+          <h2>Teachers stay in control, live.</h2>
+          <ul class="points">
+            <li>Every exam card shows <b>completed, in-progress and flagged</b> counts as they happen.</li>
+            <li>Tap the amber count to manage stragglers: <b>auto-submit</b> an attempt, grant a <b>retake</b>, or add <b>extra time</b> — per student or for the whole hall.</li>
+            <li>Students can flag a faulty question; teachers resolve it and affected students re-answer <b>only that question</b>.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Teacher monitoring preview">
+          <div class="shot-bar">
+            <span class="shot-title">English Language · 1st Term</span>
+            <span class="dotrow">
+              <span class="dot dot--g"><i></i>31</span>
+              <span class="dot dot--y"><i></i>3</span>
+              <span class="dot dot--r"><i></i>1</span>
+            </span>
+          </div>
+          <div class="shot-body">
+            <div class="mrow">
+              <span class="who">Chidera N.<small>In progress · 12 min left</small></span>
+              <span class="btn-chip">Auto Submit</span>
+            </div>
+            <div class="mrow">
+              <span class="who">Ibrahim S.<small>In progress · 12 min left</small></span>
+              <span class="btn-chip--ghost btn-chip">+10 min</span>
+            </div>
+            <div class="mrow">
+              <span class="who">Amara O.<small>Disconnected · answers saved</small></span>
+              <span class="btn-chip--ghost btn-chip">Grant retake</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Admin portal -->
+    <section class="slide slide--grid">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">The Admin portal</p>
+          <h2>The whole school, one dashboard.</h2>
+          <ul class="points">
+            <li><b>Everything in view</b> — every teacher, student, exam and result in the school, searchable from one screen.</li>
+            <li><b>Full exam authority</b> — approve, schedule, re-assign classes, or <b>lock every exam at once</b> with a single click.</li>
+            <li><b>Term results &amp; exports</b> — whole-school results by term and class, exported to Excel for records or parents.</li>
+            <li><b>User care</b> — reset a forgotten password in seconds; broadcast to all teachers instantly.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Admin dashboard preview">
+          <div class="shot-bar">
+            <span class="shot-title">Admin Dashboard · Sunrise College</span>
+            <span class="chip">2nd Term</span>
+          </div>
+          <div class="shot-body">
+            <div class="stat-row">
+              <div class="stat"><b>18</b><span>Teachers</span></div>
+              <div class="stat"><b>442</b><span>Students</span></div>
+              <div class="stat"><b>56</b><span>Exams</span></div>
+              <div class="stat stat--hot"><b>12</b><span>Active</span></div>
+            </div>
+            <div class="mrow">
+              <span class="who">Mathematics · JSS 3<small>Mr. Adewale · scheduled 09:00</small></span>
+              <span class="att-set">
+                <span class="btn-chip--ghost btn-chip">Active ▾</span>
+                <span class="btn-chip--ghost btn-chip">Schedule</span>
+              </span>
+            </div>
+            <div class="mrow">
+              <span class="who">English Language · SS 1<small>Mrs. Okafor · draft</small></span>
+              <span class="att-set">
+                <span class="btn-chip--ghost btn-chip">Draft ▾</span>
+                <span class="btn-chip--ghost btn-chip">Schedule</span>
+              </span>
+            </div>
+            <div style="margin-top: 14px; text-align: right;">
+              <span class="btn-chip btn-chip--danger">Lock all exams</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 · Results -->
+    <section class="slide slide--paper">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">After the exam</p>
+          <h2>Results, the moment pencils go down.</h2>
+          <ul class="points">
+            <li>Whole-school results by <b>term and class</b>, in percentages — no manual compilation.</li>
+            <li><b>Theory marking built in</b> — enter theory scores and totals recalculate instantly.</li>
+            <li>Export to <b>Excel</b>: the full school, one class, or a single student's term.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Results table preview">
+          <div class="shot-bar">
+            <span class="shot-title">General Results · 2nd Term · JSS 3</span>
+            <span class="chip">Export ⤓</span>
+          </div>
+          <div class="shot-body">
+            <table class="rt">
+              <thead><tr><th>Student</th><th class="num">Maths</th><th class="num">English</th><th class="num">Science</th><th class="num">Avg</th></tr></thead>
+              <tbody>
+                <tr><td>Adaeze U.</td><td class="num ok">92%</td><td class="num ok">85%</td><td class="num ok">88%</td><td class="num ok">88.3%</td></tr>
+                <tr><td>Bola A.</td><td class="num ok">76%</td><td class="num warn">58%</td><td class="num ok">81%</td><td class="num ok">71.7%</td></tr>
+                <tr><td>Chinedu O.</td><td class="num warn">54%</td><td class="num ok">72%</td><td class="num bad">39%</td><td class="num warn">55.0%</td></tr>
+                <tr><td>Danjuma K.</td><td class="num ok">88%</td><td class="num ok">79%</td><td class="num ok">91%</td><td class="num ok">86.0%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 · Report cards & records -->
+    <section class="slide slide--paper">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Module 03 · Report Cards</p>
+          <h2>From raw scores to report card.</h2>
+          <ul class="points">
+            <li><b>Compiled automatically</b> — grades, subject averages and <b>class position</b> computed from every result in the term. No spreadsheets, no late nights.</li>
+            <li>Colour-coded grades per subject, with the full term picture on one card.</li>
+            <li>Students and parents see the same card the school sees — no transcription errors.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Report card preview">
+          <div class="shot-bar">
+            <span class="shot-title">Report Card · Adaeze U. · JSS 3</span>
+            <span class="pos-pill">3rd of 42</span>
+          </div>
+          <div class="shot-body">
+            <table class="rt">
+              <thead><tr><th>Subject</th><th class="num">Score</th><th class="num">Grade</th></tr></thead>
+              <tbody>
+                <tr><td>Mathematics</td><td class="num">92 / 100</td><td class="num grade ok">A</td></tr>
+                <tr><td>English Language</td><td class="num">85 / 100</td><td class="num grade ok">A</td></tr>
+                <tr><td>Basic Science</td><td class="num">88 / 100</td><td class="num grade ok">A</td></tr>
+                <tr><td>Social Studies</td><td class="num">74 / 100</td><td class="num grade warn">B</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Attendance & Homework -->
+    <section class="slide slide--paper">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Modules 04 &amp; 05 · Daily records</p>
+          <h2>The register and the homework diary, digitised.</h2>
+          <ul class="points">
+            <li><b>Attendance</b> — mark a whole class in under a minute: present, absent or public holiday, with per-day stats and full term history.</li>
+            <li><b>Homework</b> — teachers set assignments with due dates; students submit in-app; grading lands in the same records as everything else.</li>
+            <li>No more missing registers or "I submitted it, sir" disputes — every entry is dated and kept.</li>
+          </ul>
+        </div>
+        <div class="shot-stack">
+          <div class="shot" aria-label="Attendance register preview">
+            <div class="shot-bar">
+              <span class="shot-title">Attendance · JSS 3A · Today</span>
+              <span class="chip">31 / 34 present</span>
+            </div>
+            <div class="shot-body" style="padding-top: 8px;">
+              <div class="mrow">
+                <span class="who">Adaeze U.</span>
+                <span class="att-set"><span class="att att--p">P</span></span>
+              </div>
+              <div class="mrow">
+                <span class="who">Bola A.</span>
+                <span class="att-set"><span class="att att--a">A</span></span>
+              </div>
+              <div class="mrow">
+                <span class="who">Chinedu O.</span>
+                <span class="att-set"><span class="att att--p">P</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="shot" aria-label="Homework preview">
+            <div class="shot-bar">
+              <span class="shot-title">Homework · Basic Science</span>
+              <span class="chip">Due Friday</span>
+            </div>
+            <div class="shot-body" style="padding-top: 8px;">
+              <div class="mrow">
+                <span class="who">Chapter 4 — Living Things<small>JSS 3 · set Monday</small></span>
+                <span class="btn-chip--ghost btn-chip">18 / 34 submitted</span>
+              </div>
+              <div class="mrow">
+                <span class="who">Photosynthesis diagram<small>JSS 3 · set last week</small></span>
+                <span class="btn-chip">Grade now</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 · Messaging -->
+    <section class="slide">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Communication</p>
+          <h2>Admin and teachers, one chat away.</h2>
+          <ul class="points">
+            <li>A proper chat — <b>read receipts, instant delivery</b>, conversation history per teacher.</li>
+            <li><b>Broadcast</b> one announcement to every teacher in the school at once.</li>
+            <li>Password-reset requests and urgent notices land right in the thread.</li>
+          </ul>
+        </div>
+        <div class="shot" aria-label="Messaging preview">
+          <div class="shot-bar">
+            <span class="shot-title">Mr. Adewale · Teacher</span>
+            <span class="chip">online</span>
+          </div>
+          <div class="shot-body">
+            <div class="bub bub--in">Good morning. JSS 2 exam hall is ready — can you unlock the Maths exam?<small>08:52</small></div>
+            <div class="bub bub--out">Done. It's live for JSS 2 only. Good luck!<small>08:53 ✓✓</small></div>
+            <div class="bub bub--in">Received. Starting now.<small>08:54</small></div>
+            <div class="composer"><span class="field">Type a message…</span><span class="send">➤</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 · Everywhere -->
+    <section class="slide slide--grid">
+      <div class="two-col wrap">
+        <div>
+          <p class="eyebrow">Deployment</p>
+          <h2>Every device your school already owns.</h2>
+          <ul class="points">
+            <li><b>Windows desktop app</b> for exam-hall computers — installs once, updates itself.</li>
+            <li><b>Android app</b> for teachers and students on the go, with in-app updates.</li>
+            <li><b>Web</b> for anywhere else. Same account, same data, everywhere.</li>
+            <li><b>Your school's brand</b> — Gen7 ships white-labelled with your name, colours and logo.</li>
+          </ul>
+          <div class="os-tags">
+            <span class="os-tag"><b>▣</b> Windows</span>
+            <span class="os-tag"><b>▤</b> Android</span>
+            <span class="os-tag"><b>◍</b> Web</span>
+          </div>
+        </div>
+        <div class="devices" aria-label="Devices illustration">
+          <div class="laptop">
+            <div class="screen">
+              <div class="skel skel--bar"></div>
+              <div class="skel skel--row skel--accent"></div>
+              <div class="skel skel--row"></div>
+              <div class="skel skel--row"></div>
+            </div>
+            <div class="base"></div>
+          </div>
+          <div class="phone">
+            <div class="skel skel--bar" style="width: 70%;"></div>
+            <div class="skel skel--row skel--accent"></div>
+            <div class="skel skel--row"></div>
+            <div class="skel skel--row"></div>
+            <div class="skel skel--row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 · CTA -->
+    <section class="slide statement slide--grid">
+      <div class="wrap">
+        <div class="cover-mark">G<b>7</b></div>
+        <h2>Run your next exam<br>on <span class="accent">Gen7.</span></h2>
+        <p class="lede">Set-up for your school takes a day, not a term. We'll load your classes, brand it in your colours, and walk your teachers through their first exam.</p>
+        <p class="cta-line"><b>seatoscbt.com</b> &nbsp;·&nbsp; Book a live demo &nbsp;·&nbsp; corneliusajayi123@gmail.com</p>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="nav" aria-label="Slide navigation">
+    <div class="dots" id="dots"></div>
+    <div class="arrows">
+      <button type="button" id="prev" aria-label="Previous slide">←</button>
+      <button type="button" id="next" aria-label="Next slide">→</button>
+    </div>
+  </nav>
+</div>
+
+<script>
+  (function () {
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const dotsWrap = document.getElementById('dots');
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    const total = slides.length;
+    let current = 0;
+
+    slides.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+      b.addEventListener('click', () => go(i));
+      dotsWrap.appendChild(b);
+    });
+    const dots = Array.from(dotsWrap.children);
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function go(i) {
+      current = Math.max(0, Math.min(total - 1, i));
+      slides.forEach((s, idx) => {
+        s.classList.toggle('is-active', idx === current);
+        s.classList.toggle('is-left', idx < current);
+      });
+      dots.forEach((d, idx) => d.classList.toggle('on', idx === current));
+      counter.innerHTML = '<b>' + pad(current + 1) + '</b> / ' + pad(total);
+      progress.style.width = (((current + 1) / total) * 100) + '%';
+      if (history.replaceState) history.replaceState(null, '', '#' + (current + 1));
+    }
+
+    document.getElementById('prev').addEventListener('click', () => go(current - 1));
+    document.getElementById('next').addEventListener('click', () => go(current + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(current + 1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(current - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); go(0); }
+      else if (e.key === 'End') { e.preventDefault(); go(total - 1); }
+    });
+
+    // Swipe
+    let touchX = null;
+    document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      if (touchX === null) return;
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) > 60) { dx < 0 ? go(current + 1) : go(current - 1); }
+      touchX = null;
+    }, { passive: true });
+
+    const fromHash = parseInt(location.hash.slice(1), 10);
+    go(Number.isFinite(fromHash) ? fromHash - 1 : 0);
+  })();
+</script>
+
+</body>
+</html>

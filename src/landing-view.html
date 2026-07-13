@@ -1,13 +1,15 @@
 <!-- Topbar -->
 <header class="landing-topbar">
     <a class="landing-brand" href="#">
-        <img src="assets/drop.png" alt="Gen7 CBT">
-        <span>Gen7 CBT</span>
+        <img src="assets/drop.png" alt="Gen7 School Suite">
+        <span>Gen7 School Suite</span>
     </a>
     <nav class="landing-nav">
         <a href="#features">Features</a>
+        <a href="#modules">Modules</a>
         <a href="#how-it-works">How It Works</a>
         <a href="#for-schools">For Schools</a>
+        <a href="pages/presentation.html">Presentation</a>
     </nav>
     <div class="landing-nav-actions">
         <button id="landing-login-btn" class="landing-btn landing-btn-text">Log In</button>
@@ -21,8 +23,10 @@
 <!-- Mobile nav drawer -->
 <div id="landing-mobile-nav" class="landing-mobile-nav">
     <a href="#features">Features</a>
+    <a href="#modules">Modules</a>
     <a href="#how-it-works">How It Works</a>
     <a href="#for-schools">For Schools</a>
+    <a href="pages/presentation.html">Presentation</a>
     <div class="landing-mobile-nav-actions">
         <button id="landing-mobile-login" class="landing-btn landing-btn-outline">Log In</button>
         <button id="landing-mobile-register" class="landing-btn landing-btn-dashed">Get Started</button>
@@ -37,9 +41,9 @@
         <div class="landing-hero-content">
             <div class="landing-hero-split">
                 <div class="landing-hero-text">
-                    <p class="landing-hero-eyebrow"><span class="eyebrow-dot"></span> Offline-first exam platform for African schools</p>
-                    <h1>Exams,<br><span class="hero-gradient-text">simplified.</span></h1>
-                    <p class="landing-hero-sub">Create rich exams. Deliver them on any device.<br>Grade instantly — even without internet.</p>
+                    <p class="landing-hero-eyebrow"><span class="eyebrow-dot"></span> The offline-first school management suite for African schools</p>
+                    <h1>Your school,<br><span class="hero-gradient-text">simplified.</span></h1>
+                    <p class="landing-hero-sub">Exams, results, report cards, attendance and homework —<br>one platform, on any device, even without internet.</p>
                     <div class="landing-hero-ctas">
                         <button id="landing-demo-btn" class="landing-btn landing-btn-primary landing-btn-lg">
                             <i data-lucide="play-circle"></i> Quick Demo
@@ -47,6 +51,9 @@
                         <button id="landing-hero-register-btn" class="landing-btn landing-btn-dashed landing-btn-lg">
                             Get Started
                         </button>
+                        <a href="pages/presentation.html" class="landing-btn landing-btn-text landing-btn-lg">
+                            <i data-lucide="presentation"></i> View Presentation
+                        </a>
                     </div>
                 </div>
                 <div class="landing-hero-cards">
@@ -126,17 +133,23 @@
 <!-- MARQUEE / TRUST LINE -->
 <div class="landing-trust-line reveal">
     <div class="trust-marquee">
-        <span>Offline-capable</span>
+        <span>CBT Exams</span>
         <span class="trust-dot"></span>
-        <span>Multi-platform</span>
+        <span>Report Cards</span>
+        <span class="trust-dot"></span>
+        <span>Attendance</span>
+        <span class="trust-dot"></span>
+        <span>Question Bank</span>
+        <span class="trust-dot"></span>
+        <span>Homework</span>
+        <span class="trust-dot"></span>
+        <span>Messaging</span>
+        <span class="trust-dot"></span>
+        <span>Offline-capable</span>
         <span class="trust-dot"></span>
         <span>Auto-grading</span>
         <span class="trust-dot"></span>
-        <span>Bulk import</span>
-        <span class="trust-dot"></span>
         <span>White-label ready</span>
-        <span class="trust-dot"></span>
-        <span>Real-time sync</span>
     </div>
 </div>
 
@@ -183,6 +196,47 @@
     </div>
 </section>
 
+<!-- MODULES -->
+<section class="landing-section" id="modules">
+    <div class="landing-section-header reveal">
+        <span class="landing-tag">One suite · six modules</span>
+        <h2>Everything a term needs,<br>in one place.</h2>
+    </div>
+
+    <div class="landing-steps-grid">
+        <div class="landing-step-card reveal">
+            <div class="step-card-icon"><i data-lucide="file-check-2"></i></div>
+            <h3>CBT Exams</h3>
+            <p>Set exams in minutes, deliver them on any device, and grade objectives instantly — with scrambling, scheduling and anti-malpractice controls built in.</p>
+        </div>
+        <div class="landing-step-card reveal">
+            <div class="step-card-icon"><i data-lucide="library"></i></div>
+            <h3>Question Bank</h3>
+            <p>Every question your teachers have ever set, stored and searchable. Generate a fresh exam from the bank by class, subject and difficulty.</p>
+        </div>
+        <div class="landing-step-card reveal">
+            <div class="step-card-icon"><i data-lucide="award"></i></div>
+            <h3>Report Cards</h3>
+            <p>Grades, subject averages and class positions compiled automatically from every result in the term. No spreadsheets, no late nights.</p>
+        </div>
+        <div class="landing-step-card reveal">
+            <div class="step-card-icon"><i data-lucide="calendar-check"></i></div>
+            <h3>Attendance</h3>
+            <p>Mark a whole class in under a minute, with per-day stats and full term history for every student.</p>
+        </div>
+        <div class="landing-step-card reveal">
+            <div class="step-card-icon"><i data-lucide="notebook-pen"></i></div>
+            <h3>Homework</h3>
+            <p>Teachers set assignments with due dates, students submit in-app, and grading lands in the same records as everything else.</p>
+        </div>
+        <div class="landing-step-card reveal">
+            <div class="step-card-icon"><i data-lucide="messages-square"></i></div>
+            <h3>Messaging</h3>
+            <p>A real chat between admin and teachers — instant delivery, read receipts, and one-click broadcasts to the whole staff room.</p>
+        </div>
+    </div>
+</section>
+
 <!-- HOW IT WORKS -->
 <section class="landing-section landing-how-section" id="how-it-works">
     <div class="landing-section-header reveal">
@@ -207,7 +261,7 @@
             <div class="step-card-num">3</div>
             <div class="step-card-icon"><i data-lucide="zap"></i></div>
             <h3>Results</h3>
-            <p>Objectives are graded instantly. Teachers review theory, view analytics, and export reports.</p>
+            <p>Objectives are graded instantly. Teachers review theory, results roll into report cards, and everything exports to Excel.</p>
         </div>
     </div>
 </section>
@@ -269,7 +323,7 @@
 <!-- FINAL CTA -->
 <section class="landing-final-cta">
     <div class="landing-final-cta-inner reveal">
-        <h2>Ready to modernize<br>your exams?</h2>
+        <h2>Ready to modernize<br>your school?</h2>
         <p>Free for individual teachers. School licenses available.</p>
         <div class="landing-final-cta-btns">
             <button id="landing-cta-demo" class="landing-btn landing-btn-white landing-btn-lg">
@@ -281,6 +335,7 @@
         </div>
         <p class="landing-cta-contact">
             Need a school license? <a href="mailto:corneliusajayi123@gmail.com">Contact us</a>
+            &nbsp;·&nbsp; <a href="pages/presentation.html">View the full presentation</a>
         </p>
     </div>
 </section>
@@ -384,9 +439,9 @@
 <footer class="landing-footer">
     <div class="landing-footer-inner">
         <div class="landing-footer-brand">
-            <img src="assets/drop.png" alt="Gen7 CBT">
-            <span>Gen7 CBT</span>
+            <img src="assets/drop.png" alt="Gen7 School Suite">
+            <span>Gen7 School Suite</span>
         </div>
-        <p>&copy; 2026 Gen7 CBT. All rights reserved.</p>
+        <p>&copy; 2026 Gen7 School Suite. All rights reserved.</p>
     </div>
 </footer>

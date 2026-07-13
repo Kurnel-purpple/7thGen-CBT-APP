@@ -9,6 +9,27 @@ const _elementLoaderStates = new WeakMap();
 
 const Utils = {
     /**
+     * Canonical school terms — the single source of truth for every part of
+     * the CBT module that filters, labels, or groups by term. Matches the
+     * Term dropdown in the Create Exam form (the exam title holds the term).
+     */
+    CBT_TERMS: ['1st Term', '2nd Term', '3rd Term'],
+
+    /**
+     * Normalize free text (e.g. an exam title) to one of the canonical
+     * CBT_TERMS. Returns '' when the value doesn't map to a known term.
+     * @param {string} value
+     * @returns {string} '1st Term' | '2nd Term' | '3rd Term' | ''
+     */
+    normalizeTerm: (value) => {
+        const v = String(value || '').trim().toLowerCase();
+        if (/^(1st|first)\b/.test(v) || v.startsWith('term 1') || v === '1') return '1st Term';
+        if (/^(2nd|second)\b/.test(v) || v.startsWith('term 2') || v === '2') return '2nd Term';
+        if (/^(3rd|third)\b/.test(v) || v.startsWith('term 3') || v === '3') return '3rd Term';
+        return '';
+    },
+
+    /**
      * Generate a unique ID
      * @returns {string} Unique ID
      */
