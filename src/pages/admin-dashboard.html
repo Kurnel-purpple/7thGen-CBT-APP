@@ -228,151 +228,458 @@
             font-weight: 700;
         }
 
-        /* Messaging */
-        .messaging-section {
+        /* ------------------------------------------------------------
+           Messaging — chat app layout
+           ------------------------------------------------------------ */
+        .chat-app {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
+            grid-template-columns: 300px 1fr;
+            height: 560px;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--card-bg);
         }
-        .message-form {
-            background: var(--inner-bg);
-            padding: 18px;
-            border-radius: var(--radius-btn);
+        /* Contacts sidebar */
+        .chat-sidebar {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            border-right: 1px solid var(--border-color);
+            background: var(--card-bg);
         }
-        .message-form textarea {
+        .chat-search { padding: 12px; border-bottom: 1px solid var(--border-color); }
+        .chat-search input {
             width: 100%;
-            min-height: 140px;
-            padding: 12px;
+            padding: 9px 14px;
             border: 1.5px solid var(--border-color);
+            border-radius: 50px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            background: var(--inner-bg);
+            color: var(--text-color);
+        }
+        .chat-search input:focus { outline: none; border-color: var(--primary-color); }
+        .chat-contacts { flex: 1; overflow-y: auto; }
+        .chat-contact {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s;
+        }
+        .chat-contact:hover { background: var(--inner-bg); }
+        .chat-contact.active {
+            background: var(--primary-light, rgba(26,115,232,0.08));
+            box-shadow: inset 3px 0 0 var(--primary-color);
+        }
+        .chat-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.88rem;
+            flex-shrink: 0;
+        }
+        .chat-avatar.broadcast { background: var(--warning-color, #F9AB00); }
+        .chat-contact-info { flex: 1; min-width: 0; }
+        .chat-contact-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+        .chat-contact-name {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-contact-time { font-size: 0.7rem; color: var(--light-text); flex-shrink: 0; }
+        .chat-contact-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+        .chat-contact-preview {
+            font-size: 0.78rem;
+            color: var(--light-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-unread-badge {
+            background: var(--primary-color);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        /* Thread pane */
+        .chat-main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: var(--inner-bg);
+        }
+        .chat-thread-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            min-height: 58px;
+        }
+        .chat-thread-header .chat-thread-title { font-weight: 700; font-size: 0.95rem; color: var(--text-color); }
+        .chat-thread-header .chat-thread-sub { font-size: 0.75rem; color: var(--light-text); }
+        .chat-back-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 6px;
             border-radius: 8px;
+            align-items: center;
+        }
+        .chat-back-btn:hover { background: var(--inner-bg); }
+        .chat-header-action {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--light-text);
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .chat-header-action:hover { color: #e74c3c; background: rgba(231,76,60,0.08); }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-date-sep {
+            align-self: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--light-text);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 3px 12px;
+            border-radius: 50px;
+            margin: 12px 0 8px;
+        }
+        .chat-bubble-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+        .chat-bubble-row.sent { justify-content: flex-end; }
+        .chat-bubble-row.received { justify-content: flex-start; }
+        .chat-bubble {
+            max-width: 72%;
+            padding: 8px 12px;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .chat-bubble-row.sent .chat-bubble {
+            background: var(--primary-color);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble-row.received .chat-bubble {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble.reset-request {
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: rgba(231, 76, 60, 0.08) !important;
+            color: var(--accent-color) !important;
+            border: 1px solid rgba(231, 76, 60, 0.3) !important;
+        }
+        .chat-bubble-meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            font-size: 0.64rem;
+            opacity: 0.75;
+            margin-top: 3px;
+        }
+        .chat-msg-delete {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.15s;
+            flex-shrink: 0;
+            display: flex;
+        }
+        .chat-bubble-row:hover .chat-msg-delete { opacity: 0.7; }
+        .chat-msg-delete:hover { color: #e74c3c; opacity: 1 !important; }
+        .chat-composer {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+        }
+        .chat-composer textarea {
+            flex: 1;
+            resize: none;
+            border: 1.5px solid var(--border-color);
+            border-radius: 18px;
+            padding: 9px 14px;
+            max-height: 120px;
             font-family: inherit;
             font-size: 0.9rem;
-            resize: vertical;
-            margin-bottom: 12px;
-            background: var(--card-bg);
+            line-height: 1.4;
+            background: var(--inner-bg);
             color: var(--text-color);
         }
-        .message-form textarea:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.12);
-        }
-        .message-history {
-            background: var(--inner-bg);
-            padding: 18px;
-            border-radius: var(--radius-btn);
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .message-item {
-            background: var(--card-bg);
-            padding: 14px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 3px solid var(--primary-color);
-        }
-        .message-item .message-header {
+        .chat-composer textarea:focus { outline: none; border-color: var(--primary-color); }
+        .chat-send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            font-size: 0.82rem;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.15s, opacity 0.15s;
         }
-        .message-item .message-to {
-            font-weight: 600;
-            color: var(--text-color);
-        }
-        .message-item .message-date {
+        .chat-send-btn:hover { transform: scale(1.05); }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .chat-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             color: var(--light-text);
-        }
-        .message-item.received {
-            border-left-color: var(--success-color);
-        }
-        .message-item.reset-request {
-            border-left-color: var(--accent-color);
-            background: var(--inner-bg);
-        }
-        .message-item.reset-request .message-content {
-            font-family: monospace;
-            white-space: pre-wrap;
-            color: var(--accent-color);
-            background: rgba(231, 76, 60, 0.06);
-            padding: 8px;
-            border-radius: 4px;
-            margin-top: 5px;
-        }
-        .message-item .message-content {
-            color: var(--text-color);
-            line-height: 1.5;
+            text-align: center;
+            padding: 24px;
             font-size: 0.9rem;
         }
+        .chat-empty svg { opacity: 0.4; }
+        /* Keep grid/flex children shrinkable so the contact list and the
+           message pane scroll internally instead of blowing out the layout */
+        .chat-sidebar,
+        .chat-main,
+        .chat-contacts,
+        .chat-messages { min-height: 0; }
+        /* Mobile: single-panel with back navigation */
+        @media (max-width: 768px) {
+            .chat-app { grid-template-columns: 1fr; height: 72vh; }
+            .chat-main { display: none; }
+            .chat-app.thread-open .chat-sidebar { display: none; }
+            .chat-app.thread-open .chat-main { display: flex; }
+            .chat-back-btn { display: inline-flex; }
+            .chat-bubble { max-width: 84%; }
+        }
 
-        /* Message selection mode */
-        .msg-history-head {
+        /* Chat modal shell */
+        #chat-modal { z-index: 1300; }
+        .chat-modal-card {
+            width: min(1000px, 96vw);
+            height: min(82vh, 720px);
+            margin: 5vh auto;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.28);
+            animation: fadeIn 0.2s;
+        }
+        .chat-modal-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            margin-bottom: 12px;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
         }
-        .msg-history-head h3 { margin: 0; font-size: 0.95rem; }
-        .msg-clear-toggle {
+        .chat-modal-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chat-modal-close {
             background: none;
             border: none;
-            color: var(--primary-color);
-            font-weight: 700;
-            font-size: 0.85rem;
+            color: var(--light-text);
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
+            padding: 6px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
         }
-        .msg-clear-toggle:hover { background: var(--primary-light, rgba(26,115,232,0.08)); }
-        .msg-clear-toggle.active { color: var(--accent-color); }
-        .msg-select-all-row {
+        .chat-modal-close:hover { background: var(--inner-bg); color: var(--text-color); }
+        /* Inside the modal the chat fills the card instead of a fixed height */
+        .chat-modal-card .chat-app {
+            flex: 1;
+            height: auto;
+            min-height: 0;
+            border: none;
+            border-radius: 0;
+        }
+        /* Launcher card on the dashboard */
+        .chat-launcher {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            padding: 16px 18px;
+            background: var(--inner-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+        }
+        .chat-launcher-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .chat-launcher-title { font-weight: 700; font-size: 0.92rem; color: var(--text-color); }
+        .chat-launcher-sub { font-size: 0.8rem; color: var(--light-text); margin-top: 2px; }
+        @media (max-width: 768px) {
+            .chat-modal-card {
+                width: 100%;
+                height: 100dvh;
+                margin: 0;
+                border-radius: 0;
+                border: none;
+            }
+            .chat-modal-card .chat-app { height: auto; }
+        }
+        [data-theme="dark"] .chat-modal-card { background: var(--dm-surface, #1A1D27); }
+
+        /* ------------------------------------------------------------
+           Exam Bulk Actions (admin exams list)
+           ------------------------------------------------------------ */
+        #admin-exam-bulk-toggle.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .exam-select-all-row {
             display: none;
             align-items: center;
             gap: 10px;
-            padding: 8px 12px;
-            margin-bottom: 10px;
-            background: var(--card-bg);
+            padding: 10px 14px;
+            margin-top: 14px;
+            background: var(--inner-bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-color);
+            border-radius: var(--radius-btn);
+            font-size: 0.88rem;
         }
-        #message-history-container.selection-mode .msg-select-all-row { display: flex; }
-        .msg-checkbox {
-            width: 16px;
-            height: 16px;
+        body.exam-bulk-mode .exam-select-all-row { display: flex; }
+        .exam-bulk-checkbox {
+            width: 17px;
+            height: 17px;
             accent-color: var(--primary-color);
             cursor: pointer;
             flex-shrink: 0;
         }
-        .msg-checkbox-wrap {
+        .exam-card-checkbox {
             display: none;
-            align-items: flex-start;
-            padding-top: 2px;
-            margin-right: 10px;
-        }
-        #message-history-container.selection-mode .msg-checkbox-wrap { display: flex; }
-        #message-history-container.selection-mode .message-item {
-            display: flex;
-            align-items: flex-start;
-        }
-        #message-history-container.selection-mode .message-item > .msg-msg-body { flex: 1; min-width: 0; }
-        .msg-delete-link {
-            background: none;
-            border: none;
-            color: var(--accent-color);
-            font-weight: 700;
-            font-size: 0.85rem;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 19px;
+            height: 19px;
+            accent-color: var(--primary-color);
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
-            visibility: hidden;
+            z-index: 5;
         }
-        .msg-delete-link:hover { background: rgba(231, 76, 60, 0.08); text-decoration: underline; }
-        #message-history-container.selection-mode .msg-delete-link.has-selection { visibility: visible; }
+        body.exam-bulk-mode .exam-card-checkbox { display: block; }
+        body.exam-bulk-mode #exams-modal-container .exam-card { position: relative; cursor: pointer; }
+        body.exam-bulk-mode #exams-modal-container .exam-card.exam-card-selected {
+            outline: 2px solid var(--primary-color);
+            outline-offset: -2px;
+            background: var(--primary-light, rgba(26,115,232,0.06));
+        }
+        /* Neutralise per-card controls while selecting so taps toggle selection */
+        body.exam-bulk-mode #exams-modal-container .exam-card select,
+        body.exam-bulk-mode #exams-modal-container .exam-card button {
+            pointer-events: none;
+            opacity: 0.45;
+        }
+        body.exam-bulk-mode #exams-modal-container .exam-card .status-badge { margin-right: 26px; }
+        .exam-bulk-bar {
+            display: none;
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1200;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+            padding: 10px 16px;
+        }
+        body.exam-bulk-mode .exam-bulk-bar.has-selection { display: block; }
+        .exam-bulk-bar-inner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .exam-bulk-count {
+            font-size: 0.88rem;
+            color: var(--light-text);
+            white-space: nowrap;
+        }
+        .exam-bulk-count strong { color: var(--text-color); font-size: 1rem; }
+        .exam-bulk-actions { display: flex; gap: 8px; }
+        .exam-bulk-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-btn);
+            background: var(--inner-bg);
+            color: var(--text-color);
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .exam-bulk-btn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        .exam-bulk-btn-danger { color: #e74c3c; }
+        .exam-bulk-btn-danger:hover { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.06); }
+        @media (max-width: 640px) {
+            .exam-bulk-bar { left: 12px; right: 12px; transform: none; width: auto; }
+        }
 
         /* Buttons */
         .btn {
@@ -430,6 +737,112 @@
         }
         #results-table th { position: sticky; top: 0; }
         #results-table td { border-bottom: 1px solid var(--border-color); }
+        /* ------------------------------------------------------------
+           Topbar global search dropdown
+           ------------------------------------------------------------ */
+        .topbar-search-results {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+            max-height: 420px;
+            overflow-y: auto;
+            z-index: 1500;
+        }
+        .topbar-search-results.open { display: block; }
+        .search-group-label {
+            padding: 10px 14px 4px;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--light-text);
+            font-weight: 700;
+        }
+        .search-result-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            cursor: pointer;
+        }
+        .search-result-row:hover { background: var(--primary-light, rgba(26,115,232,0.08)); }
+        .search-result-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .search-result-avatar.exam {
+            background: var(--success-color, #28a745);
+            border-radius: 8px;
+        }
+        .search-result-main { flex: 1; min-width: 0; }
+        .search-result-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .search-result-sub {
+            font-size: 0.72rem;
+            color: var(--light-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .search-show-all {
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            cursor: pointer;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .search-show-all:hover { background: var(--primary-light, rgba(26,115,232,0.08)); }
+        .search-no-results {
+            padding: 18px 14px;
+            text-align: center;
+            color: var(--light-text);
+            font-size: 0.85rem;
+        }
+        [data-theme="dark"] .topbar-search-results { background: var(--dm-surface-2, #22263A); }
+
+        /* Results filters: term + class on one row, justified apart */
+        .results-filters-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .results-filters-row select { min-width: 170px; }
+        #results-search {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+        }
+        @media (max-width: 768px) {
+            .results-filters-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .results-filters-row select { width: 100%; min-width: unset; }
+        }
         #general-results-container {
             max-height: 600px;
             overflow-y: auto;
@@ -516,6 +929,21 @@
             font-weight: 700;
             color: var(--primary-color);
         }
+        .result-card-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-right: auto;
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            padding: 4px 0;
+            transition: opacity 0.15s ease;
+        }
+        .result-card-export:hover { opacity: 0.75; }
 
         /* Responsive Header */
         .responsive-header {
@@ -678,19 +1106,18 @@
             background: var(--dm-surface, #1A1D27);
             border-color: var(--border-color);
         }
-        [data-theme="dark"] .message-form {
-            background: var(--dm-surface-2, #22263A);
-        }
-        [data-theme="dark"] .message-form textarea {
-            background: var(--dm-surface, #1A1D27);
-            border-color: var(--border-color);
-        }
-        [data-theme="dark"] .message-history {
-            background: var(--dm-surface-2, #22263A);
-        }
-        [data-theme="dark"] .message-item {
+        [data-theme="dark"] .chat-app,
+        [data-theme="dark"] .chat-sidebar,
+        [data-theme="dark"] .chat-thread-header,
+        [data-theme="dark"] .chat-composer {
             background: var(--dm-surface, #1A1D27);
         }
+        [data-theme="dark"] .chat-main,
+        [data-theme="dark"] .chat-messages { background: var(--dm-surface-2, #22263A); }
+        [data-theme="dark"] .chat-search input,
+        [data-theme="dark"] .chat-composer textarea { background: var(--dm-surface-2, #22263A); }
+        [data-theme="dark"] .chat-bubble-row.received .chat-bubble,
+        [data-theme="dark"] .chat-date-sep { background: var(--dm-surface, #1A1D27); }
         [data-theme="dark"] .status-active {
             background: rgba(52, 168, 83, 0.15);
             color: var(--success-color);
@@ -773,21 +1200,21 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .messaging-section {
-                grid-template-columns: 1fr;
-            }
             #general-results-section .section-header {
                 flex-direction: column;
                 align-items: stretch;
             }
-            #general-results-section .section-header > div {
-                flex-direction: column;
-            }
-            #general-results-section .section-header select,
-            #general-results-section .section-header input,
-            #general-results-section .section-header button {
+            /* Buttons sit in a single flexed row below the title */
+            #general-results-section .results-header-actions {
+                flex-direction: row;
+                flex-wrap: nowrap;
                 width: 100%;
+                margin-left: 0 !important;
+            }
+            #general-results-section .results-header-actions button {
+                flex: 1;
                 min-width: unset;
+                justify-content: center;
             }
             .result-card-scores {
                 grid-template-columns: 1fr 1fr;
@@ -1002,7 +1429,7 @@
                     <span class="sidebar-nav-label">Exams</span>
                     <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="sidebar-exam-count">0</span>
                 </button>
-                <button class="sidebar-nav-item" data-module="cbt" onclick="scrollToSection('messaging-section'); closeSidebarMobile();">
+                <button class="sidebar-nav-item" data-module="cbt" onclick="openChatModal(); closeSidebarMobile();">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
                     <span class="sidebar-nav-label">Messages</span>
                 </button>
@@ -1086,11 +1513,12 @@
 
                 <div class="topbar-search">
                     <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                    <input type="text" class="topbar-search-input" placeholder="Search..." id="topbar-search">
+                    <input type="text" class="topbar-search-input" placeholder="Search..." id="topbar-search" autocomplete="off">
+                    <div id="topbar-search-results" class="topbar-search-results" role="listbox" aria-label="Search results"></div>
                 </div>
 
                 <div class="topbar-actions">
-                    <button class="topbar-icon-btn" onclick="scrollToSection('messaging-section')" title="Messages">
+                    <button class="topbar-icon-btn" onclick="openChatModal()" title="Messages">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
                     </button>
                     <div class="credentials-dropdown">
@@ -1210,6 +1638,10 @@
                                     <option value="draft">Drafts Only</option>
                                     <option value="archived">Archived Only</option>
                                 </select>
+                                <button class="btn" id="admin-exam-bulk-toggle" onclick="toggleAdminExamBulkMode()" style="padding:7px 14px; font-size:0.82rem; border:1px solid var(--border-color); background:var(--inner-bg); color:var(--text-color); border-radius:var(--radius-btn); cursor:pointer; display:flex; align-items:center; gap:5px;" title="Select multiple exams to archive or delete">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                                    <span id="admin-exam-bulk-toggle-label">Bulk Select</span>
+                                </button>
                                 <button class="btn exams-make-all-btn" onclick="makeAllExamsUnavailable()" style="padding:7px 14px; font-size:0.82rem; background:var(--error-color, #e74c3c); color:#fff; border:none; border-radius:var(--radius-btn); cursor:pointer;" title="Set all active exams to Draft">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                                     Make All Unavailable
@@ -1220,8 +1652,29 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="exam-select-all-row">
+                            <input type="checkbox" class="exam-bulk-checkbox" id="admin-exam-select-all" onchange="handleAdminExamSelectAll(this)">
+                            <label for="admin-exam-select-all" style="cursor:pointer; font-weight:600; color:var(--text-color);">Select all visible exams</label>
+                            <span style="margin-left:auto; color:var(--light-text); font-size:0.8rem;">Tap cards to toggle</span>
+                        </div>
                         <div id="exams-modal-container" style="margin-top:16px;">
                             <!-- Exams will be rendered here -->
+                        </div>
+                        <!-- Floating bulk actions bar (visible in bulk mode with a selection) -->
+                        <div id="admin-exam-bulk-bar" class="exam-bulk-bar" role="region" aria-label="Bulk exam actions">
+                            <div class="exam-bulk-bar-inner">
+                                <span class="exam-bulk-count"><strong id="admin-exam-bulk-count">0</strong> selected</span>
+                                <div class="exam-bulk-actions">
+                                    <button type="button" class="exam-bulk-btn" onclick="bulkArchiveExamsAdmin(this)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                        <span>Archive</span>
+                                    </button>
+                                    <button type="button" class="exam-bulk-btn exam-bulk-btn-danger" onclick="bulkDeleteExamsAdmin(this)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                        <span>Delete</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1254,7 +1707,7 @@
                     </div>
                 </div>
 
-                <!-- Messaging Section -->
+                <!-- Messaging Section (launcher — chat opens in its own modal) -->
                 <div data-module="cbt">
                 <div id="messaging-section"></div>
                 <div class="section">
@@ -1264,51 +1717,79 @@
                             Teacher Messaging
                         </h2>
                     </div>
-                    <div class="messaging-section">
-                        <div class="message-form">
-                            <div class="control-group">
-                                <label for="teacher-select">Select Teacher</label>
-                                <select id="teacher-select">
-                                    <option value="">Choose a teacher...</option>
-                                    <option value="ALL_TEACHERS" style="font-weight: bold; color: var(--primary-color);">All Teachers (Bulk Message)</option>
-                                </select>
-                                <small id="teacher-count-hint" style="color: var(--light-text); font-size: 0.78rem; margin-top: 5px; display: none;">
-                                    This will send to all teachers in your school.
-                                </small>
+                    <div class="chat-launcher">
+                        <div class="chat-launcher-info">
+                            <div class="chat-avatar">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                             </div>
-                            <div class="control-group">
-                                <label for="message-text">Message</label>
-                                <textarea id="message-text" placeholder="Type your message here..."></textarea>
-                            </div>
-                            <button class="btn btn-primary" onclick="sendMessage()" id="send-btn" style="display:flex; align-items:center; gap:8px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                                Send Message
-                            </button>
-                        </div>
-                        <div class="message-history">
-                            <div class="msg-history-head">
-                                <h3>Message History</h3>
-                                <button type="button" id="msg-clear-toggle" class="msg-clear-toggle" onclick="toggleMessageSelectionMode()">Clear</button>
-                            </div>
-                            <div id="message-history-container">
-                                <div class="msg-select-all-row">
-                                    <input type="checkbox" class="msg-checkbox" id="msg-select-all" onchange="handleMessageSelectAll(this)">
-                                    <label for="msg-select-all" style="cursor:pointer;">Select all messages</label>
-                                    <button type="button" class="msg-delete-link" id="msg-delete-link" onclick="bulkDeleteSelectedMessages()" style="margin-left:auto;">
-                                        Delete <span id="msg-selected-count">0</span> message<span id="msg-plural">s</span>
-                                    </button>
-                                </div>
-                                <div id="message-history-list">
-                                    <div class="empty-state">
-                                        <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-                                        <p>No messages sent yet</p>
-                                    </div>
-                                </div>
+                            <div style="min-width:0;">
+                                <div class="chat-launcher-title">Chat with your teachers</div>
+                                <div class="chat-launcher-sub" id="chat-launcher-sub">Send and receive messages in real time</div>
                             </div>
                         </div>
+                        <button class="btn btn-primary" onclick="openChatModal()" style="display:flex; align-items:center; gap:8px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                            Open Messages
+                            <span class="chat-unread-badge" id="chat-launcher-badge" style="display:none;">0</span>
+                        </button>
                     </div>
                 </div>
                 </div>
+
+                <!-- Chat Modal -->
+                <div id="chat-modal" class="modal">
+                    <div class="chat-modal-card">
+                        <div class="chat-modal-head">
+                            <h3>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                                Messages
+                            </h3>
+                            <button type="button" class="chat-modal-close" onclick="closeChatModal()" aria-label="Close messages">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        <div class="chat-app" id="admin-chat-app">
+                        <aside class="chat-sidebar">
+                            <div class="chat-search">
+                                <input type="text" id="chat-contact-search" placeholder="Search teachers..." oninput="renderChatContacts()">
+                            </div>
+                            <div class="chat-contacts" id="chat-contacts">
+                                <div class="chat-empty" style="padding:30px 16px;">
+                                    <p>Load a school version to see teachers</p>
+                                </div>
+                            </div>
+                        </aside>
+                        <section class="chat-main" id="chat-main">
+                            <div class="chat-thread-header" id="chat-thread-header" style="display:none;">
+                                <button type="button" class="chat-back-btn" onclick="closeChatThread()" aria-label="Back to chats">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                                <div class="chat-avatar" id="chat-thread-avatar">?</div>
+                                <div style="min-width:0;">
+                                    <div class="chat-thread-title" id="chat-thread-title"></div>
+                                    <div class="chat-thread-sub" id="chat-thread-sub"></div>
+                                </div>
+                                <button type="button" class="chat-header-action" id="chat-clear-btn" onclick="clearChatThread(this)" title="Delete every message in this conversation">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                                    Clear chat
+                                </button>
+                            </div>
+                            <div class="chat-messages" id="chat-messages">
+                                <div class="chat-empty">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                                    <p>Select a teacher to start chatting</p>
+                                </div>
+                            </div>
+                            <div class="chat-composer" id="chat-composer" style="display:none;">
+                                <textarea id="chat-input" rows="1" placeholder="Type a message..."></textarea>
+                                <button type="button" class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()" aria-label="Send message">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                </button>
+                            </div>
+                        </section>
+                        </div><!-- /.chat-app -->
+                    </div><!-- /.chat-modal-card -->
+                </div><!-- /#chat-modal -->
 
                 <!-- General Results Section -->
                 <div class="section" id="general-results-section" data-module="cbt">
@@ -1317,15 +1798,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                             General Results
                         </h2>
-                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <select id="results-class-filter" class="form-control"
-                                style="padding: 7px 12px; font-size: 0.82rem; min-width: 130px; border-radius: var(--radius-btn);"
-                                onchange="filterGeneralResults()">
-                                <option value="All">All Classes</option>
-                            </select>
-                            <input type="text" id="results-search" class="form-control" placeholder="Search student..."
-                                style="padding: 7px 12px; font-size: 0.82rem; min-width: 160px; border-radius: var(--radius-btn);"
-                                oninput="filterGeneralResults()">
+                        <div class="results-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-left: auto;">
                             <button class="btn btn-primary" onclick="loadGeneralResults()" id="load-results-btn"
                                 style="padding: 7px 14px; font-size: 0.82rem; display:flex; align-items:center; gap:6px;">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
@@ -1338,6 +1811,21 @@
                             </button>
                         </div>
                     </div>
+                    <div class="results-filters-row">
+                        <select id="results-term-filter" class="form-control"
+                            style="padding: 7px 12px; font-size: 0.82rem; border-radius: var(--radius-btn);"
+                            onchange="filterGeneralResults()" title="Filter results by term">
+                            <option value="All">All Terms</option>
+                        </select>
+                        <select id="results-class-filter" class="form-control"
+                            style="padding: 7px 12px; font-size: 0.82rem; border-radius: var(--radius-btn);"
+                            onchange="filterGeneralResults()">
+                            <option value="All">All Classes</option>
+                        </select>
+                    </div>
+                    <input type="text" id="results-search" class="form-control" placeholder="Search student..."
+                        style="padding: 9px 14px; font-size: 0.85rem; border-radius: var(--radius-btn);"
+                        oninput="filterGeneralResults()">
                     <div id="general-results-container" style="overflow-x: auto; margin-top: 15px;">
                         <div class="empty-state" id="results-empty-state">
                             <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
@@ -1360,6 +1848,8 @@
                     <div id="results-summary" style="margin-top: 15px; display: none;">
                         <p style="font-size: 0.82rem; color: var(--light-text);">
                             Showing <strong id="results-showing-count">0</strong> students across <strong id="results-exam-count">0</strong> exams
+                            &middot; <strong id="results-term-label" style="color: var(--primary-color);">All Terms</strong>
+                            &middot; scores shown as percentages
                         </p>
                     </div>
                 </div>
@@ -1767,7 +2257,10 @@
         let allTeachers = [];
         let allExams = [];
         let allStudents = [];
-        let messageHistory = [];
+        // Chat state: all messages (both directions) + the open conversation
+        let chatMessages = [];
+        let activeChatId = null;
+        let adminChatSubscribed = false;
         let currentVersion = '';
 
         // Theme Management
@@ -1883,6 +2376,9 @@
                     currentUser.schoolVersion = schoolId;
                     localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
                 }
+                // Refresh the chat for the newly loaded school
+                closeChatThread();
+                loadMessageHistory();
             } catch (error) {
                 console.error('Error loading data:', error);
                 showAlert('Error', 'Failed to load data: ' + error.message);
@@ -2004,19 +2500,9 @@
             // Load message history (non-blocking)
             loadMessageHistory();
 
-            // Setup teacher select listener
-            const teacherSelect = document.getElementById('teacher-select');
-            if (teacherSelect) {
-                teacherSelect.addEventListener('change', (e) => {
-                    const hint = document.getElementById('teacher-count-hint');
-                    if (e.target.value === 'ALL_TEACHERS') {
-                        hint.textContent = `This will send to all ${allTeachers.length} teachers in ${currentVersion}.`;
-                        hint.style.display = 'block';
-                    } else {
-                        hint.style.display = 'none';
-                    }
-                });
-            }
+            // Chat composer key handling + realtime updates
+            initChatComposer();
+            setupAdminChatSubscription();
 
             // Allow pressing Enter to load
             const schoolInput = document.getElementById('school-id-input');
@@ -2065,17 +2551,7 @@
                 const activeExams = allExams.filter(e => e.status === 'active').length;
                 updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
 
-                const teacherSelect = document.getElementById('teacher-select');
-                teacherSelect.innerHTML = `
-                    <option value="">Choose a teacher...</option>
-                    <option value="ALL_TEACHERS" style="font-weight: bold;">All Teachers (${allTeachers.length})</option>
-                `;
-                allTeachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.id;
-                    option.textContent = teacher.full_name || teacher.username;
-                    teacherSelect.appendChild(option);
-                });
+                renderChatContacts();
 
                 displayExams(allExams);
                 console.log('⚡ Rendered from cache');
@@ -2110,24 +2586,8 @@
                 const activeExams = allExams.filter(e => e.status === 'active').length;
                 updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
 
-                // Populate teacher dropdown
-                const teacherSelect = document.getElementById('teacher-select');
-                const currentSelected = teacherSelect.value;
-                teacherSelect.innerHTML = `
-                    <option value="">Choose a teacher...</option>
-                    <option value="ALL_TEACHERS" style="font-weight: bold;">All Teachers (${allTeachers.length})</option>
-                `;
-                allTeachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.id;
-                    option.textContent = teacher.full_name || teacher.username;
-                    teacherSelect.appendChild(option);
-                });
-                if (currentSelected && allTeachers.some(t => t.id === currentSelected)) {
-                    teacherSelect.value = currentSelected;
-                } else if (currentSelected === 'ALL_TEACHERS') {
-                    teacherSelect.value = 'ALL_TEACHERS';
-                }
+                // Refresh chat contact list with the latest teachers
+                renderChatContacts();
 
                 // Display exams
                 displayExams(allExams);
@@ -2429,7 +2889,7 @@
             updateTopbarSearchPlaceholder();
         };
 
-        // ===== Topbar Search — context-aware =====
+        // ===== Topbar Search — context-aware in sections, global on home =====
         function updateTopbarSearchPlaceholder() {
             const input = document.getElementById('topbar-search');
             if (!input) return;
@@ -2440,16 +2900,133 @@
             } else if (activeAdminSection === 'students') {
                 input.placeholder = 'Search students...';
             } else {
-                input.placeholder = 'Search...';
+                input.placeholder = 'Search teachers or subjects...';
             }
             input.value = '';
+            closeTopbarSearchResults();
         }
 
+        function closeTopbarSearchResults() {
+            const panel = document.getElementById('topbar-search-results');
+            if (panel) { panel.classList.remove('open'); panel.innerHTML = ''; }
+        }
+
+        // Global search across teachers (by name) and exams (by subject,
+        // term, or class) — available before opening any teacher's card
+        function renderTopbarSearchResults(query) {
+            const panel = document.getElementById('topbar-search-results');
+            if (!panel) return;
+            const q = query.trim().toLowerCase();
+            if (!q) { closeTopbarSearchResults(); return; }
+
+            const teacherName = t => t.full_name || t.username || 'Teacher';
+
+            const teacherMatches = (allTeachers || []).filter(t =>
+                (t.full_name || '').toLowerCase().includes(q) ||
+                (t.username || '').toLowerCase().includes(q)
+            ).slice(0, 6);
+
+            const examMatches = (allExams || []).filter(e =>
+                (e.subject || '').toLowerCase().includes(q) ||
+                (e.title || '').toLowerCase().includes(q) ||
+                (e.targetClass || '').toLowerCase().includes(q)
+            );
+            const examsShown = examMatches.slice(0, 6);
+
+            let html = '';
+
+            if (teacherMatches.length) {
+                html += '<div class="search-group-label">Teachers</div>';
+                html += teacherMatches.map(t => {
+                    const name = teacherName(t);
+                    const examCount = allExams.filter(e => e.createdBy === t.id || e.createdBy === t.user).length;
+                    return `
+                        <div class="search-result-row" onclick="openTeacherFromSearch('${escapeHtml(String(t.id))}')">
+                            <div class="search-result-avatar">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+                            <div class="search-result-main">
+                                <div class="search-result-title">${escapeHtml(name)}</div>
+                                <div class="search-result-sub">Teacher &middot; ${examCount} exam${examCount === 1 ? '' : 's'}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            if (examsShown.length) {
+                html += '<div class="search-group-label">Exams</div>';
+                html += examsShown.map(e => {
+                    const teacher = allTeachers.find(t => t.id === e.createdBy || t.user === e.createdBy);
+                    const sub = [
+                        Utils.normalizeTerm(e.title) || e.title,
+                        e.targetClass && e.targetClass !== 'All' ? e.targetClass : 'All Classes',
+                        teacher ? teacherName(teacher) : null
+                    ].filter(Boolean).join(' · ');
+                    return `
+                        <div class="search-result-row" onclick="openExamFromSearch('${escapeHtml(String(e.id))}')">
+                            <div class="search-result-avatar exam">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                            </div>
+                            <div class="search-result-main">
+                                <div class="search-result-title">${escapeHtml(e.subject || e.title)}</div>
+                                <div class="search-result-sub">${escapeHtml(sub)}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                if (examMatches.length > 1) {
+                    html += `<div class="search-show-all" onclick="showAllExamsFromSearch()">Show all ${examMatches.length} matching exams</div>`;
+                }
+            }
+
+            if (!html) {
+                html = `<div class="search-no-results">${allTeachers.length === 0 ? 'Load a school first, then search teachers and subjects' : 'No teachers or exams match your search'}</div>`;
+            }
+
+            panel.innerHTML = html;
+            panel.classList.add('open');
+        }
+
+        window.openTeacherFromSearch = function (teacherId) {
+            const t = allTeachers.find(x => String(x.id) === String(teacherId));
+            closeTopbarSearchResults();
+            if (!t) return;
+            if (activeAdminSection !== 'teachers') showAdminSection('teachers');
+            // Filter the teachers grid down to this teacher's card
+            const el = document.getElementById('teacher-search');
+            if (el) { el.value = t.full_name || t.username || ''; filterTeacherCards(); }
+        };
+
+        window.openExamFromSearch = function (examId) {
+            closeTopbarSearchResults();
+            openExamsModal('all');
+            // Highlight the card once the list has rendered
+            setTimeout(() => {
+                const card = document.getElementById('exam-card-' + examId);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.style.outline = '2px solid var(--primary-color)';
+                    card.style.outlineOffset = '2px';
+                    setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 2500);
+                }
+            }, 150);
+        };
+
+        window.showAllExamsFromSearch = function () {
+            const query = topbarLastQuery;
+            closeTopbarSearchResults();
+            openExamsModal('all');
+            const input = document.getElementById('topbar-search');
+            if (input) input.value = query;
+            topbarSearchExams(query);
+        };
+
+        let topbarLastQuery = '';
         (function() {
             const input = document.getElementById('topbar-search');
             if (!input) return;
             input.addEventListener('input', function() {
                 const query = input.value;
+                topbarLastQuery = query;
                 if (activeAdminSection === 'exams-list') {
                     topbarSearchExams(query);
                 } else if (activeAdminSection === 'teachers') {
@@ -2458,7 +3035,21 @@
                 } else if (activeAdminSection === 'students') {
                     const el = document.getElementById('student-search');
                     if (el) { el.value = query; filterStudentCards(); }
+                } else {
+                    // Home view — global search across teachers and exams
+                    renderTopbarSearchResults(query);
                 }
+            });
+            // Re-open results when refocusing a non-empty global search
+            input.addEventListener('focus', function() {
+                if (!activeAdminSection && input.value.trim()) renderTopbarSearchResults(input.value);
+            });
+            // Close on outside click / Escape
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.topbar-search')) closeTopbarSearchResults();
+            });
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') { closeTopbarSearchResults(); input.blur(); }
             });
         })();
 
@@ -2906,6 +3497,7 @@
         };
 
         window.closeExamsPage = function () {
+            if (document.body.classList.contains('exam-bulk-mode')) toggleAdminExamBulkMode();
             document.getElementById('exams-list-section').style.display = 'none';
             // Restore previous view
             const examsWrapper = document.getElementById('exams-section-wrapper');
@@ -2979,6 +3571,7 @@
 
                 return `
                             <div class="exam-card" id="exam-card-${exam.id}">
+                                <input type="checkbox" class="exam-card-checkbox" data-exam-id="${exam.id}" ${exam.status === 'archived' ? 'data-archived="1"' : ''} onclick="event.stopPropagation();" onchange="handleAdminExamCheckboxChange(this)" aria-label="Select ${escapeHtml(exam.title)}">
                                 <div class="exam-card-header">
                                     <div>
                                         <h3 class="exam-title">${exam.title}</h3>
@@ -3105,6 +3698,148 @@
                 stopLoader();
             }
         }
+
+        // --- Admin exam bulk actions (archive / delete multiple exams) ---
+        window.toggleAdminExamBulkMode = function () {
+            const active = document.body.classList.toggle('exam-bulk-mode');
+            const toggle = document.getElementById('admin-exam-bulk-toggle');
+            const label = document.getElementById('admin-exam-bulk-toggle-label');
+            if (toggle) toggle.classList.toggle('active', active);
+            if (label) label.textContent = active ? 'Exit Bulk Select' : 'Bulk Select';
+            if (!active) clearAdminExamSelection();
+            updateAdminExamBulkUI();
+        };
+
+        function clearAdminExamSelection() {
+            document.querySelectorAll('#exams-modal-container .exam-card-checkbox:checked').forEach(cb => { cb.checked = false; });
+            document.querySelectorAll('#exams-modal-container .exam-card.exam-card-selected').forEach(c => c.classList.remove('exam-card-selected'));
+            const selectAll = document.getElementById('admin-exam-select-all');
+            if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+        }
+
+        window.handleAdminExamSelectAll = function (checkbox) {
+            document.querySelectorAll('#exams-modal-container .exam-card-checkbox').forEach(cb => {
+                cb.checked = !!checkbox.checked;
+                const card = cb.closest('.exam-card');
+                if (card) card.classList.toggle('exam-card-selected', !!cb.checked);
+            });
+            updateAdminExamBulkUI();
+        };
+
+        window.handleAdminExamCheckboxChange = function (checkbox) {
+            const card = checkbox.closest('.exam-card');
+            if (card) card.classList.toggle('exam-card-selected', !!checkbox.checked);
+            const boxes = document.querySelectorAll('#exams-modal-container .exam-card-checkbox');
+            const checked = document.querySelectorAll('#exams-modal-container .exam-card-checkbox:checked');
+            const selectAll = document.getElementById('admin-exam-select-all');
+            if (selectAll) {
+                selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+                selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+            }
+            updateAdminExamBulkUI();
+        };
+
+        function getSelectedAdminExamIds() {
+            return Array.from(document.querySelectorAll('#exams-modal-container .exam-card-checkbox:checked'))
+                .map(cb => cb.dataset.examId)
+                .filter(Boolean);
+        }
+
+        function updateAdminExamBulkUI() {
+            const bar = document.getElementById('admin-exam-bulk-bar');
+            const countEl = document.getElementById('admin-exam-bulk-count');
+            const ids = getSelectedAdminExamIds();
+            if (countEl) countEl.textContent = String(ids.length);
+            if (bar) bar.classList.toggle('has-selection', ids.length > 0);
+        }
+
+        // Tap anywhere on a card to toggle its selection while in bulk mode
+        document.addEventListener('click', (event) => {
+            if (!document.body.classList.contains('exam-bulk-mode')) return;
+            if (event.target.closest('.exam-card-checkbox')) return;
+            const card = event.target.closest('#exams-modal-container .exam-card');
+            if (!card) return;
+            const cb = card.querySelector('.exam-card-checkbox');
+            if (!cb) return;
+            cb.checked = !cb.checked;
+            handleAdminExamCheckboxChange(cb);
+        }, true);
+
+        async function refreshExamsAfterBulk() {
+            const activeExams = allExams.filter(e => e.status === 'active').length;
+            updateStats(allTeachers.length, allExams.length, activeExams, allStudents.length);
+            displayExams(allExams);
+            filterExams();
+            updateAdminExamBulkUI();
+        }
+
+        window.bulkArchiveExamsAdmin = async function (btn) {
+            const ids = getSelectedAdminExamIds();
+            if (!ids.length) return;
+            const toArchive = ids.filter(id => {
+                const cb = document.querySelector(`#exams-modal-container .exam-card-checkbox[data-exam-id="${id}"]`);
+                return cb && cb.dataset.archived !== '1';
+            });
+            if (!toArchive.length) {
+                showAlert('Already archived', 'The selected exams are already archived.');
+                return;
+            }
+            const ok = await showConfirm(
+                'Archive exams',
+                `Archive ${toArchive.length} exam${toArchive.length === 1 ? '' : 's'}? They will be hidden from students.`
+            );
+            if (!ok) return;
+            btn.disabled = true;
+            let done = 0, failed = 0;
+            for (const id of toArchive) {
+                try {
+                    await dataService.updateExam(id, { status: 'archived' });
+                    const exam = allExams.find(e => e.id === id);
+                    if (exam) exam.status = 'archived';
+                    done++;
+                } catch (e) {
+                    console.error('[admin bulk archive] failed', id, e);
+                    failed++;
+                }
+            }
+            btn.disabled = false;
+            await refreshExamsAfterBulk();
+            if (failed > 0) {
+                showAlert('Archive complete', `Archived ${done}. ${failed} failed.`);
+            } else {
+                showToast(`Archived ${done} exam${done === 1 ? '' : 's'}`);
+            }
+        };
+
+        window.bulkDeleteExamsAdmin = async function (btn) {
+            const ids = getSelectedAdminExamIds();
+            if (!ids.length) return;
+            const ok = await showConfirm(
+                'Delete exams',
+                `Delete ${ids.length} exam${ids.length === 1 ? '' : 's'}? Students will no longer see them. Existing results are preserved for reporting.`
+            );
+            if (!ok) return;
+            btn.disabled = true;
+            let done = 0, failed = 0;
+            for (const id of ids) {
+                try {
+                    await dataService.deleteExam(id);
+                    const idx = allExams.findIndex(e => e.id === id);
+                    if (idx !== -1) allExams.splice(idx, 1);
+                    done++;
+                } catch (e) {
+                    console.error('[admin bulk delete] failed', id, e);
+                    failed++;
+                }
+            }
+            btn.disabled = false;
+            await refreshExamsAfterBulk();
+            if (failed > 0) {
+                showAlert('Delete complete', `Deleted ${done}. ${failed} failed.`);
+            } else {
+                showToast(`Deleted ${done} exam${done === 1 ? '' : 's'}`);
+            }
+        };
 
         // Admin: Open schedule/duration modal
         function openScheduleModal(examId, currentDuration, currentSchedule) {
@@ -3500,414 +4235,529 @@
             extensionsInterval = setInterval(updateTimers, 1000);
         }
 
-        async function sendMessage() {
-            const teacherSelect = document.getElementById('teacher-select');
-            const messageText = document.getElementById('message-text');
-            const sendBtn = document.getElementById('send-btn');
+        // ============================================================
+        // Teacher Messaging — chat app
+        // ============================================================
 
-            const teacherId = teacherSelect.value;
-            const message = messageText.value.trim();
-
-            if (!teacherId) {
-                showAlert('Missing Info', 'Please select a teacher');
-                return;
-            }
-
-            if (!message) {
-                showAlert('Empty Message', 'Please enter a message');
-                return;
-            }
-
-            sendBtn.disabled = true;
-
-            try {
-                // Handle bulk messaging to all teachers
-                if (teacherId === 'ALL_TEACHERS') {
-                    if (allTeachers.length === 0) {
-                        showAlert('Error', 'No teachers loaded. Please load a school first.');
-                        return;
-                    }
-
-                    const confirmBulk = await showConfirm('Bulk Message', `Send this message to ALL ${allTeachers.length} teachers in ${currentVersion}?`);
-                    if (!confirmBulk) {
-                        sendBtn.disabled = false;
-                        return;
-                    }
-
-                    sendBtn.textContent = `Sending to ${allTeachers.length} teachers...`;
-
-                    let successCount = 0;
-                    let failCount = 0;
-
-                    // Send to each teacher
-                    for (let i = 0; i < allTeachers.length; i++) {
-                        const teacher = allTeachers[i];
-                        const targetUserId = teacher.user || teacher.id; // Fallback only if user is missing
-
-                        sendBtn.textContent = `Sending... ${i + 1}/${allTeachers.length}`;
-
-                        try {
-                            await dataService.sendMessage({
-                                fromId: currentUser.id,
-                                toId: targetUserId,
-                                message: message,
-                                schoolVersion: currentVersion
-                            });
-                            successCount++;
-
-                            // Add to local history for display
-                            const messageObj = {
-                                id: Date.now() + i, // Fake ID for UI
-                                from: currentUser.name,
-                                fromId: currentUser.id,
-                                to: teacher.full_name || 'Teacher',
-                                toId: targetUserId,
-                                message: message,
-                                timestamp: new Date().toISOString(),
-                                schoolVersion: currentVersion
-                            };
-                            messageHistory.push(messageObj);
-
-                        } catch (err) {
-
-                            console.error(`Failed to send to ${teacher.full_name}:`, err);
-                            failCount++;
-                        }
-                    }
-
-                    // Show results
-                    if (failCount === 0) {
-                        showAlert('Success', `Message sent to all ${successCount} teachers!`);
-                    } else {
-                        showAlert('Partial Success', `Sent to ${successCount} teachers. Failed: ${failCount}`);
-                    }
-
-                    // Update History UI
-                    displayMessageHistory();
-
-                } else {
-                    // Single teacher message
-                    sendBtn.textContent = 'Sending...';
-                    const teacher = allTeachers.find(t => t.id === teacherId);
-                    const targetUserId = teacher?.user || teacherId;
-
-                    const messageData = {
-                        fromId: currentUser.id,
-                        toId: targetUserId,
-                        message: message,
-                        schoolVersion: currentVersion
-                    };
-
-
-                    try {
-                        console.log('Sending message payload:', messageData);
-                        const createdMsg = await dataService.sendMessage(messageData);
-                        showAlert('Message Sent', `Message sent to ${teacher?.full_name || 'teacher'}!`);
-
-                        // Add to history
-                        const messageObj = {
-                            id: createdMsg?.id || Date.now(),
-                            from: currentUser.name,
-                            fromId: currentUser.profileId || currentUser.id,
-                            to: teacher?.full_name || 'Teacher',
-                            toId: teacherId,
-                            message: message,
-                            timestamp: new Date().toISOString(),
-                            schoolVersion: currentVersion
-                        };
-                        messageHistory.push(messageObj);
-
-                        // Re-sort and Display History
-                        displayMessageHistory();
-
-                    } catch (dbError) {
-                        console.error('Full Database Error:', dbError);
-                        if (dbError.data) console.error('Validation Errors:', dbError.data);
-
-                        console.warn('Database save failed, using localStorage:', dbError);
-                        const messageObj = {
-                            id: Date.now(),
-                            from: currentUser.name,
-                            fromId: currentUser.id,
-                            to: teacher?.full_name || 'Unknown',
-                            toId: teacherId,
-                            message: message,
-                            timestamp: new Date().toISOString(),
-                            schoolVersion: currentVersion
-                        };
-                        messageHistory.push(messageObj);
-                        localStorage.setItem('admin_messages', JSON.stringify(messageHistory)); // Backup
-                        displayMessageHistory(); // Update UI
-
-                        showAlert('Saved Offline', `Message sent! (Saved locally)`);
-                    }
-                }
-
-                // Clear form
-                messageText.value = '';
-                teacherSelect.value = '';
-                document.getElementById('teacher-count-hint').style.display = 'none';
-
-            } catch (error) {
-                console.error('Error sending message:', error);
-                showAlert('Error', 'Failed to send message: ' + error.message);
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send Message';
-            }
+        function chatInitials(name) {
+            const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return '?';
+            return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
         }
 
-
-        async function loadMessageHistory() {
-            try {
-                // Fetch both sent and received messages
-                const userId = currentUser.id;
-
-                // Fetch messages SENT BY admin
-                const sentMessages = await dataService.getMessages({
-                    fromId: userId,
-                    schoolVersion: currentVersion
-                });
-
-                // Fetch messages SENT TO admin
-                const receivedMessages = await dataService.getMessages({
-                    toId: userId,
-                    schoolVersion: currentVersion
-                });
-
-                // Map and combine
-                const mappedSent = sentMessages.map(msg => ({
-                    id: msg.id,
-                    from: 'Me',
-                    fromId: userId,
-                    to: msg.expand?.to_id?.full_name || 'Teacher',
-                    toId: msg.to_id,
-                    message: msg.message,
-                    timestamp: msg.created_at,
-                    schoolVersion: msg.school_version,
-                    isSent: true
-                }));
-
-                const mappedReceived = receivedMessages.map(msg => ({
-                    id: msg.id,
-                    from: msg.expand?.from_id?.full_name || 'User',
-                    fromId: msg.from_id,
-                    to: 'Me',
-                    toId: userId,
-                    message: msg.message,
-                    timestamp: msg.created_at,
-                    schoolVersion: msg.school_version,
-                    isSent: false
-                }));
-
-                const mappedDbMessages = [...mappedSent, ...mappedReceived];
-
-
-                // Merge with local storage (failed sends)
-                const stored = localStorage.getItem('admin_messages');
-                let localMessages = [];
-                if (stored) {
-                    try {
-                        localMessages = JSON.parse(stored);
-                    } catch (e) {
-                        console.warn('Bad local message history', e);
-                    }
-                }
-
-                // Keep local messages that are NOT in DB (by ID check or if ID is numeric/timestamp)
-                // DB IDs are strings, Local IDs are numbers (timestamps) or matching strings if they were saved?
-                // Actually, if we saved locally AFTER DB failure, it has a numeric ID.
-                const dbIds = new Set(mappedDbMessages.map(m => m.id));
-                const uniqueLocal = localMessages.filter(m => !dbIds.has(m.id) && typeof m.id === 'number');
-
-                messageHistory = [...mappedDbMessages, ...uniqueLocal];
-
-                displayMessageHistory();
-            } catch (error) {
-                console.warn('Failed to load messages from database, using localStorage:', error);
-                // Fallback to localStorage
-                const stored = localStorage.getItem('admin_messages');
-                if (stored) {
-                    messageHistory = JSON.parse(stored);
-                    displayMessageHistory();
-                }
-            }
+        function fmtChatTime(d) {
+            return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
+        function fmtChatDay(d) {
+            const date = new Date(d);
+            const now = new Date();
+            const startOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+            const diffDays = Math.round((startOf(now) - startOf(date)) / 86400000);
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        }
 
-        function displayMessageHistory() {
-            const listEl = document.getElementById('message-history-list');
+        function fmtContactTime(d) {
+            const date = new Date(d);
+            const now = new Date();
+            const sameDay = date.toDateString() === now.toDateString();
+            return sameDay ? fmtChatTime(d) : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
 
-            // Filter messages for current version
-            const versionMessages = messageHistory.filter(m => m.schoolVersion === currentVersion);
+        function isResetRequest(text) {
+            return String(text || '').includes('PASSWORD RESET REQUEST');
+        }
 
-            if (versionMessages.length === 0) {
-                listEl.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-                        <p>No messages sent yet</p>
+        // Contacts = every teacher in this school + anyone else who has
+        // messaged the admin (e.g. password reset requests from students).
+        function getChatContacts() {
+            const map = new Map();
+            (allTeachers || []).forEach(t => {
+                const uid = t.user || t.id;
+                map.set(uid, { id: uid, name: t.full_name || t.username || 'Teacher', sub: 'Teacher' });
+            });
+            chatMessages.forEach(m => {
+                const uid = m.isSent ? m.toId : m.fromId;
+                if (!uid || uid === currentUser?.id) return;
+                if (!map.has(uid)) {
+                    map.set(uid, { id: uid, name: m.contactName || 'User', sub: 'User' });
+                }
+            });
+            map.forEach(c => {
+                const msgs = chatMessages.filter(m => (m.isSent ? m.toId : m.fromId) === c.id);
+                c.last = msgs.length ? msgs[msgs.length - 1] : null;
+                c.unread = msgs.filter(m => !m.isSent && !m.read).length;
+            });
+            return Array.from(map.values()).sort((a, b) => {
+                const ta = a.last ? new Date(a.last.created).getTime() : 0;
+                const tb = b.last ? new Date(b.last.created).getTime() : 0;
+                if (tb !== ta) return tb - ta;
+                return a.name.localeCompare(b.name);
+            });
+        }
+
+        window.renderChatContacts = function () {
+            const listEl = document.getElementById('chat-contacts');
+            if (!listEl) return;
+            const q = (document.getElementById('chat-contact-search')?.value || '').trim().toLowerCase();
+            const allContacts = getChatContacts();
+            const contacts = allContacts.filter(c => !q || c.name.toLowerCase().includes(q));
+
+            // Keep the dashboard launcher badge in sync
+            const totalUnread = allContacts.reduce((n, c) => n + (c.unread || 0), 0);
+            const launcherBadge = document.getElementById('chat-launcher-badge');
+            if (launcherBadge) {
+                launcherBadge.textContent = totalUnread;
+                launcherBadge.style.display = totalUnread > 0 ? 'flex' : 'none';
+            }
+            const launcherSub = document.getElementById('chat-launcher-sub');
+            if (launcherSub) {
+                launcherSub.textContent = totalUnread > 0
+                    ? `${totalUnread} unread message${totalUnread === 1 ? '' : 's'}`
+                    : 'Send and receive messages in real time';
+            }
+
+            let html = '';
+            // Pinned broadcast entry
+            if (!q) {
+                html += `
+                    <div class="chat-contact ${activeChatId === 'ALL_TEACHERS' ? 'active' : ''}" onclick="openChatThread('ALL_TEACHERS')">
+                        <div class="chat-avatar broadcast">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>
+                        </div>
+                        <div class="chat-contact-info">
+                            <div class="chat-contact-top"><span class="chat-contact-name">All Teachers</span></div>
+                            <div class="chat-contact-bottom"><span class="chat-contact-preview">Broadcast a message to every teacher</span></div>
+                        </div>
                     </div>
                 `;
-                exitMessageSelectionMode();
-                return;
             }
 
-            // Group messages by contact
-            const groupedMessages = {};
-            versionMessages.forEach(msg => {
-                const contactId = msg.isSent ? msg.toId : msg.fromId;
-                const contactName = msg.isSent ? msg.to : msg.from;
-
-                if (!groupedMessages[contactId]) {
-                    groupedMessages[contactId] = {
-                        name: contactName,
-                        messages: []
-                    };
-                }
-                groupedMessages[contactId].messages.push(msg);
-            });
-
-            listEl.innerHTML = Object.entries(groupedMessages).map(([contactId, group]) => {
-                const groupId = `msg-group-${contactId}`;
-                // Sort messages within group by timestamp, newest first
-                group.messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-                const messagesHtml = group.messages.map(msg => {
-                    const date = new Date(msg.timestamp);
-                    const formattedDate = date.toLocaleString();
-                    const isReset = msg.message.includes('PASSWORD RESET REQUEST');
-                    const safeMessage = escapeHtml(msg.message).replace(/\n/g, '<br>');
-                    // Local-only messages have numeric IDs and no DB record — hide
-                    // the checkbox for them since deleteMessage would 404.
-                    const isDbMessage = typeof msg.id === 'string' && msg.id.length > 0;
-                    const checkboxHtml = isDbMessage
-                        ? `<span class="msg-checkbox-wrap"><input type="checkbox" class="msg-checkbox msg-item-checkbox" data-msg-id="${escapeHtml(msg.id)}" onchange="handleMessageCheckboxChange()"></span>`
-                        : '';
-
+            if (!contacts.length) {
+                html += `
+                    <div class="chat-empty" style="padding:28px 16px;">
+                        <p>${q ? 'No teachers match your search' : 'Load a school version to see teachers'}</p>
+                    </div>
+                `;
+            } else {
+                html += contacts.map(c => {
+                    let preview = 'No messages yet';
+                    if (c.last) {
+                        const body = isResetRequest(c.last.message) ? 'Password reset request' : c.last.message.replace(/\s+/g, ' ');
+                        preview = (c.last.isSent ? 'You: ' : '') + body;
+                    }
                     return `
-                        <div class="message-item ${msg.isSent ? 'sent' : 'received'} ${isReset ? 'reset-request' : ''}" style="margin-bottom: 10px;">
-                            ${checkboxHtml}
-                            <div class="msg-msg-body">
-                                <div class="message-header">
-                                    <span class="message-direction">${msg.isSent ? 'Sent' : 'Received'}</span>
-                                    <span class="message-date">${formattedDate}</span>
+                        <div class="chat-contact ${activeChatId === c.id ? 'active' : ''}" onclick="openChatThread('${escapeHtml(c.id)}')">
+                            <div class="chat-avatar">${escapeHtml(chatInitials(c.name))}</div>
+                            <div class="chat-contact-info">
+                                <div class="chat-contact-top">
+                                    <span class="chat-contact-name">${escapeHtml(c.name)}</span>
+                                    ${c.last ? `<span class="chat-contact-time">${fmtContactTime(c.last.created)}</span>` : ''}
                                 </div>
-                                <div class="message-content">${safeMessage}</div>
+                                <div class="chat-contact-bottom">
+                                    <span class="chat-contact-preview">${escapeHtml(preview)}</span>
+                                    ${c.unread > 0 ? `<span class="chat-unread-badge">${c.unread}</span>` : ''}
+                                </div>
                             </div>
                         </div>
                     `;
                 }).join('');
+            }
 
-                return `
-                    <div class="collapsible-group">
-                        <div class="collapsible-header" data-group="${groupId}" onclick="toggleGroup('${groupId}')">
-                            <h3>${group.name} <span class="group-count">${group.messages.length}</span></h3>
-                            <span class="toggle-icon">▼</span>
-                        </div>
-                        <div id="${groupId}" class="collapsible-content">
-                            ${messagesHtml}
-                        </div>
+            listEl.innerHTML = html;
+        };
+
+        window.openChatThread = function (contactId) {
+            activeChatId = contactId;
+            const app = document.getElementById('admin-chat-app');
+            if (app) app.classList.add('thread-open');
+
+            const header = document.getElementById('chat-thread-header');
+            const composer = document.getElementById('chat-composer');
+            const avatarEl = document.getElementById('chat-thread-avatar');
+            const titleEl = document.getElementById('chat-thread-title');
+            const subEl = document.getElementById('chat-thread-sub');
+            const clearBtn = document.getElementById('chat-clear-btn');
+            if (header) header.style.display = 'flex';
+            if (composer) composer.style.display = 'flex';
+
+            if (contactId === 'ALL_TEACHERS') {
+                if (avatarEl) {
+                    avatarEl.className = 'chat-avatar broadcast';
+                    avatarEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>';
+                }
+                if (titleEl) titleEl.textContent = 'All Teachers';
+                if (subEl) subEl.textContent = `Broadcast to ${allTeachers.length} teacher${allTeachers.length === 1 ? '' : 's'}`;
+                if (clearBtn) clearBtn.style.display = 'none';
+            } else {
+                const contact = getChatContacts().find(c => c.id === contactId);
+                const name = contact?.name || 'User';
+                if (avatarEl) {
+                    avatarEl.className = 'chat-avatar';
+                    avatarEl.textContent = chatInitials(name);
+                }
+                if (titleEl) titleEl.textContent = name;
+                if (subEl) subEl.textContent = contact?.sub || '';
+                if (clearBtn) clearBtn.style.display = '';
+            }
+
+            renderChatContacts();
+            renderChatThread();
+            markThreadRead(contactId);
+
+            const input = document.getElementById('chat-input');
+            if (input && window.innerWidth > 768) input.focus();
+        };
+
+        window.openChatModal = function () {
+            const modal = document.getElementById('chat-modal');
+            if (!modal) return;
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            renderChatContacts();
+            if (activeChatId && activeChatId !== 'ALL_TEACHERS') {
+                renderChatThread();
+                markThreadRead(activeChatId);
+            }
+            const search = document.getElementById('chat-contact-search');
+            if (search && window.innerWidth > 768) search.focus();
+        };
+
+        window.closeChatModal = function () {
+            const modal = document.getElementById('chat-modal');
+            if (!modal) return;
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        };
+
+        // Close on scrim click / Escape
+        document.getElementById('chat-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'chat-modal') closeChatModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const modal = document.getElementById('chat-modal');
+            if (modal && modal.style.display === 'block') closeChatModal();
+        });
+
+        window.closeChatThread = function () {
+            activeChatId = null;
+            const app = document.getElementById('admin-chat-app');
+            if (app) app.classList.remove('thread-open');
+            const header = document.getElementById('chat-thread-header');
+            const composer = document.getElementById('chat-composer');
+            if (header) header.style.display = 'none';
+            if (composer) composer.style.display = 'none';
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="chat-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    <p>Select a teacher to start chatting</p>
+                </div>
+            `;
+            renderChatContacts();
+        };
+
+        function getThreadMessages(contactId) {
+            return chatMessages
+                .filter(m => (m.isSent ? m.toId : m.fromId) === contactId)
+                .sort((a, b) => new Date(a.created) - new Date(b.created));
+        }
+
+        function renderChatThread() {
+            const messagesEl = document.getElementById('chat-messages');
+            if (!messagesEl || !activeChatId) return;
+
+            if (activeChatId === 'ALL_TEACHERS') {
+                messagesEl.innerHTML = `
+                    <div class="chat-empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>
+                        <p>Messages sent here are delivered to every teacher as an individual chat.</p>
                     </div>
                 `;
-            }).join('');
-
-            // If we're still in selection mode after a re-render, expand every
-            // group so checkboxes are reachable.
-            const container = document.getElementById('message-history-container');
-            if (container && container.classList.contains('selection-mode')) {
-                container.querySelectorAll('.collapsible-header').forEach(h => h.classList.add('active'));
-                container.querySelectorAll('.collapsible-content').forEach(c => c.classList.add('active'));
-                updateMessageSelectionUI();
+                return;
             }
+
+            const thread = getThreadMessages(activeChatId);
+            if (!thread.length) {
+                messagesEl.innerHTML = `
+                    <div class="chat-empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        <p>No messages yet — say hello!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            let lastDay = '';
+            thread.forEach(m => {
+                const day = fmtChatDay(m.created);
+                if (day !== lastDay) {
+                    html += `<div class="chat-date-sep">${day}</div>`;
+                    lastDay = day;
+                }
+                const reset = isResetRequest(m.message);
+                const ticks = m.isSent
+                    ? `<span title="${m.read ? 'Read' : 'Sent'}">${m.read ? '&#10003;&#10003;' : '&#10003;'}</span>`
+                    : '';
+                const deleteBtn = `
+                    <button type="button" class="chat-msg-delete" onclick="deleteChatMessage('${escapeHtml(m.id)}')" title="Delete message">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                    </button>
+                `;
+                html += `
+                    <div class="chat-bubble-row ${m.isSent ? 'sent' : 'received'}">
+                        ${m.isSent ? deleteBtn : ''}
+                        <div class="chat-bubble ${reset ? 'reset-request' : ''}">${escapeHtml(m.message)}<div class="chat-bubble-meta">${fmtChatTime(m.created)}${ticks}</div></div>
+                        ${!m.isSent ? deleteBtn : ''}
+                    </div>
+                `;
+            });
+
+            messagesEl.innerHTML = html;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
         }
 
-        // --- Message selection mode ---
-        window.toggleMessageSelectionMode = function () {
-            const container = document.getElementById('message-history-container');
-            const toggle = document.getElementById('msg-clear-toggle');
-            if (!container) return;
-            const active = container.classList.toggle('selection-mode');
-            if (toggle) {
-                toggle.textContent = active ? 'Cancel' : 'Clear';
-                toggle.classList.toggle('active', active);
-            }
-            if (active) {
-                // Auto-expand every collapsible group so the user can see all checkboxes
-                container.querySelectorAll('.collapsible-header').forEach(h => h.classList.add('active'));
-                container.querySelectorAll('.collapsible-content').forEach(c => c.classList.add('active'));
-            } else {
-                container.querySelectorAll('.msg-item-checkbox').forEach(cb => { cb.checked = false; });
-                const selectAll = document.getElementById('msg-select-all');
-                if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
-            }
-            updateMessageSelectionUI();
-        };
-
-        function exitMessageSelectionMode() {
-            const container = document.getElementById('message-history-container');
-            const toggle = document.getElementById('msg-clear-toggle');
-            if (container) container.classList.remove('selection-mode');
-            if (toggle) { toggle.textContent = 'Clear'; toggle.classList.remove('active'); }
+        // Mark every unread received message in this thread as read
+        function markThreadRead(contactId) {
+            if (!contactId || contactId === 'ALL_TEACHERS') return;
+            const unread = chatMessages.filter(m => !m.isSent && !m.read && m.fromId === contactId);
+            if (!unread.length) return;
+            unread.forEach(m => { m.read = true; });
+            renderChatContacts();
+            Promise.allSettled(unread.map(m => dataService.markMessageAsRead(m.id)))
+                .then(results => {
+                    const failed = results.filter(r => r.status === 'rejected').length;
+                    if (failed) console.warn(`[chat] ${failed} read-receipts failed to save`);
+                });
         }
 
-        window.handleMessageSelectAll = function (checkbox) {
-            const container = document.getElementById('message-history-container');
-            if (!container) return;
-            container.querySelectorAll('.msg-item-checkbox').forEach(cb => { cb.checked = !!checkbox.checked; });
-            updateMessageSelectionUI();
-        };
+        window.sendChatMessage = async function () {
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('chat-send-btn');
+            if (!input || !activeChatId) return;
+            const text = input.value.trim();
+            if (!text) return;
 
-        window.handleMessageCheckboxChange = function () {
-            const boxes = document.querySelectorAll('#message-history-container .msg-item-checkbox');
-            const checked = document.querySelectorAll('#message-history-container .msg-item-checkbox:checked');
-            const selectAll = document.getElementById('msg-select-all');
-            if (selectAll) {
-                selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
-                selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+            if (activeChatId === 'ALL_TEACHERS') {
+                if (!allTeachers.length) {
+                    showAlert('No teachers', 'No teachers loaded. Please load a school first.');
+                    return;
+                }
+                const ok = await showConfirm('Broadcast message', `Send this message to ALL ${allTeachers.length} teachers in ${currentVersion}?`);
+                if (!ok) return;
+                sendBtn.disabled = true;
+                let sentCount = 0, failCount = 0;
+                for (const teacher of allTeachers) {
+                    try {
+                        const created = await dataService.sendMessage({
+                            fromId: currentUser.id,
+                            toId: teacher.user || teacher.id,
+                            message: text,
+                            schoolVersion: currentVersion
+                        });
+                        chatMessages.push({
+                            id: created.id,
+                            fromId: created.from_id,
+                            toId: created.to_id,
+                            message: created.message,
+                            created: created.created,
+                            read: false,
+                            isSent: true,
+                            contactName: teacher.full_name || teacher.username || 'Teacher'
+                        });
+                        sentCount++;
+                    } catch (err) {
+                        console.error(`[chat] broadcast failed for ${teacher.full_name}:`, err);
+                        failCount++;
+                    }
+                }
+                sendBtn.disabled = false;
+                input.value = '';
+                input.style.height = 'auto';
+                renderChatContacts();
+                if (failCount === 0) {
+                    showToast(`Message sent to all ${sentCount} teachers`);
+                } else {
+                    showAlert('Partial success', `Sent to ${sentCount} teachers. Failed: ${failCount}`);
+                }
+                return;
             }
-            updateMessageSelectionUI();
+
+            sendBtn.disabled = true;
+            try {
+                const created = await dataService.sendMessage({
+                    fromId: currentUser.id,
+                    toId: activeChatId,
+                    message: text,
+                    schoolVersion: currentVersion
+                });
+                chatMessages.push({
+                    id: created.id,
+                    fromId: created.from_id,
+                    toId: created.to_id,
+                    message: created.message,
+                    created: created.created,
+                    read: false,
+                    isSent: true,
+                    contactName: ''
+                });
+                input.value = '';
+                input.style.height = 'auto';
+                renderChatThread();
+                renderChatContacts();
+            } catch (err) {
+                console.error('[chat] send failed:', err);
+                showAlert('Error', 'Failed to send message: ' + err.message);
+            } finally {
+                sendBtn.disabled = false;
+                if (window.innerWidth > 768) input.focus();
+            }
         };
 
-        function updateMessageSelectionUI() {
-            const link = document.getElementById('msg-delete-link');
-            const countEl = document.getElementById('msg-selected-count');
-            const pluralEl = document.getElementById('msg-plural');
-            const count = document.querySelectorAll('#message-history-container .msg-item-checkbox:checked').length;
-            if (countEl) countEl.textContent = String(count);
-            if (pluralEl) pluralEl.textContent = count === 1 ? '' : 's';
-            if (link) link.classList.toggle('has-selection', count > 0);
-        }
+        window.deleteChatMessage = async function (messageId) {
+            const ok = await showConfirm('Delete message', 'Delete this message? This can\'t be undone.');
+            if (!ok) return;
+            try {
+                await dataService.deleteMessage(messageId);
+                chatMessages = chatMessages.filter(m => m.id !== messageId);
+                renderChatThread();
+                renderChatContacts();
+            } catch (err) {
+                console.error('[chat] delete failed:', err);
+                showAlert('Error', 'Failed to delete message: ' + err.message);
+            }
+        };
 
-        window.bulkDeleteSelectedMessages = async function () {
-            const boxes = Array.from(document.querySelectorAll('#message-history-container .msg-item-checkbox:checked'));
-            if (!boxes.length) return;
+        window.clearChatThread = async function (btn) {
+            if (!activeChatId || activeChatId === 'ALL_TEACHERS') return;
+            const thread = getThreadMessages(activeChatId);
+            if (!thread.length) return;
             const ok = await showConfirm(
-                'Delete messages',
-                `Delete ${boxes.length} message${boxes.length === 1 ? '' : 's'}? This can't be undone.`
+                'Clear conversation',
+                `Delete all ${thread.length} message${thread.length === 1 ? '' : 's'} in this conversation? This can't be undone.`
             );
             if (!ok) return;
-
-            const ids = boxes.map(cb => cb.dataset.msgId).filter(Boolean);
-            let deleted = 0, failed = 0;
-            for (const id of ids) {
+            btn.disabled = true;
+            let failed = 0;
+            for (const m of thread) {
                 try {
-                    await dataService.deleteMessage(id);
-                    deleted++;
+                    await dataService.deleteMessage(m.id);
+                    chatMessages = chatMessages.filter(x => x.id !== m.id);
                 } catch (e) {
-                    console.error('[bulk delete] failed for', id, e);
+                    console.error('[chat] clear failed for', m.id, e);
                     failed++;
                 }
             }
-            // Drop successful deletes from local state too
-            const deletedSet = new Set(ids.slice(0, deleted));
-            messageHistory = messageHistory.filter(m => !deletedSet.has(m.id));
-
-            exitMessageSelectionMode();
-            displayMessageHistory();
-            if (failed > 0) {
-                await Utils.showAlert('Delete complete', `Deleted ${deleted}. ${failed} could not be deleted.`);
-            }
+            btn.disabled = false;
+            renderChatThread();
+            renderChatContacts();
+            if (failed) showAlert('Clear complete', `${failed} message${failed === 1 ? '' : 's'} could not be deleted.`);
         };
+
+        async function loadMessageHistory() {
+            try {
+                const userId = currentUser.id;
+                const [sentMessages, receivedMessages] = await Promise.all([
+                    dataService.getMessages({ fromId: userId, schoolVersion: currentVersion }),
+                    dataService.getMessages({ toId: userId, schoolVersion: currentVersion })
+                ]);
+
+                const mapRec = (msg, isSent) => {
+                    const other = isSent ? msg.expand?.to_id : msg.expand?.from_id;
+                    return {
+                        id: msg.id,
+                        fromId: msg.from_id,
+                        toId: msg.to_id,
+                        message: msg.message,
+                        created: msg.created,
+                        read: !!msg.read,
+                        isSent,
+                        contactName: other?.full_name || other?.name || other?.username || ''
+                    };
+                };
+
+                const seen = new Set();
+                chatMessages = [...sentMessages.map(m => mapRec(m, true)), ...receivedMessages.map(m => mapRec(m, false))]
+                    .filter(m => {
+                        if (seen.has(m.id)) return false;
+                        seen.add(m.id);
+                        return true;
+                    })
+                    .sort((a, b) => new Date(a.created) - new Date(b.created));
+
+                renderChatContacts();
+                if (activeChatId && activeChatId !== 'ALL_TEACHERS') renderChatThread();
+            } catch (error) {
+                console.warn('Failed to load messages from database:', error);
+            }
+        }
+
+        function initChatComposer() {
+            const input = document.getElementById('chat-input');
+            if (!input || input._chatInit) return;
+            input._chatInit = true;
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChatMessage();
+                }
+            });
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            });
+        }
+
+        async function setupAdminChatSubscription() {
+            if (adminChatSubscribed) return;
+            try {
+                await dataService.subscribeToMessages((e) => {
+                    if (!currentUser) return;
+                    const rec = e.record;
+                    if (e.action === 'create') {
+                        if (rec.to_id !== currentUser.id) return;
+                        if (chatMessages.some(m => m.id === rec.id)) return;
+                        chatMessages.push({
+                            id: rec.id,
+                            fromId: rec.from_id,
+                            toId: rec.to_id,
+                            message: rec.message,
+                            created: rec.created,
+                            read: !!rec.read,
+                            isSent: false,
+                            contactName: ''
+                        });
+                        renderChatContacts();
+                        const modalOpen = document.getElementById('chat-modal')?.style.display === 'block';
+                        if (activeChatId === rec.from_id) renderChatThread();
+                        if (modalOpen && activeChatId === rec.from_id) {
+                            markThreadRead(activeChatId);
+                        } else {
+                            showToast('New message received');
+                        }
+                    } else if (e.action === 'update') {
+                        const m = chatMessages.find(x => x.id === rec.id);
+                        if (m) {
+                            m.read = !!rec.read;
+                            if (activeChatId && activeChatId !== 'ALL_TEACHERS') renderChatThread();
+                        }
+                    } else if (e.action === 'delete') {
+                        const before = chatMessages.length;
+                        chatMessages = chatMessages.filter(x => x.id !== rec.id);
+                        if (chatMessages.length !== before) {
+                            renderChatContacts();
+                            if (activeChatId && activeChatId !== 'ALL_TEACHERS') renderChatThread();
+                        }
+                    }
+                });
+                adminChatSubscribed = true;
+            } catch (err) {
+                console.warn('Chat subscription failed:', err);
+            }
+        }
 
         async function handleLogout() {
             if (await showConfirm('Logout', 'Are you sure you want to logout?')) {
@@ -4284,6 +5134,16 @@
                     classFilter.innerHTML += `<option value="${cls}">${cls}</option>`;
                 });
 
+                // Term filter always offers the canonical CBT terms
+                // (Utils.CBT_TERMS — same three the Create Exam form uses)
+                const termFilter = document.getElementById('results-term-filter');
+                const prevTerm = termFilter.value;
+                termFilter.innerHTML = '<option value="All">All Terms</option>';
+                Utils.CBT_TERMS.forEach(t => {
+                    termFilter.innerHTML += `<option value="${t}">${t}</option>`;
+                });
+                if (Utils.CBT_TERMS.includes(prevTerm)) termFilter.value = prevTerm;
+
                 // Render
                 filterGeneralResults();
 
@@ -4303,15 +5163,27 @@
             }
         };
 
+        // Exam columns visible under the current term filter. Exam titles
+        // hold the term, matched via Utils.normalizeTerm so legacy titles
+        // like "First Term" or "term 2" still land in the right bucket.
+        function getVisibleResultColumns() {
+            const term = document.getElementById('results-term-filter')?.value || 'All';
+            if (term === 'All') return resultExamColumns;
+            return resultExamColumns.filter(c => Utils.normalizeTerm(c.title) === term);
+        }
+
         window.filterGeneralResults = function () {
             const classFilter = document.getElementById('results-class-filter').value;
             const searchQuery = document.getElementById('results-search').value.trim().toLowerCase();
+            const visibleCols = getVisibleResultColumns();
 
             filteredResultsData = allResultsData.filter(student => {
                 // Class filter
                 if (classFilter !== 'All' && student.className !== classFilter) return false;
                 // Search filter
                 if (searchQuery && !student.name.toLowerCase().includes(searchQuery)) return false;
+                // Hide students with no scores in the selected term
+                if (!visibleCols.some(c => student.scores[c.id])) return false;
                 return true;
             });
 
@@ -4323,6 +5195,11 @@
         function renderResultsTable() {
             const thead = document.getElementById('results-thead');
             const tbody = document.getElementById('results-tbody');
+            const visibleCols = getVisibleResultColumns();
+            const selectedTerm = document.getElementById('results-term-filter')?.value || 'All';
+            // When showing every term, disambiguate subjects with the term name
+            const showTermInLabel = selectedTerm === 'All'
+                && new Set(visibleCols.map(c => (c.title || '').trim())).size > 1;
 
             // Build header row
             let headerHtml = `
@@ -4331,8 +5208,10 @@
                     <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">Student Name</th>
                     <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">Class</th>
             `;
-            resultExamColumns.forEach(exam => {
-                headerHtml += `<th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${exam.title} (${exam.subject})">${exam.subject || exam.title}</th>`;
+            visibleCols.forEach(exam => {
+                const label = (exam.subject || exam.title)
+                    + (showTermInLabel && exam.subject ? `<br><small style="font-weight:400; opacity:0.85;">${exam.title}</small>` : '');
+                headerHtml += `<th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${exam.title} (${exam.subject})">${label}</th>`;
             });
             headerHtml += `
                     <th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; background: rgba(255,255,255,0.1);">Total</th>
@@ -4341,7 +5220,7 @@
             `;
             thead.innerHTML = headerHtml;
 
-            // Build body rows
+            // Build body rows — result.score is stored as a percentage (0–100)
             let bodyHtml = '';
             filteredResultsData.forEach((student, index) => {
                 let total = 0;
@@ -4355,20 +5234,20 @@
                         <td style="padding: 10px; color: var(--light-text);">${student.className}</td>
                 `;
 
-                resultExamColumns.forEach(exam => {
+                visibleCols.forEach(exam => {
                     const scoreData = student.scores[exam.id];
                     if (scoreData) {
-                        const pct = exam.totalPoints > 0 ? Math.round((scoreData.score / scoreData.totalPoints) * 100) : 0;
+                        const pct = scoreData.score;
                         const color = scoreData.passed ? '#28a745' : (pct >= 40 ? '#ffc107' : '#dc3545');
-                        rowHtml += `<td style="padding: 10px; text-align: center; font-weight: 500; color: ${color};">${scoreData.score}/${scoreData.totalPoints}</td>`;
-                        total += scoreData.score;
+                        rowHtml += `<td style="padding: 10px; text-align: center; font-weight: 500; color: ${color};">${pct}%</td>`;
+                        total += pct;
                         examCount++;
                     } else {
                         rowHtml += `<td style="padding: 10px; text-align: center; color: var(--light-text);">—</td>`;
                     }
                 });
 
-                const avg = examCount > 0 ? (total / examCount).toFixed(1) : '—';
+                const avg = examCount > 0 ? (total / examCount).toFixed(1) + '%' : '—';
                 rowHtml += `
                         <td style="padding: 10px; text-align: center; font-weight: 700; color: var(--primary-color);">${total}</td>
                         <td style="padding: 10px; text-align: center; font-weight: 600;">${avg}</td>
@@ -4378,14 +5257,16 @@
             });
 
             if (filteredResultsData.length === 0) {
-                bodyHtml = `<tr><td colspan="${resultExamColumns.length + 5}" style="padding: 40px; text-align: center; color: var(--light-text);">No results match your filters</td></tr>`;
+                bodyHtml = `<tr><td colspan="${visibleCols.length + 5}" style="padding: 40px; text-align: center; color: var(--light-text);">No results match your filters</td></tr>`;
             }
 
             tbody.innerHTML = bodyHtml;
 
             // Update summary
             document.getElementById('results-showing-count').textContent = filteredResultsData.length;
-            document.getElementById('results-exam-count').textContent = resultExamColumns.length;
+            document.getElementById('results-exam-count').textContent = visibleCols.length;
+            const termLabel = document.getElementById('results-term-label');
+            if (termLabel) termLabel.textContent = selectedTerm === 'All' ? 'All Terms' : selectedTerm;
         }
 
         // ── Primary Cards Renderer (used on all viewports) ──
@@ -4404,25 +5285,31 @@
             }
 
             let cardsHtml = '';
+            const visibleCols = getVisibleResultColumns();
+            const selectedTerm = document.getElementById('results-term-filter')?.value || 'All';
+            const showTermInLabel = selectedTerm === 'All'
+                && new Set(visibleCols.map(c => (c.title || '').trim())).size > 1;
 
             filteredResultsData.forEach((student, index) => {
                 let total = 0;
                 let examCount = 0;
 
-                // Build subject score items
+                // Build subject score items — result.score is a percentage (0–100)
                 let scoresHtml = '';
-                resultExamColumns.forEach(exam => {
+                visibleCols.forEach(exam => {
                     const scoreData = student.scores[exam.id];
                     if (scoreData) {
-                        const pct = scoreData.totalPoints > 0 ? Math.round((scoreData.score / scoreData.totalPoints) * 100) : 0;
+                        const pct = scoreData.score;
                         const color = scoreData.passed ? '#28a745' : (pct >= 40 ? '#ffc107' : '#dc3545');
+                        const label = (exam.subject || exam.title)
+                            + (showTermInLabel && exam.subject ? ` · ${exam.title}` : '');
                         scoresHtml += `
                             <div class="result-card-score-item">
-                                <span class="result-card-subject" title="${exam.title}">${exam.subject || exam.title}</span>
-                                <span class="result-card-score-value" style="color: ${color};">${scoreData.score}/${scoreData.totalPoints}</span>
+                                <span class="result-card-subject" title="${exam.title} (${exam.subject})">${label}</span>
+                                <span class="result-card-score-value" style="color: ${color};">${pct}%</span>
                             </div>
                         `;
-                        total += scoreData.score;
+                        total += pct;
                         examCount++;
                     }
                 });
@@ -4430,7 +5317,7 @@
                 // Skip students with no scores at all
                 if (examCount === 0) return;
 
-                const avg = (total / examCount).toFixed(1);
+                const avg = (total / examCount).toFixed(1) + '%';
 
                 cardsHtml += `
                     <div class="result-card">
@@ -4448,6 +5335,10 @@
                             ${scoresHtml}
                         </div>
                         <div class="result-card-footer">
+                            <button type="button" class="result-card-export" onclick="exportStudentResults('${student.studentId}')" title="Export this student's results for the selected term (or all terms)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Export
+                            </button>
                             <span style="color: var(--light-text);">Total:</span>
                             <span class="result-card-total">${total}</span>
                         </div>
@@ -4470,22 +5361,29 @@
                 return;
             }
 
-            // Build export data
+            // Build export data (scores are percentages)
+            const visibleCols = getVisibleResultColumns();
+            const selectedTerm = document.getElementById('results-term-filter')?.value || 'All';
+            const showTermInLabel = selectedTerm === 'All'
+                && new Set(visibleCols.map(c => (c.title || '').trim())).size > 1;
+
             const headers = ['#', 'Student Name', 'Class'];
-            resultExamColumns.forEach(exam => {
-                headers.push(`${exam.subject || exam.title}`);
+            visibleCols.forEach(exam => {
+                const label = (exam.subject || exam.title)
+                    + (showTermInLabel && exam.subject ? ` (${exam.title})` : '');
+                headers.push(`${label} %`);
             });
-            headers.push('Total', 'Average');
+            headers.push('Total', 'Average %');
 
             const rows = filteredResultsData.map((student, index) => {
                 const row = [index + 1, student.name, student.className];
                 let total = 0;
                 let examCount = 0;
 
-                resultExamColumns.forEach(exam => {
+                visibleCols.forEach(exam => {
                     const scoreData = student.scores[exam.id];
                     if (scoreData) {
-                        row.push(`${scoreData.score}/${scoreData.totalPoints}`);
+                        row.push(scoreData.score);
                         total += scoreData.score;
                         examCount++;
                     } else {
@@ -4493,7 +5391,7 @@
                     }
                 });
 
-                const avg = examCount > 0 ? (total / examCount).toFixed(1) : '—';
+                const avg = examCount > 0 ? Number((total / examCount).toFixed(1)) : '—';
                 row.push(total, avg);
                 return row;
             });
@@ -4507,14 +5405,83 @@
             }));
 
             const wb = XLSX.utils.book_new();
-            const sheetName = `Results_${currentVersion || 'School'}`.substring(0, 31);
+            const termTag = selectedTerm === 'All' ? 'All_Terms' : selectedTerm.replace(/\s+/g, '_');
+            const sheetName = `${termTag}_${currentVersion || 'School'}`.substring(0, 31);
             XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
             // Export
-            const filename = `Student_Results_${currentVersion || 'School'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const filename = `Student_Results_${termTag}_${currentVersion || 'School'}_${new Date().toISOString().split('T')[0]}.xlsx`;
             XLSX.writeFile(wb, filename);
 
             showToast(`Exported ${filteredResultsData.length} student results to Excel`);
+        };
+
+        // Export one student's results — respects the current term filter
+        // ("All Terms" exports every term the student has results for)
+        window.exportStudentResults = function (studentId) {
+            const student = allResultsData.find(s => s.studentId === studentId);
+            if (!student) {
+                showAlert('Not Found', 'Could not find that student\'s results. Try reloading results.');
+                return;
+            }
+            if (typeof XLSX === 'undefined') {
+                showAlert('Error', 'Excel export library not loaded. Please check your internet connection and refresh.');
+                return;
+            }
+
+            const selectedTerm = document.getElementById('results-term-filter')?.value || 'All';
+            const cols = getVisibleResultColumns().filter(c => student.scores[c.id]);
+            if (!cols.length) {
+                showAlert('No Results', `${student.name} has no results for ${selectedTerm === 'All' ? 'any term' : selectedTerm}.`);
+                return;
+            }
+
+            // Order rows by canonical term, then subject
+            const termOrder = t => {
+                const i = Utils.CBT_TERMS.indexOf(Utils.normalizeTerm(t));
+                return i === -1 ? 99 : i;
+            };
+            const sorted = [...cols].sort((a, b) =>
+                (termOrder(a.title) - termOrder(b.title))
+                || String(a.subject || '').localeCompare(String(b.subject || '')));
+
+            const rows = [];
+            let total = 0;
+            sorted.forEach(exam => {
+                const sd = student.scores[exam.id];
+                rows.push([
+                    Utils.normalizeTerm(exam.title) || exam.title,
+                    exam.subject || exam.title,
+                    sd.score,
+                    sd.passed ? 'PASSED' : 'FAILED'
+                ]);
+                total += sd.score;
+            });
+            const avg = Number((total / rows.length).toFixed(1));
+
+            const aoa = [
+                ['Student', student.name],
+                ['Class', student.className],
+                ['Term', selectedTerm === 'All' ? 'All Terms' : selectedTerm],
+                ['School', currentVersion || ''],
+                [],
+                ['Term', 'Subject', 'Score (%)', 'Status'],
+                ...rows,
+                [],
+                ['', 'Subjects', rows.length, ''],
+                ['', 'Average (%)', avg, '']
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 10 }];
+            const wb = XLSX.utils.book_new();
+            const sheetName = (student.name || 'Student').replace(/[\\\/\?\*\[\]:]/g, ' ').substring(0, 31);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+            const termTag = selectedTerm === 'All' ? 'All_Terms' : selectedTerm.replace(/\s+/g, '_');
+            const nameTag = (student.name || 'Student').replace(/[^\w]+/g, '_');
+            XLSX.writeFile(wb, `${nameTag}_${termTag}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showToast(`Exported ${student.name}'s ${selectedTerm === 'All' ? 'results (all terms)' : selectedTerm + ' results'}`);
         };
 
         // ============================================================
