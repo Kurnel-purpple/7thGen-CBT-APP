@@ -981,8 +981,14 @@
             const answers = row.answers || {};
             const { score: objectivePoints, totalPoints: objectiveTotalPoints } = this._gradeExamAnswers(exam, answers);
             const { theoryPoints, theoryTotalPoints } = this._getTheoryScoreSummary(exam, flags);
-            const totalPoints = Number(objectiveTotalPoints) + Number(theoryTotalPoints);
-            const pointsScored = Number(objectivePoints) + Number(theoryPoints);
+            // CA (continuous assessment) lives outside the exam questions —
+            // carry it through the regrade instead of wiping it
+            const caScoreParsed = Number(flags._caScore);
+            const caTotalParsed = Number(flags._caTotal);
+            const caPoints = Number.isFinite(caScoreParsed) ? caScoreParsed : 0;
+            const caTotalPoints = Number.isFinite(caTotalParsed) ? caTotalParsed : 0;
+            const totalPoints = Number(objectiveTotalPoints) + Number(theoryTotalPoints) + caTotalPoints;
+            const pointsScored = Number(objectivePoints) + Number(theoryPoints) + caPoints;
             const passScore = exam.passScore ?? 50;
             const percentage = totalPoints > 0 ? Math.round((pointsScored / totalPoints) * 100) : 0;
 

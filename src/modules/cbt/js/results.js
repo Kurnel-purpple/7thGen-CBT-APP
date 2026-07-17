@@ -187,8 +187,16 @@ const resultsController = {
                 }
             });
 
-            const totalPoints = objectivePoints + theoryPoints;
-            const totalPossible = objectiveTotalPoints + theoryTotalPoints;
+            // Carry any saved CA (continuous assessment) through the recompute —
+            // CA lives outside the exam questions and must not be wiped here
+            const resultFlags = (result && result.flags) || {};
+            const savedCaScore = parseFloat(resultFlags._caScore);
+            const savedCaTotal = parseFloat(resultFlags._caTotal);
+            const caPoints = Number.isFinite(savedCaScore) ? savedCaScore : 0;
+            const caPossible = Number.isFinite(savedCaTotal) ? savedCaTotal : 0;
+
+            const totalPoints = objectivePoints + theoryPoints + caPoints;
+            const totalPossible = objectiveTotalPoints + theoryTotalPoints + caPossible;
             const percentage = totalPossible > 0 ? Math.round((totalPoints / totalPossible) * 100) : 0;
             const passScore = exam.passScore || 50;
             const passed = percentage >= passScore;
@@ -198,7 +206,13 @@ const resultsController = {
                 theoryScores: resultsController.theoryScores,
                 score: percentage,
                 totalPoints: Math.round(totalPossible),
-                passed: passed
+                passed: passed,
+                flags: {
+                    _objective_total_points: objectiveTotalPoints,
+                    _objective_points_scored: objectivePoints,
+                    _real_total_points: totalPossible,
+                    _real_points_scored: totalPoints
+                }
             });
 
             await Utils.showAlert('Success', `Theory scores saved!\nNew Total: ${totalPoints.toFixed(1)}/${totalPossible.toFixed(1)} (${percentage}%)\nStatus: ${passed ? 'PASSED' : 'FAILED'}`);

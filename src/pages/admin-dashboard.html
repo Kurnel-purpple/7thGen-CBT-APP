@@ -2230,7 +2230,7 @@
                     <p id="sr-modal-class" style="margin: 2px 0 0; font-size: 0.8rem; color: var(--light-text);"></p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <button onclick="exportStudentResults()" title="Export"
+                    <button onclick="exportStudentResultsModal()" title="Export"
                         style="background: var(--inner-bg); border: 1px solid var(--border-color); color: var(--primary-color); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; font-weight: 600;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Export
@@ -2412,6 +2412,7 @@
                 return;
             }
 
+            const previousVersion = currentVersion;
             currentVersion = schoolId;
             if (loadBtn) {
                 loadBtn.disabled = true;
@@ -2420,14 +2421,21 @@
 
             try {
                 await loadData();
+                // Persist the new school ID only after a successful load
                 if (currentUser) {
                     currentUser.schoolVersion = schoolId;
                     localStorage.setItem('cbt_user_meta', JSON.stringify(currentUser));
                 }
+                // Re-render whichever section is open so it uses the new school's data
+                if (activeAdminSection === 'teachers') renderTeacherCards();
+                if (activeAdminSection === 'students') renderStudentCards();
+                if (activeAdminSection === 'exams-list') filterExams();
                 // Refresh the chat for the newly loaded school
                 closeChatThread();
                 loadMessageHistory();
             } catch (error) {
+                // Roll back so the UI keeps matching the data that's actually loaded
+                currentVersion = previousVersion;
                 console.error('Error loading data:', error);
                 showAlert('Error', 'Failed to load data: ' + error.message);
             } finally {
@@ -2501,9 +2509,9 @@
                 const hadCache = await loadFromCache();
                 if (hadCache) {
                     // Background refresh — don't block UI
-                    loadData();
+                    loadData().catch(e => console.error('Background data refresh failed:', e));
                 } else {
-                    await loadData();
+                    await loadData().catch(e => console.error('Initial data load failed:', e));
                 }
             }
 
@@ -2536,7 +2544,7 @@
                             console.log(`[DraftMigration] Converted ${migrated} draft exam(s) to active + _adminLocked`);
                             showToast(`${migrated} draft exam(s) migrated to locked status`, 'success');
                             // Refresh display
-                            if (typeof loadData === 'function') loadData();
+                            if (typeof loadData === 'function') loadData().catch(e => console.error('Post-migration refresh failed:', e));
                         }
                         localStorage.setItem('_draftToLockedMigrationDone', '1');
                     } catch (e) {
@@ -2648,6 +2656,8 @@
 
             } catch (error) {
                 console.error('Error loading data:', error);
+                // Rethrow so callers (e.g. handleLoadSchool) can roll back
+                throw error;
             }
         }
 
@@ -2923,9 +2933,14 @@
                 targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
-            // For active-exams, auto-open the modal filtered to active
+            // For active-exams, auto-open the list pre-filtered to Active
             if (section === 'active-exams') {
                 openExamsModal('all');
+                const statusFilter = document.getElementById('exam-filter');
+                if (statusFilter) {
+                    statusFilter.value = 'active';
+                    filterExams();
+                }
             }
 
             // Render content
@@ -3275,16 +3290,18 @@
             sortedClasses.forEach(cls => {
                 html += `<div style="margin-bottom:18px;">
                     <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--light-text); padding:8px 4px 6px; border-bottom:2px solid var(--border-color); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>${cls}</span>
+                        <span>${escapeHtml(cls)}</span>
                         <span style="font-weight:600; font-size:0.75rem; background:var(--primary-color); color:white; padding:2px 10px; border-radius:10px;">${grouped[cls].length}</span>
                     </div>
                     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px;">`;
                 grouped[cls].forEach(s => {
-                    const name = s.full_name || s.username || 'Unknown';
-                    const initial = name.charAt(0).toUpperCase();
-                    const currentClass = s.class_level || '';
+                    // All record-derived values are escaped — student names are
+                    // user-controlled input and must never reach innerHTML raw
+                    const name = escapeHtml(s.full_name || s.username || 'Unknown');
+                    const initial = escapeHtml((s.full_name || s.username || 'U').charAt(0).toUpperCase());
+                    const currentClass = escapeHtml(s.class_level || '');
                     const classOptionsHtml = studentClassOptions.map(c =>
-                        `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`
+                        `<option value="${escapeHtml(c)}" ${c === (s.class_level || '') ? 'selected' : ''}>${escapeHtml(c)}</option>`
                     ).join('');
                     html += `
                         <div class="collapsible-group" style="transition:all 0.2s;">
@@ -3293,16 +3310,17 @@
                                     <div style="width:38px; height:38px; border-radius:50%; background:#EA4335; color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.95rem; flex-shrink:0;">${initial}</div>
                                     <div style="min-width:0;">
                                         <div style="font-weight:600; font-size:0.92rem; color:var(--text-color);">${name}</div>
-                                        <div style="font-size:0.78rem; color:var(--light-text);">${s.username || ''}</div>
+                                        <div style="font-size:0.78rem; color:var(--light-text);">${escapeHtml(s.username || '')}</div>
                                     </div>
                                 </div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                    <select onchange="updateStudentClass('${s.id}', this.value)" title="Assign class"
+                                    <select onchange="updateStudentClass('${escapeHtml(String(s.id))}', this.value)" title="Assign class"
                                         style="padding:4px 8px; font-size:0.78rem; border-radius:0; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-color); cursor:pointer; max-width:120px;">
                                         <option value="" ${!currentClass ? 'selected' : ''}>No class</option>
                                         ${classOptionsHtml}
                                     </select>
-                                    <button onclick="viewStudentResults('${s.user || s.id}', '${name.replace(/'/g, "\\'")}', '${currentClass.replace(/'/g, "\\'")}')"
+                                    <button data-name="${name}" data-cls="${currentClass}"
+                                        onclick="viewStudentResults('${escapeHtml(String(s.user || s.id))}', this.dataset.name, this.dataset.cls)"
                                         style="background:none; border:none; color:var(--primary-color); font-size:0.78rem; font-weight:700; cursor:pointer; padding:2px 0; display:flex; align-items:center; gap:4px;">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                                         Results
@@ -3358,8 +3376,15 @@
                     const exam = allExams.find(e => e.id === result.examId);
                     const subject = exam ? (exam.subject || exam.title) : 'Unknown Subject';
 
-                    const ca = (result.flags && result.flags._manualTheoryScore !== undefined)
-                        ? parseFloat(result.flags._manualTheoryScore) : null;
+                    // Dedicated CA field first; legacy fallback treats the
+                    // manual theory score as CA (pre-CA-input results)
+                    const caFlagRaw = result.flags ? result.flags._caScore : undefined;
+                    const caDedicated = (caFlagRaw !== undefined && caFlagRaw !== null && caFlagRaw !== '')
+                        ? parseFloat(caFlagRaw) : NaN;
+                    const ca = Number.isFinite(caDedicated)
+                        ? caDedicated
+                        : ((result.flags && result.flags._manualTheoryScore !== undefined)
+                            ? parseFloat(result.flags._manualTheoryScore) : null);
                     const totalPoints = result.totalPoints || 0;
                     const scorePct = result.score || 0;
                     const actualPoints = totalPoints > 0 ? Math.round((scorePct / 100) * totalPoints) : 0;
@@ -3418,7 +3443,9 @@
             document.getElementById('student-results-modal').style.display = 'none';
         };
 
-        window.exportStudentResults = function() {
+        // Exports the open student-results modal (distinct from the General
+        // Results per-card exporter, window.exportStudentResults(studentId))
+        window.exportStudentResultsModal = function() {
             if (!_currentStudentResultsData || !_currentStudentResultsData.rows.length) {
                 showAlert('No Data', 'No results to export.');
                 return;
@@ -3721,11 +3748,8 @@
 
                 showToast(`Exam status changed to "${newStatus}"`);
 
-                // If a modal is open, refresh the modal view too
-                const examsListModal = document.getElementById('exams-list-modal');
-                if (examsListModal && examsListModal.style.display === 'flex') {
-                    filterExams();
-                }
+                // Refresh the exams list page so badges/schedules stay current
+                filterExams();
 
                 displayExams(allExams); // Refresh main summary list
             } catch (err) {
@@ -3753,11 +3777,8 @@
                 }
 
                 showToast(`Exam class changed to "${newClass}"`);
-                // If a modal is open, refresh the modal view too
-                const examsListModal = document.getElementById('exams-list-modal');
-                if (examsListModal && examsListModal.style.display === 'flex') {
-                    filterExams();
-                }
+                // Refresh the exams list page so badges/schedules stay current
+                filterExams();
             } catch (err) {
                 console.error('Failed to change exam class:', err);
                 showAlert('Error', 'Failed to change exam class: ' + err.message);
@@ -3784,8 +3805,19 @@
             if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
         }
 
+        // Only checkboxes on VISIBLE cards count — topbar search hides cards
+        // with display:none but leaves them in the DOM, and "select all" must
+        // never sweep in exams the admin has filtered out of view
+        function visibleAdminExamCheckboxes() {
+            return Array.from(document.querySelectorAll('#exams-modal-container .exam-card-checkbox'))
+                .filter(cb => {
+                    const card = cb.closest('.exam-card');
+                    return card && card.style.display !== 'none';
+                });
+        }
+
         window.handleAdminExamSelectAll = function (checkbox) {
-            document.querySelectorAll('#exams-modal-container .exam-card-checkbox').forEach(cb => {
+            visibleAdminExamCheckboxes().forEach(cb => {
                 cb.checked = !!checkbox.checked;
                 const card = cb.closest('.exam-card');
                 if (card) card.classList.toggle('exam-card-selected', !!cb.checked);
@@ -3796,8 +3828,8 @@
         window.handleAdminExamCheckboxChange = function (checkbox) {
             const card = checkbox.closest('.exam-card');
             if (card) card.classList.toggle('exam-card-selected', !!checkbox.checked);
-            const boxes = document.querySelectorAll('#exams-modal-container .exam-card-checkbox');
-            const checked = document.querySelectorAll('#exams-modal-container .exam-card-checkbox:checked');
+            const boxes = visibleAdminExamCheckboxes();
+            const checked = boxes.filter(cb => cb.checked);
             const selectAll = document.getElementById('admin-exam-select-all');
             if (selectAll) {
                 selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
@@ -3917,10 +3949,12 @@
             const dateInput = document.getElementById('schedule-date');
             if (currentSchedule && currentSchedule !== 'undefined' && currentSchedule !== '') {
                 try {
-                    // Convert to local datetime format for the input
+                    // Convert to LOCAL datetime for the input — toISOString()
+                    // is UTC and shifted the shown time by the timezone offset
                     const d = new Date(currentSchedule);
                     if (!isNaN(d.getTime())) {
-                        dateInput.value = d.toISOString().slice(0, 16);
+                        const pad = n => String(n).padStart(2, '0');
+                        dateInput.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
                     } else {
                         dateInput.value = '';
                     }
@@ -3986,11 +4020,8 @@
                     : `Updated: ${duration} min, available immediately`;
                 showToast(msg);
 
-                // If a modal is open, refresh the modal view too
-                const examsListModal = document.getElementById('exams-list-modal');
-                if (examsListModal && examsListModal.style.display === 'flex') {
-                    filterExams();
-                }
+                // Refresh the exams list page so badges/schedules stay current
+                filterExams();
 
                 displayExams(allExams);
                 closeScheduleModal();
@@ -4034,10 +4065,8 @@
 
                 showToast('Exam is now available immediately on all computers');
 
-                const examsListModal = document.getElementById('exams-list-modal');
-                if (examsListModal && examsListModal.style.display === 'flex') {
-                    filterExams();
-                }
+                // Refresh the exams list page so badges/schedules stay current
+                filterExams();
 
                 displayExams(allExams);
                 closeScheduleModal();
@@ -5029,8 +5058,12 @@
         window.showAlert = function (title, message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('alert-modal');
-                document.getElementById('alert-title').innerHTML = title || 'Notice';
-                document.getElementById('alert-message').innerHTML = message;
+                // textContent: server errors / profile names must render as
+                // plain text, never as markup
+                document.getElementById('alert-title').textContent = title || 'Notice';
+                const alertMsgEl = document.getElementById('alert-message');
+                alertMsgEl.textContent = message;
+                alertMsgEl.style.whiteSpace = 'pre-line';
 
                 const okBtn = document.getElementById('alert-ok-btn');
                 okBtn.onclick = () => {
@@ -5044,8 +5077,10 @@
         window.showConfirm = function (title, message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('confirm-modal');
-                document.getElementById('confirm-title').innerHTML = title || 'Confirm';
-                document.getElementById('confirm-message').innerHTML = message;
+                document.getElementById('confirm-title').textContent = title || 'Confirm';
+                const confirmMsgEl = document.getElementById('confirm-message');
+                confirmMsgEl.textContent = message;
+                confirmMsgEl.style.whiteSpace = 'pre-line';
 
                 const yesBtn = document.getElementById('confirm-yes-btn');
                 const noBtn = document.getElementById('confirm-no-btn');
@@ -5085,22 +5120,46 @@
             loadBtn.textContent = '⏳ Loading...';
 
             try {
-                // Fetch results for each exam in parallel
-                const examIds = allExams.map(e => e.id);
-                const resultPromises = examIds.map(examId =>
-                    dataService.getResults({ examId, forceRefresh: true }).catch(() => [])
-                );
-                const resultsArrays = await Promise.all(resultPromises);
+                // Source exams from the full list (archived included, soft-
+                // deleted excluded) so historical results survive archiving
+                // and bulk deletes instead of vanishing with allExams
+                let resultSourceExams;
+                try {
+                    const allSummaries = await dataService.getExamSummaries({ includeDeleted: true, forceRefresh: true });
+                    resultSourceExams = (allSummaries || []).filter(ex => !(ex.extensions && ex.extensions._deleted));
+                } catch (e) {
+                    // Fail closed: without the full list we can't tell deleted
+                    // exams from live ones, so don't load partial/miscounted data
+                    console.error('[GeneralResults] Full exam list unavailable:', e);
+                    showAlert('Load incomplete', 'The exam list could not be fetched, so nothing was loaded. Check your connection and try again.');
+                    return;
+                }
 
-                // Build exam column info (only exams that have results)
+                // Fetch results for each exam in parallel — fail closed if any
+                // exam's results can't be fetched, so exports are never partial
+                const examIds = resultSourceExams.map(e => e.id);
+                const settled = await Promise.allSettled(examIds.map(examId =>
+                    dataService.getResults({ examId, forceRefresh: true })
+                ));
+                const failedExamIds = examIds.filter((id, idx) => settled[idx].status === 'rejected');
+                if (failedExamIds.length > 0) {
+                    console.error('[GeneralResults] Result fetch failed for exams:', failedExamIds);
+                    showAlert('Load incomplete', `Results for ${failedExamIds.length} exam${failedExamIds.length === 1 ? '' : 's'} could not be fetched, so nothing was loaded. Check your connection and try again.`);
+                    return;
+                }
+                const resultsArrays = settled.map(s => s.value);
+
+                // Build exam column info (only exams that have results).
+                // Only completed attempts count — in-progress ones would show
+                // partial scores.
                 resultExamColumns = [];
                 const examResultsMap = {}; // examId -> results[]
 
                 examIds.forEach((examId, idx) => {
-                    const results = resultsArrays[idx];
+                    const results = (resultsArrays[idx] || []).filter(r => r.status === 'completed');
                     if (results && results.length > 0) {
                         examResultsMap[examId] = results;
-                        const exam = allExams.find(e => e.id === examId);
+                        const exam = resultSourceExams.find(e => e.id === examId);
                         resultExamColumns.push({
                             id: examId,
                             title: exam ? exam.title : 'Unknown Exam',
@@ -5131,7 +5190,11 @@
                         const userId = p.user || p.id;
                         profileMap[userId] = {
                             fullName: p.full_name || p.name || p.username || 'Unknown',
-                            targetClass: p.target_class || p.class || ''
+                            // Profiles store the student's class in class_level —
+                            // the old target_class/class lookup matched nothing,
+                            // so every student fell back to the exam's class and
+                            // could vanish under the class filter
+                            targetClass: p.class_level || p.target_class || p.class || ''
                         };
                         // Also map by profile record ID in case student_id is a profile ID
                         if (p.id && p.id !== userId) {
@@ -5140,6 +5203,33 @@
                     }
                 } catch (e) {
                     console.warn('Could not fetch student profiles for name resolution:', e);
+                }
+
+                // Second pass: students whose profile has a blank or mismatched
+                // school_version/role are invisible to the scoped query above —
+                // fetch their profiles directly by user id so they still appear
+                try {
+                    const unresolvedIds = [...allStudentIds].filter(id => id && !profileMap[id]);
+                    for (let i = 0; i < unresolvedIds.length; i += 15) {
+                        const chunk = unresolvedIds.slice(i, i + 15);
+                        const f = chunk.map(id => `user="${id}" || id="${id}"`).join(' || ');
+                        const extra = await dataService.pb.collection('profiles').getFullList({ filter: f });
+                        for (const p of extra) {
+                            const uid = p.user || p.id;
+                            const entry = {
+                                fullName: p.full_name || p.name || p.username || 'Unknown',
+                                targetClass: p.class_level || p.target_class || p.class || ''
+                            };
+                            if (!profileMap[uid]) profileMap[uid] = entry;
+                            if (p.id && !profileMap[p.id]) profileMap[p.id] = entry;
+                        }
+                    }
+                    const stillMissing = [...allStudentIds].filter(id => id && !profileMap[id]);
+                    if (stillMissing.length) {
+                        console.warn('[GeneralResults] No profile found for student ids (name/class from result snapshots):', stillMissing);
+                    }
+                } catch (e) {
+                    console.warn('[GeneralResults] Fallback profile fetch failed:', e);
                 }
 
                 // Aggregate: studentId -> { name, class, scores: { examId: score } }
@@ -5191,14 +5281,22 @@
                     scores: data.scores
                 })).sort((a, b) => a.name.localeCompare(b.name));
 
-                // Populate class filter from student classes + exam target classes
+                // Populate class filter from student classes + exam target classes.
+                // De-duplicated by normalized form so "JSS 1" and "JSS1" don't
+                // become two competing options.
                 const classFilter = document.getElementById('results-class-filter');
-                const classesFromStudents = allResultsData.map(s => s.className).filter(c => c && c !== 'N/A');
-                const classesFromExams = allExams.map(e => e.targetClass).filter(Boolean);
-                const uniqueClasses = [...new Set([...classesFromStudents, ...classesFromExams])].sort();
+                const classesFromStudents = allResultsData.map(s => s.className).filter(c => c && c !== 'N/A' && c !== 'All');
+                const classesFromExams = allExams.map(e => e.targetClass).filter(c => c && c !== 'All');
+                const seenNormClasses = new Set();
+                const uniqueClasses = [...classesFromStudents, ...classesFromExams].filter(c => {
+                    const key = normalizeClassName(c);
+                    if (seenNormClasses.has(key)) return false;
+                    seenNormClasses.add(key);
+                    return true;
+                }).sort();
                 classFilter.innerHTML = '<option value="All">All Classes</option>';
                 uniqueClasses.forEach(cls => {
-                    classFilter.innerHTML += `<option value="${cls}">${cls}</option>`;
+                    classFilter.innerHTML += `<option value="${escapeHtml(cls)}">${escapeHtml(cls)}</option>`;
                 });
 
                 // Term filter always offers the canonical CBT terms
@@ -5230,6 +5328,11 @@
             }
         };
 
+        // Format-proof class comparison: "JSS 1", "JSS1" and "jss1" all match
+        function normalizeClassName(value) {
+            return String(value || '').toUpperCase().replace(/[\s.-]+/g, '');
+        }
+
         // Exam columns visible under the current term filter. Exam titles
         // hold the term, matched via Utils.normalizeTerm so legacy titles
         // like "First Term" or "term 2" still land in the right bucket.
@@ -5245,8 +5348,9 @@
             const visibleCols = getVisibleResultColumns();
 
             filteredResultsData = allResultsData.filter(student => {
-                // Class filter
-                if (classFilter !== 'All' && student.className !== classFilter) return false;
+                // Class filter — normalized so formatting differences
+                // ("JSS 1" vs "JSS1") can't hide a student
+                if (classFilter !== 'All' && normalizeClassName(student.className) !== normalizeClassName(classFilter)) return false;
                 // Search filter
                 if (searchQuery && !student.name.toLowerCase().includes(searchQuery)) return false;
                 // Hide students with no scores in the selected term
@@ -5276,9 +5380,9 @@
                     <th style="padding: 12px 10px; text-align: left; font-weight: 600; white-space: nowrap;">Class</th>
             `;
             visibleCols.forEach(exam => {
-                const label = (exam.subject || exam.title)
-                    + (showTermInLabel && exam.subject ? `<br><small style="font-weight:400; opacity:0.85;">${exam.title}</small>` : '');
-                headerHtml += `<th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${exam.title} (${exam.subject})">${label}</th>`;
+                const label = escapeHtml(exam.subject || exam.title)
+                    + (showTermInLabel && exam.subject ? `<br><small style="font-weight:400; opacity:0.85;">${escapeHtml(exam.title)}</small>` : '');
+                headerHtml += `<th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(exam.title)} (${escapeHtml(exam.subject || exam.title)})">${label}</th>`;
             });
             headerHtml += `
                     <th style="padding: 12px 10px; text-align: center; font-weight: 600; white-space: nowrap; background: rgba(255,255,255,0.1);">Total</th>
@@ -5297,8 +5401,8 @@
                 let rowHtml = `
                     <tr style="background: ${rowBg}; transition: background 0.2s;" onmouseover="this.style.background='rgba(74,144,200,0.08)'" onmouseout="this.style.background='${rowBg}'">
                         <td style="padding: 10px; font-weight: 600; color: var(--light-text);">${index + 1}</td>
-                        <td style="padding: 10px; font-weight: 500;">${student.name}</td>
-                        <td style="padding: 10px; color: var(--light-text);">${student.className}</td>
+                        <td style="padding: 10px; font-weight: 500;">${escapeHtml(student.name)}</td>
+                        <td style="padding: 10px; color: var(--light-text);">${escapeHtml(student.className)}</td>
                 `;
 
                 visibleCols.forEach(exam => {
@@ -5368,11 +5472,11 @@
                     if (scoreData) {
                         const pct = scoreData.score;
                         const color = scoreData.passed ? '#28a745' : (pct >= 40 ? '#ffc107' : '#dc3545');
-                        const label = (exam.subject || exam.title)
-                            + (showTermInLabel && exam.subject ? ` · ${exam.title}` : '');
+                        const label = escapeHtml(exam.subject || exam.title)
+                            + (showTermInLabel && exam.subject ? ` · ${escapeHtml(exam.title)}` : '');
                         scoresHtml += `
                             <div class="result-card-score-item">
-                                <span class="result-card-subject" title="${exam.title} (${exam.subject})">${label}</span>
+                                <span class="result-card-subject" title="${escapeHtml(exam.title)} (${escapeHtml(exam.subject || exam.title)})">${label}</span>
                                 <span class="result-card-score-value" style="color: ${color};">${pct}%</span>
                             </div>
                         `;
@@ -5390,8 +5494,8 @@
                     <div class="result-card">
                         <div class="result-card-header">
                             <div>
-                                <div class="result-card-name"><span style="color: var(--light-text); font-weight: 400; font-size: 0.85rem;">${index + 1}.</span> ${student.name}</div>
-                                <div class="result-card-class">${student.className} &middot; ${examCount} subject${examCount !== 1 ? 's' : ''}</div>
+                                <div class="result-card-name"><span style="color: var(--light-text); font-weight: 400; font-size: 0.85rem;">${index + 1}.</span> ${escapeHtml(student.name)}</div>
+                                <div class="result-card-class">${escapeHtml(student.className)} &middot; ${examCount} subject${examCount !== 1 ? 's' : ''}</div>
                             </div>
                             <div class="result-card-avg">
                                 <div class="result-card-avg-value">${avg}</div>
