@@ -1,0 +1,312 @@
+/* ============================================================
+   BROADSHEET MODULE STYLES
+   ============================================================ */
+
+/* View switching */
+.bs-view { display: none; }
+.bs-view.active { display: block; }
+
+/* Hero section */
+.bs-hero {
+    padding: 28px 0 20px;
+}
+.bs-hero h2 {
+    margin: 0 0 8px;
+    font-size: 1.3rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+.bs-hero p {
+    margin: 0 0 20px;
+    color: var(--light-text);
+    line-height: 1.6;
+    font-size: 0.92rem;
+    max-width: 580px;
+}
+
+/* Panel */
+.bs-panel {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+/* Form grid */
+.bs-form-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.bs-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.bs-form-group label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--light-text);
+}
+.bs-form-group select,
+.bs-form-group input {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+.bs-form-group select:focus,
+.bs-form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+[data-theme="dark"] .bs-form-group select,
+[data-theme="dark"] .bs-form-group input {
+    background: var(--inner-bg, #141a20);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+/* Status text */
+.bs-gen-status {
+    margin-top: 12px;
+    font-size: 0.88rem;
+    color: var(--light-text);
+    min-height: 1.5em;
+}
+
+/* Result header (title + meta + actions) */
+.bs-result-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.bs-result-title {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--text-color);
+}
+.bs-result-meta {
+    font-size: 0.8rem;
+    color: var(--light-text);
+}
+.bs-result-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+/* ============================================================
+   BROADSHEET TABLE
+   ============================================================ */
+
+.bs-table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+.bs-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    font-size: 0.82rem;
+    color: var(--text-color);
+}
+
+.bs-table thead th {
+    position: sticky;
+    background: var(--inner-bg, #f4f6f8);
+    color: var(--light-text);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+    z-index: 2;
+}
+/* Two sticky header rows */
+.bs-table thead tr:first-child th { top: 0; }
+.bs-table thead tr:nth-child(2) th { top: 33px; }
+
+.bs-subject-group {
+    text-align: center;
+    border-left: 1px solid var(--border-color);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bs-sub-col {
+    text-align: center;
+    font-weight: 600;
+    min-width: 44px;
+}
+.bs-sub-col:first-of-type { border-left: 1px solid var(--border-color); }
+
+.bs-table tbody td,
+.bs-table tfoot td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+.bs-table tbody tr:hover td {
+    background: var(--inner-bg, #f4f6f8);
+}
+
+.bs-col-index {
+    text-align: center;
+    color: var(--light-text);
+    width: 36px;
+}
+
+/* Sticky student column */
+.bs-table .bs-col-student {
+    position: sticky;
+    left: 0;
+    background: var(--card-bg);
+    font-weight: 700;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 1;
+    border-right: 1px solid var(--border-color);
+}
+.bs-table thead .bs-col-student {
+    background: var(--inner-bg, #f4f6f8);
+    z-index: 3;
+}
+.bs-table tbody tr:hover .bs-col-student {
+    background: var(--inner-bg, #f4f6f8);
+}
+
+.bs-cell {
+    text-align: center;
+}
+.bs-cell-empty {
+    color: var(--light-text);
+    opacity: 0.6;
+}
+.bs-sub-tot {
+    font-weight: 700;
+}
+td.bs-sub-tot {
+    border-right: 1px solid var(--border-color);
+}
+.bs-avg-cell {
+    font-weight: 700;
+    color: var(--primary-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.bs-col-total {
+    text-align: center;
+    font-weight: 800;
+    border-left: 1px solid var(--border-color);
+}
+.bs-col-pct {
+    text-align: center;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+.bs-col-pos {
+    text-align: center;
+}
+
+/* Position badges */
+.bs-pos-badge {
+    display: inline-block;
+    min-width: 34px;
+    padding: 2px 8px;
+    border-radius: 50px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    background: var(--inner-bg, #f4f6f8);
+    color: var(--text-color);
+}
+.bs-pos-top1 { background: #fbc02d33; color: #b8860b; }
+.bs-pos-top2 { background: #9e9e9e33; color: #757575; }
+.bs-pos-top3 { background: #bf7f3833; color: #a05a2c; }
+[data-theme="dark"] .bs-pos-top1 { color: #f6c945; }
+[data-theme="dark"] .bs-pos-top2 { color: #b6bcc4; }
+[data-theme="dark"] .bs-pos-top3 { color: #d29561; }
+
+/* Footer row */
+.bs-table tfoot td {
+    background: var(--inner-bg, #f4f6f8);
+    font-size: 0.78rem;
+    border-bottom: none;
+}
+.bs-table tfoot .bs-col-student {
+    background: var(--inner-bg, #f4f6f8);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.7rem;
+    color: var(--light-text);
+}
+
+/* ============================================================
+   PRINT — hide app chrome, show only the active broadsheet
+   ============================================================ */
+@media print {
+    .app-sidebar,
+    .sidebar-overlay,
+    .app-topbar,
+    .bs-hero,
+    .bs-form-panel,
+    .bs-result-actions {
+        display: none !important;
+    }
+    .app-main-wrapper,
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .bs-panel {
+        border: none;
+        padding: 0;
+    }
+    .bs-table-scroll {
+        overflow: visible;
+        max-height: none;
+        border: none;
+    }
+    .bs-table {
+        font-size: 0.68rem;
+    }
+    .bs-table thead th {
+        position: static;
+    }
+    .bs-table .bs-col-student {
+        position: static;
+    }
+    body {
+        background: #fff !important;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .bs-result-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .bs-table-scroll {
+        max-height: none;
+    }
+}

@@ -18,7 +18,8 @@
         { id: 'attendance', name: 'Attendance', description: 'Daily attendance, sheets, student registration' },
         { id: 'question_bank', name: 'Question Bank', description: 'Reusable question library' },
         { id: 'report_cards', name: 'Report Cards', description: 'Term report cards, analytics' },
-        { id: 'homework', name: 'Homework', description: 'Assignments, submissions, grading' }
+        { id: 'homework', name: 'Homework', description: 'Assignments, submissions, grading' },
+        { id: 'broadsheet', name: 'Broadsheet', description: 'Class-wide term & session performance sheets' }
     ];
 
     const masterAdmin = {
