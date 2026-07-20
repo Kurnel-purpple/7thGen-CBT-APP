@@ -83,7 +83,7 @@ export const clientConfig = {
     },
 
     modules: {
-        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework', 'broadsheet'],
+        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework'],
         settings: {}
     },
 

@@ -249,11 +249,8 @@ class DataService {
      * Falls back to persisted offset, then returns null if no trusted time is available.
      */
     getTrustedNow() {
-        // A corrupted persisted offset (NaN) would yield an Invalid Date whose
-        // toISOString() throws — guard so callers always get a valid Date or null
-        if (this._serverTimeOffsetMs !== null && Number.isFinite(this._serverTimeOffsetMs)) {
-            const d = new Date(Date.now() + this._serverTimeOffsetMs);
-            return isNaN(d.getTime()) ? null : d;
+        if (this._serverTimeOffsetMs !== null) {
+            return new Date(Date.now() + this._serverTimeOffsetMs);
         }
         return null;
     }
@@ -1807,14 +1804,8 @@ class DataService {
             const answers = row.answers || {};
             const { score: objectivePoints, totalPoints: objectiveTotalPoints } = this._gradeExamAnswers(exam, answers);
             const { theoryPoints, theoryTotalPoints } = this._getTheoryScoreSummary(exam, flags);
-            // CA (continuous assessment) lives outside the exam questions —
-            // carry it through the regrade instead of wiping it
-            const caScoreParsed = Number(flags._caScore);
-            const caTotalParsed = Number(flags._caTotal);
-            const caPoints = Number.isFinite(caScoreParsed) ? caScoreParsed : 0;
-            const caTotalPoints = Number.isFinite(caTotalParsed) ? caTotalParsed : 0;
-            const totalPoints = Number(objectiveTotalPoints) + Number(theoryTotalPoints) + caTotalPoints;
-            const pointsScored = Number(objectivePoints) + Number(theoryPoints) + caPoints;
+            const totalPoints = Number(objectiveTotalPoints) + Number(theoryTotalPoints);
+            const pointsScored = Number(objectivePoints) + Number(theoryPoints);
             const passScore = exam.passScore ?? 50;
             const percentage = totalPoints > 0 ? Math.round((pointsScored / totalPoints) * 100) : 0;
 
@@ -1871,9 +1862,7 @@ class DataService {
             total_points: resultData.totalPoints,
             answers: resultData.answers,
             flags,
-            // Trusted server time when available — a hall computer with a
-            // wrong clock must not stamp submissions in the past/future
-            submitted_at: (this.getTrustedNow() || new Date()).toISOString(),
+            submitted_at: new Date().toISOString(),
             ...examSnapshot
         };
 

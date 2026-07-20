@@ -131,31 +131,11 @@
 
         // 2. Get all completed results for this class
         //    Results store exam snapshots, so we can filter by target_class and subject
-        // Fail closed: report cards must grade from complete, live data.
-        // Generating from partial results (or without knowing which exams are
-        // deleted) silently writes wrong cards over good drafts.
         var allResults = [];
         try {
-            // forceRefresh: never a stale IndexedDB cache
-            allResults = await ds.getResults({ forceRefresh: true });
+            allResults = await ds.getResults({});
         } catch (e) {
-            console.error('[ReportCards] Failed to fetch results:', e);
-            throw new Error('Could not load exam results — report cards were NOT generated. Check your connection and try again.');
-        }
-
-        // Results belonging to soft-deleted exams stay in the database for
-        // record-keeping, but they must NOT grade report cards — a scrapped
-        // exam's results were inflating subject totals (e.g. ICT at 42.6/60
-        // when the only real ICT exam totals 30).
-        var deletedExamIds = new Set();
-        try {
-            var examSummariesForDeleted = await ds.getExamSummaries({ includeDeleted: true, forceRefresh: true });
-            (examSummariesForDeleted || []).forEach(function(ex) {
-                if (ex && ex.extensions && ex.extensions._deleted) deletedExamIds.add(ex.id);
-            });
-        } catch (e) {
-            console.error('[ReportCards] Could not resolve deleted exams:', e);
-            throw new Error('Could not verify which exams are deleted — report cards were NOT generated. Check your connection and try again.');
+            console.warn('[ReportCards] Failed to fetch results:', e);
         }
 
         // Build exam title lookup for results missing snapshot data
@@ -183,15 +163,6 @@
         // Returns which term (1, 2, 3) a text mentions, or null if it has no term signature.
         function detectTerm(text) {
             if (!text) return null;
-            // Canonical mapping first (Utils.CBT_TERMS) — also catches bare
-            // titles like "SECOND" or "2nd" that lack the word "term", which
-            // otherwise leak into every term's report via include-by-default
-            if (window.Utils && typeof Utils.normalizeTerm === 'function') {
-                var canon = Utils.normalizeTerm(text);
-                if (canon === '1st Term') return 1;
-                if (canon === '2nd Term') return 2;
-                if (canon === '3rd Term') return 3;
-            }
             var t = String(text).toLowerCase();
             if (/\b(1st|first|one)\s*term\b|\bterm\s*(1|one)\b/.test(t)) return 1;
             if (/\b(2nd|second|two)\s*term\b|\bterm\s*(2|two)\b/.test(t)) return 2;
@@ -205,7 +176,6 @@
         var classResults = allResults.filter(function(r) {
             if (!studentIdSet.has(r.studentId)) return false;
             if (r.status !== 'completed') return false;
-            if (r.examId && deletedExamIds.has(r.examId)) return false;
             if (!term) return true;
 
             // 1. Explicit term field on result — exact match required
@@ -233,73 +203,18 @@
             return true;
         });
 
-        // De-duplicate: one result per (student, exam), keeping the most
-        // recent submission. Offline-sync retries and retake flows can leave
-        // duplicate records for the same exam, which double the subject's
-        // score AND total (e.g. a 30-point ICT exam showing as /60).
-        var dedupedByKey = {};
-        classResults.forEach(function(r) {
-            var key = r.studentId + '::' + (r.examId || (r.examSubject + '|' + r.examTitle));
-            var prev = dedupedByKey[key];
-            var rTime = new Date(r.submittedAt || 0).getTime() || 0;
-            var pTime = prev ? (new Date(prev.submittedAt || 0).getTime() || 0) : -1;
-            if (!prev || rTime >= pTime) dedupedByKey[key] = r;
-        });
-        classResults = Object.keys(dedupedByKey).map(function(k) { return dedupedByKey[k]; });
-
-        // Diagnostic: which exams grade each subject (check DevTools console
-        // when a subject total looks doubled — every contributing exam is listed)
-        var subjectBreakdown = {};
-        classResults.forEach(function(r) {
-            var subj = r.examSubject || 'Unknown';
-            var label = (r.examTitle || 'untitled') + ' [' + (r.examId || 'no-id') + '] /' + (r.totalPoints || 0) + 'pts';
-            if (!subjectBreakdown[subj]) subjectBreakdown[subj] = {};
-            subjectBreakdown[subj][label] = (subjectBreakdown[subj][label] || 0) + 1;
-        });
-        console.log('[ReportCards] Exams grading each subject:', subjectBreakdown);
-
         // 3. Group results by student, then by subject
         var studentSubjectScores = {};
         students.forEach(function(s) { studentSubjectScores[s.id] = {}; });
-
-        // CA (continuous assessment) component of a result. Prefer the
-        // dedicated CA field entered on the exam results page; fall back to
-        // the legacy convention (manual theory score counted as CA) for
-        // results saved before the CA input existed.
-        function extractCaPoints(r) {
-            var flags = (r && r.flags) || {};
-            var ca = parseFloat(flags._caScore);
-            if (isFinite(ca)) return ca;
-            var manual = parseFloat(flags._manualTheoryScore);
-            if (isFinite(manual)) return manual;
-            var theoryScores = flags._theoryScores;
-            if (theoryScores && typeof theoryScores === 'object') {
-                var sum = 0;
-                Object.keys(theoryScores).forEach(function(k) {
-                    var v = parseFloat(theoryScores[k]);
-                    if (isFinite(v)) sum += v;
-                });
-                return sum;
-            }
-            return 0;
-        }
 
         classResults.forEach(function(r) {
             var sid = r.studentId;
             var subject = r.examSubject || 'Unknown';
             if (!studentSubjectScores[sid]) studentSubjectScores[sid] = {};
             if (!studentSubjectScores[sid][subject]) {
-                studentSubjectScores[sid][subject] = { scores: [], caScores: [], totalPoints: [] };
+                studentSubjectScores[sid][subject] = { scores: [], totalPoints: [] };
             }
-            // result.score is stored as a PERCENTAGE (0–100), not raw marks —
-            // convert to raw points against the exam's total so subject sums
-            // like "13.5 / 30" stay dimensionally sane (was producing 63/15).
-            var rawPoints = ((r.score || 0) / 100) * (r.totalPoints || 0);
-            rawPoints = Math.round(rawPoints * 10) / 10;
-            // CA can never exceed what was actually scored on the result
-            var caPoints = Math.min(extractCaPoints(r), rawPoints);
-            studentSubjectScores[sid][subject].scores.push(rawPoints);
-            studentSubjectScores[sid][subject].caScores.push(Math.round(caPoints * 10) / 10);
+            studentSubjectScores[sid][subject].scores.push(r.score || 0);
             studentSubjectScores[sid][subject].totalPoints.push(r.totalPoints || 0);
         });
 
@@ -332,18 +247,12 @@
             var subjects = Object.keys(subjectMap).map(function(subject) {
                 var data = subjectMap[subject];
                 var totalScore = data.scores.reduce(function(a, b) { return a + b; }, 0);
-                totalScore = Math.round(totalScore * 10) / 10;
                 var totalPossible = data.totalPoints.reduce(function(a, b) { return a + b; }, 0);
                 var percentage = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
                 var grade = computeGrade(percentage);
-                var caScore = (data.caScores || []).reduce(function(a, b) { return a + b; }, 0);
-                caScore = Math.round(caScore * 10) / 10;
-                var examScore = Math.max(0, Math.round((totalScore - caScore) * 10) / 10);
                 return {
                     name: subject,
                     score: totalScore,
-                    caScore: caScore,
-                    examScore: examScore,
                     totalPossible: totalPossible,
                     percentage: percentage,
                     grade: grade.letter,
@@ -412,24 +321,6 @@
     // CRUD — save/load/publish report cards
     // ================================================================
 
-    // Find previously saved card(s) for the same student/class/term/session,
-    // newest first — regeneration must update in place, not stack duplicates.
-    async function findExistingCards(payload) {
-        if (_collectionMissing) return null;
-        try {
-            var f = 'student_id="' + payload.student_id + '" && class_level="' + payload.class_level + '" && term="' + payload.term + '"';
-            if (payload.session) f += ' && session="' + payload.session + '"';
-            if (payload.school_version) f += ' && school_version="' + payload.school_version + '"';
-            var rows = await ds.pb.collection(COLLECTION).getFullList({ filter: f, sort: '-updated' });
-            if (!rows || rows.length === 0) return null;
-            return { keep: rows[0], extraIds: rows.slice(1).map(function(r) { return r.id; }) };
-        } catch (error) {
-            if (isMissingCollection(error)) markCollectionMissing();
-            else console.warn('[ReportCards] Existing-card lookup failed:', error);
-            return null;
-        }
-    }
-
     ds.saveReportCard = async function(cardData) {
         var school = ds.getSchoolContext() || {};
         var payload = serializeReportCard(cardData);
@@ -438,22 +329,6 @@
         // Skip PocketBase if we already know the collection is missing
         if (!_collectionMissing) {
             try {
-                // Upsert: a regenerated card has no id — adopt the stored
-                // card's id (and its human-entered remarks) instead of
-                // creating a duplicate draft
-                if (!cardData.id) {
-                    var existing = await findExistingCards(payload);
-                    if (existing) {
-                        cardData.id = existing.keep.id;
-                        if (!payload.teacher_remarks) payload.teacher_remarks = existing.keep.teacher_remarks || '';
-                        if (!payload.principal_remarks) payload.principal_remarks = existing.keep.principal_remarks || '';
-                        // Sweep older duplicates left by previous generates
-                        for (var d = 0; d < existing.extraIds.length; d++) {
-                            try { await ds.pb.collection(COLLECTION).delete(existing.extraIds[d]); } catch (e) { /* best effort */ }
-                        }
-                    }
-                }
-
                 if (cardData.id) {
                     var updated = await ds.pb.collection(COLLECTION).update(cardData.id, payload);
                     return mapReportCard(updated);
@@ -470,25 +345,13 @@
         var localCards = readLocalReportCards();
         var now = new Date().toISOString();
 
-        // Local upsert: match by id, or by student/class/term/session
-        var idx = -1;
         if (cardData.id) {
-            idx = localCards.findIndex(function(c) { return c.id === cardData.id; });
-        }
-        if (idx === -1) {
-            idx = localCards.findIndex(function(c) {
-                return c.student_id === payload.student_id &&
-                    c.class_level === payload.class_level &&
-                    c.term === payload.term &&
-                    (c.session || '') === (payload.session || '');
-            });
-        }
-        if (idx !== -1) {
-            if (!payload.teacher_remarks) payload.teacher_remarks = localCards[idx].teacher_remarks || '';
-            if (!payload.principal_remarks) payload.principal_remarks = localCards[idx].principal_remarks || '';
-            localCards[idx] = { ...localCards[idx], ...payload, updated: now };
-            writeLocalReportCards(localCards);
-            return mapReportCard(localCards[idx]);
+            var idx = localCards.findIndex(function(c) { return c.id === cardData.id; });
+            if (idx !== -1) {
+                localCards[idx] = { ...localCards[idx], ...payload, updated: now };
+                writeLocalReportCards(localCards);
+                return mapReportCard(localCards[idx]);
+            }
         }
 
         var localRecord = {

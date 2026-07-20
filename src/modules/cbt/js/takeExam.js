@@ -1667,7 +1667,7 @@ const takeExam = {
                     exam_duration: resultData.examSnapshot?.duration ?? null,
                     exam_has_theory: !!resultData.examSnapshot?.hasTheory,
                     exam_theory_count: resultData.examSnapshot?.theoryCount ?? 0,
-                    submitted_at: ((dataService.getTrustedNow && dataService.getTrustedNow()) || new Date()).toISOString()
+                    submitted_at: new Date().toISOString()
                 };
                 pending.push(submission);
                 localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
