@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>Report Card</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../modules/report_cards/css/report-card-document.css">
+    <style>
+        /* The page around the sheet. The sheet itself is always paper-white;
+           only this backdrop follows the app theme. */
+        .rcd-page {
+            min-height: 100vh;
+            background: var(--background-color, #f0f2f5);
+            padding: 0 0 96px;
+        }
+
+        .rcd-bar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .rcd-bar-title {
+            margin: 0;
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .rcd-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+        .rcd-icon-btn:hover { background: var(--inner-bg, rgba(0, 0, 0, 0.05)); }
+
+        .rcd-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .rcd-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 40px;
+            padding: 9px 18px;
+            border: none;
+            border-radius: 50px;
+            background: var(--primary-color);
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .rcd-btn:hover { opacity: 0.9; }
+        .rcd-btn:active { transform: scale(0.97); }
+
+        /* Drop-shadowed sheet so it reads as a document on the page */
+        .rcd-stage { padding: 24px 16px; }
+        .rcd-stage .rcd-sheet {
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+            border-radius: 4px;
+        }
+        [data-theme="dark"] .rcd-stage .rcd-sheet {
+            box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5);
+        }
+
+        .rcd-state {
+            padding: 64px 24px;
+            text-align: center;
+            color: var(--light-text);
+        }
+        .rcd-state h2 {
+            margin: 12px 0 6px;
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            color: var(--text-color);
+        }
+
+        /* Mobile: actions move to a fixed bar so the sheet gets the screen */
+        @media (max-width: 768px) {
+            .rcd-stage { padding: 12px 8px; }
+            .rcd-bar .rcd-actions { display: none; }
+            .rcd-mobile-actions {
+                display: flex;
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 90;
+                gap: 8px;
+                padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+                background: var(--card-bg);
+                border-top: 1px solid var(--border-color);
+            }
+            .rcd-mobile-actions .rcd-btn { flex: 1; justify-content: center; }
+        }
+        .rcd-mobile-actions { display: none; }
+    </style>
+</head>
+
+<body>
+    <div class="rcd-page">
+        <header class="rcd-bar rcd-no-print">
+            <button class="rcd-icon-btn" id="rcd-back" aria-label="Go back" title="Go back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </button>
+            <h1 class="rcd-bar-title" id="rcd-title">Report Card</h1>
+            <div class="rcd-actions">
+                <button class="rcd-btn" id="rcd-download">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download PDF
+                </button>
+            </div>
+        </header>
+
+        <main class="rcd-stage rcd-host" id="rcd-stage">
+            <div class="rcd-state rcd-no-print" id="rcd-loading">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <h2>Loading report card&hellip;</h2>
+            </div>
+        </main>
+
+        <nav class="rcd-mobile-actions rcd-no-print">
+            <button class="rcd-btn" id="rcd-download-mobile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download PDF
+            </button>
+        </nav>
+    </div>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        function stage(html) {
+            document.getElementById('rcd-stage').innerHTML = html;
+        }
+
+        function stateBlock(title, message) {
+            return '<div class="rcd-state rcd-no-print">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">' +
+                '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+                '<h2>' + title + '</h2><p>' + message + '</p></div>';
+        }
+
+        function goBack() {
+            if (window.history.length > 1) window.history.back();
+            else window.location.href = 'admin-dashboard.html';
+        }
+
+        document.getElementById('rcd-back').addEventListener('click', goBack);
+        document.getElementById('rcd-download').addEventListener('click', () => window.print());
+        document.getElementById('rcd-download-mobile').addEventListener('click', () => window.print());
+
+        try {
+            const ok = await bootstrapModulePage({
+                moduleId: 'report_cards',
+                moduleName: 'Report Cards',
+                title: 'Report Cards module is not enabled',
+                message: 'The report cards feature is not available for this school configuration.',
+                currentModuleId: 'report_cards',
+                renderNav: false,
+                globalScripts: [
+                    '../core/shared/academicEntities.js',
+                    '../js/utils.js',
+                    '../js/dataService.js',
+                    '../js/auth.js'
+                ],
+                moduleScripts: [
+                    '../modules/report_cards/js/reportCardDataService.js',
+                    '../modules/report_cards/js/reportCardTemplate.js',
+                    '../modules/report_cards/js/reportCardDocument.js'
+                ]
+            });
+
+            if (!ok) throw new Error('module disabled');
+
+            const cardId = new URLSearchParams(window.location.search).get('id');
+            if (!cardId) {
+                stage(stateBlock('No report card selected', 'This page needs a report card to show. Open it from the results list.'));
+                throw new Error('missing id');
+            }
+
+            // Template first so the letterhead is right on the first paint;
+            // it fails soft to defaults if app_settings is unreachable.
+            const [card, template] = await Promise.all([
+                dataService.getReportCardById(cardId),
+                dataService.loadReportCardTemplate()
+            ]);
+
+            if (!card) {
+                stage(stateBlock('Report card not found', 'It may have been deleted, or you may not have access to it.'));
+                throw new Error('not found');
+            }
+
+            document.title = (card.studentName || 'Report Card') + ' — ' +
+                [card.classLevel, card.term].filter(Boolean).join(' ');
+            document.getElementById('rcd-title').textContent = card.studentName || 'Report Card';
+
+            stage(window.reportCardDocument.render(card, template));
+
+            // Print straight away when asked (?print=1), e.g. from a list's
+            // download action, so it is one tap rather than two.
+            if (new URLSearchParams(window.location.search).get('print') === '1') {
+                setTimeout(() => window.print(), 350);
+            }
+        } catch (err) {
+            console.error('[ReportCardPrint]', err);
+        }
+    </script>
+</body>
+
+</html>

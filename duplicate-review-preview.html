@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Review — Preview</title>
+    <link rel="stylesheet" href="src/css/main.css">
+    <style>
+        body { padding: 32px; font-family: var(--font-body, system-ui); }
+        h1 { font-size: 1.2rem; margin: 0 0 6px; }
+        p.lead { color: var(--light-text); font-size: 0.9rem; margin: 0 0 22px; max-width: 620px; line-height: 1.6; }
+        .pv-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .pv-row button {
+            padding: 10px 18px; border-radius: 50px; border: 1.5px solid var(--border-color);
+            background: var(--card-bg); color: var(--text-color); font: inherit; font-size: 0.85rem;
+            font-weight: 700; cursor: pointer;
+        }
+        .pv-row button:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        pre { background: var(--inner-bg, #f4f6f8); padding: 14px; border-radius: 10px;
+              font-size: 0.78rem; overflow-x: auto; max-width: 720px; }
+    </style>
+</head>
+
+<body>
+    <h1>Duplicate Review — preview</h1>
+    <p class="lead">The real <code>duplicateReview.js</code> and <code>questionSimilarity.js</code>, driven with
+        sample data. Scores shown are computed by the actual engine, not hard-coded.</p>
+
+    <div class="pv-row">
+        <button onclick="showImportReview()">Import review (exam → bank)</button>
+        <button onclick="showSingleReview()">Single question warning</button>
+        <button onclick="showClusterReview()">Find Duplicates (bank scan)</button>
+        <button onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">Toggle dark mode</button>
+    </div>
+
+    <pre id="pv-out">Choose a dialog above. The decision it returns is printed here.</pre>
+
+    <script src="src/modules/question_bank/js/questionSimilarity.js"></script>
+    <script src="src/modules/question_bank/js/duplicateReview.js"></script>
+    <script>
+        const out = document.getElementById('pv-out');
+        function report(label, value) {
+            out.textContent = label + ' returned:\n\n' + JSON.stringify(value, null, 2);
+        }
+
+        // Bank questions, as mapQuestion() would return them
+        const bank = [
+            { id: 'r1', text: 'What is the capital of Nigeria?', subject: 'Geography', term: '2nd Term',
+              type: 'mcq', options: [{ text: 'Lagos' }, { text: 'Abuja' }], answer: 'b',
+              createdAt: '2026-01-14', source: 'exam_import' },
+            { id: 'r2', text: 'Name the longest river in Africa', subject: 'Geography', term: '2nd Term',
+              type: 'mcq', options: [{ text: 'Nile' }, { text: 'Niger' }], answer: 'a', createdAt: '2026-02-02' },
+            { id: 'r3', text: 'Which organ pumps blood around the human body?', subject: 'Geography',
+              term: '', type: 'mcq', options: [{ text: 'Liver' }, { text: 'Heart' }], answer: 'b',
+              createdAt: '2026-03-11' }
+        ];
+
+        function conflictFor(incoming, index) {
+            const matches = QuestionSimilarity.findMatches(incoming, bank, { limit: 5 });
+            return { index: index, question: incoming, matches: matches };
+        }
+
+        async function showImportReview() {
+            const incoming = [
+                { text: 'what is the capital of nigeria', type: 'mcq',
+                  options: [{ text: 'Lagos' }, { text: 'Abuja' }], answer: 'b' },
+                { text: 'Which organ pumps blood arround the human body?', type: 'mcq',
+                  options: [{ text: 'Kidney' }, { text: 'Heart' }], answer: 'b' }
+            ];
+            const conflicts = incoming.map(conflictFor).filter(c => c.matches.length > 0);
+            const decisions = await DuplicateReview.open(conflicts, {
+                title: 'Possible duplicates found',
+                subtitle: conflicts.length + ' of 12 questions in "2nd Term · Geography" look like questions '
+                    + 'already in the Question Bank. Choose what to do with each.',
+                cleanCount: 10
+            });
+            report('DuplicateReview.open', decisions);
+        }
+
+        async function showSingleReview() {
+            const question = {
+                text: 'What is the capital of Nigeria', type: 'mcq',
+                options: [{ text: 'Kano' }, { text: 'Abuja' }], answer: 'b'
+            };
+            const matches = QuestionSimilarity.findMatches(question, bank, { limit: 5 });
+            const decisions = await DuplicateReview.open([{ index: 0, question, matches }], {
+                title: 'This looks like a question you already have',
+                subtitle: 'Found in the same subject and term. Choose what to keep.',
+                cleanCount: 0
+            });
+            report('DuplicateReview.open (single)', decisions);
+        }
+
+        async function showClusterReview() {
+            const dupes = [
+                { id: 'd1', text: 'What is the capital of Nigeria?', createdAt: '2026-01-14', source: 'exam_import' },
+                { id: 'd2', text: 'what is the capital of nigeria', createdAt: '2026-02-20', source: 'question_bank' },
+                { id: 'd3', text: 'What is the capital of Nigeria',  createdAt: '2026-03-01', source: 'exam_import' }
+            ];
+            const dupes2 = [
+                { id: 'e1', text: 'Define photosynthesis.', createdAt: '2026-01-05', source: 'question_bank' },
+                { id: 'e2', text: 'Define photosynthesis',  createdAt: '2026-04-09', source: 'exam_import' }
+            ];
+            const clusters = [
+                { subject: 'Geography', term: '2nd Term', score: QuestionSimilarity.scoreText(dupes[0].text, dupes[1].text), questions: dupes },
+                { subject: 'Biology', term: '1st Term', score: QuestionSimilarity.scoreText(dupes2[0].text, dupes2[1].text), questions: dupes2 }
+            ];
+            const ids = await DuplicateReview.openClusters(clusters);
+            report('DuplicateReview.openClusters', ids);
+        }
+    </script>
+</body>
+
+</html>

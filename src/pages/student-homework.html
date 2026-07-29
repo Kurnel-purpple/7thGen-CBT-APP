@@ -88,6 +88,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
 
+                <!-- Mobile page title: homework.css hides .hw-page-head under
+                     768px, and this page shares that stylesheet. -->
+                <h1 class="hw-topbar-title">My Homework</h1>
+
                 <div class="topbar-search">
                     <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="text" class="topbar-search-input" placeholder="Search assignments..." id="hw-student-search">
@@ -128,6 +132,21 @@
             </main>
         </div>
     </div>
+
+    <!-- Mobile bottom nav. A student's page is read-mostly, so the verbs are
+         leaving and re-checking for newly published work — the topbar search is
+         hidden under 768px by main.css, so there is nothing else up there to
+         act on. Hidden above 768px by .bottom-nav. -->
+    <nav class="bottom-nav" role="navigation" aria-label="Homework actions">
+        <button class="bottom-nav-item" type="button" onclick="Utils.goBack()" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item" type="button" onclick="window.studentHomework?.refresh()" aria-label="Refresh assignments">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <span>Refresh</span>
+        </button>
+    </nav>
 
     <!-- Response modal (submit / edit) -->
     <div class="hw-modal" id="hw-response-modal" role="dialog" aria-modal="true" aria-labelledby="hw-response-title" hidden>

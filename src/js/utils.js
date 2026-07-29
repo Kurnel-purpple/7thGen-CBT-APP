@@ -30,6 +30,162 @@ const Utils = {
     },
 
     /**
+     * Optional term calendar override, populated at runtime from admin
+     * settings (see DataService.loadTermCalendar / Utils.setTermCalendar).
+     * When null, getCurrentTerm falls back to the built-in month-based rule.
+     * Shape: { session?: string, terms: [{ term, start:'YYYY-MM-DD', end:'YYYY-MM-DD' }, ...] }
+     */
+    termCalendar: null,
+
+    /**
+     * Install (or clear) the admin-configured term calendar. Accepts the raw
+     * settings object; keeps only well-formed term ranges. Pass null/undefined
+     * to revert to the month-based default.
+     * @param {Object|null} cal
+     */
+    setTermCalendar: (cal) => {
+        if (!cal || !Array.isArray(cal.terms)) { Utils.termCalendar = null; return; }
+        const terms = cal.terms
+            .map((t) => ({
+                term: Utils.normalizeTerm(t && t.term),
+                start: t && t.start ? String(t.start).slice(0, 10) : '',
+                end: t && t.end ? String(t.end).slice(0, 10) : ''
+            }))
+            .filter((t) => t.term && t.start && t.end);
+        Utils.termCalendar = terms.length ? { session: cal.session || '', terms } : null;
+    },
+
+    /**
+     * Month-based fallback mapping (no gaps — every month belongs to a term):
+     *   Aug–Dec → 1st Term, Jan–Mar → 2nd Term, Apr–Jul → 3rd Term.
+     * @param {number} month 1-12
+     * @returns {string} canonical term
+     */
+    termForMonth: (month) => {
+        if (month >= 8 && month <= 12) return '1st Term';
+        if (month >= 1 && month <= 3) return '2nd Term';
+        return '3rd Term';
+    },
+
+    /**
+     * Determine the current school term for a given date (defaults to now).
+     * Uses the admin-configured calendar when available — a date inside a
+     * configured range returns that term; during holiday gaps it falls back to
+     * the most recently started term. Without a calendar it uses the
+     * month-based rule (termForMonth).
+     * @param {Date|string} [date]
+     * @returns {string} '1st Term' | '2nd Term' | '3rd Term'
+     */
+    getCurrentTerm: (date) => {
+        const d = date ? new Date(date) : new Date();
+        if (isNaN(d.getTime())) return Utils.termForMonth(new Date().getMonth() + 1);
+        const cal = Utils.termCalendar;
+        if (cal && Array.isArray(cal.terms) && cal.terms.length) {
+            const ts = d.getTime();
+            // Exact match: date inside a configured [start, end] range.
+            for (const t of cal.terms) {
+                const s = new Date(t.start + 'T00:00:00').getTime();
+                const e = new Date(t.end + 'T23:59:59').getTime();
+                if (ts >= s && ts <= e) return t.term;
+            }
+            // Holiday gap: fall back to the most recently started term.
+            let best = null;
+            let bestStart = -Infinity;
+            for (const t of cal.terms) {
+                const s = new Date(t.start + 'T00:00:00').getTime();
+                if (s <= ts && s > bestStart) { bestStart = s; best = t; }
+            }
+            // Before the earliest configured start → holiday before 1st term,
+            // i.e. the tail end of the previous session's last term.
+            if (best) return best.term;
+            return cal.terms
+                .slice()
+                .sort((a, b) => Utils.CBT_TERMS.indexOf(b.term) - Utils.CBT_TERMS.indexOf(a.term))[0].term;
+        }
+        return Utils.termForMonth(d.getMonth() + 1);
+    },
+
+    /**
+     * Current academic session label, e.g. '2025/2026'. The school year
+     * turns over with 1st Term: from August onward the session is
+     * year/year+1; January–July it is year-1/year.
+     * @param {Date|string} [date]
+     * @returns {string}
+     */
+    getCurrentSession: (date) => {
+        const d = date ? new Date(date) : new Date();
+        const dd = isNaN(d.getTime()) ? new Date() : d;
+        const y = dd.getFullYear();
+        return (dd.getMonth() + 1) >= 8 ? y + '/' + (y + 1) : (y - 1) + '/' + y;
+    },
+
+    /**
+     * Preselect the current term on a <select> whose options include it.
+     * By default only fills when nothing meaningful is chosen (empty or a
+     * non-term placeholder like "All Terms"), so it never overrides a value
+     * the user picked. Pass { force:true } (or data-default-term="force") to
+     * always snap to the current term.
+     * @param {HTMLSelectElement} select
+     * @param {{ force?: boolean, dispatch?: boolean }} [opts]
+     */
+    applyDefaultTerm: (select, opts) => {
+        opts = opts || {};
+        if (!select || !select.options) return;
+        const term = Utils.getCurrentTerm();
+        let match = null;
+        for (const o of Array.from(select.options)) {
+            if (Utils.normalizeTerm(o.value) === term) { match = o; break; }
+        }
+        if (!match) return;
+        const force = opts.force || select.dataset.defaultTerm === 'force';
+        if (!force && Utils.normalizeTerm(select.value)) return; // user/real term already set
+        select.value = match.value;
+        if (opts.dispatch) select.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+
+    /**
+     * The home dashboard for the signed-in user's role. Used as the fallback
+     * destination for back navigation when there is no browser history.
+     * @param {Object} [user]
+     * @returns {string} filename (pages are all in /pages/)
+     */
+    getDashboardUrl: (user) => {
+        const u = user || (window.dataService && dataService.getCurrentUser && dataService.getCurrentUser()) || {};
+        // Must agree with where auth.js sends each role at login — a
+        // super_admin landing on the admin dashboard is the wrong home.
+        if (u.role === 'super_admin') return 'master-admin.html';
+        if (u.role === 'admin') return 'admin-dashboard.html';
+        if (u.role === 'teacher') return 'teacher-dashboard.html';
+        return 'student-dashboard.html';
+    },
+
+    /**
+     * The signed-in user's home, or null when the role is not one we know.
+     * Callers that redirect on this must not guess: sending an unrecognised
+     * account to the student dashboard would bounce it straight back out.
+     */
+    getKnownDashboardUrl: (user) => {
+        const u = user || (window.dataService && dataService.getCurrentUser && dataService.getCurrentUser()) || {};
+        const known = ['super_admin', 'admin', 'teacher', 'student'];
+        return known.includes(u.role) ? Utils.getDashboardUrl(u) : null;
+    },
+
+    /**
+     * Navigate to the previous page the user came from. Prefers real browser
+     * history (so it returns to wherever they were — admin OR teacher portal),
+     * and only falls back to the role's home dashboard when there is no history.
+     * Never hard-codes a dashboard, which previously bounced admins to the
+     * teacher dashboard and got them logged out by its role guard.
+     */
+    goBack: () => {
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        window.location.href = Utils.getDashboardUrl();
+    },
+
+    /**
      * Generate a unique ID
      * @returns {string} Unique ID
      */
@@ -185,10 +341,8 @@ const Utils = {
             document.getElementById('utils-alert-message').innerHTML = message;
 
             const okBtn = document.getElementById('utils-alert-ok-btn');
-            okBtn.onclick = () => {
-                modal.style.display = 'none';
-                resolve();
-            };
+            okBtn.onclick = () => { Utils._closeModal(modal).then(resolve); };
+            modal.classList.remove('closing');
             modal.style.display = 'flex';
         });
     },
@@ -209,14 +363,9 @@ const Utils = {
             const yesBtn = document.getElementById('utils-confirm-yes-btn');
             const noBtn = document.getElementById('utils-confirm-no-btn');
 
-            yesBtn.onclick = () => {
-                modal.style.display = 'none';
-                resolve(true);
-            };
-            noBtn.onclick = () => {
-                modal.style.display = 'none';
-                resolve(false);
-            };
+            yesBtn.onclick = () => { Utils._closeModal(modal).then(() => resolve(true)); };
+            noBtn.onclick = () => { Utils._closeModal(modal).then(() => resolve(false)); };
+            modal.classList.remove('closing');
             modal.style.display = 'flex';
         });
     },
@@ -285,6 +434,23 @@ const Utils = {
     },
 
     /**
+     * Internal: hide a Utils dialog with its exit animation (slide-down on
+     * mobile, fade on desktop), then resolve once it's off-screen.
+     * @private
+     */
+    _closeModal: (modal) => {
+        return new Promise((resolve) => {
+            if (!modal) return resolve();
+            modal.classList.add('closing');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.classList.remove('closing');
+                resolve();
+            }, 270);
+        });
+    },
+
+    /**
      * Internal: Ensure modal HTML exists in document
      * @private
      */
@@ -292,8 +458,8 @@ const Utils = {
         if (document.getElementById('utils-alert-modal')) return;
 
         const modalHtml = `
-            <div id="utils-alert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-                <div style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
+            <div id="utils-alert-modal" class="utils-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div class="utils-modal-card" style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
                     <div style="background: var(--primary-color, #4a90c8); color: white; padding: 20px; text-align: center;">
                         <h3 id="utils-alert-title" style="margin: 0; font-size: 1.2rem;">Notice</h3>
                     </div>
@@ -306,9 +472,9 @@ const Utils = {
                 </div>
             </div>
 
-            <div id="utils-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-                <div style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
-                    <div style="background: #e67e22; color: white; padding: 20px; text-align: center;">
+            <div id="utils-confirm-modal" class="utils-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div class="utils-modal-card" style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
+                    <div style="background: var(--secondary-color, #1557B0); color: white; padding: 20px; text-align: center;">
                         <h3 id="utils-confirm-title" style="margin: 0; font-size: 1.2rem;">Confirm Action</h3>
                     </div>
                     <div style="padding: 30px 24px; text-align: center; color: #333;">
@@ -316,7 +482,7 @@ const Utils = {
                     </div>
                     <div style="padding: 15px 24px 24px; display: flex; justify-content: center; gap: 12px;">
                         <button id="utils-confirm-no-btn" style="background: #95a5a6; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Cancel</button>
-                        <button id="utils-confirm-yes-btn" style="background: #e67e22; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Confirm</button>
+                        <button id="utils-confirm-yes-btn" style="background: var(--secondary-color, #1557B0); color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Confirm</button>
                     </div>
                 </div>
             </div>
@@ -326,6 +492,11 @@ const Utils = {
                     0% { transform: scale(0.9); opacity: 0; }
                     100% { transform: scale(1); opacity: 1; }
                 }
+                @keyframes utils-pop-out { to { transform: scale(0.94); opacity: 0; } }
+                /* Desktop close: fade the card out */
+                .utils-modal-overlay.closing { opacity: 0; transition: opacity 0.22s ease; }
+                .utils-modal-overlay.closing .utils-modal-card { animation: utils-pop-out 0.2s ease-in forwards; }
+
                 [data-theme="dark"] #utils-alert-modal > div,
                 [data-theme="dark"] #utils-confirm-modal > div {
                     background: #2c3e50 !important;
@@ -333,6 +504,24 @@ const Utils = {
                 [data-theme="dark"] #utils-alert-message,
                 [data-theme="dark"] #utils-confirm-message {
                     color: #ecf0f1 !important;
+                }
+
+                /* Mobile: dialogs become a bottom sheet that slides up, and
+                   slides back down when dismissed. */
+                @keyframes utils-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+                @keyframes utils-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+                @media (max-width: 768px) {
+                    .utils-modal-overlay { align-items: flex-end !important; }
+                    .utils-modal-card {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        border-radius: 20px 20px 0 0 !important;
+                        animation: utils-sheet-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
+                        padding-bottom: env(safe-area-inset-bottom, 0px);
+                    }
+                    .utils-modal-overlay.closing .utils-modal-card {
+                        animation: utils-sheet-down 0.25s ease-in forwards !important;
+                    }
                 }
             </style>
         `;
@@ -460,12 +649,126 @@ if (typeof module !== 'undefined' && module.exports) {
 // Always attach to window if we are in a browser-like environment (including Electron renderer)
 window.Utils = Utils;
 window.Utils = Utils;
+
+// ============================================================
+// MOBILE SIDEBAR — one implementation for the whole app
+//
+// Every page used to define its own toggleSidebarMobile() inline. Two
+// conventions drifted apart: some toggled .open on the sidebar and .visible on
+// the overlay (what main.css actually implements), while seven pages toggled
+// .mobile-open and .active — class names no stylesheet defines, so on those
+// pages the hamburger silently did nothing.
+//
+// The handler below is delegated off document and runs in the CAPTURE phase,
+// which means it fires before any inline onclick on the button and works on
+// markup that did not exist when this script loaded. stopPropagation keeps the
+// page's own (possibly broken) handler from running afterwards and undoing it.
+// ============================================================
+
+var SIDEBAR_TRIGGERS = '.topbar-hamburger, .hamburger-btn, .mobile-menu-btn, #mobile-menu-btn';
+
+window.openSidebarMobile = function () {
+    var sidebar = document.getElementById('app-sidebar');
+    if (!sidebar) return;
+    var overlay = document.getElementById('sidebar-overlay');
+    var closeBtn = sidebar.querySelector('.sidebar-close-btn');
+
+    sidebar.classList.add('open');
+    if (overlay) overlay.classList.add('visible');
+    if (closeBtn) closeBtn.style.display = 'flex';
+};
+
+window.closeSidebarMobile = function () {
+    var sidebar = document.getElementById('app-sidebar');
+    if (!sidebar) return;
+    var overlay = document.getElementById('sidebar-overlay');
+    var closeBtn = sidebar.querySelector('.sidebar-close-btn');
+
+    // Both conventions are cleared: a page whose own open ran first may have
+    // left the legacy class behind, and one stale class keeps a drawer pinned.
+    sidebar.classList.remove('open', 'mobile-open');
+    if (overlay) overlay.classList.remove('visible', 'active');
+    if (closeBtn) closeBtn.style.display = 'none';
+
+    // teacher-dashboard swaps its hamburger glyph to ✕ while the drawer is up.
+    var glyphBtn = document.getElementById('mobile-menu-btn');
+    if (glyphBtn && glyphBtn.textContent.trim() === '✕') glyphBtn.textContent = '☰';
+};
+
+// The hamburger opens — it never closes. When the drawer is up it sits behind
+// the scrim, so a toggle there could only ever fire from a stale state and
+// would read as the button doing nothing.
+window.toggleSidebarMobile = function () {
+    window.openSidebarMobile();
+};
+
+document.addEventListener('click', function (ev) {
+    if (!ev.target || !ev.target.closest) return;
+
+    if (ev.target.closest(SIDEBAR_TRIGGERS)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.openSidebarMobile();
+        return;
+    }
+
+    // The scrim and the X are the ways out. Delegated for the same reason as
+    // the hamburger: a page whose own close clears only the legacy classes
+    // would leave a drawer opened by the canonical open stuck on screen.
+    if (ev.target.closest('.sidebar-overlay, .sidebar-close-btn')) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.closeSidebarMobile();
+    }
+}, true);
+
+// ---- Reusable mobile action-bar "More" overflow menu ----
+// Any page can drop a .mobile-action-bar with a #mab-more-menu overflow popup;
+// these globals toggle it and close it on outside tap. See main.css.
+window.toggleMabMore = function (e) {
+    if (e) e.stopPropagation();
+    var menu = document.getElementById('mab-more-menu');
+    if (menu) menu.classList.toggle('open');
+};
+window.closeMabMore = function () {
+    var menu = document.getElementById('mab-more-menu');
+    if (menu) menu.classList.remove('open');
+};
+document.addEventListener('click', function (ev) {
+    var menu = document.getElementById('mab-more-menu');
+    if (menu && menu.classList.contains('open') && !ev.target.closest('.mab-more-wrap')) {
+        menu.classList.remove('open');
+    }
+});
+
+// Install the cached admin-configured term calendar (if any) synchronously,
+// BEFORE the DOMContentLoaded data-default-term sweep below runs — so the
+// first paint already uses the school's configured dates rather than the
+// month-based fallback. Refreshed from the server in the background below.
+try {
+    const cachedCal = JSON.parse(localStorage.getItem('cbt_term_calendar') || 'null');
+    if (cachedCal) Utils.setTermCalendar(cachedCal);
+} catch (_) { /* corrupt cache — month rule still applies */ }
 document.addEventListener('DOMContentLoaded', () => {
     Utils.initTheme();
     // Wait a bit for dataService to be available
     setTimeout(() => {
         Utils.makeLogoClickable();
     }, 100);
+
+    // Auto-fill any term <select> tagged with data-default-term to the
+    // current school term (see Utils.getCurrentTerm). JS-populated term
+    // dropdowns call Utils.applyDefaultTerm themselves after populating.
+    document.querySelectorAll('select[data-default-term]').forEach((el) => {
+        Utils.applyDefaultTerm(el);
+    });
+
+    // Background-refresh the admin-configured term calendar from the server
+    // (app_settings collection). Waits for dataService to initialize; fails
+    // soft when offline or when the collection isn't deployed yet.
+    setTimeout(() => {
+        window.dataService?.loadTermCalendar?.().catch(() => { /* fallback rule stays */ });
+    }, 500);
 
     // Click empty sidebar area to toggle collapse
     const sidebar = document.getElementById('app-sidebar');

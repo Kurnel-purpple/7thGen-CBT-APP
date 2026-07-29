@@ -1,0 +1,325 @@
+/* ============================================================
+   REPORT CARD DOCUMENT
+   The finished, printable card. Deliberately independent of the
+   app's dark mode — this is paper, so it is always ink on white,
+   on screen and in the PDF alike.
+   ============================================================ */
+
+.rcd-sheet {
+    --rcd-accent: #1A3C8C;
+    --rcd-ink: #1a1a1a;
+    --rcd-rule: #d6d9e0;
+
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 32px 36px 40px;
+    background: #fff;
+    color: var(--rcd-ink);
+    font-family: var(--font-family, 'Inter', sans-serif);
+    font-size: 13px;
+    line-height: 1.45;
+}
+.rcd-sheet *,
+.rcd-sheet *::before,
+.rcd-sheet *::after { box-sizing: border-box; }
+
+/* ---- Letterhead ----
+   Two stacked rows: the crest on the sheet's left margin with the school name
+   centred in the space beside it, then the school's details centred
+   underneath. */
+.rcd-head {
+    text-align: left;
+    margin-bottom: 18px;
+}
+.rcd-head-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 6px;
+}
+/* The leading margin cancels the letter-spacing added after the final
+   character, which would otherwise pull the text a couple of pixels left. */
+.rcd-school {
+    margin: 0 0 0 0.12em;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-family: var(--font-heading, 'Inter', sans-serif);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--rcd-accent);
+}
+/* Half the crest's width: a full-width spacer put the name on the sheet's
+   centre line, none at all pushed it hard right of the tagline below. This
+   lands between the two. */
+.rcd-head-spacer {
+    width: 32px;
+    flex-shrink: 0;
+}
+.rcd-head-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.rcd-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+/* The brand row stays flush left; the school's details centre across the
+   full width of the sheet underneath it. */
+.rcd-head-lines {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+}
+.rcd-tagline {
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+/* The quietest line in the letterhead — the address is reference detail, not
+   branding, so it steps back from the tagline above and the contacts below.
+   Grey rather than a lighter weight alone, since this has to survive print. */
+.rcd-address {
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #6b6b6b;
+}
+.rcd-contact,
+.rcd-website {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--rcd-accent);
+}
+
+/* ---- Document title ---- */
+.rcd-doc-title {
+    margin: 18px 0 16px;
+    text-align: center;
+    font-family: var(--font-heading, 'Inter', sans-serif);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--rcd-accent);
+}
+
+/* ---- Name / class + session table ---- */
+.rcd-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.rcd-identity-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+.rcd-label {
+    font-weight: 800;
+}
+.rcd-session-table {
+    border-collapse: collapse;
+    min-width: 240px;
+}
+.rcd-session-table th {
+    padding: 5px 16px;
+    border: 1px solid var(--rcd-accent);
+    background: var(--rcd-accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+.rcd-session-table td {
+    padding: 6px 16px;
+    border: 1px solid var(--rcd-rule);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* ---- Grading legend ---- */
+.rcd-legend {
+    margin: 0 0 14px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--rcd-accent);
+}
+
+/* ---- Subject table ---- */
+.rcd-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+}
+.rcd-table th {
+    padding: 8px 6px;
+    background: var(--rcd-accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-align: center;
+    border: 1px solid var(--rcd-accent);
+    /* "TOTAL 100" split over two lines stops reading as one label */
+    white-space: nowrap;
+}
+.rcd-table th.rcd-subject {
+    text-align: left;
+    padding-left: 12px;
+}
+.rcd-table td {
+    padding: 7px 6px;
+    border: 1px solid var(--rcd-rule);
+    text-align: center;
+    font-size: 12px;
+}
+.rcd-table td.rcd-subject {
+    text-align: left;
+    padding-left: 12px;
+}
+.rcd-table td.rcd-total,
+.rcd-table td.rcd-grade {
+    font-weight: 800;
+}
+.rcd-table tbody tr:nth-child(even) td {
+    background: #f7f8fb;
+}
+
+/* ---- Summary, attendance, remarks ---- */
+.rcd-percentage {
+    margin: 0 0 14px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--rcd-accent);
+}
+.rcd-attendance {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+    margin-bottom: 14px;
+    font-size: 12px;
+}
+.rcd-remark {
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.55;
+}
+.rcd-remark .rcd-label {
+    color: var(--rcd-accent);
+}
+.rcd-signature {
+    margin-top: 28px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.rcd-empty {
+    padding: 24px 0;
+    text-align: center;
+    font-style: italic;
+    color: #666;
+}
+
+/* ---- Small screens ----
+   The sheet is a document, not a responsive layout. Rather than reflowing it
+   into something a desktop reader would not recognise, it keeps its full
+   800px composition and the whole thing is scaled down to fit the viewport —
+   readers pinch-zoom into the part they want, exactly as they would with a
+   PDF. The scale factor is applied as `zoom` by fitSheets() in
+   reportCardDocument.js, because it has to be measured, not guessed.
+
+   `zoom` rather than `transform: scale()` deliberately: zoom participates in
+   layout, so the parent's scroll height follows the shrunken sheet. A
+   transform would leave the sheet's original full height reserved underneath
+   it as dead space. */
+
+/* ============================================================
+   PRINT — the sheet is the page; everything else goes away.
+   ============================================================ */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 12mm;
+    }
+
+    html, body {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* App chrome never prints */
+    .rcd-no-print,
+    .app-sidebar,
+    .sidebar-overlay,
+    .app-topbar,
+    .main-header,
+    .bottom-nav,
+    .mobile-action-bar {
+        display: none !important;
+    }
+
+    /* A page that renders a card inline marks each wrapper between <body> and
+       the sheet with .rcd-host, and anything alongside it with .rcd-no-print.
+       Between them the document ends up alone on the page, whatever layout it
+       was sitting in. */
+    /* .app-container is height:100vh + overflow:hidden — left alone it clips
+       the printout to a single screenful. */
+    .rcd-page,
+    .rcd-host,
+    .app-container,
+    .app-main-wrapper,
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        width: auto !important;
+        border: none !important;
+        background: #fff !important;
+        overflow: visible !important;
+        display: block !important;
+        flex: none !important;
+    }
+
+    /* The three !important values undo the inline scaling fitSheets() applies
+       on a phone — paper has its own width and must never inherit the
+       viewport's. */
+    .rcd-sheet {
+        zoom: 1 !important;
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0;
+        padding: 0;
+        font-size: 11pt;
+        box-shadow: none;
+        border: none;
+    }
+
+    /* Keep the accent fills — a report card without its header bars looks broken */
+    .rcd-table th,
+    .rcd-session-table th {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Never split a subject row, and keep the remarks with the table */
+    .rcd-table tr,
+    .rcd-remark,
+    .rcd-attendance { page-break-inside: avoid; }
+    .rcd-table thead { display: table-header-group; }
+}

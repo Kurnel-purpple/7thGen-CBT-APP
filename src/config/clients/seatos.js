@@ -10,7 +10,8 @@ export const clientConfig = {
         shortName: "SEATOS",
         logo: "assets/clients/seatos/seatos-logo.jpeg",
         favicon: "assets/clients/seatos/favicon.png",
-        releaseFilter: 'seatos'  // finds latest release tagged with 'seatos' (e.g. v1.3.4-seatos)
+        releaseFilter: 'seatos',  // finds latest release tagged with 'seatos' (e.g. v1.3.4-seatos)
+        schoolId: "SEATOSCBT2026" // auto-filled + locked in the student registration form
     },
 
     // Branding & Theme
@@ -83,7 +84,7 @@ export const clientConfig = {
     },
 
     modules: {
-        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework'],
+        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework', 'broadsheet', 'admissions'],
         settings: {}
     },
 

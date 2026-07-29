@@ -1,6 +1,12 @@
 app = 'gen7-cbt-app'
 primary_region = 'jnb'
 
+# Swap gives the single PocketBase node headroom under memory spikes so a
+# transient peak degrades gracefully instead of OOM-killing the process
+# (which showed up as the app slowing until a manual restart). Free — backed
+# by the machine's disk, not billed like RAM.
+swap_size_mb = 512
+
 # Build from our Dockerfile (no external image needed)
 [build]
 

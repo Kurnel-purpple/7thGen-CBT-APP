@@ -40,6 +40,78 @@
     box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
 }
 
+/* Collapsed selection summary — replaces the controls once a roster loads */
+.attendance-selection-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 28px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+}
+
+.sel-summary-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: var(--primary-color);
+}
+
+.sel-summary-info svg {
+    flex-shrink: 0;
+}
+
+.sel-summary-info > div {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    overflow: hidden;
+}
+
+#sel-summary-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sel-summary-date {
+    font-size: 0.8rem;
+    color: var(--light-text);
+    font-weight: 600;
+}
+
+.sel-summary-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--primary-color);
+    background: transparent;
+    color: var(--primary-color);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.sel-summary-change:hover {
+    background: var(--primary-light, rgba(74, 144, 226, 0.12));
+}
+
+[data-theme="dark"] .attendance-selection-summary {
+    background: var(--dm-surface, #1A1D27);
+}
+
 /* Stats Bar */
 .attendance-stats-bar {
     display: flex;
@@ -255,6 +327,44 @@
 
 .attendance-actions .btn {
     font-weight: 700;
+}
+
+/* Mark All group — desktop: the four buttons render inline exactly as before
+   (display:contents flattens the wrappers into the flex row); the popup
+   trigger only exists on mobile. */
+.mark-all-wrap,
+.mark-all-menu {
+    display: contents;
+}
+
+/* Status toggle labels: full words on desktop, single letters on mobile */
+.status-toggle .st-short {
+    display: none;
+}
+
+/* Topbar save icon — mobile only (desktop saves via the action bar) */
+#save-attendance-topbar {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-color, #1A73E8);
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(26, 115, 232, 0.35);
+}
+
+#save-attendance-topbar:active {
+    transform: scale(0.94);
+}
+
+#save-attendance-topbar.saving,
+#save-attendance-topbar:disabled {
+    opacity: 0.55;
 }
 
 /* Empty State */
@@ -483,57 +593,212 @@
     background: var(--dm-surface, #1A1D27);
 }
 
-/* Mobile Responsive */
+/* ================================================================
+   MOBILE (≤768px) — app-style layout:
+   - controls become a compact 2-column grid, in-page tabs hidden
+     (the bottom nav owns view switching)
+   - stat pills shrink to dot + count on one line
+   - action bar becomes a thumb bar above the bottom nav: Mark All
+     popup menu + primary Save button
+   ================================================================ */
 @media (max-width: 768px) {
     .attendance-controls {
-        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 10px;
+        padding: 12px 16px;
+    }
+
+    /* First field (Class) spans the full row; the next two share a row */
+    .attendance-controls > div:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .attendance-controls label {
+        font-size: 0.68rem;
     }
 
     .attendance-controls select,
     .attendance-controls input[type="date"] {
         min-width: 0;
-        flex: 1;
+        width: 100%;
+        padding: 10px 12px;
     }
 
+    /* View switching lives in the bottom nav on mobile */
+    .attendance-view-tabs {
+        display: none;
+    }
+
+    .attendance-selection-summary {
+        padding: 10px 16px;
+    }
+
+    /* Sheets toolbar row only holds tabs + New Sheet on desktop; on
+       mobile the FAB replaces it entirely */
+    #sheets-list-wrap .attendance-controls {
+        display: none;
+    }
+
+    /* Stats: compact one-line strip — dot + count only */
     .attendance-stats-bar {
-        padding: 12px 16px;
-        gap: 8px;
+        padding: 8px 16px;
+        gap: 6px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .stat-pill {
-        font-size: 0.78rem;
-        padding: 4px 10px;
+        font-size: 0.82rem;
+        padding: 5px 12px;
+        flex-shrink: 0;
     }
 
+    .stat-pill-label {
+        display: none;
+    }
+
+    /* Rows: name + P/A on ONE row. PH/MTB are class-wide states — they
+       stay available via the bottom-nav Mark All menu, not per student. */
     .attendance-list {
-        padding: 14px 16px;
+        padding: 0 0 84px;
     }
 
-    .attendance-row {
-        flex-wrap: wrap;
+    /* List items, not cards: full-width rows divided by a bottom border.
+       The dark-mode selector is included so the base dark card background
+       (equal-or-higher specificity) can't reinstate the card look. */
+    .attendance-row,
+    [data-theme="dark"] .attendance-row {
+        flex-wrap: nowrap;
         gap: 10px;
-        padding: 12px;
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 0;
+        margin-bottom: 0;
+        box-shadow: none;
     }
 
+    .attendance-row:hover,
+    [data-theme="dark"] .attendance-row:hover {
+        box-shadow: none;
+    }
+
+    .attendance-row:last-child {
+        border-bottom: none;
+    }
+
+    /* Long names keep name + P/A on one row: the overflow is hidden but
+       swipe-scrollable sideways instead of truncating or wrapping. */
     .attendance-student-name {
-        flex-basis: calc(100% - 44px);
+        flex: 1;
+        min-width: 0;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        text-overflow: clip;
+        scrollbar-width: none; /* Firefox — hide the scrollbar, keep scrolling */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .attendance-student-name::-webkit-scrollbar {
+        display: none; /* WebKit — hide the scrollbar, keep scrolling */
+    }
+
+    /* Double-class selector: must outweigh the .status-toggle
+       display:inline-flex rule below */
+    .status-toggle.status-toggle-ph,
+    .status-toggle.status-toggle-mtb {
+        display: none;
+    }
+
+    .status-toggle .st-full {
+        display: none;
+    }
+
+    .status-toggle .st-short {
+        display: inline;
     }
 
     .status-toggle-group {
-        width: 100%;
-        justify-content: space-between;
+        gap: 8px;
+        flex-shrink: 0;
     }
 
     .status-toggle {
-        flex: 1;
-        text-align: center;
-        padding: 8px 6px;
-        font-size: 0.72rem;
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0.9rem;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
+    .status-toggle:active {
+        transform: scale(0.94);
+    }
+
+    /* Action bar collapses on mobile: Save lives in the topbar icon and
+       Mark All opens from the bottom-nav "Mark" tab. Only the popup menu
+       remains, fixed above the bottom nav. */
     .attendance-actions {
-        padding: 12px 16px;
+        padding: 0;
+        border-top: none;
+        box-shadow: none;
+        background: transparent;
+        gap: 0;
+    }
+
+    .mark-all-wrap {
+        display: block;
+    }
+
+    #save-attendance-btn {
+        display: none;
+    }
+
+    .mark-all-menu {
+        display: none;
+    }
+
+    .mark-all-menu.open {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        position: fixed;
+        bottom: 68px;
+        left: 16px;
+        min-width: 210px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 8px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+        z-index: 95;
+    }
+
+    .mark-all-menu .btn {
+        width: 100%;
+        text-align: left;
+        padding: 11px 14px;
+    }
+
+    /* Show the topbar save icon on mobile (switchView hides it outside
+       the mark view) */
+    #save-attendance-topbar {
+        display: inline-flex;
+    }
+
+    /* Scroll containers must clear the fixed bottom nav */
+    #history-content,
+    #sheets-list {
+        padding: 14px 16px 84px !important;
     }
 
     .student-stats-grid {
@@ -544,16 +809,6 @@
 
     .student-attendance-list {
         padding: 14px 16px;
-    }
-
-    .attendance-view-tabs {
-        margin-left: 0;
-        width: 100%;
-    }
-
-    .attendance-tab {
-        flex: 1;
-        text-align: center;
     }
 }
 
@@ -682,6 +937,38 @@
 .ghost-cta:hover { background: var(--primary-light, #E8F0FE); }
 .ghost-cta-danger { color: #e74c3c; }
 .ghost-cta-danger:hover { background: rgba(231,76,60,0.08); }
+
+/* Floating action button — mobile replacement for the "+ New Sheet"
+   toolbar button (hidden on desktop) */
+.sheets-fab {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .sheets-fab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        position: fixed;
+        right: 16px;
+        bottom: 72px;
+        z-index: 80;
+        padding: 14px 20px;
+        border-radius: 999px;
+        border: none;
+        background: var(--primary-color, #1A73E8);
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.92rem;
+        font-family: inherit;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(26, 115, 232, 0.4);
+    }
+
+    .sheets-fab:active {
+        transform: scale(0.96);
+    }
+}
 
 /* ================================================================
    SHEET BUILDER MODAL
@@ -878,10 +1165,41 @@
     padding-top: 16px;
 }
 
+/* Mobile: builder becomes a full-width bottom sheet (app-style) */
 @media (max-width: 600px) {
     .sb-grid-2 { grid-template-columns: 1fr; }
-    .sheet-builder-card { max-height: calc(100vh - 32px); }
-    .sheet-builder-modal { padding: 16px; }
+
+    /* display itself is controlled by the inline style the JS toggles;
+       these rules only reshape the open modal into a bottom sheet */
+    .sheet-builder-modal {
+        padding: 0;
+        align-items: flex-end;
+        overflow-y: hidden;
+    }
+
+    .sheet-builder-card {
+        max-width: 100%;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
+        margin-top: auto;
+    }
+
+    .sheet-builder-body {
+        padding: 16px 16px 24px;
+    }
+
+    .sb-actions {
+        position: sticky;
+        bottom: 0;
+        background: var(--card-bg, #fff);
+        margin: 0 -16px -24px;
+        padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .sb-actions .btn {
+        flex: 1;
+        padding: 12px 10px;
+    }
 }
 
 /* ================================================================
@@ -1255,7 +1573,7 @@ table.mark-grid tbody tr:last-child td {
 }
 
 @media (max-width: 768px) {
-    .sheet-grid-container { padding: 8px 12px 16px; }
+    .sheet-grid-container { padding: 8px 12px 84px; }
     .mg-col-head { min-width: 56px; padding: 6px 6px; }
     .mg-cell { min-width: 56px; height: 40px; }
     .mg-head-corner, .mg-row-label { min-width: 120px; max-width: 160px; padding: 8px 10px; }

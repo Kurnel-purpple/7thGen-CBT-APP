@@ -20,11 +20,6 @@
             .replace(/'/g, '&#039;');
     }
 
-    function gradeColor(grade) {
-        var colors = { A: '#2e7d32', B: '#388e3c', C: '#f57f17', D: '#ef6c00', E: '#d84315', F: '#c62828' };
-        return colors[grade] || 'var(--text-secondary)';
-    }
-
     function ordinalSuffix(n) {
         var s = ['th', 'st', 'nd', 'rd'];
         var v = n % 100;
@@ -65,72 +60,49 @@
         }
     }
 
+    /**
+     * Renders the finished document — the very same renderer the printable
+     * page and the admin preview use. Parents read this page, so what they see
+     * here is exactly the card they can hand over on paper, not a look-alike.
+     */
     function showCardDetail(cardId) {
-        var card = state.reportCards.find(function(c) { return c.id === cardId; });
+        var card = state.reportCards.find(function(c) { return String(c.id) === String(cardId); });
         if (!card) return;
 
         state.selectedCardId = cardId;
 
         // Highlight active card in list
         document.querySelectorAll('.src-card-item').forEach(function(el) {
-            el.classList.toggle('active', el.getAttribute('data-card-id') === cardId);
+            el.classList.toggle('active', el.getAttribute('data-card-id') === String(cardId));
         });
 
         var detail = document.getElementById('src-detail');
         if (!detail) return;
 
-        var position = card.classPosition ? ordinalSuffix(card.classPosition) + ' of ' + card.classSize : '—';
-        var att = card.attendance || {};
-
-        var subjects = Array.isArray(card.subjects) ? card.subjects : [];
-        var subjectsHtml = '';
-        if (subjects.length > 0) {
-            subjectsHtml = '<table class="rc-detail-subjects">' +
-                '<thead><tr><th>Subject</th><th style="text-align:center;">Score</th><th style="text-align:center;">%</th><th style="text-align:center;">Grade</th><th>Remark</th></tr></thead>' +
-                '<tbody>' + subjects.map(function(s) {
-                    return '<tr>' +
-                        '<td>' + escapeHtml(s.name) + '</td>' +
-                        '<td style="text-align:center;">' + s.score + ' / ' + s.totalPossible + '</td>' +
-                        '<td style="text-align:center;">' + s.percentage + '%</td>' +
-                        '<td style="text-align:center; font-weight:700; color:' + gradeColor(s.grade) + ';">' + escapeHtml(s.grade) + '</td>' +
-                        '<td>' + escapeHtml(s.gradeLabel) + '</td>' +
-                    '</tr>';
-                }).join('') + '</tbody></table>';
-        } else {
-            subjectsHtml = '<p style="color:var(--light-text);">No exam results for this term.</p>';
-        }
-
-        var attendanceHtml = '';
-        if (att.totalDays > 0) {
-            attendanceHtml =
-                '<div class="rc-att-row"><span>Present:</span><strong>' + att.present + ' days</strong></div>' +
-                '<div class="rc-att-row"><span>Absent:</span><strong>' + att.absent + ' days</strong></div>' +
-                '<div class="rc-att-row"><span>Late:</span><strong>' + att.late + ' days</strong></div>' +
-                '<div class="rc-att-row"><span>Attendance Rate:</span><strong>' + att.attendanceRate + '%</strong></div>';
-        } else {
-            attendanceHtml = '<p style="color:var(--light-text);">No attendance data for this period.</p>';
-        }
+        var documentHtml = window.reportCardDocument
+            ? window.reportCardDocument.render(card, window.dataService.getReportCardTemplateSync())
+            : '<p style="color:var(--light-text);">This report card could not be displayed.</p>';
 
         detail.innerHTML =
-            '<div class="src-detail-header">' +
-                '<h2>' + escapeHtml(card.studentName) + '</h2>' +
-                '<div class="src-detail-meta">' + escapeHtml(card.classLevel) + ' | ' + escapeHtml(card.term) +
-                    (card.session ? ' | ' + escapeHtml(card.session) : '') + ' | Position: ' + position + '</div>' +
+            '<div class="src-doc-actions rcd-no-print">' +
+                '<button type="button" class="src-doc-btn" id="src-download">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+                    'Download PDF' +
+                '</button>' +
+                '<button type="button" class="src-doc-btn src-doc-btn-ghost" id="src-fullpage">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/></svg>' +
+                    'Open full page' +
+                '</button>' +
             '</div>' +
+            documentHtml;
 
-            '<div class="src-section">' +
-                '<h4>Subjects</h4>' +
-                subjectsHtml +
-                '<div class="rc-detail-average">Average: ' + card.averageScore + '%</div>' +
-            '</div>' +
+        var download = document.getElementById('src-download');
+        if (download) download.addEventListener('click', function() { window.print(); });
 
-            '<div class="src-section">' +
-                '<h4>Attendance</h4>' +
-                attendanceHtml +
-            '</div>' +
-
-            (card.teacherRemarks ? '<div class="src-section"><h4>Teacher\'s Remarks</h4><p class="src-remarks">' + escapeHtml(card.teacherRemarks) + '</p></div>' : '') +
-            (card.principalRemarks ? '<div class="src-section"><h4>Principal\'s Remarks</h4><p class="src-remarks">' + escapeHtml(card.principalRemarks) + '</p></div>' : '');
+        var fullpage = document.getElementById('src-fullpage');
+        if (fullpage) fullpage.addEventListener('click', function() {
+            window.location.href = 'report-card-print.html?id=' + encodeURIComponent(cardId);
+        });
     }
 
     async function init() {
@@ -146,10 +118,21 @@
         if (avatarEl) avatarEl.textContent = (user.name || user.full_name || 'S').charAt(0).toUpperCase();
 
         try {
-            state.reportCards = await window.dataService.getReportCards({
-                studentId: user.userId || user.id,
-                status: 'published'
-            });
+            // The letterhead comes from the school's saved design; fetched
+            // alongside the cards so the first document painted is already
+            // branded. It fails soft to defaults, so a settings outage still
+            // shows a readable card.
+            var loaded = await Promise.all([
+                window.dataService.getReportCards({
+                    studentId: user.userId || user.id,
+                    status: 'published'
+                }),
+                window.dataService.loadReportCardTemplate
+                    ? window.dataService.loadReportCardTemplate().catch(function() { return null; })
+                    : Promise.resolve(null)
+            ]);
+
+            state.reportCards = loaded[0];
             renderCardList(state.reportCards);
         } catch (err) {
             console.error('[ReportCards] Failed to load student report cards:', err);

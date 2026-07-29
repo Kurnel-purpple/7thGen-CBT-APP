@@ -18,13 +18,18 @@
         { id: 'attendance', name: 'Attendance', description: 'Daily attendance, sheets, student registration' },
         { id: 'question_bank', name: 'Question Bank', description: 'Reusable question library' },
         { id: 'report_cards', name: 'Report Cards', description: 'Term report cards, analytics' },
-        { id: 'homework', name: 'Homework', description: 'Assignments, submissions, grading' }
+        { id: 'homework', name: 'Homework', description: 'Assignments, submissions, grading' },
+        { id: 'broadsheet', name: 'Broadsheet', description: 'Class-wide term & session performance sheets' },
+        { id: 'admissions', name: 'Admissions', description: 'Entrance/aptitude tests for prospective students — no account needed' }
     ];
 
     const masterAdmin = {
         tenants: [],
         searchQuery: '',
         editingId: null,
+        // Tenant cards start folded — the list is for scanning names, and the
+        // detail is a tap away. Held by id so a re-render keeps what was open.
+        expandedIds: new Set(),
 
         async init() {
             const ds = global.dataService;
@@ -58,7 +63,9 @@
                 listMeta: document.getElementById('ma-list-meta'),
                 list: document.getElementById('ma-tenants-list'),
                 searchInput: document.getElementById('ma-search-input'),
-                createCta: document.getElementById('ma-create-cta'),
+                // Topbar on desktop, bottom nav on mobile — both marked
+                // [data-ma-create] so the binding does not care which is up.
+                createCtas: Array.from(document.querySelectorAll('[data-ma-create]')),
                 tenantModal: document.getElementById('ma-tenant-modal'),
                 tenantForm: document.getElementById('ma-tenant-form'),
                 tenantEyebrow: document.getElementById('ma-tenant-eyebrow'),
@@ -93,9 +100,9 @@
                 });
             }
 
-            if (this.nodes.createCta) {
-                this.nodes.createCta.addEventListener('click', () => this.openTenantModal());
-            }
+            this.nodes.createCtas.forEach((cta) => {
+                cta.addEventListener('click', () => this.openTenantModal());
+            });
 
             if (this.nodes.tenantForm) {
                 this.nodes.tenantForm.addEventListener('submit', (event) => this.handleSave(event));
@@ -191,21 +198,33 @@
                     ? `Expires ${this.formatDate(tenant.planExpiresAt)}${this.isExpired(tenant.planExpiresAt) ? ' (overdue)' : ''}`
                     : 'No expiry set';
 
+                // Folded state survives a re-render (search, save, refresh) —
+                // reopening every card the operator had opened would be worse
+                // than not folding at all.
+                const open = this.expandedIds.has(tenant.id);
+                const bodyId = `ma-body-${this.escape(tenant.id)}`;
+
                 return `
-                    <article class="hw-row" data-ma-tenant-id="${this.escape(tenant.id)}">
-                        <div class="hw-row-main">
+                    <article class="hw-row hw-row-stack ma-tenant${open ? ' is-open' : ''}" data-ma-tenant-id="${this.escape(tenant.id)}">
+                        <div class="hw-row-top ma-tenant-head" data-ma-fold role="button" tabindex="0"
+                             aria-expanded="${open ? 'true' : 'false'}" aria-controls="${bodyId}">
+                            <svg class="ma-fold-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                             <h3 class="hw-row-title">${this.escape(tenant.name || tenant.schoolVersion)}</h3>
-                            <div class="hw-row-meta">${this.escape(tenant.schoolVersion)} &middot; ${this.escape(tenant.contactEmail || 'no contact')} &middot; ${expiresLine}</div>
-                            <div class="hw-row-chips">
-                                ${statusChip}
-                                ${planChip}
-                                ${modules || '<span class="hw-chip danger">No modules enabled</span>'}
+                            <div class="hw-row-aside">
+                                <button type="button" class="hw-icon-btn" data-ma-action="edit" title="Edit" aria-label="Edit tenant">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                                </button>
                             </div>
                         </div>
-                        <div class="hw-row-aside">
-                            <button type="button" class="hw-icon-btn" data-ma-action="edit" title="Edit" aria-label="Edit tenant">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-                            </button>
+                        <div class="ma-tenant-body" id="${bodyId}">
+                            <div class="ma-tenant-body-inner">
+                                <div class="hw-row-meta">${this.escape(tenant.schoolVersion)} &middot; ${this.escape(tenant.contactEmail || 'no contact')} &middot; ${expiresLine}</div>
+                                <div class="hw-row-chips">
+                                    ${statusChip}
+                                    ${planChip}
+                                    ${modules || '<span class="hw-chip danger">No modules enabled</span>'}
+                                </div>
+                            </div>
                         </div>
                     </article>
                 `;
@@ -213,8 +232,37 @@
 
             Array.from(this.nodes.list.querySelectorAll('[data-ma-tenant-id]')).forEach((row) => {
                 const id = row.getAttribute('data-ma-tenant-id');
-                row.addEventListener('click', () => this.openTenantModal(id));
+
+                // Edit is its own action now that the row itself folds, so it
+                // has to stop the click reaching the header behind it.
+                const editBtn = row.querySelector('[data-ma-action="edit"]');
+                if (editBtn) {
+                    editBtn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        this.openTenantModal(id);
+                    });
+                }
+
+                const head = row.querySelector('[data-ma-fold]');
+                if (!head) return;
+                const toggle = () => this.toggleTenant(id, row, head);
+                head.addEventListener('click', toggle);
+                head.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggle();
+                    }
+                });
             });
+        },
+
+        toggleTenant(id, row, head) {
+            const open = !this.expandedIds.has(id);
+            if (open) this.expandedIds.add(id);
+            else this.expandedIds.delete(id);
+
+            row.classList.toggle('is-open', open);
+            head.setAttribute('aria-expanded', open ? 'true' : 'false');
         },
 
         statusChip(tenant) {

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="client-id" content="seatos">
+    <meta name="client-id" content="default">
     <title>Teacher Dashboard - CBT Exam</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +14,18 @@
             if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', t);
         })();
+
+        /**
+         * Config-ready handshake — see the same block in admin-dashboard.html
+         * for the full story. Short version: the config <script type="module">
+         * has a top-level await, and that does NOT hold back DOMContentLoaded,
+         * so page setup can run before the module guard and cross-module nav
+         * have been applied. Declared in the first classic script in <head> so
+         * it exists no matter which participant runs first.
+         */
+        window.__configReady = new Promise(function(resolve) {
+            window.__markConfigReady = resolve;
+        });
     </script>
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
@@ -1151,30 +1163,30 @@
 
     <!-- Secret Delete Exam Modal -->
     <div id="delete-exam-modal" class="modal" style="display: none; z-index: 3000;">
-        <div class="modal-content" style="max-width: 450px; text-align: center;">
-            <div class="modal-header" style="border-bottom: none; justify-content: center;">
-                <h3 style="color: #e74c3c;">⚠️ Delete Exam Permanently</h3>
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 20px 20px 16px;">
+            <div class="modal-header" style="border-bottom: none; justify-content: center; padding: 0 0 4px;">
+                <h3 style="color: #e74c3c; margin: 0;">⚠️ Delete Exam</h3>
             </div>
-            <div style="padding: 20px;">
-                <p style="margin-bottom: 15px; color: var(--light-text);">
+            <!-- No inner padding: the modal-content already pads all sides, so
+                 content runs the full usable width instead of double-insetting. -->
+            <div>
+                <p style="margin-bottom: 12px; color: var(--light-text);">
                     You are about to <strong style="color: #e74c3c;">permanently delete</strong> the exam:
                 </p>
                 <p id="delete-exam-title"
-                    style="font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: var(--text-color);"></p>
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--light-text);">
-                    This action <strong>cannot be undone</strong>. All associated student results will also be lost.
-                </p>
-                <div class="form-group" style="margin-top: 20px; text-align: left;">
+                    style="font-size: 1.2rem; font-weight: bold; margin-bottom: 16px; color: var(--text-color);"></p>
+                <div class="form-group" style="text-align: left; margin-bottom: 0;">
                     <label style="font-size: 0.85rem; color: var(--light-text);">Type the exam title to confirm:</label>
                     <input type="text" id="delete-confirm-input" class="form-control"
                         placeholder="Type exam title here..." autocomplete="off">
                 </div>
             </div>
-            <div style="display: flex; gap: 10px; justify-content: center; padding: 10px 20px 20px;">
-                <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+            <div style="display: flex; gap: 10px; padding: 16px 0 0;">
+                <button class="btn btn-outline" onclick="closeDeleteModal()"
+                    style="flex: 1; min-width: 0; padding: 10px 12px; font-size: 0.9rem;">Cancel</button>
                 <button id="delete-confirm-btn" class="btn"
-                    style="background: #e74c3c; color: white; opacity: 0.5; cursor: not-allowed;" disabled
-                    onclick="confirmDeleteExam()">🗑️ Delete Forever</button>
+                    style="flex: 1; min-width: 0; padding: 10px 12px; font-size: 0.9rem; background: #e74c3c; color: white; opacity: 0.5; cursor: not-allowed;" disabled
+                    onclick="confirmDeleteExam()">🗑️ Delete</button>
             </div>
         </div>
     </div>
@@ -1187,6 +1199,11 @@
         import { initConfig } from '../config/index.js';
         import { ensureModuleEnabled } from '../core/modules/moduleGuards.js';
         import { renderModuleNavItems } from '../core/ui/sidebarBuilder.js';
+
+        // The module-disabled path below throws on purpose to halt the page, so
+        // the handshake is released in a finally — page setup is waiting on it
+        // and must not be left hanging either way.
+        try {
         await initConfig();
         if (!ensureModuleEnabled('cbt', {
             moduleName: 'CBT',
@@ -1204,6 +1221,9 @@
             const hasItems = renderModuleNavItems(navContainer, { currentModuleId: 'cbt', role: _navRole });
             if (hasItems && navDivider) navDivider.style.display = '';
         }
+        } finally {
+            window.__markConfigReady();
+        }
     </script>
 
 
@@ -1213,7 +1233,11 @@
     <script src="../js/dataService.js"></script>
     <script src="../modules/cbt/js/cbtDataService.js"></script>
     <!-- Question Bank extension is loaded here so "Add to Question Bank"
-         bulk action on the exam cards can call importExamQuestionsToBank. -->
+         bulk action on the exam cards can call importExamQuestionsToBank.
+         questionSimilarity must come first — the data service needs it to
+         detect near-duplicates before importing. -->
+    <script src="../modules/question_bank/js/questionSimilarity.js"></script>
+    <script src="../modules/question_bank/js/duplicateReview.js"></script>
     <script src="../modules/question_bank/js/questionBankDataService.js"></script>
     <script src="../js/auth.js"></script>
     <script>
@@ -1652,6 +1676,23 @@
             }
         }
 
+        // Release the standing message subscription when the dashboard is closed,
+        // navigated away from, or backgrounded, so abandoned tabs don't leave live
+        // subscribe('*') SSE connections piling up on the single PocketBase node.
+        // Best-effort and non-blocking — must never delay page teardown.
+        async function teardownMessageSubscription() {
+            isMessageSubscribed = false;
+            try { await dataService.unsubscribeFromMessages(); } catch (e) { /* page is going away */ }
+        }
+        window.addEventListener('pagehide', () => { teardownMessageSubscription(); });
+        window.addEventListener('pageshow', (e) => {
+            // Restored from the back/forward cache: the previous SSE stream is
+            // dead, so re-establish the subscription (guard flag was reset).
+            if (e.persisted && teacherChatUserId) {
+                setupMessageSubscription(teacherChatUserId);
+            }
+        });
+
 
         // Connection Monitoring
         function setupConnectionMonitoring() {
@@ -1719,6 +1760,13 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // Wait for the config module — DOMContentLoaded can fire while it
+            // is still suspended on its top-level await. See the handshake in
+            // <head>. Guarded so an older cached page can still boot.
+            if (window.__configReady) {
+                await window.__configReady;
+            }
+
             setupConnectionMonitoring();
             // V2D: Sync trusted server time (non-blocking)
             if (navigator.onLine) dataService.syncServerTime().catch(() => {});
@@ -2213,11 +2261,13 @@
             }
             const ok = await Utils.showConfirm(
                 'Add to Question Bank',
-                `Add questions from ${ids.length} exam${ids.length === 1 ? '' : 's'} to the Question Bank? Duplicates will be skipped automatically.`
+                `Add questions from ${ids.length} exam${ids.length === 1 ? '' : 's'} to the Question Bank? You will be asked about anything that looks like a question already in the bank.`
             );
             if (!ok) return;
 
-            let importedTotal = 0, skippedTotal = 0, failedExams = 0;
+            let importedTotal = 0, skippedTotal = 0, replacedTotal = 0, duplicateTotal = 0;
+            let failedExams = 0, cancelledExams = 0;
+
             for (const id of ids) {
                 try {
                     const exam = await dataService.getExamById(id);
@@ -2232,9 +2282,30 @@
                         title: exam.title || '',
                         term: exam.term || ''
                     };
-                    const result = await dataService.importExamQuestionsToBank(meta, exam.questions);
+
+                    // Dry run first: the bank is only searched within this exam's
+                    // subject and term, so this stays cheap even on a large bank.
+                    let decisions = {};
+                    const analysis = await dataService.analyzeExamQuestionsForBank(meta, exam.questions);
+
+                    if (analysis.conflicts.length > 0) {
+                        const label = `${exam.title || 'Untitled exam'}${meta.subject ? ' · ' + meta.subject : ''}`;
+                        decisions = await DuplicateReview.open(analysis.conflicts, {
+                            title: 'Possible duplicates found',
+                            subtitle: `${analysis.conflicts.length} of ${analysis.total} question`
+                                + `${analysis.total === 1 ? '' : 's'} in "${label}" look like questions already `
+                                + `in the Question Bank. Choose what to do with each.`,
+                            cleanCount: analysis.clean.length
+                        });
+                        // Cancelling the review cancels this exam, not the batch
+                        if (decisions === null) { cancelledExams++; continue; }
+                    }
+
+                    const result = await dataService.importExamQuestionsToBank(meta, exam.questions, { decisions });
                     importedTotal += result.imported || 0;
                     skippedTotal += result.skipped || 0;
+                    replacedTotal += result.replaced || 0;
+                    duplicateTotal += result.duplicates || 0;
                 } catch (e) {
                     console.error('[bulk add-to-QB] failed for exam', id, e);
                     failedExams++;
@@ -2242,7 +2313,10 @@
             }
 
             const parts = [`Added ${importedTotal} question${importedTotal === 1 ? '' : 's'}.`];
-            if (skippedTotal) parts.push(`Skipped ${skippedTotal} (empty or duplicates).`);
+            if (replacedTotal) parts.push(`Replaced ${replacedTotal}.`);
+            if (skippedTotal) parts.push(`Skipped ${skippedTotal} (empty or you chose to keep the bank copy).`);
+            if (duplicateTotal) parts.push(`${duplicateTotal} were already in the bank word for word.`);
+            if (cancelledExams) parts.push(`${cancelledExams} exam${cancelledExams === 1 ? '' : 's'} cancelled.`);
             if (failedExams) parts.push(`${failedExams} exam${failedExams === 1 ? '' : 's'} could not be read.`);
             await Utils.showAlert('Question Bank updated', parts.join(' '));
 
@@ -2379,7 +2453,7 @@
             } catch (err) {
                 await Utils.showAlert('Error', 'Failed to delete exam: ' + err.message);
                 confirmBtn.disabled = false;
-                confirmBtn.textContent = '🗑️ Delete Forever';
+                confirmBtn.textContent = '🗑️ Delete';
             }
         };
 
@@ -3509,7 +3583,7 @@
                 console.error('Failed to resolve flag:', e);
 
                 // Check if error is due to network issues
-                if (!navigator.onLine || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+                if (dataService.isNetworkError(e)) {
                     await Utils.showAlert('Connection Error', '❌ Lost internet connection. The flag was not resolved.\n\nPlease check your connection and try again.');
                 } else {
                     await Utils.showAlert('Error', 'Failed to resolve flag: ' + e.message);

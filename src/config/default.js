@@ -10,7 +10,11 @@ export const defaultConfig = {
         shortName: "GEN7 CBT",
         logo: "assets/drop.png", // Path to logo image
         favicon: "assets/icon.png",
-        releaseFilter: null  // null = use /releases/latest (main build)
+        releaseFilter: null,  // null = use /releases/latest (main build)
+        // School ID auto-filled into the student registration form. When set,
+        // students can't type a wrong one (or forget it), so their profiles
+        // never end up invisible to the school-scoped admin portal.
+        schoolId: null
     },
 
     // Branding & Theme
@@ -67,7 +71,7 @@ export const defaultConfig = {
 
     // Typography
     typography: {
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
         fontSize: "16px",
         borderRadius: "25px"
     },
@@ -83,7 +87,7 @@ export const defaultConfig = {
     },
 
     modules: {
-        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework'],
+        enabled: ['cbt', 'attendance', 'question_bank', 'report_cards', 'homework', 'broadsheet', 'admissions'],
         settings: {}
     },
 

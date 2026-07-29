@@ -287,7 +287,12 @@
         document.querySelector('input[name="sb-kind"][value="subject"]').checked = true;
         document.getElementById('sb-class').value = '';
         document.getElementById('sb-subject').value = '';
-        document.getElementById('sb-term').value = '';
+        var sbTerm = document.getElementById('sb-term');
+        sbTerm.value = '';
+        // Default the term to the current school term (Utils.getCurrentTerm).
+        if (window.Utils && typeof Utils.applyDefaultTerm === 'function') {
+            Utils.applyDefaultTerm(sbTerm);
+        }
         document.getElementById('sb-session').value = '';
         document.getElementById('sb-start').value = '';
         document.getElementById('sb-end').value = '';

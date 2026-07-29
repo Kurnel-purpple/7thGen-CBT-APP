@@ -91,15 +91,25 @@ const takeExam = {
         return assets;
     },
 
+    /**
+     * Where "leave the exam" goes. Admission candidates are not students and
+     * have no dashboard — they get a confirmation page that shows no score and
+     * chases any unsent submission.
+     */
+    _exitUrl: () => (takeExam.isAdmission ? 'admission-complete.html' : 'student-dashboard.html'),
+
     init: async () => {
         console.log('🚀 Exam Controller v3.1 Loaded');
         // Auth Check
         const user = dataService.getCurrentUser();
-        if (!user || user.role !== 'student') {
+        // "applicant" is a prospective student sitting an entrance exam. Same
+        // engine, same offline guarantees — see src/modules/admissions/.
+        if (!user || (user.role !== 'student' && user.role !== 'applicant')) {
             window.location.href = '../index.html';
             return;
         }
         takeExam.user = user;
+        takeExam.isAdmission = user.role === 'applicant';
         document.getElementById('student-name').textContent = user.name;
 
         // Get Exam ID
@@ -109,7 +119,7 @@ const takeExam = {
         takeExam.resultId = params.get('resultId');
 
         if (!examId) {
-            takeExam.showAlert('Error', 'No exam was selected. Please go back and choose an exam to take.', () => window.location.href = 'student-dashboard.html');
+            takeExam.showAlert('Error', 'No exam was selected. Please go back and choose an exam to take.', () => window.location.href = takeExam._exitUrl());
             return;
         }
 
@@ -118,40 +128,88 @@ const takeExam = {
             let isUsingCache = false;
             const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
 
-            try {
-                exam = await dataService.getExamById(examId);
+            if (takeExam.isAdmission) {
+                // Admission candidates have no read access to `exams` at all,
+                // so getExamById would only 403. Their paper was pre-cached by
+                // the entry page before the timer started; the endpoint is the
+                // fallback for a reload that lost local storage.
+                takeExam.admissionContext = window.admissionsService?.getCandidateContext?.() || null;
 
-                // Cache successful fetch to IndexedDB
-                if (exam && useIndexedDB) {
-                    try {
-                        await window.idb.saveExam(exam);
-                    } catch (e) {
-                        console.warn('Could not cache exam to IndexedDB:', e);
-                    }
-                }
-            } catch (fetchErr) {
-                console.warn('⚠️ Failed to fetch exam from server:', fetchErr.message);
-
-                // Try IndexedDB cache first (more storage capacity)
                 if (useIndexedDB) {
                     try {
                         exam = await window.idb.getExam(examId);
-                        if (exam) {
-                            isUsingCache = true;
-                            console.log('📦 Using exam from IndexedDB cache');
-                        }
-                    } catch (idbErr) {
-                        console.warn('Could not load from IndexedDB:', idbErr);
+                    } catch (e) {
+                        console.warn('Could not read cached admission exam:', e);
+                    }
+                }
+                if (!exam) {
+                    const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
+                    if (cache[examId]) exam = cache[examId];
+                }
+                if (!exam) {
+                    const payload = await dataService.fetchAdmissionExam();
+                    exam = dataService._mapExam(payload.exam);
+                    exam.theoryInstructions = payload.exam.theory_instructions || '';
+                    takeExam.admissionContext = {
+                        ...(takeExam.admissionContext || {}),
+                        startedAt: payload.candidate.startedAt,
+                        candidateId: payload.candidate.candidateId,
+                        fullName: payload.candidate.fullName,
+                        examId: exam.id,
+                        duration: exam.duration
+                    };
+                    window.admissionsService?.saveCandidateContext?.(takeExam.admissionContext);
+                    if (useIndexedDB) {
+                        try { await window.idb.saveExam(exam); } catch (e) { /* best effort */ }
                     }
                 }
 
-                // Fallback to localStorage
-                if (!exam) {
-                    const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
-                    if (cache[examId]) {
-                        exam = cache[examId];
-                        isUsingCache = true;
-                        console.log('📦 Using exam from localStorage cache');
+                // Only /redeem stamps started_at. Without it this attempt never
+                // passed the window / released / device gates.
+                if (!takeExam.admissionContext?.startedAt) {
+                    takeExam.showAlert(
+                        'Not Started',
+                        'This test has not been started properly. Please enter your Access Code again.',
+                        () => window.location.href = 'admission.html'
+                    );
+                    return;
+                }
+            } else {
+                try {
+                    exam = await dataService.getExamById(examId);
+
+                    // Cache successful fetch to IndexedDB
+                    if (exam && useIndexedDB) {
+                        try {
+                            await window.idb.saveExam(exam);
+                        } catch (e) {
+                            console.warn('Could not cache exam to IndexedDB:', e);
+                        }
+                    }
+                } catch (fetchErr) {
+                    console.warn('⚠️ Failed to fetch exam from server:', fetchErr.message);
+
+                    // Try IndexedDB cache first (more storage capacity)
+                    if (useIndexedDB) {
+                        try {
+                            exam = await window.idb.getExam(examId);
+                            if (exam) {
+                                isUsingCache = true;
+                                console.log('📦 Using exam from IndexedDB cache');
+                            }
+                        } catch (idbErr) {
+                            console.warn('Could not load from IndexedDB:', idbErr);
+                        }
+                    }
+
+                    // Fallback to localStorage
+                    if (!exam) {
+                        const cache = JSON.parse(localStorage.getItem('cbt_exam_cache') || '{}');
+                        if (cache[examId]) {
+                            exam = cache[examId];
+                            isUsingCache = true;
+                            console.log('📦 Using exam from localStorage cache');
+                        }
                     }
                 }
             }
@@ -201,26 +259,26 @@ const takeExam = {
             // V2D: Check exam accessibility using trusted server time
             // IMPORTANT: Skip schedule check if resuming from snapshot (V2C: don't re-lock mid-attempt)
             if (exam.status === 'archived') {
-                takeExam.showAlert('Archived', 'This exam has been archived and is no longer available.', () => window.location.href = 'student-dashboard.html');
+                takeExam.showAlert('Archived', 'This exam has been archived and is no longer available.', () => window.location.href = takeExam._exitUrl());
                 return;
             }
 
             const availability = dataService.resolveExamAvailability(exam);
             if (!availability.available && availability.reason === 'admin_locked') {
-                takeExam.showAlert('Exam Unavailable', 'This exam has been temporarily locked by the school administrator.', () => window.location.href = 'student-dashboard.html');
+                takeExam.showAlert('Exam Unavailable', 'This exam has been temporarily locked by the school administrator.', () => window.location.href = takeExam._exitUrl());
                 return;
             }
 
             if (!isResumingSnapshot) {
                 if (!availability.available && availability.reason !== 'inactive') {
                     if (availability.reason === 'no_trusted_time_future_locked') {
-                        takeExam.showAlert('Cannot Verify Time', 'Cannot verify exam start time right now. Please reconnect and try again.', () => window.location.href = 'student-dashboard.html');
+                        takeExam.showAlert('Cannot Verify Time', 'Cannot verify exam start time right now. Please reconnect and try again.', () => window.location.href = takeExam._exitUrl());
                         return;
                     }
                     if (availability.reason === 'scheduled_future') {
                         const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                         const scheduledStr = availability.scheduledAt.toLocaleDateString('en-US', options);
-                        takeExam.showAlert('Not Yet Available', `This exam is not yet available. It will be accessible on ${scheduledStr}.`, () => window.location.href = 'student-dashboard.html');
+                        takeExam.showAlert('Not Yet Available', `This exam is not yet available. It will be accessible on ${scheduledStr}.`, () => window.location.href = takeExam._exitUrl());
                         return;
                     }
                 }
@@ -251,7 +309,7 @@ const takeExam = {
                     .filter(([k, v]) => v && typeof v === 'object' && v.status === 'resolved' && new Date(v.deadline) > now); // Only active deadlines
 
                 if (resolvedFlags.length === 0) {
-                    takeExam.showAlert('No Issues', 'No active resolved flags to review.', () => window.location.href = 'student-dashboard.html');
+                    takeExam.showAlert('No Issues', 'No active resolved flags to review.', () => window.location.href = takeExam._exitUrl());
                     return;
                 }
 
@@ -322,11 +380,11 @@ const takeExam = {
             console.error(err);
             const msg = (err.message || '').toLowerCase();
             if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout')) {
-                takeExam.showAlert('Connection Error', 'Unable to load the exam. Please check your internet connection and try again.', () => window.location.href = 'student-dashboard.html');
+                takeExam.showAlert('Connection Error', 'Unable to load the exam. Please check your internet connection and try again.', () => window.location.href = takeExam._exitUrl());
             } else if (msg.includes('not found') || msg.includes('404')) {
-                takeExam.showAlert('Exam Not Found', 'This exam could not be found. It may have been removed by your teacher.', () => window.location.href = 'student-dashboard.html');
+                takeExam.showAlert('Exam Not Found', 'This exam could not be found. It may have been removed by your teacher.', () => window.location.href = takeExam._exitUrl());
             } else {
-                takeExam.showAlert('Error', 'Something went wrong while loading the exam. Please try again.\n\nDetails: ' + err.message, () => window.location.href = 'student-dashboard.html');
+                takeExam.showAlert('Error', 'Something went wrong while loading the exam. Please try again.\n\nDetails: ' + err.message, () => window.location.href = takeExam._exitUrl());
             }
         }
     },
@@ -511,7 +569,7 @@ const takeExam = {
             const durationMin = remainMs / (1000 * 60);
 
             if (durationMin <= 0) {
-                takeExam.showAlert('Time Expired', 'Review time expired.', () => window.location.href = 'student-dashboard.html');
+                takeExam.showAlert('Time Expired', 'Review time expired.', () => window.location.href = takeExam._exitUrl());
                 return;
             }
 
@@ -521,6 +579,36 @@ const takeExam = {
                 el.style.color = 'red';
             }, () => {
                 takeExam.showNotice('Time is up for review! Submitting updates.', 'warning');
+                takeExam.submit();
+            });
+            takeExam.timer.start();
+            return;
+        }
+
+        // Admission candidates run on WALL CLOCK from the server-stamped start,
+        // not on time-in-app. Resuming after a dropout is allowed, but the
+        // disconnect burns the candidate's own exam time — so going offline
+        // deliberately gains nothing, while a brief network blip doesn't
+        // destroy a legitimate attempt. Extensions don't apply to entrance
+        // exams, so this path skips them entirely.
+        if (takeExam.isAdmission && takeExam.admissionContext?.startedAt) {
+            const remainingMs = window.admissionsService.getRemainingMs(
+                takeExam.admissionContext.startedAt,
+                takeExam.exam.duration
+            );
+
+            if (remainingMs !== null && remainingMs <= 0) {
+                takeExam.showNotice('Your time has already expired. Submitting your answers.', 'warning');
+                takeExam.submit();
+                return;
+            }
+
+            takeExam.timer = new Timer(remainingMs / 60000, (timeStr, remaining) => {
+                const el = document.getElementById('timer');
+                el.textContent = timeStr;
+                if (remaining < 300) el.classList.add('timer-warning');
+            }, () => {
+                takeExam.showNotice('Time is up! Submitting your exam automatically.', 'warning');
                 takeExam.submit();
             });
             takeExam.timer.start();
@@ -1634,7 +1722,7 @@ const takeExam = {
                 const passed = percentage >= takeExam.exam.passScore;
                 takeExam.showResultModal('Exam Submitted!', 'You have successfully completed the exam.', score, totalPoints, percentage, passed);
             }
-            // window.location.href = 'student-dashboard.html'; // REMOVED - Handled by modal button
+            // window.location.href = takeExam._exitUrl(); // REMOVED - Handled by modal button
         } catch (err) {
             console.error('Submission error:', err);
 
@@ -1644,14 +1732,21 @@ const takeExam = {
                 await takeExam._clearProgress();
                 await takeExam._clearSnapshot();
                 sessionStorage.setItem('force_refresh_dashboard', '1');
+                // Start retrying straight away — the connection may already be usable
+                // again, and waiting for an 'online' event that never fires is what
+                // left these submissions stranded.
+                if (dataService.startPendingSyncDriver) {
+                    dataService.startPendingSyncDriver({ intervalMs: 20000 });
+                }
                 takeExam.showResultModal('Exam Saved Offline!', 'Your answers have been saved locally and will sync automatically when you\'re back online.', score, totalPoints, percentage, undefined, true);
                 return;
             }
 
             // Check if network error - save locally as backup
-            if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                // Queue for later sync
-                const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+            if (dataService.isNetworkError(err)) {
+                // Queue for later sync via the shared queue, so this lands in the same
+                // store the sync actually reads. Writing straight to localStorage here
+                // is what let these submissions get wiped before they were ever sent.
                 const submission = {
                     _local_id: Date.now(),
                     exam_id: resultData.examId,
@@ -1659,6 +1754,7 @@ const takeExam = {
                     score: resultData.score,
                     total_points: resultData.totalPoints,
                     pass_score: resultData.passScore,
+                    passed: resultData.passed,
                     answers: resultData.answers,
                     flags: { ...resultData.flags, _status: 'completed', _studentName: resultData.studentName || '' },
                     exam_title: resultData.examSnapshot?.title || '',
@@ -1667,13 +1763,35 @@ const takeExam = {
                     exam_duration: resultData.examSnapshot?.duration ?? null,
                     exam_has_theory: !!resultData.examSnapshot?.hasTheory,
                     exam_theory_count: resultData.examSnapshot?.theoryCount ?? 0,
-                    submitted_at: new Date().toISOString()
+                    submitted_at: ((dataService.getTrustedNow && dataService.getTrustedNow()) || new Date()).toISOString()
                 };
-                pending.push(submission);
-                localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
+                try {
+                    await dataService.queuePendingSubmission(submission);
+                } catch (queueErr) {
+                    // Nothing was persisted anywhere. Do NOT clear local progress —
+                    // that is the student's only remaining copy of their answers.
+                    console.error('Failed to queue offline submission:', queueErr);
+                    takeExam._isSubmitting = false;
+                    const btn = document.getElementById('submit-btn');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Submit Exam';
+                        btn.style.opacity = '1';
+                    }
+                    await Utils.showAlert(
+                        'Could Not Save',
+                        'Your answers could not be saved to this device and have NOT been submitted.\n\nDo not close this page. Please tell your teacher immediately.'
+                    );
+                    return;
+                }
+
+                // Safe to clear only now that the answers are persisted.
                 await takeExam._clearProgress();
                 await takeExam._clearSnapshot();
 
+                if (dataService.startPendingSyncDriver) {
+                    dataService.startPendingSyncDriver({ intervalMs: 20000 });
+                }
                 takeExam.showResultModal('Saved Offline', 'Network issue detected. Your answers have been saved locally.', score, totalPoints, percentage, undefined, true);
                 return;
             }
@@ -1702,8 +1820,29 @@ const takeExam = {
         const modal = document.getElementById('result-modal');
         if (!modal) {
             Utils.showAlert(title, `${message}\nScore: ${score}/${totalPoints} (${percentage}%)`).then(() => {
-                window.location.href = 'student-dashboard.html';
+                window.location.href = takeExam._exitUrl();
             });
+            return;
+        }
+
+        const statusEl = document.getElementById('result-status');
+        const iconEl = document.getElementById('result-icon');
+        const container = document.getElementById('result-score-container');
+
+        // Entrance results belong to the school's ranked admission list, not to
+        // the candidate — never show a prospective student their score.
+        if (takeExam.isAdmission) {
+            document.getElementById('result-title').textContent =
+                isOffline ? 'Saved on this device' : 'Responses recorded';
+            document.getElementById('result-message').innerHTML = isOffline
+                ? 'Your answers are saved on this device and will be sent automatically once you are back online.'
+                : 'Your answers have been submitted successfully.';
+            container.style.display = 'none';
+            statusEl.style.display = 'none';
+            iconEl.textContent = isOffline ? '📱' : '✅';
+            const exitBtn = document.getElementById('result-exit-btn');
+            if (exitBtn) exitBtn.textContent = 'Continue';
+            modal.style.display = 'flex';
             return;
         }
 
@@ -1712,10 +1851,6 @@ const takeExam = {
 
         document.getElementById('result-score').textContent = `${percentage}%`;
         document.getElementById('result-points').textContent = `${Math.round(score * 10) / 10} / ${totalPoints} Points`;
-
-        const statusEl = document.getElementById('result-status');
-        const iconEl = document.getElementById('result-icon');
-        const container = document.getElementById('result-score-container');
 
         // Reset styles and classes
         container.style.border = 'none';

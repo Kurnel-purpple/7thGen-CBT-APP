@@ -95,8 +95,12 @@
                     <input type="text" class="topbar-search-input" placeholder="Search tenants..." id="ma-search-input">
                 </div>
 
+                <!-- Mobile page title: homework.css hides .hw-page-head under
+                     768px, and this page shares that stylesheet. -->
+                <h1 class="hw-topbar-title">Tenants</h1>
+
                 <div class="topbar-actions">
-                    <button class="header-create-exam-btn" id="ma-create-cta" type="button" style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; padding:8px 16px; border-radius:8px; font-weight:700; border:1.5px solid var(--primary); color:var(--primary); background:transparent; cursor:pointer;">
+                    <button class="header-create-exam-btn" id="ma-create-cta" data-ma-create type="button" style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; padding:8px 16px; border-radius:8px; font-weight:700; border:1.5px solid var(--primary); color:var(--primary); background:transparent; cursor:pointer;">
                         <span style="font-size:1rem; line-height:1;">+</span>
                         <span>New Tenant</span>
                     </button>
@@ -123,6 +127,20 @@
             </main>
         </div>
     </div>
+
+    <!-- Mobile bottom nav. New Tenant lives in .topbar-actions, which
+         homework.css hides under 768px, so without this there is no way to
+         create a tenant on a phone. Hidden above 768px by .bottom-nav. -->
+    <nav class="bottom-nav" role="navigation" aria-label="Tenant actions">
+        <button class="bottom-nav-item" type="button" onclick="Utils.goBack()" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item nav-action-primary" id="ma-create-cta-mobile" data-ma-create type="button" aria-label="New tenant">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>New Tenant</span>
+        </button>
+    </nav>
 
     <!-- Tenant editor modal (create / edit) -->
     <div class="hw-modal" id="ma-tenant-modal" role="dialog" aria-modal="true" aria-labelledby="ma-tenant-title" hidden>

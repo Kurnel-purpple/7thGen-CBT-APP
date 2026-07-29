@@ -18,6 +18,7 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/report_cards/css/report-card-document.css">
     <link rel="stylesheet" href="../modules/report_cards/css/report-cards.css">
     <style>
         /* ============================================================
@@ -101,38 +102,48 @@
             background: var(--bg-color, #0f1117);
         }
 
-        .src-detail-header h2 {
-            margin: 0 0 6px;
-            font-size: 1.3rem;
-            font-family: var(--font-heading);
-            font-weight: 700;
+        /* The finished document sits on the panel like a sheet of paper */
+        .src-detail-panel .rcd-sheet {
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
         }
-        .src-detail-meta {
-            font-size: 0.85rem;
-            color: var(--light-text);
-            margin-bottom: 24px;
+        [data-theme="dark"] .src-detail-panel .rcd-sheet {
+            box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5);
         }
 
-        .src-section {
-            margin-bottom: 24px;
+        .src-doc-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            max-width: 800px;
+            margin: 0 auto 16px;
         }
-        .src-section h4 {
-            font-size: 0.78rem;
+        .src-doc-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 44px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 50px;
+            background: var(--primary-color);
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.85rem;
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--light-text);
-            margin: 0 0 10px;
+            cursor: pointer;
+            transition: opacity 0.15s, background 0.15s;
         }
-        .src-remarks {
-            margin: 0;
-            padding: 14px 16px;
-            background: var(--card-bg);
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            font-size: 0.9rem;
-            line-height: 1.6;
+        .src-doc-btn:hover { opacity: 0.9; }
+        .src-doc-btn:active { transform: scale(0.97); }
+        .src-doc-btn-ghost {
+            background: transparent;
+            border: 1.5px solid var(--border-color);
+            color: var(--primary-color);
+        }
+        .src-doc-btn-ghost:hover {
+            background: var(--primary-light, rgba(26, 115, 232, 0.08));
+            opacity: 1;
         }
 
         .src-empty-detail {
@@ -150,7 +161,10 @@
         @media (max-width: 768px) {
             .src-layout { flex-direction: column; height: auto; }
             .src-list-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border-color); max-height: 200px; }
-            .src-detail-panel { padding: 20px 16px; }
+            /* Tail room so the fixed bottom nav never covers the sheet */
+            .src-detail-panel { padding: 20px 16px 92px; }
+            /* Download / Open full page move into the bottom nav */
+            .src-doc-actions { display: none; }
         }
     </style>
 </head>
@@ -217,16 +231,18 @@
                 </div>
             </header>
 
-            <div class="src-layout">
+            <!-- rcd-host / rcd-no-print: printing collapses the page down to
+                 the document alone — see report-card-document.css -->
+            <div class="src-layout rcd-host">
                 <!-- Left panel: card list -->
-                <div class="src-list-panel">
+                <div class="src-list-panel rcd-no-print">
                     <div class="src-list-title">Report Cards</div>
                     <div id="src-card-list"></div>
                 </div>
 
-                <!-- Right panel: detail -->
-                <div class="src-detail-panel">
-                    <div id="src-detail">
+                <!-- Right panel: the finished document -->
+                <div class="src-detail-panel rcd-host">
+                    <div id="src-detail" class="rcd-host">
                         <div class="src-empty-detail">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin-bottom:12px; opacity:0.5;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                             <p>Select a report card to view details.</p>
@@ -236,6 +252,25 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile bottom nav. The document's own Download / Open full page buttons
+         sit below the card list on a phone, so they need scrolling past a whole
+         sheet to reach; these proxy to them. Both are absent until a card is
+         selected, hence the optional call. Hidden above 768px by .bottom-nav. -->
+    <nav class="bottom-nav bottom-nav-dynamic rcd-no-print" role="navigation" aria-label="Report card actions">
+        <button class="bottom-nav-item" type="button" onclick="Utils.goBack()" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item nav-action-primary" type="button" onclick="document.getElementById('src-download')?.click()" aria-label="Download PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download</span>
+        </button>
+        <button class="bottom-nav-item" type="button" onclick="document.getElementById('src-fullpage')?.click()" aria-label="Open full page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/></svg>
+            <span>Full page</span>
+        </button>
+    </nav>
 
     <!-- Sidebar helper scripts -->
     <script>
@@ -321,6 +356,8 @@
                 ],
                 moduleScripts: [
                     '../modules/report_cards/js/reportCardDataService.js',
+                    '../modules/report_cards/js/reportCardTemplate.js',
+                    '../modules/report_cards/js/reportCardDocument.js',
                     '../modules/report_cards/js/studentReportCard.js'
                 ]
             });

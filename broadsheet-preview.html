@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broadsheet — 3rd Term + Session Preview</title>
+    <link rel="stylesheet" href="src/css/main.css">
+    <link rel="stylesheet" href="src/css/dashboard.css">
+    <link rel="stylesheet" href="src/modules/broadsheet/css/broadsheet.css">
+    <style>
+        /* Preview-only chrome — not part of the app */
+        body { padding: 24px; }
+        .pv-bar { display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+        .pv-bar button { padding:8px 16px; border-radius:50px; border:1.5px solid var(--border-color); background:var(--card-bg); color:var(--text-color); font:inherit; font-size:0.85rem; cursor:pointer; }
+        .pv-note { font-size:0.8rem; color:var(--light-text); margin:0 0 18px; }
+    </style>
+</head>
+
+<body>
+    <div class="pv-bar">
+        <button onclick="var h=document.documentElement;h.setAttribute('data-theme',h.getAttribute('data-theme')==='dark'?'light':'dark')">Toggle dark mode</button>
+        <button onclick="render('3rd Term')">Show 3rd Term (with session block)</button>
+        <button onclick="render('2nd Term')">Show 2nd Term (no session block)</button>
+        <button onclick="window.print()">Print preview</button>
+    </div>
+    <p class="pv-note">Static preview. Markup is copied verbatim from <code>renderTermSheet()</code> in
+        <code>broadsheetDashboard.js</code>; styles are the real <code>broadsheet.css</code>. The session block
+        appears only on the 3rd term, exactly as the app does it.</p>
+
+    <main class="main-content bs-view active" style="padding:0;">
+        <section class="bs-hero">
+            <h2 id="pv-title">Term Broadsheet</h2>
+            <p>A class-wide performance sheet for a term. Compile the <strong>3rd Term</strong> and the sheet also
+                carries each student's session performance — 1st, 2nd and 3rd term totals, the section total, and the
+                session average, percentage and position.</p>
+        </section>
+
+        <section class="bs-panel">
+            <div class="bs-result-header">
+                <div>
+                    <h3 class="bs-result-title" id="bs-term-title">Broadsheet</h3>
+                    <div class="bs-result-meta" id="bs-term-meta"></div>
+                </div>
+            </div>
+            <div id="bs-term-table"></div>
+        </section>
+    </main>
+
+    <script>
+        // ============================================================
+        // Sample data shaped like buildSheetFromCards() + attachSessionColumns()
+        // ============================================================
+        var SESSION_TERMS = ['1st Term', '2nd Term', '3rd Term'];
+        var SUBJECTS = ['Agricultural Science', 'Basic Science', 'Civic Education', 'English Language', 'Mathematics'];
+        function round1(n) { return Math.round((n || 0) * 10) / 10; }
+
+        // Per student: this term's [CA, Exam] per subject, plus their 1st/2nd term grand totals
+        var SAMPLE = [
+            { name: 'Adebayo Folake',   marks: [[24,50],[27,57],[25,52],[26,55],[28,58]], prior: [431, 448] },
+            { name: 'Chukwu Emeka',     marks: [[23,49],[26,50],[24,51],[25,53],[27,54]], prior: [412, 405] },
+            { name: 'Ibrahim Aisha',    marks: [[21,46],[25,49],[22,47],[24,48],[25,50]], prior: [388, 401] },
+            { name: 'Okonkwo Chidinma', marks: [[19,41],[21,45],[20,42],[23,44],[22,46]], prior: [355, 362] },
+            { name: 'Bello Yusuf',      marks: [[17,35],[20,39],[18,38],[18,38],[19,40]], prior: [302, null] },
+            { name: 'Nwachukwu Grace',  marks: [[14,29],[15,32],[16,30],[16,33],[17,34]], prior: [268, 281] }
+        ];
+        var SUBJECT_POSSIBLE = 100;   // per subject this term
+        var TERM_POSSIBLE = SUBJECTS.length * SUBJECT_POSSIBLE;
+
+        function assignPositions(rows, key) {
+            var sorted = rows.slice().sort(function(a, b) { return b[key] - a[key]; });
+            sorted.forEach(function(row, i) {
+                row.position = (i > 0 && row[key] === sorted[i - 1][key]) ? sorted[i - 1].position : i + 1;
+            });
+        }
+
+        function buildSheet(term) {
+            var rows = SAMPLE.map(function(s) {
+                var cells = {}, grandTotal = 0, grandPossible = 0;
+                SUBJECTS.forEach(function(name, i) {
+                    var ca = s.marks[i][0], exam = s.marks[i][1], total = ca + exam;
+                    cells[name] = {
+                        ca: ca, exam: exam, total: total, totalPossible: SUBJECT_POSSIBLE,
+                        percentage: round1(total / SUBJECT_POSSIBLE * 100), grade: total >= 70 ? 'A' : total >= 60 ? 'B' : 'C'
+                    };
+                    grandTotal += total; grandPossible += SUBJECT_POSSIBLE;
+                });
+                return {
+                    studentName: s.name, cells: cells, subjectCount: SUBJECTS.length,
+                    grandTotal: grandTotal, grandPossible: grandPossible,
+                    percentage: round1(grandTotal / grandPossible * 100), position: null, prior: s.prior
+                };
+            });
+            assignPositions(rows, 'percentage');
+            rows.sort(function(a, b) { return a.position - b.position; });
+
+            var subjectAverages = {};
+            SUBJECTS.forEach(function(name) {
+                subjectAverages[name] = round1(
+                    rows.reduce(function(a, r) { return a + r.cells[name].percentage; }, 0) / rows.length);
+            });
+
+            var sheet = {
+                classLevel: 'JSS 3', term: term, session: '2025/2026',
+                subjects: SUBJECTS, students: rows, subjectAverages: subjectAverages,
+                overallAverage: round1(rows.reduce(function(a, r) { return a + r.percentage; }, 0) / rows.length),
+                classSize: rows.length
+            };
+
+            if (term === '3rd Term') attachSession(sheet);
+            return sheet;
+        }
+
+        // Mirrors attachSessionColumns() in broadsheetDataService.js
+        function attachSession(sheet) {
+            sheet.students.forEach(function(row) {
+                var terms = {};
+                SESSION_TERMS.forEach(function(term, i) {
+                    if (term === '3rd Term') {
+                        terms[term] = {
+                            total: row.grandTotal, possible: row.grandPossible,
+                            percentage: row.percentage, subjectCount: row.subjectCount
+                        };
+                    } else {
+                        var total = row.prior[i];
+                        terms[term] = total === null
+                            ? { total: 0, possible: 0, percentage: 0, subjectCount: 0 }
+                            : { total: total, possible: TERM_POSSIBLE, percentage: round1(total / TERM_POSSIBLE * 100), subjectCount: SUBJECTS.length };
+                    }
+                });
+
+                var termsSat = 0, pctSum = 0, sectionTotal = 0, sectionPossible = 0;
+                SESSION_TERMS.forEach(function(term) {
+                    var t = terms[term];
+                    if (!t || t.subjectCount === 0) return;
+                    termsSat += 1;
+                    pctSum += t.percentage || 0;
+                    sectionTotal = round1(sectionTotal + (t.total || 0));
+                    sectionPossible = round1(sectionPossible + (t.possible || 0));
+                });
+
+                row.session = {
+                    terms: terms, termsSat: termsSat,
+                    sectionTotal: sectionTotal, sectionPossible: sectionPossible,
+                    average: termsSat > 0 ? round1(sectionTotal / termsSat) : 0,
+                    percentage: termsSat > 0 ? round1(pctSum / termsSat) : 0,
+                    position: null
+                };
+            });
+
+            var ranking = sheet.students.map(function(row) { return { pct: row.session.percentage, ref: row }; });
+            assignPositions(ranking, 'pct');
+            ranking.forEach(function(e) { e.ref.session.position = e.position; });
+
+            var termAverages = {};
+            SESSION_TERMS.forEach(function(term) {
+                var sat = sheet.students.filter(function(r) {
+                    var t = r.session.terms[term]; return t && t.subjectCount > 0;
+                });
+                termAverages[term] = sat.length === 0 ? null : round1(
+                    sat.reduce(function(a, r) { return a + r.session.terms[term].percentage; }, 0) / sat.length);
+            });
+
+            sheet.hasSession = true;
+            sheet.sessionTerms = SESSION_TERMS.slice();
+            sheet.sessionTermAverages = termAverages;
+            sheet.sessionOverallAverage = round1(
+                sheet.students.reduce(function(a, r) { return a + r.session.percentage; }, 0) / sheet.students.length);
+        }
+
+        // ============================================================
+        // Verbatim from broadsheetDashboard.js
+        // ============================================================
+        function escapeHtml(v) {
+            return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+        function ordinalSuffix(n) {
+            var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+        function fmt(n) { return (n === null || n === undefined) ? '—' : String(n); }
+        function positionBadge(position) {
+            if (!position) return '—';
+            var cls = position <= 3 ? ' bs-pos-top' + position : '';
+            return '<span class="bs-pos-badge' + cls + '">' + ordinalSuffix(position) + '</span>';
+        }
+
+        function sessionCells(session, terms) {
+            if (!session) return '';
+            var out = '';
+            terms.forEach(function(term, i) {
+                var t = session.terms[term];
+                var first = i === 0 ? ' bs-session-first' : '';
+                if (!t || t.subjectCount === 0) {
+                    out += '<td class="bs-cell bs-cell-empty bs-sub-tot bs-session-col' + first +
+                        '" title="No results for this term">—</td>';
+                } else {
+                    out += '<td class="bs-cell bs-sub-tot bs-session-col' + first + '" title="' + t.total + ' / ' +
+                        t.possible + ' (' + t.percentage + '%)">' + t.total + '</td>';
+                }
+            });
+            var divisorNote = session.sectionTotal + ' ÷ ' + session.termsSat +
+                ' term' + (session.termsSat !== 1 ? 's' : '');
+            out += '<td class="bs-col-total bs-session-col" title="out of ' + session.sectionPossible + '">' +
+                session.sectionTotal + '</td>' +
+                '<td class="bs-col-avg bs-session-col" title="' + divisorNote + '">' + session.average + '</td>' +
+                '<td class="bs-col-pct bs-session-col" title="Mean of ' + session.termsSat + ' term percentage' +
+                (session.termsSat !== 1 ? 's' : '') + '">' + session.percentage + '%</td>' +
+                '<td class="bs-col-pos bs-session-col">' + positionBadge(session.position) + '</td>';
+            return out;
+        }
+
+        function renderTermSheet(sheet) {
+            document.getElementById('bs-term-title').textContent =
+                sheet.classLevel + ' — ' + sheet.term + ' Broadsheet';
+            document.getElementById('bs-term-meta').textContent =
+                (sheet.session ? sheet.session + ' Session | ' : '') +
+                sheet.classSize + ' students | ' + sheet.subjects.length + ' subjects' +
+                ' | Class average: ' + sheet.overallAverage + '%' +
+                (sheet.hasSession ? ' | Session average: ' + sheet.sessionOverallAverage + '%' : '');
+
+            var withSession = !!sheet.hasSession;
+            var sessionTerms = withSession ? sheet.sessionTerms : [];
+
+            var html = '<div class="bs-table-scroll"><table class="bs-table">';
+            html += '<thead><tr>' +
+                '<th rowspan="2" class="bs-col-index">#</th>' +
+                '<th rowspan="2" class="bs-col-student">Student</th>';
+            sheet.subjects.forEach(function(name) {
+                html += '<th colspan="3" class="bs-subject-group" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</th>';
+            });
+            html += '<th rowspan="2" class="bs-col-total">Total</th>' +
+                '<th rowspan="2" class="bs-col-pct">%</th>' +
+                '<th rowspan="2" class="bs-col-pos">Pos</th>';
+            if (withSession) {
+                html += '<th colspan="' + (sessionTerms.length + 4) + '" class="bs-session-group">Session Performance</th>';
+            }
+            html += '</tr>';
+
+            html += '<tr>';
+            sheet.subjects.forEach(function() {
+                html += '<th class="bs-sub-col">CA</th><th class="bs-sub-col">Exam</th><th class="bs-sub-col bs-sub-tot">Tot</th>';
+            });
+            if (withSession) {
+                sessionTerms.forEach(function(term, i) {
+                    html += '<th class="bs-sub-col bs-session-col' + (i === 0 ? ' bs-session-first' : '') + '">' +
+                        escapeHtml(term) + ' Total</th>';
+                });
+                html += '<th class="bs-sub-col bs-session-col">Section Total</th>' +
+                    '<th class="bs-sub-col bs-session-col">Average</th>' +
+                    '<th class="bs-sub-col bs-session-col">%</th>' +
+                    '<th class="bs-sub-col bs-session-col">Pos</th>';
+            }
+            html += '</tr></thead><tbody>';
+
+            sheet.students.forEach(function(row, index) {
+                html += '<tr>' +
+                    '<td class="bs-col-index">' + (index + 1) + '</td>' +
+                    '<td class="bs-col-student" title="' + escapeHtml(row.studentName) + '">' + escapeHtml(row.studentName) + '</td>';
+                sheet.subjects.forEach(function(name) {
+                    var cell = row.cells[name];
+                    if (!cell) {
+                        html += '<td class="bs-cell bs-cell-empty">—</td><td class="bs-cell bs-cell-empty">—</td><td class="bs-cell bs-cell-empty bs-sub-tot">—</td>';
+                    } else {
+                        html += '<td class="bs-cell">' + fmt(cell.ca) + '</td>' +
+                            '<td class="bs-cell">' + fmt(cell.exam) + '</td>' +
+                            '<td class="bs-cell bs-sub-tot" title="' + cell.total + ' / ' + cell.totalPossible + ' (' + cell.percentage + '%, ' + escapeHtml(cell.grade || '') + ')">' + fmt(cell.total) + '</td>';
+                    }
+                });
+                html += '<td class="bs-col-total" title="out of ' + row.grandPossible + '">' + row.grandTotal + '</td>' +
+                    '<td class="bs-col-pct">' + row.percentage + '%</td>' +
+                    '<td class="bs-col-pos">' + positionBadge(row.position) + '</td>';
+                if (withSession) html += sessionCells(row.session, sessionTerms);
+                html += '</tr>';
+            });
+            html += '</tbody>';
+
+            html += '<tfoot><tr>' +
+                '<td class="bs-col-index"></td>' +
+                '<td class="bs-col-student">Class Average</td>';
+            sheet.subjects.forEach(function(name) {
+                var avg = sheet.subjectAverages[name];
+                html += '<td colspan="3" class="bs-cell bs-avg-cell">' + (avg === null ? '—' : avg + '%') + '</td>';
+            });
+            html += '<td class="bs-col-total"></td>' +
+                '<td class="bs-col-pct">' + sheet.overallAverage + '%</td>' +
+                '<td class="bs-col-pos"></td>';
+            if (withSession) {
+                sessionTerms.forEach(function(term, i) {
+                    var avg = sheet.sessionTermAverages ? sheet.sessionTermAverages[term] : null;
+                    html += '<td class="bs-cell bs-avg-cell bs-session-col' + (i === 0 ? ' bs-session-first' : '') + '">' +
+                        (avg === null || avg === undefined ? '—' : avg + '%') + '</td>';
+                });
+                html += '<td class="bs-cell bs-session-col"></td>' +
+                    '<td class="bs-cell bs-session-col"></td>' +
+                    '<td class="bs-col-pct bs-session-col">' + sheet.sessionOverallAverage + '%</td>' +
+                    '<td class="bs-cell bs-session-col"></td>';
+            }
+            html += '</tr></tfoot></table></div>';
+
+            document.getElementById('bs-term-table').innerHTML = html;
+        }
+
+        function render(term) {
+            document.getElementById('pv-title').textContent = term + ' Broadsheet';
+            renderTermSheet(buildSheet(term));
+        }
+        render('3rd Term');
+
+        // Every row must have the same cell count as the header, or the
+        // session columns are misaligned against the term columns.
+        (function verify() {
+            var t = document.querySelector('.bs-table');
+            var head = Array.prototype.reduce.call(t.tHead.rows[0].cells, function(a, c) { return a + c.colSpan; }, 0);
+            var sub = t.tHead.rows[1].cells.length;
+            var rowspanCarry = Array.prototype.filter.call(t.tHead.rows[0].cells, function(c) { return c.rowSpan === 2; }).length;
+            var widths = [];
+            Array.prototype.forEach.call(t.tBodies[0].rows, function(r) {
+                widths.push(Array.prototype.reduce.call(r.cells, function(a, c) { return a + c.colSpan; }, 0));
+            });
+            var footer = Array.prototype.reduce.call(t.tFoot.rows[0].cells, function(a, c) { return a + c.colSpan; }, 0);
+            var ok = widths.every(function(w) { return w === head; }) && footer === head && (sub + rowspanCarry) === head;
+            console.log('[preview] header cols =', head, '| header row2 + rowspans =', sub + rowspanCarry,
+                '| body rows =', widths.join(','), '| footer =', footer, ok ? '=> ALIGNED' : '=> MISALIGNED');
+        })();
+    </script>
+</body>
+
+</html>

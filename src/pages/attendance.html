@@ -18,7 +18,7 @@
     <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
-    <link rel="stylesheet" href="../modules/attendance/css/attendance.css">
+    <link rel="stylesheet" href="../modules/attendance/css/attendance.css?v=4">
 </head>
 
 <body>
@@ -94,6 +94,10 @@
                     <p style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;" id="attendance-subtitle">Mark and review student attendance</p>
                 </div>
             </div>
+            <!-- Mobile-only: save lives in the title row (desktop keeps the action-bar button) -->
+            <button id="save-attendance-topbar" onclick="attendanceDashboard.saveAttendance()" aria-label="Save attendance" title="Save attendance">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            </button>
         </header>
 
         <!-- Main Content -->
@@ -132,13 +136,28 @@
                     </div>
                 </div>
 
+                <!-- Collapsed selection summary (shown once class+sheet+date chosen) -->
+                <div class="attendance-selection-summary" id="selection-summary" style="display:none;" onclick="attendanceDashboard.showControls()">
+                    <div class="sel-summary-info">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                        <div style="min-width:0;">
+                            <strong id="sel-summary-title"></strong>
+                            <span id="sel-summary-date"></span>
+                        </div>
+                    </div>
+                    <button type="button" class="sel-summary-change" onclick="event.stopPropagation(); attendanceDashboard.showControls()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Change
+                    </button>
+                </div>
+
                 <!-- Stats Bar -->
                 <div class="attendance-stats-bar" id="stats-bar">
-                    <span class="stat-pill present"><span class="stat-dot"></span> Present: <span id="stat-present">0</span></span>
-                    <span class="stat-pill absent"><span class="stat-dot"></span> Absent: <span id="stat-absent">0</span></span>
-                    <span class="stat-pill ph"><span class="stat-dot"></span> PH: <span id="stat-ph">0</span></span>
-                    <span class="stat-pill mtb"><span class="stat-dot"></span> MTB: <span id="stat-mtb">0</span></span>
-                    <span class="stat-pill unmarked"><span class="stat-dot"></span> Unmarked: <span id="stat-unmarked">0</span></span>
+                    <span class="stat-pill present"><span class="stat-dot"></span><span class="stat-pill-label"> Present:</span> <span id="stat-present">0</span></span>
+                    <span class="stat-pill absent"><span class="stat-dot"></span><span class="stat-pill-label"> Absent:</span> <span id="stat-absent">0</span></span>
+                    <span class="stat-pill ph"><span class="stat-dot"></span><span class="stat-pill-label"> PH:</span> <span id="stat-ph">0</span></span>
+                    <span class="stat-pill mtb"><span class="stat-dot"></span><span class="stat-pill-label"> MTB:</span> <span id="stat-mtb">0</span></span>
+                    <span class="stat-pill unmarked"><span class="stat-dot"></span><span class="stat-pill-label"> Unmarked:</span> <span id="stat-unmarked">0</span></span>
                 </div>
 
                 <!-- Student List -->
@@ -152,13 +171,19 @@
                     </div>
                 </div>
 
-                <!-- Action Bar -->
+                <!-- Action Bar — desktop shows the four Mark All buttons + Save.
+                     On mobile this bar collapses: the bottom-nav "Mark" tab opens
+                     the Mark All popup menu and Save lives in the topbar icon. -->
                 <div class="attendance-actions" id="action-bar" style="display:none;">
-                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('present')">Mark All Present</button>
-                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('absent')" style="border-color:#e74c3c; color:#e74c3c;">Mark All Absent</button>
-                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('ph')" style="border-color:#f39c12; color:#f39c12;">Mark All PH</button>
-                    <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('mtb')" style="border-color:#8e44ad; color:#8e44ad;">Mark All MTB</button>
-                    <button class="btn" onclick="attendanceDashboard.saveAttendance()" style="margin-left:auto; background:var(--primary-color); color:white;">
+                    <div class="mark-all-wrap">
+                        <div class="mark-all-menu" id="mark-all-menu">
+                            <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('present'); closeMarkAllMenu();">Mark All Present</button>
+                            <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('absent'); closeMarkAllMenu();" style="border-color:#e74c3c; color:#e74c3c;">Mark All Absent</button>
+                            <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('ph'); closeMarkAllMenu();" style="border-color:#f39c12; color:#f39c12;">Mark All PH</button>
+                            <button class="btn btn-outline" onclick="attendanceDashboard.markAllAs('mtb'); closeMarkAllMenu();" style="border-color:#8e44ad; color:#8e44ad;">Mark All MTB</button>
+                        </div>
+                    </div>
+                    <button class="btn" id="save-attendance-btn" onclick="attendanceDashboard.saveAttendance()" style="margin-left:auto; background:var(--primary-color); color:white;">
                         Save Attendance
                     </button>
                 </div>
@@ -215,6 +240,11 @@
                     <div style="flex:1; overflow:auto; padding:20px 28px;" id="sheets-list">
                         <div class="attendance-empty"><p style="color:var(--light-text);">Loading sheets…</p></div>
                     </div>
+                    <!-- Mobile-only floating action button (desktop uses the toolbar button) -->
+                    <button class="sheets-fab" onclick="attendanceSheetsDashboard.openBuilder(null)" aria-label="New attendance sheet">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        New Sheet
+                    </button>
                 </div>
 
                 <!-- Sheet grid sub-view -->
@@ -272,7 +302,7 @@
                 <div class="sb-row sb-grid-2">
                     <div class="sb-field">
                         <label for="sb-term">Term</label>
-                        <select id="sb-term" required>
+                        <select id="sb-term" required data-default-term>
                             <option value="">Select term…</option>
                             <option value="1st Term">1st Term</option>
                             <option value="2nd Term">2nd Term</option>
@@ -334,13 +364,17 @@
 
     <!-- Bottom Navigation (mobile only) -->
     <nav class="bottom-nav" role="navigation" aria-label="Mobile navigation">
-        <a href="attendance.html" class="bottom-nav-item active">
+        <button class="bottom-nav-item active" onclick="attendanceDashboard.switchView('mark'); toggleMarkAllMenu(event);">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></span>
             <span>Mark</span>
-        </a>
+        </button>
         <button class="bottom-nav-item" onclick="attendanceDashboard.switchView('history')">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
             <span>History</span>
+        </button>
+        <button class="bottom-nav-item" onclick="attendanceDashboard.switchView('sheets')">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg></span>
+            <span>Sheets</span>
         </button>
         <a href="teacher-dashboard.html" class="bottom-nav-item">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
@@ -396,6 +430,22 @@
             var dd = document.getElementById('sidebar-profile-dropdown');
             if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
         };
+        // Mark All popup menu (mobile action bar)
+        window.toggleMarkAllMenu = function(e) {
+            if (e) e.stopPropagation();
+            var menu = document.getElementById('mark-all-menu');
+            if (menu) menu.classList.toggle('open');
+        };
+        window.closeMarkAllMenu = function() {
+            var menu = document.getElementById('mark-all-menu');
+            if (menu) menu.classList.remove('open');
+        };
+        document.addEventListener('click', function(ev) {
+            var menu = document.getElementById('mark-all-menu');
+            if (menu && menu.classList.contains('open') && !ev.target.closest('.mark-all-wrap')) {
+                menu.classList.remove('open');
+            }
+        });
         // Restore sidebar state
         (function() {
             if (localStorage.getItem('sidebar-collapsed') === '1' && window.innerWidth > 1024) {
