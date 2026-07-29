@@ -452,6 +452,19 @@ const examManager = {
         const params = new URLSearchParams(window.location.search);
         const examId = params.get('id');
         console.log('examId from URL:', examId);
+
+        // Coming back from the Question Bank picker page: the builder parked
+        // its whole state before navigating, so restore that instead of
+        // reloading the exam — reloading would throw away every unsaved edit.
+        try {
+            if (await examManager.restoreFromPicker()) {
+                console.log('restored from picker, questions:', examManager.questions.length);
+                return;
+            }
+        } catch (err) {
+            console.warn('[examManager] Could not restore the parked exam:', err);
+        }
+
         if (examId) {
             const heading = document.querySelector('h1') || document.querySelector('.create-exam-card-header h2');
             if (heading) heading.textContent = 'Edit Exam';
@@ -462,7 +475,22 @@ const examManager = {
         }
 
         const cbtService = window.__moduleLoader?.getModuleService('cbt');
-        const pendingDraft = cbtService?.consumePendingExamDraft?.();
+        let pendingDraft = cbtService?.consumePendingExamDraft?.();
+        if (!pendingDraft) {
+            // Fallback: the draft (already sanitized when saved) can be sitting
+            // in sessionStorage even when the CBT module service isn't registered
+            // on this page — e.g. an exam seeded from the Question Bank. Without
+            // this, seeded questions never appear in the builder.
+            try {
+                const raw = sessionStorage.getItem('cbt.pendingExamDraft');
+                if (raw) {
+                    pendingDraft = JSON.parse(raw);
+                    sessionStorage.removeItem('cbt.pendingExamDraft');
+                }
+            } catch (e) {
+                console.warn('[examManager] failed to read pending exam draft:', e);
+            }
+        }
         if (pendingDraft) {
             examManager.applyDraft(pendingDraft);
         }
@@ -591,6 +619,270 @@ const examManager = {
         }
     },
 
+    /**
+     * Turn a Question Bank record into an exam question.
+     *
+     * Mirrors cloneQuestion() in cbt/service.js, which handles the same
+     * conversion for the seed-a-whole-exam route — the bank stores the correct
+     * choice as an `answer` id, while the builder wants `isCorrect` on the
+     * option itself.
+     *
+     * A fresh id is minted rather than reusing the bank's: the same bank
+     * question can legitimately be pulled in twice, and two questions sharing
+     * an id would break editing and media assignment.
+     */
+    questionFromBank: (bankQuestion) => {
+        const type = bankQuestion.type || 'mcq';
+        const answer = bankQuestion.answer || '';
+
+        let options = Array.isArray(bankQuestion.options)
+            ? bankQuestion.options.map((option) => ({ ...option }))
+            : [];
+        if (answer && (type === 'mcq' || type === 'image_mcq') && options.length > 0) {
+            const alreadyMarked = options.some((option) => option.isCorrect);
+            if (!alreadyMarked) {
+                options = options.map((option) => ({ ...option, isCorrect: option.id === answer }));
+            }
+        }
+
+        const question = {
+            id: Utils.generateId(),
+            type: type,
+            text: bankQuestion.text || '',
+            points: Number(bankQuestion.points || 1),
+            topInstruction: bankQuestion.topInstruction || '',
+            image: bankQuestion.image || null,
+            mediaAttachments: Array.isArray(bankQuestion.mediaAttachments)
+                ? bankQuestion.mediaAttachments.map((item) => ({ ...item }))
+                : [],
+            // Marks where this came from, so the Save to Question Bank toggle
+            // can tell a hand-written exam from a bank-assembled one.
+            _fromBank: true
+        };
+
+        if (type === 'mcq' || type === 'image_mcq' || type === 'true_false') {
+            question.options = options;
+        }
+        if (type === 'true_false' || type === 'fill_blank') {
+            question.correctAnswer = bankQuestion.correctAnswer || answer || '';
+        }
+        if (type === 'match') {
+            question.pairs = Array.isArray(bankQuestion.pairs)
+                ? bankQuestion.pairs.map((pair) => ({ ...pair })) : [];
+        }
+        if (type === 'image_multi') {
+            question.subQuestions = Array.isArray(bankQuestion.subQuestions)
+                ? bankQuestion.subQuestions.map((sub) => ({ ...sub })) : [];
+            question.numSubQuestions = question.subQuestions.length || 5;
+            question.children = Array.isArray(bankQuestion.children)
+                ? bankQuestion.children.map((child) => ({ ...child })) : [];
+        }
+
+        return question;
+    },
+
+    /**
+     * Every form control the builder owns. Listed once so capture and restore
+     * can never drift apart and quietly drop a field.
+     */
+    _snapshotFields: [
+        'exam-title', 'exam-scheduled-date', 'exam-school-level', 'exam-subject',
+        'exam-target-class', 'exam-duration', 'exam-pass-score',
+        'exam-instructions', 'exam-theory-instructions'
+    ],
+    _snapshotRadios: [
+        'exam-scramble-yes', 'exam-scramble-no',
+        'exam-save-to-qb-yes', 'exam-save-to-qb-no'
+    ],
+
+    /** The whole builder state, ready to park while we navigate away. */
+    captureBuilderSnapshot: () => {
+        const fields = {};
+        examManager._snapshotFields.forEach((id) => {
+            const control = document.getElementById(id);
+            if (control) fields[id] = control.value;
+        });
+
+        const radios = {};
+        examManager._snapshotRadios.forEach((id) => {
+            const control = document.getElementById(id);
+            if (control) radios[id] = control.checked;
+        });
+
+        const params = new URLSearchParams(window.location.search);
+
+        return {
+            examId: params.get('id') || null,
+            currentExamId: examManager.currentExamId,
+            fields: fields,
+            radios: radios,
+            questions: JSON.parse(JSON.stringify(examManager.questions)),
+            uploadedMedia: JSON.parse(JSON.stringify(examManager.uploadedMedia)),
+            // What the picker uses to pre-set its own filters
+            context: {
+                subject: fields['exam-subject'] || '',
+                schoolLevel: fields['exam-school-level'] || '',
+                targetClass: fields['exam-target-class'] || '',
+                term: fields['exam-title'] || ''
+            }
+        };
+    },
+
+    /**
+     * Park the exam and hand over to the Question Bank picker page.
+     *
+     * The picker is a full page rather than a dialog, so everything typed so
+     * far has to be stored somewhere that survives the navigation — see
+     * examSnapshot.js. If it cannot be stored we stay put rather than walk the
+     * teacher into losing their work.
+     */
+    openQuestionBankPicker: async () => {
+        if (!window.ExamSnapshot) {
+            Utils.showAlert('Question Bank Unavailable', 'The Question Bank could not be loaded on this page.');
+            return;
+        }
+
+        try {
+            const stored = await window.ExamSnapshot.save(examManager.captureBuilderSnapshot());
+            if (!stored) {
+                await Utils.showAlert(
+                    'Not Enough Room',
+                    'This exam is too large to park while you browse the Question Bank. '
+                        + 'Try publishing it first, then adding more questions by editing it.'
+                );
+                return;
+            }
+            window.onbeforeunload = null;   // this navigation is intentional
+            const params = new URLSearchParams(window.location.search);
+            const examId = params.get('id');
+            window.location.href = 'question-picker.html' + (examId ? '?id=' + encodeURIComponent(examId) : '');
+        } catch (err) {
+            console.error('[examManager] Could not open the Question Bank picker:', err);
+            Utils.showAlert('Could Not Open Question Bank', err.message || 'Please try again.');
+        }
+    },
+
+    /**
+     * Put the builder back exactly as it was before the picker, then append
+     * anything the teacher chose there.
+     *
+     * @returns {Promise<boolean>} true when a snapshot was restored, so init()
+     *          knows to skip its normal load path.
+     */
+    restoreFromPicker: async () => {
+        if (!window.ExamSnapshot) return false;
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('restore') !== '1') {
+            // Not a return trip. Drop anything stale so an abandoned snapshot
+            // can never land on top of a fresh exam later.
+            await window.ExamSnapshot.clear();
+            return false;
+        }
+
+        const snapshot = await window.ExamSnapshot.consume();
+        if (!snapshot) return false;
+
+        if (snapshot.examId) {
+            const heading = document.querySelector('h1') || document.querySelector('.create-exam-card-header h2');
+            if (heading) heading.textContent = 'Edit Exam';
+            document.title = 'Edit Exam - CBT Exam';
+        }
+
+        examManager.currentExamId = snapshot.currentExamId || null;
+        examManager.questions = Array.isArray(snapshot.questions) ? snapshot.questions : [];
+        examManager.uploadedMedia = Array.isArray(snapshot.uploadedMedia) ? snapshot.uploadedMedia : [];
+
+        // School level first: it drives the cascading subject/class dropdowns,
+        // so their values only stick once its change handler has run.
+        const level = (snapshot.fields || {})['exam-school-level'];
+        const levelSelect = document.getElementById('exam-school-level');
+        if (levelSelect && level) {
+            levelSelect.value = level;
+            levelSelect.dispatchEvent(new Event('change'));
+        }
+
+        Object.keys(snapshot.fields || {}).forEach((id) => {
+            if (id === 'exam-school-level') return;
+            const control = document.getElementById(id);
+            if (control) control.value = snapshot.fields[id];
+        });
+        Object.keys(snapshot.radios || {}).forEach((id) => {
+            const control = document.getElementById(id);
+            if (control) control.checked = snapshot.radios[id];
+        });
+
+        // The cascading dropdowns repopulate asynchronously, so subject and
+        // class are re-applied once they exist — same trick applyDraft uses.
+        setTimeout(() => {
+            ['exam-subject', 'exam-target-class'].forEach((id) => {
+                const control = document.getElementById(id);
+                const value = (snapshot.fields || {})[id];
+                if (control && value) control.value = value;
+            });
+            if (typeof populateChainDropdowns === 'function' && level) populateChainDropdowns(level);
+            if (typeof updateStepsChainState === 'function') updateStepsChainState();
+        }, 150);
+
+        const picked = Array.isArray(snapshot.pickedQuestions) ? snapshot.pickedQuestions : [];
+        picked.forEach((bankQuestion) => {
+            const question = examManager.questionFromBank(bankQuestion);
+            examManager.questions.push(question);
+
+            // Carry any media across so images survive the copy
+            (question.mediaAttachments || []).forEach((media) => {
+                examManager.uploadedMedia.push({
+                    id: media.id,
+                    name: media.name,
+                    dataUrl: media.dataUrl,
+                    assignedToQuestion: question.id,
+                    uploadedAt: new Date().toISOString()
+                });
+            });
+        });
+
+        examManager.renderInstructionsList();
+        examManager.renderQuestions();
+
+        if (picked.length > 0) {
+            Utils.showToast(
+                `Added ${picked.length} question${picked.length === 1 ? '' : 's'} from the Question Bank`,
+                'success'
+            );
+        }
+        return true;
+    },
+
+    /**
+     * Grey out the "Save to Question Bank" toggle, forcing it to No.
+     *
+     * Left visible rather than hidden so the teacher can see the option exists
+     * and why it does not apply here. Only `disabled` and a class are touched:
+     * the row's visibility is owned by the module-loader poll in
+     * create-exam.html, which runs on its own schedule.
+     */
+    lockSaveToQuestionBank: () => {
+        const row = document.getElementById('save-to-qb-row');
+        const noRadio = document.getElementById('exam-save-to-qb-no');
+        const yesRadio = document.getElementById('exam-save-to-qb-yes');
+
+        if (noRadio) noRadio.checked = true;
+        if (yesRadio) yesRadio.checked = false;
+        [noRadio, yesRadio].forEach((radio) => { if (radio) radio.disabled = true; });
+
+        if (row && !row.classList.contains('is-locked')) {
+            row.classList.add('is-locked');
+            row.setAttribute('title', 'These questions came from the Question Bank.');
+            const group = row.querySelector('.scramble-radio-group');
+            if (group && !row.querySelector('.qb-lock-note')) {
+                const note = document.createElement('small');
+                note.className = 'qb-lock-note';
+                note.textContent = 'Already in the Question Bank';
+                group.insertAdjacentElement('afterend', note);
+            }
+        }
+    },
+
     applyDraft: (draft) => {
         if (!draft) return;
 
@@ -659,6 +951,12 @@ const examManager = {
         if (scrambleYes && scrambleNo) {
             scrambleYes.checked = !!draft.scrambleQuestions;
             scrambleNo.checked = !draft.scrambleQuestions;
+        }
+
+        // These questions came out of the Question Bank, so pushing them back
+        // in would only re-save what is already there.
+        if (draft.sourceModule === 'question_bank') {
+            examManager.lockSaveToQuestionBank();
         }
 
         examManager.questions.forEach(q => {
@@ -1164,6 +1462,7 @@ const examManager = {
         if (!q || !q.options) return;
         q.options.forEach((o, i) => { o.isCorrect = (i === optionIndex); });
         examManager.renderQuestions();
+        examManager._scrollToNextQuestion(qId);
     },
 
     // Set correct answer for true/false directly from preview card
@@ -1178,6 +1477,25 @@ const examManager = {
             });
         }
         examManager.renderQuestions();
+        examManager._scrollToNextQuestion(qId);
+    },
+
+    // After marking a correct answer, glide to the next question card so the
+    // teacher can run down the paper marking answers without touching the
+    // scrollbar. Must be called AFTER renderQuestions() — marking an answer
+    // re-renders the whole list, so the pre-render card elements are dead.
+    _scrollToNextQuestion: (qId) => {
+        const container = document.getElementById('questions-container');
+        if (!container) return;
+        const cards = Array.from(container.querySelectorAll('.question-summary-card'));
+        const idx = cards.findIndex(c => String(c.dataset.id) === String(qId));
+        if (idx === -1 || idx + 1 >= cards.length) return;
+        const nextCard = cards[idx + 1];
+        // Theory questions have no answer to pick — stop rather than glide
+        // somewhere there's nothing to do.
+        const nextQ = examManager.questions.find(q => String(q.id) === String(nextCard.dataset.id));
+        if (!nextQ || nextQ.type === 'theory') return;
+        nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     },
 
     // ── Smart default points ──────────────────────────────
@@ -1286,6 +1604,176 @@ const examManager = {
                 delete q.numSubQuestions;
             }
             examManager.renderQuestions();
+        }
+    },
+
+    /**
+     * Publish from the mobile action bar.
+     *
+     * A bare requestSubmit() dies silently here: the level/class/subject
+     * selects backing the steps chain are required but display:none, and when
+     * one of them is the first invalid control the browser blocks submission
+     * yet cannot render a validation bubble on a hidden element — so nothing
+     * visibly happens. Pre-check the required fields ourselves, scroll to the
+     * first missing one's VISIBLE stand-in (the chain item, not the hidden
+     * select), and say what's missing; only then hand over to the normal
+     * submit path.
+     */
+    publishFromBar: () => {
+        const form = document.getElementById('create-exam-form');
+        if (!form) return;
+
+        const fields = [
+            { id: 'exam-title', name: 'Term', scrollTo: 'exam-title' },
+            { id: 'exam-school-level', name: 'School Level', scrollTo: 'chain-level-value' },
+            { id: 'exam-target-class', name: 'Target Class', scrollTo: 'chain-class-value' },
+            { id: 'exam-subject', name: 'Subject', scrollTo: 'chain-subject-value' },
+            { id: 'exam-duration', name: 'Duration', scrollTo: 'exam-duration' },
+            { id: 'exam-pass-score', name: 'Passing Score', scrollTo: 'exam-pass-score' }
+        ];
+
+        // Disabled controls are skipped, mirroring native validation — subject
+        // and class stay disabled until a level is chosen, and in that state
+        // the level itself is what gets reported.
+        const missing = fields.filter((f) => {
+            const el = document.getElementById(f.id);
+            return el && !el.disabled && !String(el.value || '').trim();
+        });
+
+        if (missing.length > 0) {
+            const first = missing[0];
+            const target = document.getElementById(first.scrollTo) || document.getElementById(first.id);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            Utils.showAlert(
+                'Missing Information',
+                `Please fill in: ${missing.map((f) => f.name).join(', ')}.`
+            );
+            return;
+        }
+
+        form.requestSubmit();
+    },
+
+    // ── Answer key: paste a marking key, auto-select every answer ─────────
+    openAnswerKeyModal: () => {
+        if (examManager._objectiveQuestions().length === 0) {
+            Utils.showAlert('No Questions', 'Add your questions first — the answer key is applied to the questions already in the list.');
+            return;
+        }
+        const input = document.getElementById('answer-key-input');
+        if (input) input.value = '';
+        document.getElementById('answer-key-modal').style.display = 'block';
+        if (input) input.focus();
+    },
+
+    closeAnswerKeyModal: () => {
+        document.getElementById('answer-key-modal').style.display = 'none';
+    },
+
+    /**
+     * Parse a pasted marking key and set the correct answer on each question.
+     *
+     * Accepted line shapes (commas/semicolons also split entries):
+     *   "3. B"  "3) B"  "3: B"  "Q3 B"   — explicit question number
+     *   "B"                              — unnumbered: applied in sequence
+     * Answer tokens:
+     *   A–Z            → that option on MCQ questions (A = first option)
+     *   T/F, TRUE/FALSE → true-false questions
+     *   anything else  → the literal answer for fill-in-the-blank
+     *
+     * Numbers refer to the question numbers displayed in the list (objective
+     * questions only — theory has no key). Entries that can't be applied are
+     * collected and reported rather than silently dropped, so a mis-aligned
+     * key can't half-apply without the teacher knowing exactly what happened.
+     */
+    applyAnswerKey: () => {
+        const raw = document.getElementById('answer-key-input')?.value || '';
+        const objective = examManager._objectiveQuestions();
+
+        const entries = raw
+            .split(/\r?\n|[,;]/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+        if (entries.length === 0) {
+            Utils.showAlert('Nothing to Apply', 'Paste your answer key first.');
+            return;
+        }
+
+        let applied = 0;
+        const skipped = [];
+        let cursor = 0; // next objective index for unnumbered entries
+
+        entries.forEach((entry) => {
+            const m = entry.match(/^(?:Q\s*)?(\d+)\s*[\.\):\-]?\s+(.+)$/i) || entry.match(/^(?:Q\s*)?(\d+)[\.\):\-]\s*(.+)$/i);
+            let q, label, token;
+
+            if (m) {
+                const num = parseInt(m[1], 10);
+                token = m[2].trim();
+                q = objective[num - 1];
+                label = `Q${num}`;
+                if (!q) {
+                    skipped.push(`${label}: there is no objective question ${num}`);
+                    return;
+                }
+                cursor = num; // unnumbered entries continue from here
+            } else {
+                token = entry;
+                q = objective[cursor];
+                label = `Q${cursor + 1}`;
+                if (!q) {
+                    skipped.push(`"${entry}": ran past the last objective question`);
+                    return;
+                }
+                cursor += 1;
+            }
+
+            const upper = token.toUpperCase();
+
+            if (q.type === 'mcq' || q.type === 'image_mcq') {
+                if (!/^[A-Z]$/.test(upper)) {
+                    skipped.push(`${label}: "${token}" is not an option letter`);
+                    return;
+                }
+                const idx = upper.charCodeAt(0) - 65;
+                if (!q.options || idx >= q.options.length) {
+                    skipped.push(`${label}: option ${upper} doesn't exist (${q.options ? q.options.length : 0} options)`);
+                    return;
+                }
+                q.options.forEach((o, i) => { o.isCorrect = (i === idx); });
+                applied += 1;
+            } else if (q.type === 'true_false') {
+                let value = null;
+                if (upper === 'T' || upper === 'TRUE' || upper === 'A') value = 'true';
+                if (upper === 'F' || upper === 'FALSE' || upper === 'B') value = 'false';
+                if (value === null) {
+                    skipped.push(`${label}: "${token}" is not T or F`);
+                    return;
+                }
+                q.correctAnswer = value;
+                if (q.options) q.options.forEach(o => { o.isCorrect = (o.text.toLowerCase() === value); });
+                applied += 1;
+            } else if (q.type === 'fill_blank') {
+                q.correctAnswer = token;
+                applied += 1;
+            } else {
+                skipped.push(`${label}: ${examManager._typeLabels[q.type] || q.type} questions can't be answered from a key`);
+            }
+        });
+
+        examManager.closeAnswerKeyModal();
+        examManager.renderQuestions();
+
+        if (skipped.length > 0) {
+            const shown = skipped.slice(0, 8).join('\n');
+            const more = skipped.length > 8 ? `\n…and ${skipped.length - 8} more.` : '';
+            Utils.showAlert(
+                'Answer Key Applied — with gaps',
+                `${applied} answer${applied === 1 ? '' : 's'} applied.\n\nNot applied:\n${shown}${more}\n\nThe questions above still need their answers set by hand.`
+            );
+        } else {
+            Utils.showToast(`Answer key applied to ${applied} question${applied === 1 ? '' : 's'}`, 'success');
         }
     },
 
@@ -1490,9 +1978,20 @@ const examManager = {
         const noQuestionsMsg = document.getElementById('no-questions-msg');
         const instructionPanel = document.getElementById('instruction-panel');
 
+        // The theory-instructions block lives INSIDE this container (placed
+        // above the theory section) but is a live form field — saveExam reads
+        // it by id. Park it back in its home before every innerHTML wipe, or
+        // the wipe destroys it and the teacher's text with it.
+        const tiGroup = document.getElementById('theory-instructions-group');
+        const tiHome = document.getElementById('theory-instructions-home');
+        if (tiGroup && tiHome && tiGroup.parentElement !== tiHome) {
+            tiHome.appendChild(tiGroup);
+        }
+
         if (examManager.questions.length === 0) {
             if (noQuestionsMsg) noQuestionsMsg.style.display = 'block';
             if (instructionPanel) instructionPanel.style.display = 'none';
+            if (tiGroup) tiGroup.style.display = 'none';
             container.innerHTML = '';
             return;
         }
@@ -1505,6 +2004,9 @@ const examManager = {
         const theoryQuestions = examManager.questions.filter(q => q.type === 'theory');
         const sortedQuestions = [...objectiveQuestions, ...theoryQuestions];
 
+        // Theory instructions only exist when there's a theory section.
+        if (tiGroup) tiGroup.style.display = theoryQuestions.length > 0 ? '' : 'none';
+
         container.innerHTML = '';
 
         // Section headers
@@ -1516,8 +2018,10 @@ const examManager = {
         }
 
         sortedQuestions.forEach((q, index) => {
-            // Theory section header
+            // Theory section header — the theory instructions field sits just
+            // above it, at the seam between the objective and theory areas.
             if (index === objectiveQuestions.length && theoryQuestions.length > 0) {
+                if (tiGroup) container.appendChild(tiGroup);
                 const thHeader = document.createElement('div');
                 thHeader.className = 'question-section-divider theory';
                 thHeader.innerHTML = '<h3>Section B: Theory Questions</h3>';
@@ -1634,22 +2138,26 @@ const examManager = {
             card.dataset.id = q.id;
             card.innerHTML = `
                 <div class="q-card-header" onclick="this.parentElement.classList.toggle('q-collapsed')">
-                    <div class="question-number-badge">${displayNumber}</div>
                     <div class="question-summary-text">
-                        <span class="question-type-pill">${escHtml(typeLabel)}</span>
+                        <div class="q-head-row">
+                            <div class="q-head-ident">
+                                <div class="question-number-badge">${displayNumber}</div>
+                                <span class="question-type-pill">${escHtml(typeLabel)}</span>
+                            </div>
+                            <div class="question-summary-actions" onclick="event.stopPropagation();" style="gap: 12px;">
+                                <button type="button" class="q-action-btn q-action-edit" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <button type="button" class="q-action-btn q-action-delete" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                </button>
+                            </div>
+                        </div>
                         <span class="q-preview">${previewHtml}</span>
                         <span class="q-meta">
                             <span class="points-badge">${q.points} pts</span>
                             <span>${escHtml(optionsInfo)}${mediaInfo}</span>
                         </span>
-                    </div>
-                    <div class="question-summary-actions" onclick="event.stopPropagation();" style="gap: 12px;">
-                        <button type="button" class="q-action-btn q-action-edit" title="Edit" onclick="examManager.openAddQuestionModal('${q.id}')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                        <button type="button" class="q-action-btn q-action-delete" title="Remove" onclick="examManager.removeQuestion('${q.id}')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                        </button>
                     </div>
                     <svg class="q-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1792,6 +2300,30 @@ const examManager = {
             if (!keep) return;
         }
 
+        // JSS sanity check: junior objective papers are standardly 30 questions
+        // at 1 point each (total 30). Deviations are usually a slip — a wrong
+        // per-question point value, or extra questions pasted in — so ask for
+        // an explicit confirmation rather than publishing a mis-totalled exam.
+        const jssKey = String(targetClass || '').replace(/\s+/g, '').toUpperCase();
+        if (jssKey === 'JSS1' || jssKey === 'JSS2' || jssKey === 'JSS3') {
+            const objTotal = objectiveQs.reduce((sum, q) => sum + (parseFloat(q.points) || 0), 0);
+            const offPoint = objectiveQs.filter(q => parseFloat(q.points) !== 1);
+            const warnings = [];
+            if (objectiveQs.length > 30) {
+                warnings.push(`This exam has ${objectiveQs.length} objective questions — more than the standard 30 for ${jssKey}.`);
+            }
+            if (objectiveQs.length === 30 && offPoint.length > 0) {
+                warnings.push(`${offPoint.length} question${offPoint.length === 1 ? ' is' : 's are'} not worth exactly 1 point, so the objective total is ${objTotal} instead of the standard 30.`);
+            }
+            if (warnings.length > 0) {
+                const proceed = await Utils.showConfirm(
+                    'Check exam total',
+                    `${warnings.join('\n\n')}\n\nObjective total: ${objTotal} point${objTotal === 1 ? '' : 's'} across ${objectiveQs.length} questions.\n\nPublish anyway?`
+                );
+                if (!proceed) return;
+            }
+        }
+
         // Set publishing state AFTER validation passes
         examManager._isPublishing = true;
 
@@ -1879,25 +2411,56 @@ const examManager = {
             const saveToQbRadio = document.getElementById('exam-save-to-qb-yes');
             if (saveToQbRadio && saveToQbRadio.checked && window.__moduleLoader?.isModuleEnabled('question_bank')) {
                 try {
-                    // Dynamically load QB data service if not already loaded
+                    // Dynamically load the QB scripts if not already present.
+                    // Order matters: the similarity engine and the review modal
+                    // must exist before the data service uses them.
                     if (typeof dataService.importExamQuestionsToBank !== 'function') {
-                        await new Promise((resolve, reject) => {
-                            const s = document.createElement('script');
-                            s.src = '../modules/question_bank/js/questionBankDataService.js';
-                            s.onload = resolve;
-                            s.onerror = () => reject(new Error('Failed to load QB data service'));
-                            document.body.appendChild(s);
-                        });
+                        const qbScripts = [
+                            '../modules/question_bank/js/questionSimilarity.js',
+                            '../modules/question_bank/js/duplicateReview.js',
+                            '../modules/question_bank/js/questionBankDataService.js'
+                        ];
+                        for (const src of qbScripts) {
+                            await new Promise((resolve, reject) => {
+                                const s = document.createElement('script');
+                                s.src = src;
+                                s.onload = resolve;
+                                s.onerror = () => reject(new Error('Failed to load ' + src));
+                                document.body.appendChild(s);
+                            });
+                        }
                     }
                     if (typeof dataService.importExamQuestionsToBank === 'function') {
                         if (!examData.id) {
                             console.warn('[QB] Skipping auto-import to question bank — exam ID is not available');
                         } else {
-                            const result = await dataService.importExamQuestionsToBank(
-                                { examId: examData.id, subject, schoolLevel, targetClass, title, term: title },
-                                questionsWithMedia
-                            );
-                            console.log(`[QB] Imported ${result.imported} questions, skipped ${result.skipped}`);
+                            const qbMeta = { examId: examData.id, subject, schoolLevel, targetClass, title, term: title };
+
+                            // Ask before adding anything that looks like it is
+                            // already in the bank. The exam itself is saved by
+                            // now, so cancelling here only skips the import.
+                            let decisions = {};
+                            if (typeof dataService.analyzeExamQuestionsForBank === 'function' && window.DuplicateReview) {
+                                const analysis = await dataService.analyzeExamQuestionsForBank(qbMeta, questionsWithMedia);
+                                if (analysis.conflicts.length > 0) {
+                                    decisions = await window.DuplicateReview.open(analysis.conflicts, {
+                                        title: 'Possible duplicates found',
+                                        subtitle: `${analysis.conflicts.length} of ${analysis.total} question`
+                                            + `${analysis.total === 1 ? '' : 's'} already look like questions in the `
+                                            + `Question Bank for this subject and term. Your exam is saved either way.`,
+                                        cleanCount: analysis.clean.length
+                                    });
+                                }
+                            }
+
+                            if (decisions === null) {
+                                console.log('[QB] Auto-import cancelled by user; exam still saved');
+                            } else {
+                                const result = await dataService.importExamQuestionsToBank(
+                                    qbMeta, questionsWithMedia, { decisions }
+                                );
+                                console.log(`[QB] Imported ${result.imported}, replaced ${result.replaced}, skipped ${result.skipped}`);
+                            }
                         }
                     }
                 } catch (qbErr) {

@@ -14,6 +14,31 @@
             if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', t);
         })();
+
+        /**
+         * Config-ready handshake.
+         *
+         * The config block below is a <script type="module"> with a top-level
+         * await, and a top-level await does NOT hold back DOMContentLoaded —
+         * the moment it suspends, the parser is released and DOMContentLoaded
+         * can fire. init() runs on DOMContentLoaded and gates every data fetch
+         * on window.__cbtEnabled, which that module sets only after its await
+         * resolves (it dynamically imports the client config file).
+         *
+         * Lose that race and init() hit `if (!window.__cbtEnabled) return;`
+         * and bailed in silence: the dashboard rendered as an empty shell with
+         * no exams, no error, and nothing in the console after the theme line.
+         * It looked intermittent because it depends on how fast that dynamic
+         * import resolves — and re-logging in "fixed" it only by reloading and
+         * winning the race next time.
+         *
+         * Declared here, in the first classic script in <head>, so it exists
+         * before either participant runs. Whoever gets there first, init()
+         * waits for the config rather than sampling a flag that may not be set.
+         */
+        window.__configReady = new Promise(function(resolve) {
+            window.__markConfigReady = resolve;
+        });
     </script>
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/dashboard.css">
@@ -114,23 +139,56 @@
             box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
         }
         .exam-card-header {
+            margin-bottom: 12px;
+        }
+        /* Title row: title left, status badge right */
+        .exam-title-and-status {
             display: flex;
             justify-content: space-between;
-            align-items: start;
-            margin-bottom: 12px;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .exam-title-and-status .status-badge {
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         .exam-title {
             font-size: 1.05rem;
             font-weight: 600;
             color: var(--text-color);
-            margin: 0 0 4px 0;
+            margin: 0;
+            min-width: 0;
         }
+        /* Meta = two stacked rows; each row spreads its items with space-between,
+           and nowrap keeps item text (e.g. the author name) on one line. */
         .exam-meta {
             display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 6px;
             font-size: 0.82rem;
             color: var(--light-text);
+        }
+        .autor-and-subject,
+        .row-three-items {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .autor-and-subject > span,
+        .row-three-items > span { white-space: nowrap; }
+        /* Schedule info sits on its own centered row below the action buttons */
+        .card-schedule-row {
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-schedule-actions { order: 1; }
+        .card-schedule-info {
+            order: 2;
+            justify-content: center;
+            text-align: center;
         }
         .exam-meta span {
             display: flex;
@@ -141,6 +199,11 @@
             width: 14px;
             height: 14px;
             flex-shrink: 0;
+        }
+        /* Subject: bolder than the rest of the meta for visual hierarchy (desktop + mobile) */
+        .autor-and-subject > span:nth-child(2) {
+            font-weight: 700;
+            color: var(--text-color);
         }
         .status-badge {
             padding: 4px 12px;
@@ -226,6 +289,46 @@
             border-radius: 10px;
             font-size: 0.72rem;
             font-weight: 700;
+        }
+
+        /* All Exams — one teacher per row: icon, name, exam count, chevron.
+           The row never wraps; the name is the only elastic part, so it tracks
+           the viewport down to a floor and ellipsises past that. Everything
+           else is flex-shrink:0 and stays on the line at any width. */
+        .exam-group-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: nowrap;
+        }
+        .exam-group-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        /* Scoped past `.collapsible-header h3`, which would otherwise force
+           display:flex and a fixed size onto this heading. */
+        .collapsible-header .exam-group-name {
+            margin: 0;
+            display: block;
+            flex: 1;
+            min-width: 0;
+            font-size: clamp(0.72rem, 2.6vw, 0.95rem);
+            font-weight: 600;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .exam-group-row .group-count {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .exam-group-chevron {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: var(--primary-color);
         }
 
         /* ------------------------------------------------------------
@@ -678,7 +781,8 @@
         .exam-bulk-btn-danger { color: #e74c3c; }
         .exam-bulk-btn-danger:hover { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.06); }
         @media (max-width: 640px) {
-            .exam-bulk-bar { left: 12px; right: 12px; transform: none; width: auto; }
+            /* Sit above the fixed bottom nav (56px) instead of overlapping it */
+            .exam-bulk-bar { left: 12px; right: 12px; bottom: 68px; transform: none; width: auto; }
         }
 
         /* Buttons */
@@ -862,6 +966,212 @@
             body.mobile-search-open .main-header .hamburger-btn,
             body.mobile-search-open .main-header .topbar-actions { visibility: hidden; }
             .topbar-search-results { max-height: 60vh; }
+        }
+
+        .main-content { padding: 24px; }
+
+        @media (max-width: 768px) {
+            /* Last value clears the fixed bottom nav */
+            .main-content { padding: 16px 16px 84px; }
+        }
+
+        /* Section headings. These used to carry an inline display:flex, which
+           outranks every stylesheet rule — that is why the mobile rule below
+           could not hide them. Kept as a class so it can be overridden. */
+        .admin-section-title {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ---- Current page name in the topbar (mobile only) ----
+           Grouped with the hamburger so it sits against it, rather than being
+           pushed across by the header's space-between.
+           Desktop keeps the in-page heading instead. */
+        /* Desktop: no box at all, so the header lays out exactly as it did
+           before the wrapper existed (both its children are hidden there). */
+        .topbar-lead { display: contents; }
+        .admin-page-title { display: none; }
+
+        @media (max-width: 768px) {
+            .topbar-lead {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+                flex: 1;
+            }
+            body.has-admin-page-title .admin-page-title {
+                display: block;
+                min-width: 0;
+                font-family: var(--font-heading);
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--text-color);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            /* The topbar is saying it, so the page need not repeat it — and the
+               back control lives in the bottom nav, not up here. */
+            body.has-admin-page-title .admin-section > .section-header .admin-section-title,
+            body.has-admin-page-title .admin-section > .section-header > div > h2,
+            body.has-admin-page-title .admin-section > .section-header > .exams-list-titlewrap > h2,
+            body.has-admin-page-title .admin-section > .section-header .btn-back,
+            body.has-admin-page-title .admin-section > .section-header .promote-desktop-back,
+            body.has-admin-page-title .admin-section > .section-header .term-dates-desktop-back {
+                display: none !important;
+            }
+            /* Search collapses to its icon on mobile, so the title gets the room */
+            body.has-admin-page-title:not(.mobile-search-open) .main-header .topbar-search {
+                display: none;
+            }
+
+            /* Promote Students heading — gone on mobile, unconditionally.
+               The rule above already covers it, but only while the body carries
+               .has-admin-page-title; this one does not depend on how the page
+               was opened. The two lines under the heading were indented 30px to
+               clear its icon, so they lose that indent along with it. */
+            #promote-section .admin-section-title {
+                display: none !important;
+            }
+            #promote-section .promote-head-session,
+            #promote-section .promote-head-hint {
+                margin-left: 0 !important;
+            }
+        }
+
+        /* ---- Settings index ----
+           A list, not a card grid: icon, label, description, chevron, split by
+           a hairline. Nothing to draw a box around. */
+        .settings-list {
+            margin-top: 18px;
+            border-top: 1px solid var(--border-color);
+        }
+        .settings-row {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr) 20px;
+            gap: 16px;
+            align-items: center;
+            width: 100%;
+            padding: 18px 4px;
+            border: none;
+            border-bottom: 1px solid var(--border-color);
+            background: none;
+            text-align: left;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .settings-row:hover { background: var(--primary-light, rgba(26, 115, 232, 0.06)); }
+        .settings-row:active { opacity: 0.7; }
+        .settings-row:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: -2px;
+        }
+        .settings-row-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+        }
+        .settings-row-text { min-width: 0; }
+        .settings-row-title {
+            display: block;
+            font-family: var(--font-heading);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .settings-row-desc {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--light-text);
+        }
+        .settings-row-chevron {
+            color: var(--light-text);
+            display: inline-flex;
+            justify-content: flex-end;
+        }
+        @media (max-width: 768px) {
+            .settings-row { grid-template-columns: 32px minmax(0, 1fr) 16px; gap: 12px; padding: 16px 2px; }
+        }
+
+        /* ---- Results mode tabs + published report card grid ---- */
+        .results-mode-tabs {
+            display: flex;
+            gap: 4px;
+            margin: 4px 0 14px;
+            padding: 4px;
+            border-radius: var(--radius-btn, 10px);
+            background: var(--inner-bg, #f2f4f7);
+            width: fit-content;
+            max-width: 100%;
+        }
+        .results-mode-tab {
+            padding: 8px 18px;
+            min-height: 40px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--light-text);
+            font-family: inherit;
+            font-size: 0.83rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s;
+        }
+        .results-mode-tab.active {
+            background: var(--card-bg);
+            color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .rc-admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 12px;
+        }
+        .rc-admin-card {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--card-bg);
+            text-align: left;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+        }
+        .rc-admin-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover, 0 6px 20px rgba(26, 115, 232, 0.18));
+        }
+        .rc-admin-card:active { transform: scale(0.99); }
+        .rc-admin-name {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--text-color);
+        }
+        .rc-admin-meta {
+            font-size: 0.78rem;
+            color: var(--light-text);
+        }
+        .rc-admin-open {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--primary-color);
         }
 
         /* Results filters: term + class on one row, justified apart */
@@ -1307,55 +1617,21 @@
         /* Exams list section header — mobile: Back sits left of the title row
            (space-between), filter + Make All Unavailable drop to their own row */
         @media (max-width: 768px) {
+            /* Header toolbar (filter, Bulk Select, Make Unavailable, Back) is
+               reserved for desktop — on mobile those actions live in the
+               contextual bottom nav / "More" menu. !important overrides the
+               element's inline display:flex. */
             #exams-list-section .exams-list-controls {
-                display: contents; /* children become flex items of the header */
-            }
-            #exams-list-section .exams-back-btn {
-                order: -1; /* first item — far left of the title row */
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-            }
-            #exams-list-section .exams-list-titlewrap {
-                text-align: right;
+                display: none !important;
             }
             #exams-list-section .exams-list-titlewrap h2 {
-                justify-content: flex-end;
                 font-size: 1.05rem;
-            }
-            #exams-list-section #exam-filter {
-                order: 1;
-                flex: 1 1 40%;
-            }
-            #exams-list-section .exams-make-all-btn {
-                order: 2;
-                flex: 1 1 40%;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 4px;
             }
         }
 
         /* Exams list section + cards — small mobile */
         @media (max-width: 500px) {
             .exam-card { padding: 14px !important; }
-            .exam-card-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-            /* Card info in 2 columns (space-between) to keep cards short */
-            .exam-meta {
-                display: grid;
-                grid-template-columns: 1fr auto;
-                column-gap: 12px;
-                row-gap: 6px;
-            }
-            .exam-meta > span:nth-child(even) {
-                justify-self: end;
-                text-align: right;
-            }
             .exam-card select {
                 flex: 1;
                 min-width: 0;
@@ -1436,6 +1712,139 @@
         }
         /* Hide module-tagged elements until JS reveals enabled ones (prevents flash) */
         [data-module]:not(.module-revealed) { display: none !important; }
+
+        /* The dashboard home is a stack of always-on blocks (banners, chat,
+           General Results). Opening a full-page section — Settings, Term
+           Dates, Promote — has to get them out of the way, or the page you
+           opened just sits on top of the home page.
+           Done with a body class rather than inline styles so the blocks'
+           own conditional visibility (banners that show only when relevant)
+           survives the round trip untouched. */
+        body.admin-page-open .admin-home-block { display: none !important; }
+
+        /* Confirm/Alert dialogs: slide up from the bottom as a sheet on mobile,
+           slide back down on dismiss. Desktop keeps the centered card. */
+        @keyframes admin-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes admin-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+        #confirm-modal.closing, #alert-modal.closing { opacity: 0; transition: opacity 0.22s ease; }
+        @media (max-width: 768px) {
+            #confirm-modal, #alert-modal { align-items: flex-end !important; }
+            #confirm-modal > .modal-content, #alert-modal > .modal-content {
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 20px 20px 0 0 !important;
+                animation: admin-sheet-up 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+            }
+            #confirm-modal.closing > .modal-content, #alert-modal.closing > .modal-content {
+                animation: admin-sheet-down 0.25s ease-in forwards !important;
+            }
+        }
+
+        /* "More" popup for the contextual bottom nav (mobile) */
+        .admin-more-menu {
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: 68px;
+            flex-direction: column;
+            gap: 2px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+            padding: 8px;
+            z-index: 96;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .admin-more-menu .amm-label {
+            font-size: 0.66rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--light-text);
+            font-weight: 700;
+            padding: 8px 12px 4px;
+        }
+        .admin-more-menu button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 11px 14px;
+            background: none;
+            border: none;
+            border-radius: 10px;
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+        .admin-more-menu button:active {
+            background: var(--primary-light, rgba(74,144,226,0.12));
+        }
+        .admin-more-menu .amm-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 6px 4px;
+        }
+
+        /* Promote page: collapsible class-group headers (look clickable + hover) */
+        .promote-group-header {
+            background: var(--inner-bg);
+            transition: background 0.15s ease;
+        }
+        .promote-group-header:hover {
+            background: var(--primary-light, rgba(74, 144, 226, 0.12));
+        }
+        .promote-group-header:hover .promote-chevron {
+            color: var(--primary-color) !important;
+        }
+
+        /* Promote / Term Dates pages: desktop shows the inline footer + Back
+           button; mobile puts those actions in the contextual bottom nav. */
+        @media (max-width: 768px) {
+            .promote-footer, .term-dates-footer { display: none; }
+            .promote-desktop-back, .term-dates-desktop-back { display: none; }
+            #promote-section, #term-dates-section { padding-bottom: 24px; }
+            .term-dates-desc-extra { display: none; }
+        }
+
+        /* Mobile: clear the fixed bottom nav (main-content has an inline
+           padding that would otherwise win over main.css). */
+        @media (max-width: 768px) {
+            .main-content {
+                padding-bottom: 84px !important;
+            }
+        }
+
+        /* Mobile: modal footers become a full-width, thumb-friendly action bar.
+           Buttons stretch to fill; a left-aligned button (e.g. "Use Automatic")
+           and the right button group each take half the row. */
+        @media (max-width: 768px) {
+            .modal-content .modal-footer {
+                gap: 10px !important;
+                padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+            .modal-content .modal-footer > .btn {
+                flex: 1;
+                padding-top: 12px;
+                padding-bottom: 12px;
+            }
+            .modal-content .modal-footer > div {
+                flex: 1;
+                display: flex;
+                gap: 10px;
+            }
+            .modal-content .modal-footer > div > .btn {
+                flex: 1;
+                padding-top: 12px;
+                padding-bottom: 12px;
+            }
+        }
     </style>
 </head>
 
@@ -1482,6 +1891,16 @@
                 <button class="sidebar-nav-item" data-module="cbt" onclick="openPrepareExams(); closeSidebarMobile();" title="Pre-download all active exams so students load instantly on this computer">
                     <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
                     <span class="sidebar-nav-label">Prepare Exams</span>
+                </button>
+                <!-- Term Dates now lives under Settings, alongside the report
+                     card design — one place for everything configurable. -->
+                <button class="sidebar-nav-item" onclick="openSettings(); closeSidebarMobile();" title="School-wide configuration">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+                    <span class="sidebar-nav-label">Settings</span>
+                </button>
+                <button class="sidebar-nav-item" onclick="openPromoteStudentsModal(); closeSidebarMobile();" title="Promote students to the next class at end of session">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>
+                    <span class="sidebar-nav-label">Promote Students</span>
                 </button>
             </nav>
 
@@ -1551,7 +1970,14 @@
         <!-- ========== MAIN WRAPPER ========== -->
         <div class="app-main-wrapper">
             <header class="main-header">
-                <button id="mobile-menu-btn" class="hamburger-btn" onclick="toggleSidebarMobile()">&#9776;</button>
+                <!-- Hamburger and page name travel together, so the header's
+                     space-between cannot drive them apart. -->
+                <div class="topbar-lead">
+                    <button id="mobile-menu-btn" class="hamburger-btn" onclick="toggleSidebarMobile()">&#9776;</button>
+                    <!-- Current page name, mobile only; the page's own heading
+                         is hidden there. -->
+                    <div class="admin-page-title" id="admin-page-title" aria-live="polite"></div>
+                </div>
 
                 <div class="topbar-search">
                     <svg class="topbar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -1561,6 +1987,7 @@
                     </button>
                     <div id="topbar-search-results" class="topbar-search-results" role="listbox" aria-label="Search results"></div>
                 </div>
+
 
                 <div class="topbar-actions">
                     <button class="topbar-icon-btn mobile-search-toggle" onclick="toggleMobileSearch()" title="Search" aria-label="Open search">
@@ -1599,17 +2026,20 @@
             </header>
 
             <!-- ========== MAIN CONTENT ========== -->
-            <main class="main-content" style="padding: 24px;">
+            <!-- Padding lives in CSS, not inline: an inline shorthand outranks
+                 every stylesheet rule, which was quietly cancelling the bottom
+                 clearance the fixed nav needs. -->
+            <main class="main-content">
 
                 <!-- Empty state when no modules are enabled -->
-                <div id="no-modules-message" style="display:none; text-align:center; padding:64px 24px; color:var(--light-text);">
+                <div id="no-modules-message" class="admin-home-block" style="display:none; text-align:center; padding:64px 24px; color:var(--light-text);">
                     <div style="width:72px; height:72px; margin:0 auto 18px; border-radius:20px; background:var(--primary-light, rgba(74,144,226,0.12)); color:var(--primary-color); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:800;">M</div>
                     <h2 style="margin:0 0 12px; color:var(--text-color);">CBT module is not available</h2>
                     <p style="margin:0; line-height:1.6;">The exam and assessment management features are not available for this school configuration.</p>
                 </div>
 
                 <!-- Prepare for Exams Banner -->
-                <div id="prepare-exams-banner" class="prepare-exams-banner" data-module="cbt" style="display:none;">
+                <div id="prepare-exams-banner" class="prepare-exams-banner admin-home-block" data-module="cbt" style="display:none;">
                     <div class="prepare-banner-content">
                         <div class="prepare-banner-info">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1625,6 +2055,22 @@
                     </div>
                     <div id="prepare-progress-bar" class="prepare-progress-bar" style="display:none;">
                         <div id="prepare-progress-fill" class="prepare-progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- New Session — Promote Students banner (shown when a new
+                     session has started and promotion hasn't been run) -->
+                <div id="promotion-banner" class="admin-home-block" style="display:none; background:var(--card-bg); border:1px solid var(--primary-color); border-radius:14px; padding:16px 20px; margin-bottom:20px; box-shadow:var(--shadow-card, 0 2px 8px rgba(0,0,0,0.06));">
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" width="24" height="24" style="flex-shrink:0;"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                        <div style="flex:1; min-width:220px;">
+                            <strong style="color:var(--text-color);">New session detected — <span id="promotion-banner-session"></span></strong>
+                            <div style="font-size:0.85rem; color:var(--light-text); margin-top:2px;">Move every class up a grade (Grade 4 → Grade 5&amp;6 → JSS 1 … SS 3 → Graduated). You can exclude repeating students before confirming.</div>
+                        </div>
+                        <div style="display:flex; gap:10px; flex-shrink:0;">
+                            <button class="btn" onclick="dismissPromotionBanner()" style="background:transparent; border:1px solid var(--border-color); color:var(--light-text);">Not now</button>
+                            <button class="btn btn-primary" onclick="openPromoteStudentsModal()">Review &amp; Promote</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1727,6 +2173,166 @@
                     </div>
                 </div>
 
+                <!-- Promote Students Page (its own section — search + class filter) -->
+                <div id="promote-section" class="admin-section" style="display:none;">
+                    <div class="section-header exams-list-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                            <div class="exams-list-titlewrap">
+                                <h2 class="admin-section-title">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                                    Promote Students
+                                </h2>
+                                <div class="promote-head-session" style="margin:3px 0 0 30px; font-size:0.78rem; color:var(--light-text); font-weight:600;">Session <span id="promote-session-label"></span></div>
+                                <p class="promote-head-hint" style="margin:6px 0 0 30px; font-size:0.8rem; color:var(--light-text); max-width:640px;">
+                                    Ticked students move up a class; SS&nbsp;3 graduate. Untick repeaters.
+                                </p>
+                            </div>
+                            <div class="promote-controls" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <button class="btn exams-back-btn promote-desktop-back" onclick="closePromotePage()" style="padding:7px 16px; font-size:0.82rem;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+                                    Back
+                                </button>
+                                <select id="promote-class-filter" onchange="renderPromoteRoster()"
+                                    style="padding:7px 12px; font-size:0.82rem; border-radius:var(--radius-btn); border:1px solid var(--border-color); background:var(--inner-bg); color:var(--text-color); cursor:pointer;">
+                                    <option value="">All Classes</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="promote-class-groups" style="margin-top:16px;">
+                            <p style="color:var(--light-text);">Loading students…</p>
+                        </div>
+                        <div id="promote-error" style="color:var(--accent-color); font-size:0.85rem; margin-top:12px; display:none; background:rgba(231,76,60,0.1); padding:10px; border-radius:6px; border:1px solid var(--accent-color);"></div>
+                        <!-- Desktop footer (mobile uses the Promote item in the bottom nav) -->
+                        <div class="promote-footer" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:18px; padding-top:16px; border-top:1px solid var(--border-color);">
+                            <span id="promote-progress" style="font-size:0.85rem; color:var(--light-text);"></span>
+                            <button id="promote-confirm-btn" class="btn btn-primary" onclick="confirmPromoteStudents()">Promote Selected</button>
+                        </div>
+                </div>
+
+                <!-- Settings — the index of everything configurable. Entries
+                     either open a page here (Term Dates) or hand off to the
+                     module that owns them (report card design), so each module
+                     keeps its own settings UI and admins still have one door. -->
+                <div id="settings-section" class="admin-section" style="display:none;">
+                    <div class="section-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h2 class="admin-section-title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                                Settings
+                            </h2>
+                            <p style="margin:6px 0 0; color:var(--light-text); font-size:0.85rem;">
+                                School-wide configuration. Changes here apply everywhere in the app.
+                            </p>
+                        </div>
+                        <!-- No Back button here: the floating bottom nav carries
+                             it on desktop, and the mobile bottom nav on phones. -->
+                    </div>
+
+                    <div class="settings-list">
+                        <button type="button" class="settings-row" onclick="openTermDatesModal()">
+                            <span class="settings-row-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </span>
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Term Dates</span>
+                                <span class="settings-row-desc">Each term's start and end date. Used to pre-select the current term everywhere &mdash; exams, report cards, broadsheets, attendance.</span>
+                            </span>
+                            <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+
+                        <button type="button" class="settings-row" data-module="report_cards"
+                            onclick="window.location.href='report-cards.html?view=template'">
+                            <span class="settings-row-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                            </span>
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Report Card Design</span>
+                                <span class="settings-row-desc">Letterhead, logo, colours, the CA/Exam split and the grading scale that decides every grade.</span>
+                            </span>
+                            <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+
+                        <button type="button" class="settings-row" data-module="report_cards"
+                            onclick="window.location.href='report-cards.html?view=access-codes'">
+                            <span class="settings-row-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                            </span>
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">Report Card Access Codes</span>
+                                <span class="settings-row-desc">The 6-digit code each class teacher needs before they can open the report cards for their class.</span>
+                            </span>
+                            <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Term Dates page — admin-configurable school term calendar.
+                     Drives the automatic term pre-selection app-wide (Utils.getCurrentTerm). -->
+                <div id="term-dates-section" class="admin-section" style="display:none;">
+                    <div class="section-header exams-list-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div class="exams-list-titlewrap">
+                            <h2 class="admin-section-title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                Term Dates
+                            </h2>
+                            <p style="margin:6px 0 0 30px; font-size:0.8rem; color:var(--light-text); max-width:640px;">
+                                Set each term's start and end date.<span class="term-dates-desc-extra"> The app uses them to auto-select the current term everywhere (exams, report cards, broadsheets, attendance). During holidays the just-ended term stays selected.</span>
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button class="btn exams-back-btn term-dates-desktop-back" onclick="closeTermDatesModal()" style="padding:7px 16px; font-size:0.82rem;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+                                Back
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px; max-width:640px;">
+                        <div class="control-group" style="margin-bottom: 20px;">
+                            <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">Academic Session (optional)</label>
+                            <input type="text" id="term-cal-session" class="form-control" placeholder="e.g. 2025/2026">
+                        </div>
+
+                        <!-- Term editor: pick a term, set its dates, tap "Set". Entries
+                             accumulate in the list below — set one term or all three. -->
+                        <div class="control-group" style="margin-bottom: 14px;">
+                            <label style="font-size: 0.85rem; color: var(--light-text); display: block; margin-bottom: 8px;">Term</label>
+                            <select id="term-cal-term-select" class="form-control" onchange="onTermCalTermChange()">
+                                <option value="1st Term">1st Term</option>
+                                <option value="2nd Term">2nd Term</option>
+                                <option value="3rd Term">3rd Term</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+                            <div style="flex: 1; min-width: 0;">
+                                <label style="font-size: 0.72rem; color: var(--light-text); display: block; margin-bottom: 4px;">Starts</label>
+                                <input type="date" id="term-cal-editor-start" class="form-control" style="padding: 8px 10px; font-size: 0.85rem;">
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <label style="font-size: 0.72rem; color: var(--light-text); display: block; margin-bottom: 4px;">Ends</label>
+                                <input type="date" id="term-cal-editor-end" class="form-control" style="padding: 8px 10px; font-size: 0.85rem;">
+                            </div>
+                        </div>
+                        <button id="term-cal-add-btn" class="btn btn-primary" onclick="addTermDate()" style="width: 100%;">Set 1st Term</button>
+
+                        <!-- Terms set so far -->
+                        <div id="term-cal-list" style="margin-top: 16px;"></div>
+
+                        <div id="term-cal-preview" style="margin-top: 16px; font-size: 0.85rem; color: var(--light-text);"></div>
+
+                        <div id="term-cal-error"
+                            style="color: var(--accent-color); font-size: 0.85rem; margin-top: 12px; display: none; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 6px; border: 1px solid var(--accent-color);">
+                        </div>
+                    </div>
+
+                    <!-- Desktop footer (mobile uses the contextual bottom nav) -->
+                    <div class="term-dates-footer" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:18px; padding-top:16px; border-top:1px solid var(--border-color);">
+                        <button class="btn"
+                            style="background: transparent; border: 1px solid var(--border-color); color: var(--light-text);"
+                            onclick="clearTermDates()" title="Remove configured dates and use the automatic month-based rule">Use Automatic</button>
+                        <button id="term-cal-save-btn" class="btn btn-primary" onclick="saveTermDates()">Save</button>
+                    </div>
+                </div>
+
                 <!-- All Exams Section (toggled by stat card click) -->
                 <div id="exams-section-wrapper" class="admin-section" data-module="cbt">
                     <div id="exams-section"></div>
@@ -1756,7 +2362,7 @@
                 </div>
 
                 <!-- Messaging Section (launcher — chat opens in its own modal) -->
-                <div data-module="cbt">
+                <div class="admin-home-block" data-module="cbt">
                 <div id="messaging-section"></div>
                 <div class="section">
                     <div class="section-header">
@@ -1840,7 +2446,7 @@
                 </div><!-- /#chat-modal -->
 
                 <!-- General Results Section -->
-                <div class="section" id="general-results-section" data-module="cbt">
+                <div class="section admin-home-block" id="general-results-section" data-module="cbt">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <h2>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1858,6 +2464,15 @@
                                 Export Excel
                             </button>
                         </div>
+                    </div>
+                    <!-- Two different questions live in this section: how did
+                         everyone do on each exam (Exam Scores), and what
+                         finished card did each parent receive (Report Cards). -->
+                    <div class="results-mode-tabs" role="tablist" aria-label="Results view">
+                        <button type="button" class="results-mode-tab active" id="results-mode-exams"
+                            role="tab" aria-selected="true" onclick="setResultsMode('exams')">Exam Scores</button>
+                        <button type="button" class="results-mode-tab" id="results-mode-cards"
+                            role="tab" aria-selected="false" onclick="setResultsMode('cards')">Report Cards</button>
                     </div>
                     <div class="results-filters-row">
                         <select id="results-term-filter" class="form-control"
@@ -1892,6 +2507,16 @@
                             <tbody id="results-tbody"></tbody>
                         </table>
                         <div id="results-cards-container"></div>
+                    </div>
+
+                    <!-- Report Cards mode: published cards, click through to
+                         the finished branded document. -->
+                    <div id="report-cards-container" style="display:none; margin-top:15px;">
+                        <div class="empty-state" id="report-cards-empty">
+                            <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                            <p>Loading published report cards&hellip;</p>
+                        </div>
+                        <div id="report-cards-grid" class="rc-admin-grid"></div>
                     </div>
                     <div id="results-summary" style="margin-top: 15px; display: none;">
                         <p style="font-size: 0.82rem; color: var(--light-text);">
@@ -2214,7 +2839,7 @@
                 <button id="confirm-no-btn" class="btn btn-secondary"
                     style="padding: 8px 25px; min-width: 100px; background: #95a5a6;">Cancel</button>
                 <button id="confirm-yes-btn" class="btn btn-primary"
-                    style="padding: 8px 25px; min-width: 100px; background: #e67e22;">Confirm</button>
+                    style="padding: 8px 25px; min-width: 100px; background: var(--secondary-color, #1557B0);">Confirm</button>
             </div>
         </div>
     </div>
@@ -2260,18 +2885,30 @@
     <!-- PocketBase SDK -->
     <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
 
-    <!-- Configuration System -->
+    <!-- Configuration System.
+         Whatever happens below, window.__markConfigReady() must run — init()
+         is waiting on it and would otherwise hang instead of loading the
+         dashboard. Hence the try/finally. -->
     <script type="module">
         import { initConfig, isModuleEnabled } from '../config/index.js';
         import { renderModuleNavItems } from '../core/ui/sidebarBuilder.js';
+
+        try {
         await initConfig();
 
         const cbtEnabled = isModuleEnabled('cbt');
         window.__cbtEnabled = cbtEnabled;
 
-        // Reveal elements for each enabled module (hidden by default via CSS)
-        if (cbtEnabled) {
-            document.querySelectorAll('[data-module="cbt"]').forEach(el => {
+        // Reveal elements for each enabled module (hidden by default via CSS).
+        // Driven by whichever data-module values are actually in the page, so
+        // tagging new markup for a module is all it takes — no list to update
+        // here, and nothing silently stays hidden forever.
+        const taggedModules = new Set(
+            [...document.querySelectorAll('[data-module]')].map(el => el.dataset.module).filter(Boolean)
+        );
+        for (const moduleId of taggedModules) {
+            if (!isModuleEnabled(moduleId)) continue;
+            document.querySelectorAll(`[data-module="${moduleId}"]`).forEach(el => {
                 el.classList.add('module-revealed');
             });
         }
@@ -2290,14 +2927,23 @@
             const hasItems = renderModuleNavItems(navContainer, { currentModuleId: null, role: 'admin' });
             if (hasItems && navDivider) navDivider.style.display = '';
         }
+        } catch (err) {
+            console.error('[Config] Initialization failed:', err);
+        } finally {
+            // Releases init(), which is blocked waiting for this.
+            window.__markConfigReady();
+        }
     </script>
 
     <!-- Scripts -->
     <script src="../js/androidUpdater.js"></script>
     <script src="../modules/cbt/js/idb.js"></script>
+    <script src="../core/shared/academicEntities.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../modules/cbt/js/cbtDataService.js"></script>
+    <script src="../modules/report_cards/js/reportCardDataService.js"></script>
+    <script src="../modules/report_cards/js/reportCardTemplate.js"></script>
     <script src="../js/auth.js"></script>
 
     <script>
@@ -2451,6 +3097,15 @@
 
         // Initialize
         async function init() {
+            // Wait for the config module before reading anything it sets.
+            // DOMContentLoaded can fire while that module is still suspended on
+            // its top-level await, and sampling __cbtEnabled at that moment
+            // aborted the whole dashboard at the gate below. See the handshake
+            // in <head>. Guarded so an older cached page can still boot.
+            if (window.__configReady) {
+                await window.__configReady;
+            }
+
             // V2D: Sync trusted server time (non-blocking)
             if (navigator.onLine) dataService.syncServerTime().catch(() => {});
             currentUser = dataService.getCurrentUser();
@@ -2501,8 +3156,14 @@
                 currentVersion = currentUser.schoolVersion;
             }
 
-            // Gate CBT-specific runtime (data fetches, subscriptions, listeners)
-            if (!window.__cbtEnabled) return;
+            // Gate CBT-specific runtime (data fetches, subscriptions, listeners).
+            // Says why it stopped — a silent return here is indistinguishable
+            // from a slow network, which is how this hid for so long.
+            if (!window.__cbtEnabled) {
+                console.warn('[Init] CBT module is not enabled for this school — ' +
+                    'skipping exam data, subscriptions and listeners.');
+                return;
+            }
 
             if (currentVersion) {
                 // Show cached data instantly, then refresh in background
@@ -2755,6 +3416,28 @@
             }
         }
 
+        // Release the standing realtime subscriptions when the dashboard is
+        // closed, navigated away from, or backgrounded. Without this, every
+        // abandoned tab left a live subscribe('*') SSE connection on the single
+        // PocketBase node, which accumulated until a restart (the "gets slow,
+        // restart fixes it for a while" symptom). Best-effort and non-blocking —
+        // it must never delay page teardown.
+        async function teardownRealTimeUpdates() {
+            isSubscribed = false;
+            adminChatSubscribed = false;
+            try { await dataService.unsubscribeFromProfiles(); } catch (e) { /* page is going away */ }
+            try { await dataService.unsubscribeFromMessages(); } catch (e) { /* page is going away */ }
+        }
+        window.addEventListener('pagehide', () => { teardownRealTimeUpdates(); });
+        window.addEventListener('pageshow', (e) => {
+            // Restored from the back/forward cache: the previous SSE stream is
+            // dead, so re-establish the subscriptions (guard flags were reset).
+            if (e.persisted) {
+                setupRealTimeUpdates();
+                setupAdminChatSubscription();
+            }
+        });
+
         function showToast(message, duration = 3000) {
             const toast = document.createElement('div');
             toast.textContent = message;
@@ -2885,21 +3568,66 @@
         // ===== Section Toggle (stat card clicks) =====
         let activeAdminSection = null;
 
+        // Opening a full-page section has to take the dashboard home with it,
+        // or the page you opened lands on top of the banners, chat launcher
+        // and General Results. See the .admin-home-block rule.
+        function setAdminPageOpen(open) {
+            document.body.classList.toggle('admin-page-open', !!open);
+        }
+        window.setAdminPageOpen = setAdminPageOpen;
+
+        // Mobile shows the current page's name in the topbar, since the
+        // in-page heading is hidden there to save vertical room. Empty on the
+        // dashboard home, which needs no label.
+        function setAdminPageTitle(title) {
+            const el = document.getElementById('admin-page-title');
+            if (el) el.textContent = title || '';
+            document.body.classList.toggle('has-admin-page-title', !!title);
+        }
+        window.setAdminPageTitle = setAdminPageTitle;
+
+        // The Settings index. Entries either open another admin page (Term
+        // Dates) or hand off to the module that owns the setting.
+        window.openSettings = function() {
+            ['teachers-section', 'students-section', 'exams-list-section', 'promote-section', 'term-dates-section'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const wrap = document.getElementById('exams-section-wrapper');
+            if (wrap) wrap.style.display = 'none';
+            setAdminPageOpen(true);
+
+            const sec = document.getElementById('settings-section');
+            if (sec) { sec.style.display = 'block'; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+            // Entries for disabled modules stay hidden by the [data-module]
+            // rule — nothing to do here.
+            activeAdminSection = 'settings';
+            setAdminPageTitle('Settings');
+            highlightStatCard(null);
+            updateTopbarSearchPlaceholder();
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('settings');
+        };
+
         window.goToDashboardHome = function() {
             // Hide overlay sections, restore default view
-            ['teachers-section', 'students-section', 'exams-list-section'].forEach(id => {
+            ['teachers-section', 'students-section', 'exams-list-section', 'promote-section', 'term-dates-section', 'settings-section'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = 'none';
             });
             const examsWrapper = document.getElementById('exams-section-wrapper');
             if (examsWrapper) examsWrapper.style.display = 'block';
+            setAdminPageOpen(false);
+            setAdminPageTitle('');
             highlightStatCard(null);
             activeAdminSection = null;
             updateTopbarSearchPlaceholder();
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('default');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
         window.showAdminSection = function(section) {
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('default');
             const sections = ['teachers', 'students', 'exams', 'active-exams'];
             const sectionMap = {
                 'teachers': 'teachers-section',
@@ -2910,10 +3638,12 @@
 
             // Toggle: if clicking the same section, hide it
             if (activeAdminSection === section || (section === 'active-exams' && activeAdminSection === 'exams-list')) {
-                ['teachers-section', 'students-section', 'exams-section-wrapper', 'exams-list-section'].forEach(id => {
+                ['teachers-section', 'students-section', 'exams-section-wrapper', 'exams-list-section', 'promote-section', 'term-dates-section'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
+                setAdminPageOpen(false);
+                setAdminPageTitle('');
                 highlightStatCard(null);
                 activeAdminSection = null;
                 updateTopbarSearchPlaceholder();
@@ -2921,10 +3651,12 @@
             }
 
             // Hide all sections
-            ['teachers-section', 'students-section', 'exams-section-wrapper', 'exams-list-section'].forEach(id => {
+            ['teachers-section', 'students-section', 'exams-section-wrapper', 'exams-list-section', 'promote-section'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = 'none';
             });
+
+            setAdminPageOpen(true);
 
             // Show selected
             const targetEl = document.getElementById(sectionMap[section]);
@@ -2958,6 +3690,8 @@
             if (!input) return;
             if (activeAdminSection === 'exams-list') {
                 input.placeholder = 'Search exams...';
+            } else if (activeAdminSection === 'promote') {
+                input.placeholder = 'Search students...';
             } else if (activeAdminSection === 'teachers') {
                 input.placeholder = 'Search teachers...';
             } else if (activeAdminSection === 'students') {
@@ -3107,6 +3841,8 @@
                 topbarLastQuery = query;
                 if (activeAdminSection === 'exams-list') {
                     topbarSearchExams(query);
+                } else if (activeAdminSection === 'promote') {
+                    if (window.renderPromoteRoster) renderPromoteRoster();
                 } else if (activeAdminSection === 'teachers') {
                     const el = document.getElementById('teacher-search');
                     if (el) { el.value = query; filterTeacherCards(); }
@@ -3313,18 +4049,25 @@
                                         <div style="font-size:0.78rem; color:var(--light-text);">${escapeHtml(s.username || '')}</div>
                                     </div>
                                 </div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px; flex-wrap:wrap;">
                                     <select onchange="updateStudentClass('${escapeHtml(String(s.id))}', this.value)" title="Assign class"
                                         style="padding:4px 8px; font-size:0.78rem; border-radius:0; border:1px solid var(--border-color); background:var(--card-bg); color:var(--text-color); cursor:pointer; max-width:120px;">
                                         <option value="" ${!currentClass ? 'selected' : ''}>No class</option>
                                         ${classOptionsHtml}
                                     </select>
-                                    <button data-name="${name}" data-cls="${currentClass}"
-                                        onclick="viewStudentResults('${escapeHtml(String(s.user || s.id))}', this.dataset.name, this.dataset.cls)"
-                                        style="background:none; border:none; color:var(--primary-color); font-size:0.78rem; font-weight:700; cursor:pointer; padding:2px 0; display:flex; align-items:center; gap:4px;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                                        Results
-                                    </button>
+                                    <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                                        <button data-name="${name}" data-cls="${currentClass}"
+                                            onclick="viewStudentResults('${escapeHtml(String(s.user || s.id))}', this.dataset.name, this.dataset.cls)"
+                                            style="background:none; border:none; color:var(--primary-color); font-size:0.78rem; font-weight:700; cursor:pointer; padding:2px 0; display:flex; align-items:center; gap:4px;">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                            Results
+                                        </button>
+                                        <button onclick="unregisterStudent('${escapeHtml(String(s.id))}')" title="Remove from school — clears their School ID"
+                                            style="background:none; border:none; color:#EA4335; font-size:0.78rem; font-weight:700; cursor:pointer; padding:2px 0; display:flex; align-items:center; gap:4px;">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            Unregister
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>`;
@@ -3502,6 +4245,32 @@
             }
         };
 
+        // "Unregister" a student = clear their School ID so they leave this
+        // school's scope. Account + history are kept; re-add later by setting
+        // a School ID again (theirs, or via the batch script).
+        window.unregisterStudent = async function(profileId) {
+            const student = allStudents.find(s => s.id === profileId);
+            const name = student ? (student.full_name || student.username || 'this student') : 'this student';
+            const ok = await Utils.showConfirm('Unregister Student', `Unregister ${name}? Their School ID will be cleared, so they disappear from your lists and the Promote page. Their account and past results stay intact — you can re-add them later by setting their School ID again.`);
+            if (!ok) return;
+            try {
+                await dataService.pb.collection('profiles').update(profileId, { school_version: '' });
+                const uid = student && (student.user || student.id);
+                if (uid) {
+                    try { await dataService.pb.collection('users').update(uid, { school_version: '' }); }
+                    catch (_) { /* users mirror is best-effort */ }
+                }
+                // They no longer belong to this school — drop from the local view
+                allStudents = allStudents.filter(s => s.id !== profileId);
+                showToast(`${name} unregistered`);
+                refreshClassFilter();
+                renderFilteredStudents();
+            } catch (err) {
+                console.error('Failed to unregister student:', err);
+                showAlert('Error', 'Failed to unregister student: ' + err.message);
+            }
+        };
+
         // Global state for current view in modal
         let currentModalTeacherId = 'all';
 
@@ -3540,15 +4309,11 @@
                      onclick="openExamsModal('${group.id}')"
                      onmouseover="this.style.borderColor='var(--primary-color)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'"
                      onmouseout="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none'">
-                    <div class="collapsible-header responsive-header" style="background: var(--inner-bg); border: none;">
-                        <h3 class="header-title" style="display:flex;align-items:center;gap:8px;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" width="18" height="18"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            ${group.name}
-                        </h3>
-                        <div class="header-sub" style="display:flex;align-items:center;gap:10px;">
-                            <span class="group-count">${group.count} ${group.count === 1 ? 'Exam' : 'Exams'}</span>
-                            <span class="view-link" style="display:flex;align-items:center;gap:2px;">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg></span>
-                        </div>
+                    <div class="collapsible-header exam-group-row" style="background: var(--inner-bg); border: none;">
+                        <svg class="exam-group-icon" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <h3 class="exam-group-name">${group.name}</h3>
+                        <span class="group-count">${group.count} ${group.count === 1 ? 'Exam' : 'Exams'}</span>
+                        <svg class="exam-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                     </div>
                 </div>
             `).join('');
@@ -3588,6 +4353,7 @@
             highlightStatCard(null);
             updateTopbarSearchPlaceholder();
             filterExams();
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('exams');
         };
 
         window.closeExamsPage = function () {
@@ -3601,6 +4367,7 @@
             updateTopbarSearchPlaceholder();
             const input = document.getElementById('topbar-search');
             if (input) input.value = '';
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('default');
         };
 
         // Keep closeExamsModal as alias for backwards compat
@@ -3668,22 +4435,28 @@
                                 <input type="checkbox" class="exam-card-checkbox" data-exam-id="${exam.id}" ${exam.status === 'archived' ? 'data-archived="1"' : ''} onclick="event.stopPropagation();" onchange="handleAdminExamCheckboxChange(this)" aria-label="Select ${escapeHtml(exam.title)}">
                                 <div class="exam-card-header">
                                     <div>
-                                        <h3 class="exam-title">${exam.title}</h3>
+                                        <div class="exam-title-and-status">
+                                            <h3 class="exam-title">${exam.title}</h3>
+                                            <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                        </div>
                                         <div class="exam-meta">
-                                            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${teacherName}</span>
-                                            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> ${exam.subject}</span>
-                                            <span id="class-label-${exam.id}" style="font-weight:600; color:var(--primary-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> ${targetClassLabel}</span>
-                                            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${exam.duration} min</span>
-                                            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${exam.questionCount || 0} Qs</span>
+                                            <div class="autor-and-subject">
+                                                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${teacherName}</span>
+                                                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> ${exam.subject}</span>
+                                            </div>
+                                            <div class="row-three-items">
+                                                <span id="class-label-${exam.id}" style="font-weight:600; color:var(--primary-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> ${targetClassLabel}</span>
+                                                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${exam.duration} min</span>
+                                                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${exam.questionCount || 0} Qs</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <span class="status-badge ${statusClass}">${statusLabel}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
-                                    <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--light-text);">
+                                <div class="card-schedule-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                                    <div class="card-schedule-info" style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--light-text);">
                                         ${scheduledInfo || '<span style="opacity:0.6;">No schedule set</span>'}
                                     </div>
-                                    <div style="display:flex; gap:6px; flex-shrink:0;">
+                                    <div class="card-schedule-actions" style="display:flex; gap:6px; flex-shrink:0;">
                                         <button onclick="openScheduleModal('${exam.id}', ${exam.duration}, '${exam.scheduledDate || ''}')"
                                             style="padding: 6px 12px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); background: var(--inner-bg); color: var(--text-color); cursor: pointer; font-size: 0.82rem; display:flex; align-items:center; gap:4px;">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -3696,7 +4469,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
                                     <select id="status-${exam.id}" onchange="changeExamStatus('${exam.id}', this.value, this)"
                                         style="padding: 6px 10px; border-radius: var(--radius-btn); border: 1px solid var(--border-color); font-size: 0.82rem; cursor: pointer; background: var(--card-bg); color: var(--text-color);">
                                         <option value="active" ${exam.status === 'active' ? 'selected' : ''}>Active</option>
@@ -3794,6 +4567,13 @@
             const label = document.getElementById('admin-exam-bulk-toggle-label');
             if (toggle) toggle.classList.toggle('active', active);
             if (label) label.textContent = active ? 'Exit Bulk Select' : 'Bulk Select';
+            // Mirror state on the bottom-nav Bulk item
+            const bnBulk = document.getElementById('admin-bn-bulk');
+            if (bnBulk) {
+                bnBulk.classList.toggle('active', active);
+                const bnLabel = bnBulk.querySelector('span:last-child');
+                if (bnLabel) bnLabel.textContent = active ? 'Exit Bulk' : 'Bulk Select';
+            }
             if (!active) clearAdminExamSelection();
             updateAdminExamBulkUI();
         };
@@ -4910,6 +5690,505 @@
             document.getElementById('change-password-modal').style.display = 'none';
         };
 
+        // ============ Term Dates (term calendar) — full page ============
+        // Draft being edited. Admins add terms one at a time (dropdown + dates);
+        // entries accumulate here like a to-do list before saving.
+        let _termCalDraft = { session: '', terms: [] };
+
+        window.openTermDatesModal = async function () {
+            // Hide the other overlay sections and reveal the Term Dates page
+            ['teachers-section', 'students-section', 'exams-list-section', 'promote-section'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const wrap = document.getElementById('exams-section-wrapper');
+            if (wrap) wrap.style.display = 'none';
+            setAdminPageOpen(true);
+            const sec = document.getElementById('term-dates-section');
+            if (sec) { sec.style.display = 'block'; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            activeAdminSection = 'term-dates';
+            setAdminPageTitle('Term Dates');
+            highlightStatCard(null);
+            updateTopbarSearchPlaceholder();
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('term-dates');
+
+            const errorEl = document.getElementById('term-cal-error');
+            if (errorEl) errorEl.style.display = 'none';
+
+            // Prefill from the active calendar (cache-installed or server)
+            const cal = (window.Utils && Utils.termCalendar) ||
+                await (window.dataService?.loadTermCalendar?.().catch(() => null));
+            document.getElementById('term-cal-session').value = cal?.session || '';
+            _termCalDraft = {
+                session: cal?.session || '',
+                terms: (cal?.terms || [])
+                    .filter(t => t.start && t.end)
+                    .map(t => ({ term: t.term, start: t.start, end: t.end }))
+            };
+            renderTermCalList();
+            advanceTermCalEditor();
+            updateTermCalPreview();
+        };
+        // Back-compat: the sidebar item calls the *Page alias too
+        window.openTermDatesPage = window.openTermDatesModal;
+
+        window.closeTermDatesModal = function () {
+            const sec = document.getElementById('term-dates-section');
+            if (sec) sec.style.display = 'none';
+            // Back goes to Settings, which is where you came in from.
+            openSettings();
+        };
+        window.closeTermDatesPage = window.closeTermDatesModal;
+
+        function readTermCalForm() {
+            return {
+                session: document.getElementById('term-cal-session').value.trim(),
+                terms: _termCalDraft.terms.map(t => ({ term: t.term, start: t.start, end: t.end }))
+            };
+        }
+
+        const TERM_ORDER = ['1st Term', '2nd Term', '3rd Term'];
+
+        function fmtTermCalDate(d) {
+            if (!d) return '—';
+            const p = String(d).split('-').map(Number);
+            const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][p[1] - 1] || '';
+            return `${mo} ${p[2]}, ${p[0]}`;
+        }
+
+        function showTermCalError(msg) {
+            const el = document.getElementById('term-cal-error');
+            if (el) { el.textContent = msg; el.style.display = 'block'; }
+        }
+
+        // Sync the editor (date inputs + button label) to the selected term
+        window.onTermCalTermChange = function () {
+            const term = document.getElementById('term-cal-term-select').value;
+            const existing = _termCalDraft.terms.find(t => t.term === term);
+            document.getElementById('term-cal-editor-start').value = existing ? existing.start : '';
+            document.getElementById('term-cal-editor-end').value = existing ? existing.end : '';
+            const btn = document.getElementById('term-cal-add-btn');
+            if (btn) btn.textContent = (existing ? 'Update ' : 'Set ') + term;
+        };
+
+        // Point the editor at the first term not yet set (else keep 1st Term)
+        function advanceTermCalEditor() {
+            const setTerms = new Set(_termCalDraft.terms.map(t => t.term));
+            const next = TERM_ORDER.find(t => !setTerms.has(t)) || TERM_ORDER[0];
+            const sel = document.getElementById('term-cal-term-select');
+            if (sel) sel.value = next;
+            onTermCalTermChange();
+        }
+
+        function renderTermCalList() {
+            const listEl = document.getElementById('term-cal-list');
+            if (!listEl) return;
+            const sorted = [..._termCalDraft.terms].sort((a, b) => TERM_ORDER.indexOf(a.term) - TERM_ORDER.indexOf(b.term));
+            if (!sorted.length) {
+                listEl.innerHTML = '<p style="font-size:0.8rem; color:var(--light-text); opacity:0.75; margin:0;">No terms set yet — pick a term, choose its dates, then tap “Set”.</p>';
+                return;
+            }
+            listEl.innerHTML = sorted.map(t =>
+                '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border-color); border-radius:10px; margin-bottom:8px; background:var(--inner-bg);">'
+                + '<div><strong style="font-size:0.85rem; color:var(--text-color);">' + t.term + '</strong>'
+                + '<div style="font-size:0.78rem; color:var(--light-text);">' + fmtTermCalDate(t.start) + ' → ' + fmtTermCalDate(t.end) + '</div></div>'
+                + '<div style="display:flex; gap:6px; flex-shrink:0;">'
+                + '<button type="button" onclick="editTermDate(\'' + t.term + '\')" style="background:transparent; border:1px solid var(--border-color); color:var(--primary-color); border-radius:8px; padding:5px 10px; font-size:0.78rem; cursor:pointer;">Edit</button>'
+                + '<button type="button" onclick="removeTermDate(\'' + t.term + '\')" title="Remove" style="background:transparent; border:1px solid var(--border-color); color:var(--accent-color); border-radius:8px; padding:5px 9px; font-size:0.95rem; line-height:1; cursor:pointer;">&times;</button>'
+                + '</div></div>'
+            ).join('');
+        }
+
+        // "Set"/"Update" — append (or overwrite) this term's dates in the draft
+        window.addTermDate = function () {
+            const errorEl = document.getElementById('term-cal-error');
+            if (errorEl) errorEl.style.display = 'none';
+            const term = document.getElementById('term-cal-term-select').value;
+            const start = document.getElementById('term-cal-editor-start').value;
+            const end = document.getElementById('term-cal-editor-end').value;
+            if (!start || !end) { showTermCalError('Pick both a start and end date for ' + term + '.'); return; }
+            if (start > end) { showTermCalError(term + ': the start date is after the end date.'); return; }
+            const existing = _termCalDraft.terms.find(t => t.term === term);
+            if (existing) { existing.start = start; existing.end = end; }
+            else { _termCalDraft.terms.push({ term, start, end }); }
+            renderTermCalList();
+            advanceTermCalEditor();
+            updateTermCalPreview();
+        };
+
+        window.editTermDate = function (term) {
+            const sel = document.getElementById('term-cal-term-select');
+            if (sel) sel.value = term;
+            onTermCalTermChange();
+            const startEl = document.getElementById('term-cal-editor-start');
+            if (startEl) startEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        };
+
+        window.removeTermDate = function (term) {
+            _termCalDraft.terms = _termCalDraft.terms.filter(t => t.term !== term);
+            renderTermCalList();
+            advanceTermCalEditor();
+            updateTermCalPreview();
+        };
+
+        function updateTermCalPreview() {
+            const previewEl = document.getElementById('term-cal-preview');
+            if (!previewEl || !window.Utils) return;
+            const cal = readTermCalForm();
+            if (cal.terms.length) {
+                // Preview with the form's calendar without installing it
+                const saved = Utils.termCalendar;
+                Utils.setTermCalendar(cal);
+                const cur = Utils.getCurrentTerm();
+                Utils.termCalendar = saved;
+                previewEl.textContent = `With these dates, today falls in: ${cur}`;
+            } else {
+                previewEl.textContent = `No dates set — automatic rule applies. Today falls in: ${Utils.getCurrentTerm()}`;
+            }
+        }
+        window.saveTermDates = async function () {
+            const errorEl = document.getElementById('term-cal-error');
+            const saveBtn = document.getElementById('term-cal-save-btn');
+            errorEl.style.display = 'none';
+            const cal = readTermCalForm();
+
+            // Validate: each provided range must have start <= end, no overlaps
+            if (!cal.terms.length) {
+                errorEl.textContent = 'Set at least one term\'s start and end date, or use "Use Automatic".';
+                errorEl.style.display = 'block';
+                return;
+            }
+            for (const t of cal.terms) {
+                if (t.start > t.end) {
+                    errorEl.textContent = `${t.term}: the start date is after the end date.`;
+                    errorEl.style.display = 'block';
+                    return;
+                }
+            }
+            const sorted = [...cal.terms].sort((a, b) => a.start.localeCompare(b.start));
+            for (let i = 1; i < sorted.length; i++) {
+                if (sorted[i].start <= sorted[i - 1].end) {
+                    errorEl.textContent = `${sorted[i - 1].term} and ${sorted[i].term} overlap.`;
+                    errorEl.style.display = 'block';
+                    return;
+                }
+            }
+
+            try {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+                await dataService.saveTermCalendar(cal);
+                closeTermDatesModal();
+            } catch (err) {
+                console.error('saveTermCalendar failed:', err);
+                errorEl.textContent = 'Could not save. Check your connection (the app_settings collection must be deployed) and try again.';
+                errorEl.style.display = 'block';
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        };
+
+        window.clearTermDates = async function () {
+            const errorEl = document.getElementById('term-cal-error');
+            errorEl.style.display = 'none';
+            try {
+                await dataService.clearTermCalendar();
+                _termCalDraft = { session: '', terms: [] };
+                document.getElementById('term-cal-session').value = '';
+                renderTermCalList();
+                advanceTermCalEditor();
+                updateTermCalPreview();
+            } catch (err) {
+                console.error('clearTermCalendar failed:', err);
+                errorEl.textContent = 'Could not clear the saved dates. Check your connection and try again.';
+                errorEl.style.display = 'block';
+            }
+        };
+
+        // ============ Promote Students (end-of-session) ============
+        let _promoteRoster = [];
+
+        window.checkPromotionBanner = async function () {
+            try {
+                const user = dataService.getCurrentUser?.();
+                if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) return;
+                if (!window.Utils?.getCurrentSession || !window.academicEntities) return;
+                // Promotion belongs to the start of a session — only nag in 1st term
+                if (Utils.getCurrentTerm() !== '1st Term') return;
+                const session = Utils.getCurrentSession();
+                const state = await dataService.getPromotionState();
+                if (state && (state.lastSession === session || state.dismissedSession === session)) return;
+                const label = document.getElementById('promotion-banner-session');
+                if (label) label.textContent = session;
+                const banner = document.getElementById('promotion-banner');
+                if (banner) banner.style.display = 'block';
+            } catch (e) {
+                console.warn('Promotion banner check failed:', e);
+            }
+        };
+
+        window.dismissPromotionBanner = async function () {
+            const banner = document.getElementById('promotion-banner');
+            if (banner) banner.style.display = 'none';
+            try {
+                const state = (await dataService.getPromotionState()) || {};
+                state.dismissedSession = Utils.getCurrentSession();
+                await dataService.savePromotionState(state);
+            } catch (e) {
+                console.warn('Could not persist promotion dismissal:', e);
+            }
+        };
+
+        let _promoteSkipped = 0;
+        let _promoteSkippedBreakdown = {};
+        let _promoteOpenGroups = {}; // class -> whether its student list is expanded
+
+        // Expand/collapse a class group in the Promote page
+        window.togglePromoteGroup = function (header) {
+            const cls = header.dataset.cls;
+            const body = header.parentElement.querySelector('.promote-group-body');
+            const chevron = header.querySelector('.promote-chevron');
+            const willOpen = !_promoteOpenGroups[cls];
+            _promoteOpenGroups[cls] = willOpen;
+            if (body) body.style.display = willOpen ? '' : 'none';
+            if (chevron) chevron.style.transform = willOpen ? 'rotate(90deg)' : '';
+            header.title = (willOpen ? 'Close ' : 'Open ') + cls;
+        };
+
+        // Open the Promote Students page (its own admin section)
+        window.openPromotePage = async function () {
+            ['teachers-section', 'students-section', 'exams-list-section', 'term-dates-section'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const wrap = document.getElementById('exams-section-wrapper');
+            if (wrap) wrap.style.display = 'none';
+            setAdminPageOpen(true);
+            const sec = document.getElementById('promote-section');
+            if (sec) { sec.style.display = 'block'; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            activeAdminSection = 'promote';
+            setAdminPageTitle('Promote Students');
+            highlightStatCard(null);
+            updateTopbarSearchPlaceholder();
+            if (window.setAdminBottomNavContext) setAdminBottomNavContext('promote');
+            await loadPromoteStudents();
+        };
+        // Back-compat: the sidebar item and the "new session" banner call this name
+        window.openPromoteStudentsModal = window.openPromotePage;
+
+        window.closePromotePage = function () {
+            const sec = document.getElementById('promote-section');
+            if (sec) sec.style.display = 'none';
+            goToDashboardHome();
+        };
+        window.closePromoteStudentsModal = window.closePromotePage;
+
+        async function loadPromoteStudents() {
+            const groupsEl = document.getElementById('promote-class-groups');
+            const errorEl = document.getElementById('promote-error');
+            if (errorEl) errorEl.style.display = 'none';
+            document.getElementById('promote-progress').textContent = '';
+            document.getElementById('promote-session-label').textContent = Utils.getCurrentSession();
+            const classFilter = document.getElementById('promote-class-filter');
+            if (classFilter) classFilter.value = '';
+            groupsEl.innerHTML = '<p style="color: var(--light-text);">Loading students…</p>';
+
+            try {
+                const ae = window.academicEntities;
+                // Scope to the admin's loaded school (like every other admin list)
+                // so demo accounts and other schools' students aren't swept in.
+                const students = await dataService.getUsers({ role: 'student', schoolVersion: currentVersion, forceRefresh: true });
+                _promoteRoster = [];
+                _promoteSkipped = 0;
+                _promoteSkippedBreakdown = {};
+                _promoteOpenGroups = {}; // start collapsed each time the page opens
+                students.forEach(p => {
+                    const from = p.class_level || '';
+                    const to = ae.getNextClass(from);
+                    if (!to) {
+                        _promoteSkipped++;
+                        const key = from ? (from === window.academicEntities.GRADUATED_CLASS ? 'already graduated' : ('class "' + from + '"')) : 'no class set';
+                        _promoteSkippedBreakdown[key] = (_promoteSkippedBreakdown[key] || 0) + 1;
+                        return;
+                    }
+                    _promoteRoster.push({ profile: p, from, to, checked: true });
+                });
+                populatePromoteClassFilter();
+                renderPromoteRoster();
+            } catch (e) {
+                console.error('Loading students for promotion failed:', e);
+                groupsEl.innerHTML = '<p style="color:var(--accent-color);">Failed to load students. Check your connection and try again.</p>';
+            }
+        }
+
+        function populatePromoteClassFilter() {
+            const sel = document.getElementById('promote-class-filter');
+            if (!sel) return;
+            const ladder = window.academicEntities.PROMOTION_LADDER;
+            const classes = [...new Set(_promoteRoster.map(r => r.from))].filter(Boolean)
+                .sort((a, b) => ladder.indexOf(a) - ladder.indexOf(b));
+            sel.innerHTML = '<option value="">All Classes</option>' +
+                classes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        }
+
+        // Render the roster grouped by class, honouring the search box + class filter
+        window.renderPromoteRoster = function () {
+            const groupsEl = document.getElementById('promote-class-groups');
+            if (!groupsEl) return;
+            const ae = window.academicEntities;
+            // Search comes from the shared topbar search (dynamic to this page)
+            const search = (document.getElementById('topbar-search')?.value || '').trim().toLowerCase();
+            const classFilter = document.getElementById('promote-class-filter')?.value || '';
+
+            const byClass = {};
+            _promoteRoster.forEach((r, i) => {
+                if (classFilter && r.from !== classFilter) return;
+                if (search && !String(r.profile.full_name || '').toLowerCase().includes(search)) return;
+                (byClass[r.from] = byClass[r.from] || []).push(i);
+            });
+
+            let html = '';
+            ae.PROMOTION_LADDER.forEach(cls => {
+                const idxs = byClass[cls];
+                if (!idxs || !idxs.length) return;
+                idxs.sort((a, b) => String(_promoteRoster[a].profile.full_name || '').localeCompare(String(_promoteRoster[b].profile.full_name || '')));
+                const to = ae.getNextClass(cls);
+                const allChecked = idxs.every(i => _promoteRoster[i].checked);
+                const open = !!_promoteOpenGroups[cls];
+                html += `<div style="margin-bottom:10px; border:1px solid var(--border-color); border-radius:10px; overflow:hidden;">
+                    <div class="promote-group-header" data-cls="${escapeHtml(cls)}" title="${open ? 'Close' : 'Open'} ${escapeHtml(cls)}" onclick="togglePromoteGroup(this)"
+                        style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; cursor:pointer;">
+                        <span style="display:inline-flex; align-items:center; gap:8px; min-width:0;">
+                            <svg class="promote-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15" style="flex-shrink:0; color:var(--light-text); transition:transform 0.2s;${open ? ' transform:rotate(90deg);' : ''}"><polyline points="9 18 15 12 9 6"/></svg>
+                            <strong style="font-size:0.9rem; color:var(--text-color);">${escapeHtml(cls)} &rarr; ${escapeHtml(to)} <span style="color:var(--light-text); font-weight:400;">(${idxs.length})</span></strong>
+                        </span>
+                        <label onclick="event.stopPropagation();" style="font-size:0.78rem; color:var(--light-text); display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex-shrink:0;">
+                            <input type="checkbox" ${allChecked ? 'checked' : ''} data-promote-group="${escapeHtml(cls)}"> All
+                        </label>
+                    </div>
+                    <div class="promote-group-body" style="display:${open ? '' : 'none'}; padding:6px 12px 10px; border-top:1px solid var(--border-color);">`;
+                idxs.forEach(i => {
+                    html += `<label style="display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:0.88rem; color:var(--text-color); cursor:pointer;">
+                        <input type="checkbox" ${_promoteRoster[i].checked ? 'checked' : ''} data-promote-idx="${i}">
+                        <span>${escapeHtml(_promoteRoster[i].profile.full_name || 'Unnamed student')}</span>
+                    </label>`;
+                });
+                html += '</div></div>';
+            });
+
+            if (!_promoteRoster.length) {
+                html = '<p style="color:var(--light-text);">No students found in promotable classes.</p>';
+            } else if (!html) {
+                html = '<p style="color:var(--light-text);">No students match your search or filter.</p>';
+            }
+            if (_promoteSkipped) {
+                const parts = Object.entries(_promoteSkippedBreakdown)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([k, v]) => `${v} with ${k}`);
+                html += `<p style="font-size:0.8rem; color:var(--light-text); margin-top:12px;">${_promoteSkipped} student(s) not shown — their class isn't on the promotion ladder: ${parts.join(', ')}.</p>`;
+            }
+            groupsEl.innerHTML = html;
+
+            groupsEl.querySelectorAll('[data-promote-idx]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    _promoteRoster[parseInt(cb.dataset.promoteIdx, 10)].checked = cb.checked;
+                });
+            });
+            groupsEl.querySelectorAll('[data-promote-group]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const cls = cb.dataset.promoteGroup;
+                    _promoteRoster.forEach(r => { if (r.from === cls) r.checked = cb.checked; });
+                    renderPromoteRoster();
+                });
+            });
+        };
+
+        window.confirmPromoteStudents = async function () {
+            const selected = _promoteRoster.filter(r => r.checked);
+            const errorEl = document.getElementById('promote-error');
+            const progressEl = document.getElementById('promote-progress');
+            // Desktop uses the footer button (text); mobile uses the bottom-nav
+            // Promote item (update its label span so the icon survives).
+            const desktopBtn = document.getElementById('promote-confirm-btn');
+            const navBtn = document.getElementById('promote-bn-confirm');
+            const navLabel = navBtn ? navBtn.querySelector('.bn-label') : null;
+            const setPromoteBusy = (busy, txt) => {
+                if (desktopBtn) { desktopBtn.disabled = busy; desktopBtn.textContent = busy ? (txt || 'Promoting…') : 'Promote Selected'; }
+                if (navBtn) { navBtn.disabled = busy; navBtn.style.opacity = busy ? '0.6' : ''; }
+                if (navLabel) navLabel.textContent = busy ? (txt || 'Promoting…') : 'Promote';
+            };
+            errorEl.style.display = 'none';
+
+            if (!selected.length) {
+                errorEl.textContent = 'No students are selected.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            const session = Utils.getCurrentSession();
+            const graduating = selected.filter(r => r.to === window.academicEntities.GRADUATED_CLASS).length;
+            let msg = `Promote ${selected.length} student${selected.length !== 1 ? 's' : ''} for the ${session} session?`;
+            if (graduating) msg += ` ${graduating} SS 3 student${graduating !== 1 ? 's' : ''} will be marked Graduated.`;
+            if (!(await Utils.showConfirm('Promote Students', msg))) return;
+
+            setPromoteBusy(true, 'Promoting…');
+            let done = 0, failed = 0;
+            const promotedMap = {}; // userId -> new class (drives the student "Newly promoted" banner)
+            const BATCH = 5;
+            for (let i = 0; i < selected.length; i += BATCH) {
+                const chunk = selected.slice(i, i + BATCH);
+                const results = await Promise.allSettled(
+                    chunk.map(it => dataService.promoteStudentClass(it.profile, it.to))
+                );
+                results.forEach((r, j) => {
+                    if (r.status === 'fulfilled') {
+                        done++;
+                        const it = chunk[j];
+                        const uid = it.profile.user || it.profile.id;
+                        if (uid) promotedMap[uid] = it.to;
+                    } else {
+                        failed++;
+                        console.error('Promotion failed:', r.reason);
+                    }
+                });
+                progressEl.textContent = `${done + failed} / ${selected.length}…`;
+                setPromoteBusy(true, `${done + failed}/${selected.length}`);
+            }
+
+            try {
+                const state = (await dataService.getPromotionState()) || {};
+                // Merge with earlier promotions in the same session (e.g. a retry run)
+                const prevPromoted = (state.lastSession === session && state.promotedStudents) ? state.promotedStudents : {};
+                state.promotedStudents = Object.assign({}, prevPromoted, promotedMap);
+                state.lastSession = session;
+                state.promotedAt = new Date().toISOString();
+                state.promotedCount = done;
+                await dataService.savePromotionState(state);
+            } catch (e) {
+                console.warn('Could not record promotion state:', e);
+            }
+
+            setPromoteBusy(false);
+            const banner = document.getElementById('promotion-banner');
+            if (banner) banner.style.display = 'none';
+
+            if (failed) {
+                progressEl.textContent = '';
+                errorEl.textContent = `Promoted ${done}; ${failed} failed. Reload the page — already-promoted students won't appear in their old class again, so just promote the remainder.`;
+                errorEl.style.display = 'block';
+                await loadPromoteStudents();
+            } else {
+                progressEl.textContent = '';
+                closePromotePage();
+                await Utils.showAlert('Promotion Complete', `Promoted ${done} student${done !== 1 ? 's' : ''} for the ${session} session.`);
+                if (typeof loadDashboardData === 'function') loadDashboardData();
+            }
+        };
+
+        // Check for a pending session promotion shortly after load (auth
+        // and dataService are restored from localStorage synchronously)
+        setTimeout(() => { window.checkPromotionBanner(); }, 1500);
+
         window.togglePasswordVisibility = function (inputId, button) {
             const input = document.getElementById(inputId);
             if (input.type === 'password') {
@@ -5067,9 +6346,10 @@
 
                 const okBtn = document.getElementById('alert-ok-btn');
                 okBtn.onclick = () => {
-                    modal.style.display = 'none';
-                    resolve();
+                    modal.classList.add('closing');
+                    setTimeout(() => { modal.style.display = 'none'; modal.classList.remove('closing'); resolve(); }, 260);
                 };
+                modal.classList.remove('closing');
                 modal.style.display = 'flex';
             });
         };
@@ -5085,14 +6365,13 @@
                 const yesBtn = document.getElementById('confirm-yes-btn');
                 const noBtn = document.getElementById('confirm-no-btn');
 
-                yesBtn.onclick = () => {
-                    modal.style.display = 'none';
-                    resolve(true);
+                const close = (val) => {
+                    modal.classList.add('closing');
+                    setTimeout(() => { modal.style.display = 'none'; modal.classList.remove('closing'); resolve(val); }, 260);
                 };
-                noBtn.onclick = () => {
-                    modal.style.display = 'none';
-                    resolve(false);
-                };
+                yesBtn.onclick = () => close(true);
+                noBtn.onclick = () => close(false);
+                modal.classList.remove('closing');
                 modal.style.display = 'flex';
             });
         };
@@ -5135,36 +6414,44 @@
                     return;
                 }
 
-                // Fetch results for each exam in parallel — fail closed if any
-                // exam's results can't be fetched, so exports are never partial
-                const examIds = resultSourceExams.map(e => e.id);
-                const settled = await Promise.allSettled(examIds.map(examId =>
-                    dataService.getResults({ examId, forceRefresh: true })
-                ));
-                const failedExamIds = examIds.filter((id, idx) => settled[idx].status === 'rejected');
-                if (failedExamIds.length > 0) {
-                    console.error('[GeneralResults] Result fetch failed for exams:', failedExamIds);
-                    showAlert('Load incomplete', `Results for ${failedExamIds.length} exam${failedExamIds.length === 1 ? '' : 's'} could not be fetched, so nothing was loaded. Check your connection and try again.`);
+                // Fetch every result in a SINGLE request, then group by exam —
+                // replaces the per-exam N+1 fan-out (one getFullList per historical
+                // exam) that hammered the single PocketBase node. Still forceRefresh
+                // so numbers are never stale, and still fails closed: if the one
+                // fetch fails, nothing loads.
+                const sourceExamById = {};
+                resultSourceExams.forEach(e => { sourceExamById[e.id] = e; });
+
+                let allResults;
+                try {
+                    allResults = await dataService.getResults({ forceRefresh: true });
+                } catch (e) {
+                    console.error('[GeneralResults] Result fetch failed:', e);
+                    showAlert('Load incomplete', 'Results could not be fetched, so nothing was loaded. Check your connection and try again.');
                     return;
                 }
-                const resultsArrays = settled.map(s => s.value);
 
-                // Build exam column info (only exams that have results).
-                // Only completed attempts count — in-progress ones would show
-                // partial scores.
-                resultExamColumns = [];
+                // Group completed attempts by exam. Results from soft-deleted or
+                // unknown exams are excluded (not in the source list); in-progress
+                // attempts are skipped so partial scores never show.
                 const examResultsMap = {}; // examId -> results[]
+                (allResults || []).forEach(r => {
+                    if (r.status !== 'completed') return;
+                    if (!r.examId || !sourceExamById[r.examId]) return;
+                    (examResultsMap[r.examId] || (examResultsMap[r.examId] = [])).push(r);
+                });
 
-                examIds.forEach((examId, idx) => {
-                    const results = (resultsArrays[idx] || []).filter(r => r.status === 'completed');
+                // Build exam column info in the source-exam order (newest first),
+                // only for exams that actually have results.
+                resultExamColumns = [];
+                resultSourceExams.forEach(exam => {
+                    const results = examResultsMap[exam.id];
                     if (results && results.length > 0) {
-                        examResultsMap[examId] = results;
-                        const exam = resultSourceExams.find(e => e.id === examId);
                         resultExamColumns.push({
-                            id: examId,
-                            title: exam ? exam.title : 'Unknown Exam',
-                            subject: exam ? exam.subject : '',
-                            targetClass: exam ? exam.targetClass : '',
+                            id: exam.id,
+                            title: exam.title || 'Unknown Exam',
+                            subject: exam.subject || '',
+                            targetClass: exam.targetClass || '',
                             totalPoints: results[0]?.totalPoints || 0
                         });
                     }
@@ -5307,7 +6594,15 @@
                 Utils.CBT_TERMS.forEach(t => {
                     termFilter.innerHTML += `<option value="${t}">${t}</option>`;
                 });
-                if (Utils.CBT_TERMS.includes(prevTerm)) termFilter.value = prevTerm;
+                if (!termFilter.dataset.termDefaulted) {
+                    // First render — default to the current school term
+                    // (Utils.getCurrentTerm). Later renders preserve the user's choice.
+                    termFilter.dataset.termDefaulted = '1';
+                    const curTerm = Utils.getCurrentTerm();
+                    termFilter.value = Utils.CBT_TERMS.includes(curTerm) ? curTerm : 'All';
+                } else if (Utils.CBT_TERMS.includes(prevTerm) || prevTerm === 'All') {
+                    termFilter.value = prevTerm;
+                }
 
                 // Render
                 filterGeneralResults();
@@ -5342,7 +6637,116 @@
             return resultExamColumns.filter(c => Utils.normalizeTerm(c.title) === term);
         }
 
+        // ================================================================
+        // REPORT CARDS MODE
+        // The same section, answering a different question: not "how did
+        // everyone do on each exam" but "what finished card did this parent
+        // receive". Only published cards appear — a draft is not a document.
+        // Clicking one opens the branded, printable version.
+        // ================================================================
+        let resultsMode = 'exams';
+        let publishedCards = [];
+        let publishedCardsLoaded = false;
+
+        window.setResultsMode = function (mode) {
+            resultsMode = mode === 'cards' ? 'cards' : 'exams';
+
+            document.getElementById('results-mode-exams').classList.toggle('active', resultsMode === 'exams');
+            document.getElementById('results-mode-cards').classList.toggle('active', resultsMode === 'cards');
+            document.getElementById('results-mode-exams').setAttribute('aria-selected', String(resultsMode === 'exams'));
+            document.getElementById('results-mode-cards').setAttribute('aria-selected', String(resultsMode === 'cards'));
+
+            document.getElementById('general-results-container').style.display = resultsMode === 'exams' ? '' : 'none';
+            document.getElementById('report-cards-container').style.display = resultsMode === 'cards' ? '' : 'none';
+
+            const summary = document.getElementById('results-summary');
+            if (summary && resultsMode === 'cards') summary.style.display = 'none';
+
+            // Exam Scores needs an explicit "Load Results"; report cards are
+            // cheap to list, so they load the first time you switch here.
+            if (resultsMode === 'cards' && !publishedCardsLoaded) {
+                loadPublishedReportCards();
+            } else if (resultsMode === 'cards') {
+                renderPublishedReportCards();
+            }
+        };
+
+        async function loadPublishedReportCards() {
+            const empty = document.getElementById('report-cards-empty');
+            const grid = document.getElementById('report-cards-grid');
+            grid.innerHTML = '';
+            empty.style.display = '';
+            empty.querySelector('p').textContent = 'Loading published report cards…';
+
+            try {
+                publishedCards = await dataService.getReportCards({ status: 'published' });
+                publishedCardsLoaded = true;
+                // Warm the letterhead so the first card opens already branded.
+                dataService.loadReportCardTemplate?.().catch(() => { /* falls back to defaults */ });
+                renderPublishedReportCards();
+            } catch (e) {
+                console.error('[ReportCards] admin list failed:', e);
+                empty.style.display = '';
+                empty.querySelector('p').textContent =
+                    'Could not load report cards. Check your connection and try again.';
+            }
+        }
+
+        function renderPublishedReportCards() {
+            const empty = document.getElementById('report-cards-empty');
+            const grid = document.getElementById('report-cards-grid');
+            const classFilter = document.getElementById('results-class-filter')?.value || 'All';
+            const termFilter = document.getElementById('results-term-filter')?.value || 'All';
+            const query = (document.getElementById('results-search')?.value || '').trim().toLowerCase();
+
+            const matches = publishedCards.filter(card => {
+                if (classFilter !== 'All' &&
+                    normalizeClassName(card.classLevel) !== normalizeClassName(classFilter)) return false;
+                if (termFilter !== 'All' && card.term !== termFilter) return false;
+                if (query && !String(card.studentName || '').toLowerCase().includes(query)) return false;
+                return true;
+            });
+
+            if (matches.length === 0) {
+                grid.innerHTML = '';
+                empty.style.display = '';
+                empty.querySelector('p').textContent = publishedCards.length === 0
+                    ? 'No report cards have been published yet.'
+                    : 'No published report cards match these filters.';
+                return;
+            }
+
+            empty.style.display = 'none';
+            grid.innerHTML = matches.map(card => {
+                const position = card.classPosition
+                    ? `${card.classPosition} of ${card.classSize}`
+                    : '—';
+                return `<button type="button" class="rc-admin-card" data-card-id="${escapeHtml(String(card.id))}">
+                    <span class="rc-admin-name">${escapeHtml(card.studentName || 'Unnamed student')}</span>
+                    <span class="rc-admin-meta">${escapeHtml(card.classLevel || '')} &middot; ${escapeHtml(card.term || '')}${card.session ? ' &middot; ' + escapeHtml(card.session) : ''}</span>
+                    <span class="rc-admin-meta">Average: ${escapeHtml(String(card.averageScore ?? 0))}% &middot; Position: ${escapeHtml(position)}</span>
+                    <span class="rc-admin-open">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Open report card
+                    </span>
+                </button>`;
+            }).join('');
+
+            grid.querySelectorAll('.rc-admin-card').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    window.location.href = 'report-card-print.html?id=' +
+                        encodeURIComponent(btn.getAttribute('data-card-id'));
+                });
+            });
+        }
+
         window.filterGeneralResults = function () {
+            // The filters and search box are shared by both modes.
+            if (resultsMode === 'cards') {
+                renderPublishedReportCards();
+                return;
+            }
+
             const classFilter = document.getElementById('results-class-filter').value;
             const searchQuery = document.getElementById('results-search').value.trim().toLowerCase();
             const visibleCols = getVisibleResultColumns();
@@ -5841,6 +7245,164 @@
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <!-- Bottom Navigation (mobile only) — default (navigation) context -->
+    <nav class="bottom-nav" id="admin-bottom-nav-default" role="navigation" aria-label="Mobile navigation">
+        <button class="bottom-nav-item active" onclick="goToDashboardHome(); setAdminBottomNav(this);">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+            <span>Dashboard</span>
+        </button>
+        <button class="bottom-nav-item" onclick="showAdminSection('exams'); setAdminBottomNav(this);">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
+            <span>Exams</span>
+        </button>
+        <button class="bottom-nav-item" onclick="scrollToSection('general-results-section'); setAdminBottomNav(this);">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+            <span>Results</span>
+        </button>
+        <button class="bottom-nav-item" onclick="openChatModal(); setAdminBottomNav(this);">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
+            <span>Messages</span>
+        </button>
+    </nav>
+
+    <!-- Contextual nav shown while the "All School Exams" page is open -->
+    <nav class="bottom-nav" id="admin-bottom-nav-exams" role="navigation" aria-label="Exams page actions" style="display:none;">
+        <button class="bottom-nav-item" onclick="closeExamsPage()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item" id="admin-bn-bulk" onclick="toggleAdminExamBulkMode()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+            <span>Bulk Select</span>
+        </button>
+        <button class="bottom-nav-item" onclick="makeAllExamsUnavailable()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
+            <span>Unavailable</span>
+        </button>
+        <button class="bottom-nav-item" id="admin-bn-more" onclick="toggleAdminMore(event)" aria-haspopup="true" aria-label="More actions">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></span>
+            <span>More</span>
+        </button>
+    </nav>
+
+    <!-- Contextual nav shown while the Promote Students page is open -->
+    <nav class="bottom-nav" id="admin-bottom-nav-promote" role="navigation" aria-label="Promote page actions" style="display:none;">
+        <button class="bottom-nav-item" onclick="closePromotePage()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item" id="promote-bn-confirm" onclick="confirmPromoteStudents()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>
+            <span class="bn-label">Promote</span>
+        </button>
+    </nav>
+
+    <!-- Contextual nav shown while the Settings page is open.
+         bottom-nav-floating: also present on desktop, as a centred pill
+         rather than a full-width bar (see main.css). -->
+    <nav class="bottom-nav bottom-nav-dynamic bottom-nav-floating" id="admin-bottom-nav-settings" role="navigation" aria-label="Settings page actions" style="display:none;">
+        <button class="bottom-nav-item" onclick="goToDashboardHome()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item active nav-action-primary" onclick="openTermDatesModal()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+            <span>Term Dates</span>
+        </button>
+        <button class="bottom-nav-item" data-module="report_cards" onclick="window.location.href='report-cards.html?view=template'">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></span>
+            <span>Card Design</span>
+        </button>
+        <button class="bottom-nav-item" data-module="report_cards" onclick="window.location.href='report-cards.html?view=access-codes'">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+            <span>Codes</span>
+        </button>
+    </nav>
+
+    <!-- Contextual nav shown while the Term Dates page is open -->
+    <nav class="bottom-nav" id="admin-bottom-nav-term-dates" role="navigation" aria-label="Term Dates page actions" style="display:none;">
+        <button class="bottom-nav-item" onclick="closeTermDatesModal()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item" onclick="clearTermDates()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></span>
+            <span>Automatic</span>
+        </button>
+        <button class="bottom-nav-item" onclick="saveTermDates()">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>
+            <span>Save</span>
+        </button>
+    </nav>
+
+    <!-- "More" popup for the exams-page context (filter + navigation) -->
+    <div id="admin-more-menu" class="admin-more-menu" style="display:none;" role="menu">
+        <div class="amm-label">Filter exams</div>
+        <button type="button" onclick="applyExamFilterFromMore('all')">All Status</button>
+        <button type="button" onclick="applyExamFilterFromMore('active')">Active Only</button>
+        <button type="button" onclick="applyExamFilterFromMore('draft')">Drafts Only</button>
+        <button type="button" onclick="applyExamFilterFromMore('archived')">Archived Only</button>
+        <div class="amm-divider"></div>
+        <div class="amm-label">Go to</div>
+        <button type="button" onclick="goToDashboardHome(); closeAdminMore();">Dashboard</button>
+        <button type="button" onclick="scrollToSection('general-results-section'); closeAdminMore();">Results</button>
+        <button type="button" onclick="openChatModal(); closeAdminMore();">Messages</button>
+    </div>
+
+    <script>
+        // Highlight the tapped item within its own nav bar
+        window.setAdminBottomNav = function (el) {
+            var bar = el.closest('.bottom-nav');
+            if (!bar) return;
+            bar.querySelectorAll('.bottom-nav-item').forEach(function (b) {
+                b.classList.toggle('active', b === el);
+            });
+        };
+
+        // Swap the bottom bar to match the open page/section. Uses display:''
+        // (not 'flex') to hide/show so the CSS media query still governs
+        // desktop (where both bars stay hidden).
+        window.setAdminBottomNavContext = function (ctx) {
+            var ids = { default: 'admin-bottom-nav-default', exams: 'admin-bottom-nav-exams', promote: 'admin-bottom-nav-promote', 'term-dates': 'admin-bottom-nav-term-dates', settings: 'admin-bottom-nav-settings' };
+            if (!ids[ctx]) ctx = 'default';
+            var shown = null;
+            Object.keys(ids).forEach(function (k) {
+                var el = document.getElementById(ids[k]);
+                if (!el) return;
+                el.style.display = (k === ctx) ? '' : 'none';
+                if (k === ctx) shown = el;
+            });
+            // A floating nav overlaps the content on desktop, so the scroll
+            // container needs clearance only while one is actually up.
+            document.body.classList.toggle('has-floating-nav',
+                !!(shown && shown.classList.contains('bottom-nav-floating')));
+            if (ctx !== 'exams') closeAdminMore();
+        };
+
+        // "More" overflow popup for the exams-page bottom nav
+        window.toggleAdminMore = function (e) {
+            if (e) e.stopPropagation();
+            var menu = document.getElementById('admin-more-menu');
+            if (menu) menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        };
+        window.closeAdminMore = function () {
+            var menu = document.getElementById('admin-more-menu');
+            if (menu) menu.style.display = 'none';
+        };
+        window.applyExamFilterFromMore = function (value) {
+            var sel = document.getElementById('exam-filter');
+            if (sel) { sel.value = value; if (window.filterExams) filterExams(); }
+            closeAdminMore();
+        };
+        document.addEventListener('click', function (ev) {
+            var menu = document.getElementById('admin-more-menu');
+            if (menu && menu.style.display !== 'none' &&
+                !ev.target.closest('#admin-more-menu') && !ev.target.closest('#admin-bn-more')) {
+                menu.style.display = 'none';
+            }
+        });
     </script>
 
     <!-- SheetJS Library for Excel Export -->

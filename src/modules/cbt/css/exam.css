@@ -324,7 +324,7 @@
 }
 
 .timer-display {
-    font-family: 'DM Sans', monospace;
+    font-family: var(--font-heading), monospace;
     font-size: 1.25rem;
     font-weight: 700;
     background: var(--primary-light);

@@ -98,6 +98,86 @@
     }
 
     // ================================================================
+    // GRADING SNAPSHOT
+    // Both bulk reads a generation needs, fetched once and shared.
+    //
+    // Report cards must grade from complete, live data — generating from a
+    // partial result set, or without knowing which exams were deleted, quietly
+    // writes wrong cards over good drafts. So both reads bypass the IndexedDB
+    // caches (forceRefresh) and a failure aborts the whole run rather than
+    // grading on what happened to arrive.
+    //
+    // That made every run re-download the entire school, including runs that
+    // repeat a filter the user just generated. The snapshot below keeps the
+    // fail-closed guarantee for the first run and then reuses it briefly, so
+    // working down a list of classes — or re-running the same one — is instant.
+    // The window is short enough that a freshly marked exam still lands.
+    // ================================================================
+
+    var SNAPSHOT_TTL_MS = 60 * 1000;
+    var snapshotCache = null;   // { at, data }
+    var snapshotInFlight = null;
+
+    /** Drop the cache so the next generation refetches. */
+    ds.invalidateReportCardSnapshot = function() {
+        snapshotCache = null;
+        snapshotInFlight = null;
+    };
+
+    async function fetchGradingSnapshot() {
+        // Independent reads — no reason to wait for one before starting the other.
+        var settled = await Promise.allSettled([
+            ds.getResults({ forceRefresh: true }),
+            ds.getExamSummaries({ includeDeleted: true, forceRefresh: true })
+        ]);
+
+        if (settled[0].status === 'rejected') {
+            console.error('[ReportCards] Failed to fetch results:', settled[0].reason);
+            throw new Error('Could not load exam results — report cards were NOT generated. Check your connection and try again.');
+        }
+        if (settled[1].status === 'rejected') {
+            console.error('[ReportCards] Could not resolve deleted exams:', settled[1].reason);
+            throw new Error('Could not verify which exams are deleted — report cards were NOT generated. Check your connection and try again.');
+        }
+
+        var results = settled[0].value || [];
+        var exams = settled[1].value || [];
+
+        // Results belonging to soft-deleted exams stay in the database for
+        // record-keeping, but they must NOT grade report cards — a scrapped
+        // exam's results were inflating subject totals (e.g. ICT at 42.6/60
+        // when the only real ICT exam totals 30).
+        var deletedExamIds = new Set();
+        var examTitles = {};
+        exams.forEach(function(ex) {
+            if (!ex) return;
+            if (ex.extensions && ex.extensions._deleted) deletedExamIds.add(ex.id);
+            if (ex.id) examTitles[ex.id] = ex.title || '';
+        });
+
+        return { results: results, deletedExamIds: deletedExamIds, examTitles: examTitles };
+    }
+
+    function loadGradingSnapshot() {
+        var fresh = snapshotCache && (Date.now() - snapshotCache.at) < SNAPSHOT_TTL_MS;
+        if (fresh) return Promise.resolve(snapshotCache.data);
+
+        // Concurrent generations share one round trip instead of racing.
+        if (snapshotInFlight) return snapshotInFlight;
+
+        snapshotInFlight = fetchGradingSnapshot().then(function(data) {
+            snapshotCache = { at: Date.now(), data: data };
+            snapshotInFlight = null;
+            return data;
+        }).catch(function(err) {
+            snapshotInFlight = null;
+            throw err;
+        });
+
+        return snapshotInFlight;
+    }
+
+    // ================================================================
     // AGGREGATE ENGINE — builds report card data from existing records
     // ================================================================
 
@@ -114,6 +194,13 @@
         var session = opts.session || '';
         var dateRange = opts.dateRange || {};
 
+        // The grading snapshot does not depend on the roster, so start it now
+        // and let it download while the class list resolves. The extra catch
+        // keeps an early return below from surfacing as an unhandled rejection;
+        // the real error is still raised where the snapshot is awaited.
+        var snapshotPromise = loadGradingSnapshot();
+        snapshotPromise.catch(function() { /* handled at the await */ });
+
         // 1. Get all students in this class
         var students = [];
         if (typeof ds.getClassStudents === 'function') {
@@ -129,55 +216,20 @@
 
         if (students.length === 0) return [];
 
-        // 2. Get all completed results for this class
-        //    Results store exam snapshots, so we can filter by target_class and subject
-        // Fail closed: report cards must grade from complete, live data.
-        // Generating from partial results (or without knowing which exams are
-        // deleted) silently writes wrong cards over good drafts.
-        var allResults = [];
-        try {
-            // forceRefresh: never a stale IndexedDB cache
-            allResults = await ds.getResults({ forceRefresh: true });
-        } catch (e) {
-            console.error('[ReportCards] Failed to fetch results:', e);
-            throw new Error('Could not load exam results — report cards were NOT generated. Check your connection and try again.');
-        }
+        // 2. The two bulk reads every generation needs: every result, and every
+        //    exam (including soft-deleted ones). Fetched together — they do not
+        //    depend on each other — and served from a short-lived cache so that
+        //    generating class after class, or re-running the same filter, does
+        //    not re-download the whole school each time.
+        var snapshot = await snapshotPromise;
+        var allResults = snapshot.results;
+        var deletedExamIds = snapshot.deletedExamIds;
 
-        // Results belonging to soft-deleted exams stay in the database for
-        // record-keeping, but they must NOT grade report cards — a scrapped
-        // exam's results were inflating subject totals (e.g. ICT at 42.6/60
-        // when the only real ICT exam totals 30).
-        var deletedExamIds = new Set();
-        try {
-            var examSummariesForDeleted = await ds.getExamSummaries({ includeDeleted: true, forceRefresh: true });
-            (examSummariesForDeleted || []).forEach(function(ex) {
-                if (ex && ex.extensions && ex.extensions._deleted) deletedExamIds.add(ex.id);
-            });
-        } catch (e) {
-            console.error('[ReportCards] Could not resolve deleted exams:', e);
-            throw new Error('Could not verify which exams are deleted — report cards were NOT generated. Check your connection and try again.');
-        }
-
-        // Build exam title lookup for results missing snapshot data
-        var examTitleCache = {};
-        if (term) {
-            var examIdsNeedingLookup = [];
-            allResults.forEach(function(r) {
-                if (!r.examTitle && r.examId && !examTitleCache[r.examId]) {
-                    examIdsNeedingLookup.push(r.examId);
-                    examTitleCache[r.examId] = null; // mark as pending
-                }
-            });
-            // Fetch exam titles for results missing snapshots
-            for (var ei = 0; ei < examIdsNeedingLookup.length; ei++) {
-                try {
-                    var examData = await ds.getExamById(examIdsNeedingLookup[ei]);
-                    if (examData) {
-                        examTitleCache[examData.id] = examData.title || '';
-                    }
-                } catch (e) { /* skip unavailable exams */ }
-            }
-        }
+        // Exam titles for results whose snapshot is missing one. The exam list
+        // above already carries every title, so this is a lookup rather than
+        // the per-exam fetch it used to be — that loop pulled whole exams,
+        // questions and embedded images included, one request at a time.
+        var examTitleCache = snapshot.examTitles;
 
         // Term-signature detection — matches "1st term", "first term", "term 1", etc.
         // Returns which term (1, 2, 3) a text mentions, or null if it has no term signature.
@@ -284,12 +336,21 @@
             return 0;
         }
 
+        // The CA component's maximum (the "40" in "CA / 40"). Stored alongside
+        // the CA score when the exam was marked; results predating the CA
+        // input have neither, and contribute 0 to both.
+        function extractCaTotal(r) {
+            var flags = (r && r.flags) || {};
+            var caTotal = parseFloat(flags._caTotal);
+            return isFinite(caTotal) ? caTotal : 0;
+        }
+
         classResults.forEach(function(r) {
             var sid = r.studentId;
             var subject = r.examSubject || 'Unknown';
             if (!studentSubjectScores[sid]) studentSubjectScores[sid] = {};
             if (!studentSubjectScores[sid][subject]) {
-                studentSubjectScores[sid][subject] = { scores: [], caScores: [], totalPoints: [] };
+                studentSubjectScores[sid][subject] = { scores: [], caScores: [], caTotals: [], totalPoints: [] };
             }
             // result.score is stored as a PERCENTAGE (0–100), not raw marks —
             // convert to raw points against the exam's total so subject sums
@@ -300,6 +361,7 @@
             var caPoints = Math.min(extractCaPoints(r), rawPoints);
             studentSubjectScores[sid][subject].scores.push(rawPoints);
             studentSubjectScores[sid][subject].caScores.push(Math.round(caPoints * 10) / 10);
+            studentSubjectScores[sid][subject].caTotals.push(extractCaTotal(r));
             studentSubjectScores[sid][subject].totalPoints.push(r.totalPoints || 0);
         });
 
@@ -339,11 +401,19 @@
                 var caScore = (data.caScores || []).reduce(function(a, b) { return a + b; }, 0);
                 caScore = Math.round(caScore * 10) / 10;
                 var examScore = Math.max(0, Math.round((totalScore - caScore) * 10) / 10);
+                // Maxima for the report card's "CA / 40 | Exam / 60" columns.
+                // result.totalPoints already includes the CA component, so the
+                // exam's own maximum is whatever is left over.
+                var caTotal = (data.caTotals || []).reduce(function(a, b) { return a + b; }, 0);
+                caTotal = Math.round(caTotal * 10) / 10;
+                var examTotal = Math.max(0, Math.round((totalPossible - caTotal) * 10) / 10);
                 return {
                     name: subject,
                     score: totalScore,
                     caScore: caScore,
+                    caTotal: caTotal,
                     examScore: examScore,
+                    examTotal: examTotal,
                     totalPossible: totalPossible,
                     percentage: percentage,
                     grade: grade.letter,
@@ -399,13 +469,26 @@
     /**
      * Compute letter grade from percentage.
      */
+    /**
+     * The school's configured grading scale decides this — see
+     * reportCardTemplate.js. The letter is stored on the card at generation
+     * time, but the renderers ask again from the percentage, so editing the
+     * scale corrects cards that are already out.
+     *
+     * The fallback only applies if the template module failed to load; it
+     * mirrors the shipped default scale rather than inventing a second one.
+     */
     function computeGrade(percentage) {
-        if (percentage >= 70) return { letter: 'A', label: 'Excellent' };
-        if (percentage >= 60) return { letter: 'B', label: 'Very Good' };
-        if (percentage >= 50) return { letter: 'C', label: 'Good' };
-        if (percentage >= 40) return { letter: 'D', label: 'Fair' };
-        if (percentage >= 30) return { letter: 'E', label: 'Poor' };
-        return { letter: 'F', label: 'Fail' };
+        if (typeof ds.gradeForPercentage === 'function') {
+            return ds.gradeForPercentage(percentage);
+        }
+        if (percentage >= 96) return { letter: 'A++', label: 'Outstanding' };
+        if (percentage >= 91) return { letter: 'A+', label: 'Excellent' };
+        if (percentage >= 80) return { letter: 'A', label: 'Very Good' };
+        if (percentage >= 70) return { letter: 'B+', label: 'Good' };
+        if (percentage >= 60) return { letter: 'B', label: 'Credit' };
+        if (percentage >= 50) return { letter: 'C+', label: 'Pass' };
+        return { letter: 'C', label: 'Weak' };
     }
 
     // ================================================================
@@ -577,6 +660,30 @@
             .filter(function(c) { return !filters.studentId || c.studentId === filters.studentId; })
             .filter(function(c) { return !filters.status || c.status === filters.status; })
             .sort(function(a, b) { return (a.studentName || '').localeCompare(b.studentName || ''); });
+    };
+
+    /**
+     * One card by record id — what the printable document page loads from its
+     * ?id= parameter. Returns null when the card does not exist.
+     */
+    ds.getReportCardById = async function(cardId) {
+        if (!cardId) return null;
+
+        if (!_collectionMissing) {
+            try {
+                var record = await ds.pb.collection(COLLECTION).getOne(String(cardId));
+                return mapReportCard(record);
+            } catch (error) {
+                if (error && (error.status === 404 || error.status === 403)) return null;
+                if (!isMissingCollection(error)) throw error;
+                markCollectionMissing();
+            }
+        }
+
+        var local = readLocalReportCards()
+            .map(mapReportCard)
+            .filter(function(c) { return String(c.id) === String(cardId); });
+        return local[0] || null;
     };
 
     ds.publishReportCards = async function(cardIds) {

@@ -62,3 +62,78 @@
     color: var(--text-secondary);
     line-height: 1.4;
 }
+
+/* ============================================================
+   FOLDABLE TENANT CARD
+   The header row carries the name and the edit action; everything
+   else (contact, expiry, status, plan, modules) folds away so the
+   list can be scanned by name.
+   ============================================================ */
+.ma-tenant-head {
+    cursor: pointer;
+    gap: 10px;
+    /* The whole header is the hit target, so give it real height */
+    padding: 2px 0;
+    /* Chevron, name and edit sit on one line; .hw-row-top aligns to the top
+       for stacked rows, which leaves the icons riding high here. */
+    align-items: center;
+}
+
+/* The 4px belongs under a title with meta beneath it, not in a header row */
+.ma-tenant-head .hw-row-title {
+    margin-bottom: 0;
+}
+
+.ma-tenant-head:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* Points right when folded, down when open */
+.ma-fold-chevron {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    transition: transform 0.18s ease;
+}
+
+.ma-tenant.is-open .ma-fold-chevron {
+    transform: rotate(90deg);
+}
+
+/* grid-template-rows animates to and from 0 without needing a fixed height —
+   the content can be any number of chip lines. It sizes the FIRST row only, so
+   the content has to be a single child; two children would put the second in an
+   implicit auto row that stays visible while folded. */
+.ma-tenant-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.18s ease;
+}
+
+.ma-tenant.is-open .ma-tenant-body {
+    grid-template-rows: 1fr;
+}
+
+.ma-tenant-body-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Inside the clipped area, so it collapses with the content rather than
+   leaving a gap behind on the way shut */
+.ma-tenant-body-inner > .hw-row-meta {
+    padding-top: 6px;
+}
+
+/* The row is a fold toggle now, not a link to the editor */
+.ma-tenant {
+    cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ma-fold-chevron,
+    .ma-tenant-body {
+        transition: none;
+    }
+}

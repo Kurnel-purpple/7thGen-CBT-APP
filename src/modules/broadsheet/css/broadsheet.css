@@ -2,6 +2,24 @@
    BROADSHEET MODULE STYLES
    ============================================================ */
 
+/* ------------------------------------------------------------
+   Pink & white sheet palette.
+   The broadsheet table reads as a printed document, so it keeps
+   the same pink-on-white look in light and dark mode — every
+   colour below is literal, never theme-dependent.
+   ------------------------------------------------------------ */
+:root {
+    --bs-pink-deep:   #A62E55;   /* subject/term group header row */
+    --bs-pink-header: #BE3E68;   /* column header cells */
+    --bs-pink-strong: #B03360;   /* pink text on white (%, links, CTAs) */
+    --bs-pink-soft:   #FBE3EB;   /* "subject total" cells */
+    --bs-pink-hover:  #FDF2F6;   /* row hover tint */
+    --bs-pink-border: #F0C8D7;   /* grid lines */
+    --bs-sheet-bg:    #FFFFFF;   /* everywhere else */
+    --bs-sheet-text:  #202124;
+    --bs-sheet-muted: #9E8A92;
+}
+
 /* View switching */
 .bs-view { display: none; }
 .bs-view.active { display: block; }
@@ -22,6 +40,17 @@
     line-height: 1.6;
     font-size: 0.92rem;
     max-width: 580px;
+}
+
+/* Was an inline style on <main>. Inline wins over every stylesheet rule, so
+   while it sat there the mobile padding overrides below were dead. */
+.main-content {
+    padding: 0 32px 32px;
+}
+
+/* Desktop has room for the whole blurb, so the link is mobile-only. */
+.bs-more-link {
+    display: none;
 }
 
 /* Panel */
@@ -114,10 +143,11 @@
 
 .bs-table-scroll {
     overflow-x: auto;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--bs-pink-border);
     border-radius: 12px;
     max-height: 72vh;
     overflow-y: auto;
+    background: var(--bs-sheet-bg);
 }
 
 .bs-table {
@@ -125,19 +155,21 @@
     border-spacing: 0;
     width: 100%;
     font-size: 0.82rem;
-    color: var(--text-color);
+    background: var(--bs-sheet-bg);
+    color: var(--bs-sheet-text);
 }
 
+/* --- Column headers: the darker pink --- */
 .bs-table thead th {
     position: sticky;
-    background: var(--inner-bg, #f4f6f8);
-    color: var(--light-text);
+    background: var(--bs-pink-header);
+    color: #FFFFFF;
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 700;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--bs-pink-deep);
     white-space: nowrap;
     z-index: 2;
 }
@@ -145,9 +177,11 @@
 .bs-table thead tr:first-child th { top: 0; }
 .bs-table thead tr:nth-child(2) th { top: 33px; }
 
+/* Subject / term group row sits a shade deeper for hierarchy */
 .bs-subject-group {
     text-align: center;
-    border-left: 1px solid var(--border-color);
+    background: var(--bs-pink-deep);
+    border-left: 1px solid rgba(255, 255, 255, 0.28);
     max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -157,21 +191,24 @@
     font-weight: 600;
     min-width: 44px;
 }
-.bs-sub-col:first-of-type { border-left: 1px solid var(--border-color); }
+.bs-sub-col:first-of-type { border-left: 1px solid rgba(255, 255, 255, 0.28); }
+.bs-table thead th.bs-sub-tot { background: var(--bs-pink-deep); }
 
+/* --- Body: white --- */
 .bs-table tbody td,
 .bs-table tfoot td {
     padding: 8px 10px;
-    border-bottom: 1px solid var(--border-color);
+    background: var(--bs-sheet-bg);
+    border-bottom: 1px solid var(--bs-pink-border);
     white-space: nowrap;
 }
 .bs-table tbody tr:hover td {
-    background: var(--inner-bg, #f4f6f8);
+    background: var(--bs-pink-hover);
 }
 
 .bs-col-index {
     text-align: center;
-    color: var(--light-text);
+    color: var(--bs-sheet-muted);
     width: 36px;
 }
 
@@ -179,50 +216,83 @@
 .bs-table .bs-col-student {
     position: sticky;
     left: 0;
-    background: var(--card-bg);
+    background: var(--bs-sheet-bg);
     font-weight: 700;
     max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
     z-index: 1;
-    border-right: 1px solid var(--border-color);
+    border-right: 1px solid var(--bs-pink-border);
 }
 .bs-table thead .bs-col-student {
-    background: var(--inner-bg, #f4f6f8);
+    background: var(--bs-pink-header);
+    border-right: 1px solid rgba(255, 255, 255, 0.28);
     z-index: 3;
 }
+.bs-table thead .bs-col-index { background: var(--bs-pink-header); }
+.bs-table thead .bs-col-total { border-left: 1px solid rgba(255, 255, 255, 0.28); }
 .bs-table tbody tr:hover .bs-col-student {
-    background: var(--inner-bg, #f4f6f8);
+    background: var(--bs-pink-hover);
 }
 
 .bs-cell {
     text-align: center;
 }
 .bs-cell-empty {
-    color: var(--light-text);
-    opacity: 0.6;
+    color: var(--bs-sheet-muted);
 }
+
+/* --- Subject total cells: the lighter pink --- */
 .bs-sub-tot {
     font-weight: 700;
 }
-td.bs-sub-tot {
-    border-right: 1px solid var(--border-color);
+.bs-table tbody td.bs-sub-tot {
+    background: var(--bs-pink-soft);
+    color: var(--bs-pink-strong);
+    border-right: 1px solid var(--bs-pink-border);
+}
+.bs-table tbody tr:hover td.bs-sub-tot {
+    background: #F6D6E2;
+}
+.bs-table tbody td.bs-sub-tot.bs-cell-empty {
+    color: var(--bs-sheet-muted);
 }
 .bs-avg-cell {
     font-weight: 700;
-    color: var(--primary-color);
-    border-right: 1px solid var(--border-color);
+    color: var(--bs-pink-strong);
+    border-right: 1px solid var(--bs-pink-border);
+}
+.bs-table tfoot td.bs-avg-cell {
+    background: var(--bs-pink-soft);
 }
 
 .bs-col-total {
     text-align: center;
     font-weight: 800;
-    border-left: 1px solid var(--border-color);
+    border-left: 1px solid var(--bs-pink-border);
+}
+/* ------------------------------------------------------------
+   3rd term only — the Session Performance block appended to the
+   right of the term columns.
+   ------------------------------------------------------------ */
+.bs-session-group {
+    text-align: center;
+    background: var(--bs-pink-deep);
+    border-left: 2px solid #FFFFFF;
+}
+/* A solid rule marks where the term sheet ends and the session begins */
+.bs-table th.bs-session-first { border-left: 2px solid rgba(255, 255, 255, 0.55); }
+.bs-table td.bs-session-first { border-left: 2px solid var(--bs-pink-header); }
+
+/* Section total ÷ terms sat */
+.bs-col-avg {
+    text-align: center;
+    font-weight: 800;
 }
 .bs-col-pct {
     text-align: center;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--bs-pink-strong);
 }
 .bs-col-pos {
     text-align: center;
@@ -236,28 +306,25 @@ td.bs-sub-tot {
     border-radius: 50px;
     font-size: 0.72rem;
     font-weight: 800;
-    background: var(--inner-bg, #f4f6f8);
-    color: var(--text-color);
+    background: var(--bs-pink-soft);
+    color: var(--bs-pink-strong);
 }
-.bs-pos-top1 { background: #fbc02d33; color: #b8860b; }
-.bs-pos-top2 { background: #9e9e9e33; color: #757575; }
-.bs-pos-top3 { background: #bf7f3833; color: #a05a2c; }
-[data-theme="dark"] .bs-pos-top1 { color: #f6c945; }
-[data-theme="dark"] .bs-pos-top2 { color: #b6bcc4; }
-[data-theme="dark"] .bs-pos-top3 { color: #d29561; }
+.bs-pos-top1 { background: var(--bs-pink-header); color: #FFFFFF; }
+.bs-pos-top2 { background: #EBA0BA; color: #6E1435; }
+.bs-pos-top3 { background: #F5CBD9; color: #8E2549; }
 
 /* Footer row */
 .bs-table tfoot td {
-    background: var(--inner-bg, #f4f6f8);
     font-size: 0.78rem;
     border-bottom: none;
+    border-top: 2px solid var(--bs-pink-header);
 }
 .bs-table tfoot .bs-col-student {
-    background: var(--inner-bg, #f4f6f8);
+    background: var(--bs-sheet-bg);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-size: 0.7rem;
-    color: var(--light-text);
+    color: var(--bs-pink-strong);
 }
 
 /* ============================================================
@@ -268,8 +335,10 @@ td.bs-sub-tot {
     .sidebar-overlay,
     .app-topbar,
     .bs-hero,
+    .bs-more-link,
     .bs-form-panel,
-    .bs-result-actions {
+    .bs-result-actions,
+    .bottom-nav {
         display: none !important;
     }
     .app-main-wrapper,
@@ -298,6 +367,13 @@ td.bs-sub-tot {
     body {
         background: #fff !important;
     }
+    /* Keep the pink header / total fills when printing */
+    .bs-table,
+    .bs-table th,
+    .bs-table td {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 
 /* Mobile */
@@ -308,5 +384,84 @@ td.bs-sub-tot {
     }
     .bs-table-scroll {
         max-height: none;
+    }
+    /* Export/Print move into the fixed bottom nav */
+    .bs-result-actions {
+        display: none;
+    }
+
+    /* Back moves into the bottom nav too, so the topbar keeps only the
+       hamburger. !important because the button carries an inline display. */
+    .main-header .topbar-back-btn {
+        display: none !important;
+    }
+
+    /* --- De-carded: sections span the page instead of sitting in a card ---
+       The panel chrome (background, border, 24px of padding) cost roughly 50px
+       of width on a phone, which a broadsheet table cannot spare. Content now
+       runs to the page edges; the hairline divider keeps the sections apart. */
+    .bs-panel {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        margin-bottom: 24px;
+    }
+
+    .bs-form-panel {
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    /* Narrow gutters for the same reason; the action bar needs the tail room */
+    .main-content {
+        padding: 0 16px 92px;
+    }
+
+    /* --- Class + Term side by side ---
+       The auto-fit track has a 180px floor, so on a phone it collapsed to a
+       single column and gave two short selects a full row each. Two explicit
+       columns instead; the gap tightens a little to buy the selects back some
+       width on the narrowest handsets. */
+    .bs-form-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .bs-form-group-wide {
+        grid-column: 1 / -1;
+    }
+
+    /* --- Hero copy behind "more" ---
+       Two lines is enough to say what the page is; the detail about session
+       columns only matters once you are compiling a 3rd term. */
+    .bs-hero {
+        padding: 20px 0 16px;
+    }
+
+    .bs-hero-copy {
+        margin-bottom: 6px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .bs-hero-copy.is-expanded {
+        display: block;
+        overflow: visible;
+    }
+
+    .bs-more-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        padding: 0;
+        background: none;
+        border: none;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        cursor: pointer;
     }
 }

@@ -1,0 +1,1004 @@
+/* ============================================================
+   ADMISSIONS MODULE
+   Entrance / aptitude tests for prospective students.
+   ============================================================ */
+
+.adm-main {
+    padding: 28px;
+}
+
+.adm-page-head {
+    margin-bottom: 24px;
+}
+
+/* Hamburger, back and the module name travel together at the left edge so the
+   title reads as part of the menu affordance rather than floating centre-stage. */
+.adm-topbar-lead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* Mobile only — the page head is hidden there, so the topbar carries the name. */
+.adm-topbar-title {
+    display: none;
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adm-page-eyebrow {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.adm-page-title {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* ---------- Sections ---------- */
+
+.adm-section + .adm-section {
+    border-top: 1px solid var(--border);
+    margin-top: 28px;
+    padding-top: 24px;
+}
+
+/* Section heads span the full width — title left, meta hard right. */
+.adm-section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.adm-section-eyebrow {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.adm-section-title {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* The count rides with the title it counts, rather than sitting adrift at the
+   far edge of the row. */
+.adm-count-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill, 50px);
+    background: var(--primary-light);
+    color: var(--primary);
+    font-family: var(--font-family);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+/* ---------- Session list ---------- */
+
+.adm-session-list {
+    display: grid;
+    gap: 12px;
+}
+
+.adm-session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-btn, 10px);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.adm-session-row:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+.adm-session-row.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* The row stacks: title on top, then the detail line and the pills spread to
+   the two edges of the row underneath it — so the pills stay put whatever the
+   title's length, instead of being pushed around by it. */
+.adm-session-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.adm-session-row:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Title left, the session's own Edit/Delete hard right on the same line. The
+   icons are the taller element, so the title centres against them. */
+.adm-session-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.adm-session-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+/* The title shares its line with Edit/Delete and must never push them onto a
+   second row, so it tracks the viewport width down to a floor rather than
+   wrapping. The ellipsis is the last resort for titles longer than the floor
+   can absorb — it still keeps everything on one line. */
+.adm-session-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: clamp(0.62rem, 2.4vw, 0.95rem);
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adm-session-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    /* Pull the round hit areas back level with the row's padding */
+    margin: -6px -6px 0 0;
+}
+
+.adm-session-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.adm-session-icon-btn:hover {
+    background: var(--card-bg);
+    color: var(--primary);
+}
+
+.adm-session-icon-btn.danger:hover {
+    color: #EA4335;
+}
+
+.adm-session-sub {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adm-session-tags {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* ---------- Pills / badges ---------- */
+
+.adm-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill, 50px);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.adm-pill.mode-lab { border-color: #1A73E8; color: #1A73E8; }
+.adm-pill.mode-remote { border-color: #F9AB00; color: #F9AB00; }
+.adm-pill.status-open { border-color: #34A853; color: #34A853; }
+.adm-pill.status-draft { border-color: var(--text-secondary); color: var(--text-secondary); }
+.adm-pill.status-closed { border-color: #EA4335; color: #EA4335; }
+.adm-pill.danger { border-color: #EA4335; color: #EA4335; }
+.adm-pill.warn { border-color: #F9AB00; color: #F9AB00; }
+.adm-pill.ok { border-color: #34A853; color: #34A853; }
+
+/* ---------- Tables ---------- */
+
+.adm-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.adm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+}
+
+.adm-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.adm-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.adm-table tbody tr:hover {
+    background: var(--primary-light);
+}
+
+/* Not scoped to .adm-table — the mobile cards reuse both. */
+.adm-num {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.adm-cid {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82rem;
+}
+
+.adm-table .adm-cid { white-space: nowrap; }
+
+.adm-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    white-space: nowrap;
+}
+
+/* ---------- Mobile record cards ----------
+   The candidate and ranking tables carry 5–7 columns, which no phone can show.
+   The same rows are rendered a second time as cards; the breakpoint at the foot
+   of this file swaps which of the two is displayed. */
+
+.adm-card-list {
+    display: none;
+    gap: 12px;
+}
+
+/* The bar is built by JS; before that runs it must not show as a blank strip. */
+#adm-bottom-nav:empty {
+    display: none !important;
+}
+
+.adm-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card, 16px);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-card, 0 2px 8px rgba(0, 0, 0, 0.06));
+}
+
+/* Two rows, two columns — the four fields that matter, values right-aligned in
+   the second column so each row reads label-left / value-right. */
+.adm-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 14px;
+}
+
+.adm-card-grid.three {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.adm-card-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.adm-card-cell.right {
+    align-items: flex-end;
+    text-align: right;
+}
+
+.adm-card-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.adm-card-value {
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+/* The candidate's name is what the card is about — it carries the weight. */
+.adm-card-value.strong {
+    font-weight: 700;
+}
+
+/* Timestamps are reference data, not the point of the card, so they sit a
+   clear step below the values around them. */
+.adm-card-value.stamp {
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+}
+
+.adm-card-value.muted {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Ranking cards lead with position + who, then the numbers underneath. */
+.adm-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.adm-card-head-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.adm-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.adm-card-cid {
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.adm-card-head-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.adm-rank-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Actions sit on their own line, spread to the full card width. */
+.adm-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.adm-card-actions:empty {
+    display: none;
+}
+
+/* A lone action would otherwise sit stranded on the left. */
+.adm-card-actions > :only-child {
+    margin-left: auto;
+}
+
+/* ---------- Ghost CTAs (icon + text, never buttons) ---------- */
+
+.adm-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    font-family: inherit;
+    transition: opacity 0.15s ease;
+}
+
+.adm-cta:hover { opacity: 0.75; }
+.adm-cta svg { width: 16px; height: 16px; stroke-width: 2.5; }
+.adm-cta.danger { color: #EA4335; }
+.adm-cta.muted { color: var(--text-secondary); }
+
+/* ---------- Empty / status ---------- */
+
+.adm-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.adm-status {
+    margin-top: 12px;
+    font-size: 0.83rem;
+    min-height: 1.1em;
+}
+
+.adm-status.error { color: #EA4335; }
+.adm-status.success { color: #34A853; }
+
+/* ---------- Notice ---------- */
+
+.adm-notice {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-btn, 10px);
+    border: 1px solid var(--border);
+    background: var(--inner-bg);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: 18px;
+}
+
+.adm-notice.warn {
+    border-color: #F9AB00;
+    background: rgba(249, 171, 0, 0.08);
+}
+
+.adm-notice strong { display: block; margin-bottom: 3px; }
+
+/* ---------- Tabs ---------- */
+
+.adm-tabs {
+    display: flex;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.adm-tabs button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 14px;
+    font-size: 0.87rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    margin-bottom: -1px;
+}
+
+.adm-tabs button.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+/* ---------- Modal ---------- */
+
+.adm-modal[hidden] { display: none; }
+
+.adm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.adm-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.adm-modal-card {
+    position: relative;
+    background: var(--card-bg);
+    border-radius: 20px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+    width: 100%;
+    max-width: 640px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.adm-modal-card.wide { max-width: 860px; }
+
+.adm-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 24px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.adm-modal-head h3 {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.adm-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.adm-modal-body {
+    padding: 20px 24px 24px;
+    overflow-y: auto;
+}
+
+/* ---------- Forms ---------- */
+
+.adm-form-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.adm-form-group.full { grid-column: 1 / -1; }
+
+.adm-form-group label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.adm-form-group input,
+.adm-form-group select,
+.adm-form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-btn, 10px);
+    background: var(--inner-bg);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.adm-form-group textarea { min-height: 96px; resize: vertical; }
+
+.adm-form-group input:focus,
+.adm-form-group select:focus,
+.adm-form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.adm-form-hint {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    line-height: 1.45;
+}
+
+/* Actions spread the full width: cancel left, primary hard right. */
+.adm-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.adm-btn-primary {
+    padding: 10px 22px;
+    border-radius: var(--radius-pill, 50px);
+    border: none;
+    background: var(--primary);
+    color: var(--text-on-primary, #fff);
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.adm-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.adm-radio-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-top: 4px;
+}
+
+.adm-radio-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.adm-radio-row input[type="radio"] { width: auto; accent-color: var(--primary); }
+
+/* ---------- Slips ---------- */
+
+.adm-slip-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.adm-slip {
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--card-bg);
+    break-inside: avoid;
+}
+
+.adm-slip-school {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.adm-slip-name {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    min-height: 1.2em;
+}
+
+.adm-slip-field { margin-bottom: 8px; }
+
+.adm-slip-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+}
+
+.adm-slip-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+}
+
+/* Print: slips only, on white, no app chrome. */
+@media print {
+    body * { visibility: hidden; }
+    #adm-print-area, #adm-print-area * { visibility: visible; }
+    #adm-print-area {
+        position: absolute;
+        inset: 0;
+        padding: 0;
+        background: #fff;
+    }
+    .adm-no-print { display: none !important; }
+    .adm-slip {
+        border: 1px dashed #999;
+        color: #000;
+        background: #fff;
+    }
+    .adm-slip-value, .adm-slip-name { color: #000; }
+    .adm-slip-label, .adm-slip-school { color: #444; }
+}
+
+/* ============================================================
+   CANDIDATE PAGES (admission.html / admission-complete.html)
+   Public, no app chrome — a prospective student with no account.
+   ============================================================ */
+
+.adm-candidate-body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+.adm-candidate-shell {
+    width: 100%;
+    max-width: 460px;
+}
+
+.adm-candidate-head {
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.adm-candidate-mark {
+    font-family: var(--font-heading);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.adm-candidate-tagline {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    margin: 6px 0 0;
+}
+
+.adm-candidate-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.09);
+    padding: 26px 24px;
+    text-align: center;
+}
+
+.adm-candidate-card .adm-form-group { text-align: left; }
+
+.adm-candidate-step-title {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+}
+
+.adm-candidate-step-sub {
+    color: var(--text-secondary);
+    font-size: 0.87rem;
+    line-height: 1.55;
+    margin: 0 0 18px;
+}
+
+.adm-candidate-help {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    margin: 18px 0 0;
+}
+
+/* Codes are copied off a printed slip under exam-hall conditions — large,
+   monospaced and widely tracked so 8 vs B and 5 vs S are unmistakable. */
+.adm-code-input {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+    font-size: 1.25rem !important;
+    letter-spacing: 0.16em;
+    text-align: center;
+    text-transform: uppercase;
+    padding: 14px 12px !important;
+}
+
+.adm-block-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px 22px;
+    font-size: 0.95rem;
+    /* Comfortably above the 44px minimum tap target. */
+    min-height: 52px;
+}
+
+.adm-meta-list {
+    margin: 18px 0;
+    padding: 0;
+    text-align: left;
+}
+
+.adm-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.adm-meta-row:last-child { border-bottom: none; }
+
+.adm-meta-row dt {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.adm-meta-row dd {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    text-align: right;
+}
+
+.adm-meta-row.highlight dd {
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.05rem;
+}
+
+.adm-spinner {
+    width: 38px;
+    height: 38px;
+    margin: 4px auto 18px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: adm-spin 0.85s linear infinite;
+}
+
+@keyframes adm-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-spinner { animation-duration: 2.5s; }
+}
+
+.adm-done-mark {
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(52, 168, 83, 0.12);
+    color: #34A853;
+}
+
+.adm-done-mark.pending {
+    background: rgba(249, 171, 0, 0.14);
+    color: #F9AB00;
+}
+
+@media (max-width: 768px) {
+    /* Last value clears the fixed bottom nav */
+    .adm-main { padding: 16px 16px 80px; }
+    .adm-section-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .adm-form-actions { flex-direction: column-reverse; align-items: stretch; }
+    .adm-btn-primary { width: 100%; }
+
+    /* --- Topbar carries the page name; Back moved to the bottom nav --- */
+    .adm-topbar-title { display: block; }
+    .main-header .topbar-back-btn { display: none !important; }
+    /* Hard against the hamburger rather than adrift in the middle of the bar */
+    .adm-topbar-lead { flex: 1; gap: 4px; }
+    /* The topbar says "Admissions" now, so the page head would only repeat it */
+    .adm-page-head { display: none; }
+
+    /* --- Records become cards; the wide tables step aside --- */
+    .adm-table-wrap { display: none; }
+    .adm-card-list { display: grid; }
+
+    /* Session-level verbs wrap instead of overflowing the row */
+    .adm-row-actions { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
+
+    /* Generate is in the bottom nav and Edit/Delete are on the session row, so
+       the detail head's copies of all three would be a third rendering of the
+       same verbs. Hidden, not removed — the bottom nav proxies their clicks. */
+    .adm-detail-actions { display: none; }
+
+    /* Comfortably above the 44px minimum tap target */
+    .adm-session-row { padding: 14px; min-height: 56px; }
+    .adm-cta { padding: 8px 0; min-height: 44px; }
+    .adm-session-icon-btn { width: 40px; height: 40px; }
+    .adm-session-actions { margin: -9px -9px 0 0; }
+
+    /* --- Type scale, one step down ---
+       Inter carries a larger x-height than the sizes here were set against, so
+       the whole scale steps down on a phone: headings, pills, tab labels, the
+       ghost CTAs and the card label/value pairs. Tap targets are held by
+       padding above, not by font size, so nothing shrinks below 44px. */
+    .adm-topbar-title { font-size: 1rem; }
+    .adm-section-title { font-size: 0.95rem; }
+    .adm-section-eyebrow { font-size: 0.62rem; }
+    .adm-count-badge { font-size: 0.62rem; padding: 2px 8px; }
+
+    /* .adm-session-name is left to its clamp() — it must stay on one line with
+       the Edit/Delete icons, so it sizes off the viewport, not the breakpoint. */
+    .adm-session-sub { font-size: 0.72rem; }
+    .adm-pill { font-size: 0.62rem; padding: 2px 8px; }
+
+    .adm-tabs button { font-size: 0.78rem; padding: 10px 12px; }
+    .adm-cta { font-size: 0.75rem; }
+    .adm-cta svg { width: 14px; height: 14px; }
+
+    .adm-card { padding: 12px 14px; }
+    .adm-card-label { font-size: 0.58rem; }
+    .adm-card-value { font-size: 0.8rem; }
+    /* 4px below the value size above it */
+    .adm-card-value.stamp { font-size: 0.55rem; }
+    .adm-card-title { font-size: 0.85rem; }
+    .adm-cid { font-size: 0.72rem; }
+    .adm-rank-chip { width: 26px; height: 26px; font-size: 0.75rem; }
+
+    .adm-notice { font-size: 0.78rem; padding: 12px 14px; }
+    .adm-empty { font-size: 0.8rem; padding: 24px 16px; }
+}

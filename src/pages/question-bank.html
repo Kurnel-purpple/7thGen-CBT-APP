@@ -28,13 +28,19 @@
             padding: 28px;
         }
 
+        /* De-carded: sections span the full page width; separate with a top
+           border instead of a card. */
         .qb-hero,
         .qb-panel {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-card, 16px);
-            padding: 28px;
-            box-shadow: var(--shadow-card);
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
+        }
+        .qb-view > section + section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 24px;
         }
 
         .qb-panel h3 {
@@ -207,6 +213,61 @@
             flex-wrap: wrap;
             align-items: center;
         }
+
+        /* ============================================================
+           QB ADMIN GROUPING — Subject groups, subgrouped by term
+           ============================================================ */
+        .qb-subject-group {
+            border-bottom: 1px solid var(--border-color);
+        }
+        .qb-subject-group:last-child { border-bottom: none; }
+
+        .qb-subject-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 14px 2px;
+            text-align: left;
+            color: var(--text-color);
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .qb-subject-header:hover { color: var(--primary-color); }
+        .qb-subject-chevron {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+            color: var(--light-text);
+        }
+        .qb-subject-name { flex: 1; min-width: 0; }
+        .qb-subject-count {
+            flex-shrink: 0;
+            background: rgba(74, 144, 226, 0.12);
+            color: var(--primary-color);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 20px;
+        }
+        [data-theme="dark"] .qb-subject-count {
+            background: rgba(77, 142, 240, 0.15);
+        }
+        .qb-subject-body { padding: 0 0 12px; }
+        .qb-term-group { margin-bottom: 8px; }
+        .qb-term-subheader {
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--light-text);
+            font-weight: 700;
+            margin: 12px 0 6px;
+            padding-left: 2px;
+        }
+        .qb-term-count { opacity: 0.7; }
 
         /* ============================================================
            QB GHOST CTAs (icon + text actions per CLAUDE.md)
@@ -423,6 +484,101 @@
             font-size: 1rem;
         }
 
+        .qb-gen-total-hint.is-over strong {
+            color: #EA4335;
+        }
+
+        /* ============================================================
+           QB GEN SCOPE — Single vs Multiple subject mode
+           ============================================================ */
+        .qb-mode-toggle {
+            display: inline-flex;
+            padding: 4px;
+            gap: 4px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-pill, 50px);
+            background: var(--inner-bg);
+        }
+
+        .qb-mode-btn {
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 8px 18px;
+            border-radius: var(--radius-pill, 50px);
+            font-family: inherit;
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: var(--light-text);
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .qb-mode-btn.active {
+            background: var(--primary-color);
+            color: #FFFFFF;
+        }
+
+        .qb-hint {
+            margin: 4px 0 10px;
+            color: var(--light-text);
+            font-size: 0.7rem;      /* 11.2px — helper text sits under the labels */
+            line-height: 1.5;
+        }
+
+        /* The generator stacks a lot of field groups, so its field labels run
+           smaller than elsewhere to keep the section headings dominant.
+           Direct children only — the checkbox labels nested inside these
+           groups keep their own size. */
+        #qb-view-generate .qb-form-group > label {
+            font-size: 0.6rem;      /* 9.6px, down from 13.12px */
+        }
+
+        /* Per-subject quota rows reuse the type-row shape */
+        .qb-gen-subject-row .qb-check-label {
+            white-space: normal;
+        }
+
+        .qb-form-group input.qb-gen-subject-count[type="number"] {
+            width: 72px;
+            flex: 0 0 72px;
+            padding: 6px 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-color);
+        }
+
+        .qb-form-group input.qb-gen-subject-count[type="number"]:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .qb-form-group input.qb-gen-subject-count[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.18);
+        }
+
+        /* In multi-subject mode the type list becomes a plain include/exclude
+           filter — the counts come from the subject quotas instead. */
+        #qb-gen-types.types-as-filter {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+        }
+        #qb-gen-types.types-as-filter .qb-gen-type-count { display: none; }
+        #qb-gen-types.types-as-filter .qb-gen-type-row { padding: 2px 0; }
+        #qb-gen-types.types-as-filter .qb-gen-type-row .qb-check-label { flex: 0 0 auto; }
+
+        .qb-gen-subject-empty {
+            color: var(--light-text);
+            font-size: 0.88rem;
+            margin: 0;
+        }
+
         /* ============================================================
            QB FILTER BAR
            ============================================================ */
@@ -502,9 +658,8 @@
         /* ============================================================
            DARK MODE OVERRIDES
            ============================================================ */
-        [data-theme="dark"] .qb-hero,
-        [data-theme="dark"] .qb-panel {
-            box-shadow: var(--shadow-card);
+        [data-theme="dark"] .qb-view > section + section {
+            border-top-color: var(--border-color);
         }
 
         /* ============================================================
@@ -512,35 +667,56 @@
            ============================================================ */
         @media (max-width: 768px) {
             .qb-shell {
-                padding: 16px;
+                padding: 16px 16px 88px;
                 gap: 16px;
             }
             .qb-view.active {
                 gap: 16px;
             }
-            .qb-hero, .qb-panel {
-                padding: 20px;
+            /* Every page action lives on the contextual bottom nav on mobile,
+               so the inline desktop buttons step aside. */
+            #seed-exam-btn,
+            #qb-delete-selected-btn,
+            .qb-form-actions,
+            #qb-gen-actions,
+            #qb-preview-actions {
+                display: none !important;
             }
+            /* Two fields per row, each half the width, spread across the row. */
             .qb-form-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px 12px;
             }
             .qb-options-grid {
                 grid-template-columns: 1fr;
             }
             .qb-filter-bar {
-                flex-direction: column;
-                align-items: stretch;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px 12px;
+                align-items: end;
             }
-            .qb-filter-bar .qb-form-group {
+            .qb-filter-bar .qb-form-group,
+            .qb-filter-bar .qb-form-group.qb-filter-term {
                 min-width: 0;
                 width: 100%;
+                flex: none;
             }
-            .qb-form-actions {
-                justify-content: stretch;
+            /* Compact the halved inputs so their values stay readable */
+            .qb-form-grid .qb-form-group select,
+            .qb-form-grid .qb-form-group input[type="text"],
+            .qb-form-grid .qb-form-group input[type="number"],
+            .qb-filter-bar .qb-form-group select {
+                padding: 9px 10px;
+                font-size: 0.86rem;
             }
-            .qb-form-actions .btn {
-                width: 100%;
-                min-width: 0;
+            .qb-form-grid .qb-form-group select,
+            .qb-filter-bar .qb-form-group select {
+                padding-right: 28px;
+                background-position: right 9px center;
+            }
+            .qb-form-group label {
+                font-size: 0.72rem;
             }
         }
     </style>
@@ -564,7 +740,7 @@
 
                 <!-- Go Back + Dark Mode Toggle -->
                 <div class="qb-sidebar-utils">
-                    <button onclick="document.referrer ? window.history.back() : (window.location.href='teacher-dashboard.html')" title="Go Back">
+                    <button onclick="qbGoBack()" title="Go Back">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                         <span class="sidebar-nav-label" style="font-size:0.78rem; color:rgba(255,255,255,0.6); margin-left:4px;">Go Back</span>
                     </button>
@@ -620,13 +796,10 @@
         <!-- ========== MAIN WRAPPER ========== -->
         <div class="app-main-wrapper">
             <!-- Topbar -->
-            <header class="main-header">
-                <div style="display:flex; align-items:center; gap:12px;">
+            <header class="main-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div style="display:flex; align-items:center; gap:12px; min-width:0;">
                     <button id="mobile-menu-btn" class="mobile-menu-btn" onclick="toggleSidebarMobile()">&#9776;</button>
-                    <div>
-                        <h1 id="qb-topbar-title" style="margin:0; font-size:1.15rem; font-weight:800;">Question Bank</h1>
-                        <p id="qb-topbar-subtitle" style="margin:2px 0 0; color:var(--light-text); font-size:0.82rem;">Saved Questions</p>
-                    </div>
+                    <h1 id="qb-page-title" style="margin:0; font-size:1.2rem; font-family:var(--font-heading); font-weight:700; color:var(--text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Your Question Bank</h1>
                 </div>
             </header>
 
@@ -636,17 +809,18 @@
                 <!-- ===== VIEW: Saved Questions (default) ===== -->
                 <div class="qb-view active" id="qb-view-saved">
                     <section class="qb-hero">
-                        <p id="question-bank-school-meta" style="margin:0 0 10px; color:var(--light-text); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Loading school scope...</p>
-                        <h2 style="margin:0 0 8px; font-size:1.3rem; font-family:var(--font-heading); font-weight:700;">Your Question Bank</h2>
-                        <p style="margin:0 0 20px; color:var(--light-text); line-height:1.6; font-size:0.92rem; max-width:580px;">
-                            Save reusable questions by term, difficulty, and tags. Use the sidebar to add questions or auto-generate exams.
+                        <p style="margin:0 0 16px; color:var(--light-text); line-height:1.6; font-size:0.92rem; max-width:580px;">
+                            Manually create exams from the question bank.
                         </p>
                         <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
                             <button id="seed-exam-btn" class="btn btn-primary" style="font-size:0.85rem; font-weight:700;">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="vertical-align:-2px; margin-right:4px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                                 Seed Exam from Selected
                             </button>
-                            <button id="seed-sample-btn" class="btn btn-outline" style="font-size:0.85rem; font-weight:700;">Seed Sample Draft</button>
+                            <button id="qb-find-duplicates-btn" class="ghost-cta" type="button">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                Find Duplicates
+                            </button>
                             <button id="qb-delete-selected-btn" class="ghost-cta ghost-cta-danger" style="display:none;">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                                 Delete Selected (<span class="qb-delete-count">0</span>)
@@ -700,7 +874,6 @@
                 <!-- ===== VIEW: Add Question ===== -->
                 <div class="qb-view" id="qb-view-add">
                     <section class="qb-panel">
-                        <h3>Add Question</h3>
                         <form id="question-bank-form" style="display:grid; gap:20px;">
                             <!-- Row 1: Classification fields -->
                             <div class="qb-form-grid">
@@ -718,7 +891,7 @@
                                 </div>
                                 <div class="qb-form-group">
                                     <label for="qb-term">Term</label>
-                                    <select id="qb-term">
+                                    <select id="qb-term" data-default-term>
                                         <option value="">No Term</option>
                                         <option value="1st Term">1st Term</option>
                                         <option value="2nd Term">2nd Term</option>
@@ -801,18 +974,24 @@
                 <!-- ===== VIEW: Generate Exam ===== -->
                 <div class="qb-view" id="qb-view-generate">
                     <section class="qb-panel">
-                        <h3>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="vertical-align:-4px; margin-right:6px; color:var(--primary-color);"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                            Auto-Generate Exam
-                        </h3>
-                        <p style="margin:0 0 18px; color:var(--light-text); font-size:0.88rem; line-height:1.5;">
+                        <p style="margin:0 0 18px; color:var(--light-text); font-size:0.75rem; line-height:1.5;">
                             Build an exam automatically from your saved questions. Set criteria below and the system picks random matching questions.
                         </p>
                         <form id="qb-generate-form" style="display:grid; gap:18px;">
-                            <div class="qb-form-grid">
+                            <!-- Scope: one subject, or a random mix across several -->
+                            <div class="qb-form-group">
+                                <label>Exam Scope</label>
+                                <div class="qb-mode-toggle" id="qb-gen-mode" role="group" aria-label="Exam scope">
+                                    <button type="button" class="qb-mode-btn active" data-gen-mode="single" aria-pressed="true">Single Subject</button>
+                                    <button type="button" class="qb-mode-btn" data-gen-mode="multi" aria-pressed="false">Multiple Subjects</button>
+                                </div>
+                            </div>
+
+                            <!-- SINGLE-SUBJECT scope -->
+                            <div class="qb-form-grid" id="qb-gen-single-block">
                                 <div class="qb-form-group">
                                     <label for="qb-gen-subject">Subject</label>
-                                    <select id="qb-gen-subject" required>
+                                    <select id="qb-gen-subject">
                                         <option value="">Select subject</option>
                                     </select>
                                 </div>
@@ -821,6 +1000,35 @@
                                     <select id="qb-gen-class">
                                         <option value="All">All Classes</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            <!-- MULTI-SUBJECT scope -->
+                            <div id="qb-gen-multi-block" style="display:none; gap:18px; grid-template-columns:1fr;">
+                                <div class="qb-form-grid">
+                                    <div class="qb-form-group">
+                                        <label for="qb-gen-multi-total">Total Questions</label>
+                                        <input id="qb-gen-multi-total" type="number" min="1" max="200" value="20" />
+                                    </div>
+                                    <div class="qb-form-group">
+                                        <label for="qb-gen-multi-class">Target Class</label>
+                                        <select id="qb-gen-multi-class">
+                                            <option value="All">All Classes</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="qb-form-group">
+                                    <label>Subjects to Draw From</label>
+                                    <p class="qb-hint">Tick every subject the exam should cover.</p>
+                                    <div id="qb-gen-subject-list" class="qb-gen-type-list">
+                                        <p class="qb-gen-subject-empty">Loading subjects…</p>
+                                    </div>
+                                    <div class="qb-gen-total-hint" id="qb-gen-subject-hint">
+                                        Allocated: <strong id="qb-gen-subject-allocated">0</strong>
+                                        of <span id="qb-gen-multi-total-echo">20</span> —
+                                        <span id="qb-gen-subject-remainder">20 shared at random</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -836,8 +1044,8 @@
 
                             <!-- Question type quotas — one count per type -->
                             <div class="qb-form-group">
-                                <label>Question Types &amp; Quantities</label>
-                                <p style="margin:4px 0 10px; color:var(--light-text); font-size:0.82rem;">
+                                <label id="qb-gen-types-label">Question Types &amp; Quantities</label>
+                                <p class="qb-hint" id="qb-gen-types-hint">
                                     Tick a type and set how many of it you want. Eg: 4 MCQ + 2 Theory.
                                 </p>
                                 <div id="qb-gen-types" class="qb-gen-type-list">
@@ -870,33 +1078,59 @@
                                         <input type="number" class="qb-gen-type-count" data-gen-type-count="match" min="0" max="200" value="0" aria-label="Matching quantity" disabled />
                                     </div>
                                 </div>
-                                <div class="qb-gen-total-hint">
+                                <div class="qb-gen-total-hint" id="qb-gen-type-total-hint">
                                     Total: <strong id="qb-gen-total-count">5</strong> question<span id="qb-gen-total-plural">s</span>
                                 </div>
                             </div>
 
-                            <!-- Result preview -->
-                            <div id="qb-gen-preview" style="display:none; padding:12px 16px; border-radius:var(--radius-btn, 10px); background:var(--inner-bg); border:1px solid var(--border-color); font-size:0.88rem; color:var(--text-color);">
+                            <!-- Outcome summary. Shown here when a run finds
+                                 nothing; a successful run moves to the Preview
+                                 view, which shows the same summary. -->
+                            <div id="qb-gen-preview" class="qb-gen-status" style="display:none; padding:12px 16px; border-radius:var(--radius-btn, 10px); background:var(--inner-bg); border:1px solid var(--border-color); font-size:0.88rem; color:var(--text-color);">
                             </div>
 
-                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            <div id="qb-gen-actions" style="display:flex; gap:12px; flex-wrap:wrap;">
                                 <button id="qb-gen-preview-btn" class="btn btn-outline" type="button" style="font-weight:700;">Preview Questions</button>
                                 <button id="qb-gen-btn" class="btn btn-primary" type="submit" style="font-weight:700;">Generate & Create Exam</button>
                             </div>
                         </form>
                     </section>
+                </div>
 
-                    <!-- Generated exam preview list -->
-                    <section class="qb-panel qb-gen-exam-preview" id="qb-gen-exam-preview-panel" style="display:none;">
-                        <div class="qb-section-header">
-                            <h3 style="margin:0;">Exam Preview</h3>
-                            <span class="qb-count" id="qb-gen-preview-count"></span>
+                <!-- ===== VIEW: Exam Preview ===== -->
+                <div class="qb-view" id="qb-view-preview">
+                    <section class="qb-panel">
+                        <div id="qb-gen-preview-status" class="qb-gen-status" style="display:none; padding:12px 16px; margin-bottom:16px; border-radius:var(--radius-btn, 10px); background:var(--inner-bg); border:1px solid var(--border-color); font-size:0.88rem; color:var(--text-color);">
                         </div>
+                        <p class="qb-count" id="qb-gen-preview-count" style="margin:0 0 12px;"></p>
                         <div id="qb-gen-preview-list"></div>
+                        <div id="qb-preview-actions" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:24px;">
+                            <button id="qb-preview-back-btn" class="btn btn-outline" type="button" style="font-weight:700;">Back to Criteria</button>
+                            <button id="qb-preview-create-btn" class="btn btn-primary" type="button" style="font-weight:700;">Create Exam</button>
+                        </div>
                     </section>
                 </div>
 
             </main>
+
+            <!-- Mobile bottom navigation — contextual: it never links to the
+                 view you are already on, offering that view's own actions
+                 instead. Rendered by questionBank.js; the markup below is the
+                 pre-JS default for the Saved view. -->
+            <nav class="bottom-nav bottom-nav-dynamic" id="qb-bottom-nav" role="navigation" aria-label="Question bank navigation">
+                <button class="bottom-nav-item" onclick="qbGoBack()">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span>
+                    <span>Back</span>
+                </button>
+                <button class="bottom-nav-item" data-qb-nav="add" onclick="switchQbView('add')">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
+                    <span>Add</span>
+                </button>
+                <button class="bottom-nav-item active nav-action-primary" data-qb-nav="generate" onclick="switchQbView('generate')">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+                    <span>Auto Generate</span>
+                </button>
+            </nav>
         </div>
     </div>
 
@@ -950,27 +1184,57 @@
         };
 
         // QB view switching
-        var qbViewMeta = {
-            saved: { title: 'Question Bank', subtitle: 'Saved Questions' },
-            add: { title: 'Question Bank', subtitle: 'Add Question' },
-            generate: { title: 'Question Bank', subtitle: 'Generate Exam' }
+        window.qbCurrentView = 'saved';
+        var QB_VIEW_TITLES = {
+            saved: 'Your Question Bank',
+            add: 'Add Question',
+            generate: 'Auto-Generate Exam',
+            preview: 'Exam Preview'
         };
-        window.switchQbView = function(viewId, navEl) {
+
+        // Which nav slot a view belongs to. Preview is a step inside Generate,
+        // so it lights up (and takes over) the Generate slot rather than
+        // needing a nav entry of its own. Read by questionBank.js too.
+        window.QB_VIEW_SLOT = {
+            saved: 'saved',
+            add: 'add',
+            generate: 'generate',
+            preview: 'generate'
+        };
+        // The three views are one page, so the browser records no history for
+        // moving between them — without this stack, Back would jump straight
+        // out of the module to whatever page preceded it.
+        window.qbViewHistory = [];
+
+        window.switchQbView = function(viewId, navEl, opts) {
+            opts = opts || {};
+            if (opts.replace) {
+                // Finished a task (eg. saved a question): nothing to go back to
+                // inside the module.
+                window.qbViewHistory = [];
+            } else if (!opts.fromHistory && window.qbCurrentView !== viewId) {
+                window.qbViewHistory.push(window.qbCurrentView);
+            }
+
             // Toggle views
             document.querySelectorAll('.qb-view').forEach(function(v) { v.classList.remove('active'); });
             var target = document.getElementById('qb-view-' + viewId);
             if (target) target.classList.add('active');
+            window.qbCurrentView = viewId;
 
-            // Toggle active nav
-            document.querySelectorAll('[data-qb-nav]').forEach(function(a) { a.classList.remove('active'); });
-            if (navEl) navEl.classList.add('active');
+            // The bottom nav points at what to do next rather than where you
+            // are, so the header carries the "where you are" instead.
+            var titleEl = document.getElementById('qb-page-title');
+            if (titleEl && QB_VIEW_TITLES[viewId]) titleEl.textContent = QB_VIEW_TITLES[viewId];
 
-            // Update topbar
-            var meta = qbViewMeta[viewId] || qbViewMeta.saved;
-            var titleEl = document.getElementById('qb-topbar-title');
-            var subEl = document.getElementById('qb-topbar-subtitle');
-            if (titleEl) titleEl.textContent = meta.title;
-            if (subEl) subEl.textContent = meta.subtitle;
+            // Highlight the sidebar entry this view belongs to
+            var navSlot = (window.QB_VIEW_SLOT || {})[viewId] || viewId;
+            document.querySelectorAll('[data-qb-nav]').forEach(function(a) {
+                a.classList.toggle('active', a.getAttribute('data-qb-nav') === navSlot);
+            });
+
+            // Rebuild the bottom nav so it carries this view's own actions
+            if (typeof window.qbRenderBottomNav === 'function') window.qbRenderBottomNav();
 
             // Close mobile sidebar
             closeSidebarMobile();
@@ -978,6 +1242,17 @@
             // Scroll to top
             var main = document.querySelector('.main-content');
             if (main) main.scrollTop = 0;
+        };
+
+        // Back steps through the views you actually visited, and only leaves
+        // the module once there are none left behind you.
+        window.qbGoBack = function() {
+            if (window.qbViewHistory.length) {
+                window.switchQbView(window.qbViewHistory.pop(), null, { fromHistory: true });
+                return;
+            }
+            if (window.Utils && typeof window.Utils.goBack === 'function') window.Utils.goBack();
+            else window.history.back();
         };
 
         // Restore sidebar state
@@ -1010,6 +1285,10 @@
                     '../js/auth.js'
                 ],
                 moduleScripts: [
+                    // questionSimilarity must load before the data service —
+                    // the near-duplicate checks depend on it.
+                    '../modules/question_bank/js/questionSimilarity.js',
+                    '../modules/question_bank/js/duplicateReview.js',
                     '../modules/question_bank/js/questionBankDataService.js',
                     '../modules/question_bank/js/questionBank.js'
                 ]

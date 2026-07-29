@@ -1027,6 +1027,27 @@
 
     // --- Results ---
 
+    // Looks up the single result row for an exam+student.
+    //
+    // Returns the record, or null ONLY when the server actually answered "not found".
+    // Every other failure (timeout, status 0, 403, 500) is re-thrown.
+    //
+    // This distinction is the whole point: callers used to wrap getFirstListItem in a
+    // bare `catch { create() }`, so a timed-out lookup on a slow connection was read as
+    // "no record exists" and a SECOND results row was created for the same student.
+    // The duplicate then competed with the real row, which is how students ended up
+    // with a score that wasn't the one they were shown.
+    ds._findExistingResult = async function(examId, studentId) {
+        try {
+            return await this.pb.collection('results').getFirstListItem(
+                `exam_id="${examId}" && student_id="${studentId}"`
+            );
+        } catch (err) {
+            if (err && err.status === 404) return null;   // genuinely absent
+            throw err;                                    // unknown — caller must not create
+        }
+    };
+
     ds.saveResult = async function(resultData) {
         const examSnapshot = this._buildResultExamSnapshot(resultData.examSnapshot || {});
         const flags = {
@@ -1038,11 +1059,20 @@
         delete flags._reopenedAt;
         delete flags._previousScore;
         delete flags._previousSubmittedAt;
+        // pass_score and passed were never written here. pass_score therefore sat at 0
+        // in the database, and because every consumer reads it as `passScore || 50`,
+        // a 0 is falsy and silently becomes a hardcoded 50% pass mark — ignoring
+        // whatever the teacher actually set on the exam.
+        const passScore = Number.isFinite(Number(resultData.passScore)) ? Number(resultData.passScore) : 50;
+        const passed = resultData.passed ?? (Number(resultData.score) >= passScore);
+
         const data = {
             exam_id: resultData.examId,
             student_id: resultData.studentId,
             score: resultData.score,
             total_points: resultData.totalPoints,
+            pass_score: passScore,
+            passed,
             answers: resultData.answers,
             flags,
             submitted_at: new Date().toISOString(),
@@ -1050,17 +1080,16 @@
         };
 
         try {
-            // Try to find existing result first
+            // Find the existing row first. A failed lookup throws out of here into the
+            // offline handler below — it must never fall through to create(), or a
+            // slow connection silently produces a duplicate result row.
+            const existing = await this._findExistingResult(resultData.examId, resultData.studentId);
+
             let result;
-            try {
-                const existing = await this.pb.collection('results').getFirstListItem(
-                    `exam_id="${resultData.examId}" && student_id="${resultData.studentId}"`
-                );
-                // Update existing
+            if (existing) {
                 const updated = await this.pb.collection('results').update(existing.id, data);
                 result = this._mapResult(updated);
-            } catch (notFoundErr) {
-                // Create new
+            } else {
                 const created = await this.pb.collection('results').create(data);
                 result = this._mapResult(created);
             }
@@ -1078,17 +1107,10 @@
             return result;
 
         } catch (err) {
-            if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+            if (this.isNetworkError(err)) {
                 data._local_id = Date.now();
-                pending.push(data);
-                localStorage.setItem('cbt_pending_submissions', JSON.stringify(pending));
-
-                // Also save to IDB Pending
-                if (window.idb) {
-                    await window.idb.queuePendingSubmission(data);
-                }
-
+                const store = await this.queuePendingSubmission(data);
+                console.log(`[PendingSync] Submission queued in ${store} for later sync`);
                 throw new Error('Saved Offline');
             }
             throw err;
@@ -1097,11 +1119,13 @@
 
     ds.startExamSession = async function(examId, studentId, studentName) {
         try {
-            // Check if exists
-            try {
-                const existing = await this.pb.collection('results').getFirstListItem(
-                    `exam_id="${examId}" && student_id="${studentId}"`
-                );
+            // Only create the placeholder when the server confirms no row exists.
+            // A timed-out lookup here used to create a SECOND score-0 in-progress row
+            // on top of a real completed result — the worst version of this bug, since
+            // the placeholder can then outrank the student's actual score.
+            const existing = await this._findExistingResult(examId, studentId);
+
+            if (existing) {
                 // V2E: Backfill _studentName if missing on existing in-progress record
                 if (studentName && existing.flags && !existing.flags._studentName) {
                     try {
@@ -1112,25 +1136,460 @@
                     } catch (e) { /* best effort */ }
                 }
                 return; // Already exists
-            } catch (notFoundErr) {
-                // Create new session marker with student name snapshot
-                await this.pb.collection('results').create({
-                    exam_id: examId,
-                    student_id: studentId,
-                    flags: {
-                        _status: 'in-progress',
-                        _started_at: new Date().toISOString(),
-                        _studentName: studentName || ''
-                    },
-                    score: 0,
-                    total_points: 0,
-                    answers: {}
-                });
-                console.log(`[ResultIdentity] Session created with _studentName for exam ${examId}`);
             }
+
+            // Create new session marker with student name snapshot
+            await this.pb.collection('results').create({
+                exam_id: examId,
+                student_id: studentId,
+                flags: {
+                    _status: 'in-progress',
+                    _started_at: new Date().toISOString(),
+                    _studentName: studentName || ''
+                },
+                score: 0,
+                total_points: 0,
+                answers: {}
+            });
+            console.log(`[ResultIdentity] Session created with _studentName for exam ${examId}`);
         } catch (error) {
             console.error('Failed to start session', error);
         }
+    };
+
+    // --- Duplicate Result Resolution ---
+    //
+    // Before the offline-sync fixes, a failed lookup was read as "no record exists" and
+    // a second (or third) results row was created for the same exam+student. Those rows
+    // are still in the database. These helpers let a teacher see and resolve them.
+    //
+    // Discarding is a SOFT delete: the row is flagged and hidden, never removed, so a
+    // wrong choice stays recoverable and the merge keeps an audit trail.
+
+    ds.isSupersededResult = function(r) {
+        return !!(r && r.flags && r.flags._superseded);
+    };
+
+    // Ranking signals, best-first. Deliberately NOT date-only: the old sync stamped
+    // submitted_at at sync time when the payload lacked one, so an empty score-0 row
+    // can carry a newer timestamp than the student's genuine submission. Date decides
+    // between real submissions; it must not let a placeholder outrank one.
+    ds._resultRankSignals = function(r) {
+        const flags = r.flags || {};
+        const status = r.status || flags._status || 'completed';
+        const answers = r.answers;
+        const answerCount = (answers && typeof answers === 'object') ? Object.keys(answers).length : 0;
+        return {
+            completed: status !== 'in-progress' ? 1 : 0,
+            hasAnswers: answerCount > 0 ? 1 : 0,
+            answerCount,
+            submittedAt: Date.parse(r.submittedAt || r.submitted_at || 0) || 0,
+            created: Date.parse(r.created || 0) || 0
+        };
+    };
+
+    ds.rankResultCandidates = function(list) {
+        return [...(list || [])].sort((a, b) => {
+            const ra = this._resultRankSignals(a);
+            const rb = this._resultRankSignals(b);
+            if (rb.completed !== ra.completed) return rb.completed - ra.completed;
+            if (rb.hasAnswers !== ra.hasAnswers) return rb.hasAnswers - ra.hasAnswers;
+            if (rb.submittedAt !== ra.submittedAt) return rb.submittedAt - ra.submittedAt;
+            if (rb.created !== ra.created) return rb.created - ra.created;
+            return String(a.id || '').localeCompare(String(b.id || '')); // stable
+        });
+    };
+
+    // Groups results into { primary, duplicates } sets keyed on student+exam.
+    ds.groupDuplicateResults = function(results, options = {}) {
+        const includeSingles = !!options.includeSingles;
+        const buckets = new Map();
+
+        for (const r of results || []) {
+            const key = `${r.studentId || ''}::${r.examId || ''}`;
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key).push(r);
+        }
+
+        const groups = [];
+        for (const [key, list] of buckets) {
+            if (!includeSingles && list.length < 2) continue;
+            const ranked = this.rankResultCandidates(list);
+            groups.push({
+                key,
+                studentId: ranked[0].studentId,
+                examId: ranked[0].examId,
+                studentName: ranked[0].studentName,
+                examTitle: ranked[0].examTitle,
+                examSubject: ranked[0].examSubject,
+                primary: ranked[0],
+                duplicates: ranked.slice(1),
+                all: ranked
+            });
+        }
+        return groups;
+    };
+
+    // Classifies a duplicate set by how much human judgement it needs.
+    //
+    //   'placeholder' — every discard is an empty row (no answers). These are the
+    //                   score-0 session markers left by the old startExamSession bug.
+    //   'identical'   — every discard carries the same score as the keeper.
+    //   'empty'       — the KEEPER itself has no answers. There may be no genuine
+    //                   submission here at all; possibly one destroyed before it synced.
+    //                   Never auto-resolve: deleting rows would hide the evidence.
+    //   'divergent'   — the copies disagree on a real score. Needs a teacher.
+    ds.classifyDuplicateGroup = function(group) {
+        const keeper = group.primary;
+        const ks = this._resultRankSignals(keeper);
+
+        if (ks.answerCount === 0) return 'empty';
+
+        const discards = group.duplicates.map(d => ({ r: d, s: this._resultRankSignals(d) }));
+
+        // An empty discard is a placeholder. A discard that HAS answers but scored 0 is
+        // a real attempt and must not be treated as disposable.
+        if (discards.every(d => d.s.answerCount === 0)) return 'placeholder';
+
+        if (discards.every(d => Number(d.r.score) === Number(keeper.score))) return 'identical';
+
+        return 'divergent';
+    };
+
+    ds.isAutoResolvableGroup = function(group) {
+        const kind = this.classifyDuplicateGroup(group);
+        return kind === 'placeholder' || kind === 'identical';
+    };
+
+    // READ-ONLY. Writes nothing — use it to see the scale before resolving anything.
+    ds.auditDuplicateResults = async function(filters = {}) {
+        const results = await this.getResults({
+            ...filters,
+            includeSuperseded: true,
+            forceRefresh: true
+        });
+
+        const live = results.filter(r => !this.isSupersededResult(r));
+        const groups = this.groupDuplicateResults(live).map(g => ({
+            ...g,
+            kind: this.classifyDuplicateGroup(g)
+        }));
+
+        const byKind = { placeholder: [], identical: [], divergent: [], empty: [] };
+        groups.forEach(g => byKind[g.kind].push(g));
+
+        return {
+            totalResults: results.length,
+            supersededResults: results.length - live.length,
+            duplicateGroups: groups.length,
+            duplicateRows: groups.reduce((n, g) => n + g.duplicates.length, 0),
+            worstGroupSize: groups.reduce((n, g) => Math.max(n, g.all.length), 0),
+            placeholderGroups: byKind.placeholder.length,
+            identicalGroups: byKind.identical.length,
+            divergentGroups: byKind.divergent.length,
+            emptyGroups: byKind.empty.length,
+            autoResolvable: byKind.placeholder.length + byKind.identical.length,
+            needsReview: byKind.divergent.length + byKind.empty.length,
+            byKind,
+            groups
+        };
+    };
+
+    // Soft-deletes `discardIds` in favour of `keepId`.
+    ds.supersedeResults = async function(keepId, discardIds, meta = {}) {
+        if (!keepId) throw new Error('supersedeResults: keepId is required');
+
+        const ids = (discardIds || []).filter(id => id && id !== keepId);
+        if (ids.length === 0) return { superseded: 0, failed: [] };
+
+        const failed = [];
+        let superseded = 0;
+
+        for (const id of ids) {
+            try {
+                const existing = await this.pb.collection('results').getOne(id);
+                const flags = {
+                    ...(existing.flags || {}),
+                    _superseded: true,
+                    _supersededAt: new Date().toISOString(),
+                    _supersededBy: keepId,
+                    _supersededByUser: meta.userId || '',
+                    _supersededByName: meta.userName || ''
+                };
+                await this.pb.collection('results').update(id, { flags });
+                superseded++;
+            } catch (err) {
+                console.error(`[Duplicates] Could not supersede result ${id}:`, err);
+                failed.push({ id, error: err && err.message });
+            }
+        }
+
+        await this._invalidateResultCaches();
+        return { superseded, failed };
+    };
+
+    // Bulk-resolves ONLY the mechanically safe classes.
+    //
+    // 'divergent' and 'empty' groups are refused outright — they are the ones where a
+    // wrong pick changes a student's real grade, so they must go through a teacher.
+    // Pass dryRun to see exactly what would happen without writing anything.
+    ds.autoResolveDuplicates = async function(options = {}) {
+        const { dryRun = false, meta = {}, filters = {} } = options;
+
+        const audit = await this.auditDuplicateResults(filters);
+        const targets = audit.groups.filter(g => this.isAutoResolvableGroup(g));
+
+        const plan = targets.map(g => ({
+            student: g.studentName,
+            exam: g.examTitle || g.examId,
+            kind: g.kind,
+            keep: { id: g.primary.id, score: g.primary.score },
+            discard: g.duplicates.map(d => ({ id: d.id, score: d.score }))
+        }));
+
+        if (dryRun) {
+            return {
+                dryRun: true,
+                wouldResolve: plan.length,
+                wouldHideRows: plan.reduce((n, p) => n + p.discard.length, 0),
+                skippedForReview: audit.needsReview,
+                plan
+            };
+        }
+
+        let resolved = 0;
+        const failed = [];
+        for (const g of targets) {
+            try {
+                const res = await this.supersedeResults(
+                    g.primary.id,
+                    g.duplicates.map(d => d.id),
+                    meta
+                );
+                if (res.failed.length) failed.push({ group: g.key, failed: res.failed });
+                resolved++;
+            } catch (err) {
+                failed.push({ group: g.key, error: err && err.message });
+            }
+        }
+
+        await this._invalidateResultCaches();
+        return { dryRun: false, resolved, failed, skippedForReview: audit.needsReview, plan };
+    };
+
+    // READ-ONLY. Re-scores every row in the 'divergent' and 'empty' groups against the
+    // live exam key, to tell apart the two reasons a discard can carry a stored 0:
+    //
+    //   sync-bug zero — the answers ARE there and re-score to the keeper's true grade;
+    //                   the stored 0 is the offline-sync scoring bug. Safe to hide: the
+    //                   keeper already holds that exact grade.
+    //   genuine       — the discard re-scores to a DIFFERENT real grade (a separate
+    //                   attempt/retake) or honestly re-scores to 0. Needs a teacher.
+    //
+    // Per-discard disposition:
+    //   'redundant'      — re-scores to the keeper's true grade → safe to supersede
+    //   'conflict'       — re-scores to a different non-zero grade → manual
+    //   'genuine-zero'   — re-scores to 0 with answers present → manual
+    //   'no-exam'        — exam key unavailable (deleted exam) → manual
+    // Group is auto-resolvable ONLY when the keeper is self-consistent (stored === recalc,
+    // so we trust it holds the real grade) AND every discard is 'redundant'.
+    // 'keeper-suspect' (keeper stored !== recalc, incl. empty keepers) is never auto-acted —
+    // the truth may live in a discard, which is a swap decision only a teacher should make.
+    ds.auditDivergentByRescore = async function(filters = {}) {
+        const audit = await this.auditDuplicateResults(filters);
+        const groups = [...audit.byKind.divergent, ...audit.byKind.empty];
+
+        const examCache = new Map();
+        const getExam = async (id) => {
+            if (examCache.has(id)) return examCache.get(id);
+            let exam = null;
+            try { exam = await this.getExamById(id); } catch (_) { exam = null; }
+            examCache.set(id, exam);
+            return exam;
+        };
+
+        const pct = (exam, r) => {
+            if (!exam) return null;
+            const { score, totalPoints } = this._gradeExamAnswers(exam, (r && r.answers) || {});
+            return totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
+        };
+
+        const detailed = [];
+        for (const g of groups) {
+            const exam = await getExam(g.examId);
+            const keeper = g.primary;
+            const keeperStored = Number(keeper.score);
+            const keeperRecalc = pct(exam, keeper);
+            const keeperConsistent = exam ? keeperStored === keeperRecalc : false;
+
+            const discards = g.duplicates.map(d => {
+                const recalc = pct(exam, d);
+                let disposition;
+                if (recalc === null) disposition = 'no-exam';
+                else if (keeperConsistent && recalc === keeperRecalc) disposition = 'redundant';
+                else if (recalc === 0) disposition = 'genuine-zero';
+                else disposition = 'conflict';
+                return { id: d.id, stored: Number(d.score), recalc, disposition };
+            });
+
+            const keeperSuspect = !!exam && !keeperConsistent;
+            const autoResolvable = !keeperSuspect && !!exam &&
+                discards.length > 0 && discards.every(d => d.disposition === 'redundant');
+
+            detailed.push({
+                key: g.key,
+                kind: g.kind,
+                student: g.studentName,
+                exam: g.examTitle || g.examId,
+                examId: g.examId,
+                examMissing: !exam,
+                keeperId: keeper.id,
+                keeperStored,
+                keeperRecalc,
+                keeperSuspect,
+                discards,
+                autoResolvable
+            });
+        }
+
+        const redundantOnly = detailed.filter(d => d.autoResolvable);
+        return {
+            examined: detailed.length,
+            autoResolvable: redundantOnly.length,
+            keeperSuspect: detailed.filter(d => d.keeperSuspect).length,
+            examMissing: detailed.filter(d => d.examMissing).length,
+            stillManual: detailed.filter(d => !d.autoResolvable).length,
+            groups: detailed
+        };
+    };
+
+    // Supersedes ONLY the discards proven redundant by re-scoring (see auditDivergentByRescore).
+    // Defaults to dryRun — writes nothing until called with { dryRun: false }.
+    ds.resolveRescoredDuplicates = async function(options = {}) {
+        const { dryRun = true, meta = {}, filters = {} } = options;
+        const audit = await this.auditDivergentByRescore(filters);
+        const targets = audit.groups.filter(g => g.autoResolvable);
+
+        const plan = targets.map(g => ({
+            student: g.student,
+            exam: g.exam,
+            keep: g.keeperRecalc,
+            discardIds: g.discards.map(d => d.id)
+        }));
+
+        if (dryRun) {
+            return {
+                dryRun: true,
+                wouldResolve: plan.length,
+                wouldHideRows: plan.reduce((n, p) => n + p.discardIds.length, 0),
+                keeperSuspect: audit.keeperSuspect,
+                examMissing: audit.examMissing,
+                stillManual: audit.stillManual,
+                plan
+            };
+        }
+
+        let resolved = 0;
+        const failed = [];
+        for (const g of targets) {
+            try {
+                const res = await this.supersedeResults(g.keeperId, g.discards.map(d => d.id), meta);
+                if (res.failed.length) failed.push({ group: g.key, failed: res.failed });
+                resolved++;
+            } catch (err) {
+                failed.push({ group: g.key, error: err && err.message });
+            }
+        }
+
+        await this._invalidateResultCaches();
+        return { dryRun: false, resolved, failed, stillManual: audit.stillManual, plan };
+    };
+
+    // Policy resolver: keep the single HIGHEST-scoring row per student+exam, soft-hide the rest.
+    // Uses stored scores only, so it also covers the deleted-exam duplicates the re-score audit
+    // cannot judge. Ties on score fall back to rankResultCandidates (completed, has answers,
+    // newest) so the most complete row wins. `changed` flags groups where the highest row is NOT
+    // the current keeper — i.e. a student whose visible grade rises. Defaults to dryRun.
+    ds.resolveDuplicatesKeepHighest = async function(options = {}) {
+        const { dryRun = true, meta = {}, filters = {} } = options;
+        const results = await this.getResults({ ...filters, includeSuperseded: true, forceRefresh: true });
+        const live = results.filter(r => !this.isSupersededResult(r));
+        const groups = this.groupDuplicateResults(live);
+
+        const plan = groups.map(g => {
+            const ranked = this.rankResultCandidates(g.all);
+            const keeper = [...g.all].sort((a, b) => {
+                const sa = Number(a.score) || 0, sb = Number(b.score) || 0;
+                if (sb !== sa) return sb - sa;
+                return ranked.indexOf(a) - ranked.indexOf(b);
+            })[0];
+            const discards = g.all.filter(r => r.id !== keeper.id);
+            return {
+                student: g.studentName,
+                exam: g.examTitle || g.examId,
+                keepScore: Number(keeper.score) || 0,
+                hideScores: discards.map(d => Number(d.score) || 0),
+                changed: keeper.id !== g.primary.id,
+                keeperId: keeper.id,
+                discardIds: discards.map(d => d.id)
+            };
+        }).filter(p => p.discardIds.length > 0);
+
+        if (dryRun) {
+            return {
+                dryRun: true,
+                wouldResolve: plan.length,
+                wouldHideRows: plan.reduce((n, p) => n + p.discardIds.length, 0),
+                gradesRaised: plan.filter(p => p.changed).length,
+                plan
+            };
+        }
+
+        let resolved = 0;
+        const failed = [];
+        for (const p of plan) {
+            try {
+                const res = await this.supersedeResults(p.keeperId, p.discardIds, meta);
+                if (res.failed.length) failed.push({ student: p.student, failed: res.failed });
+                resolved++;
+            } catch (err) {
+                failed.push({ student: p.student, error: err && err.message });
+            }
+        }
+        await this._invalidateResultCaches();
+        return { dryRun: false, resolved, failed, gradesRaised: plan.filter(p => p.changed).length, plan };
+    };
+
+    // Undo — clears the flag so the row is visible again.
+    ds.restoreSupersededResult = async function(resultId) {
+        const existing = await this.pb.collection('results').getOne(resultId);
+        const flags = { ...(existing.flags || {}) };
+        delete flags._superseded;
+        delete flags._supersededAt;
+        delete flags._supersededBy;
+        delete flags._supersededByUser;
+        delete flags._supersededByName;
+        await this.pb.collection('results').update(resultId, { flags });
+        await this._invalidateResultCaches();
+        return true;
+    };
+
+    ds._invalidateResultCaches = async function() {
+        if (!window.idb || !window.idb.isIndexedDBAvailable()) return;
+        try {
+            const db = await window.idb.openDB();
+            const tx = db.transaction('dashboardCache', 'readwrite');
+            tx.objectStore('dashboardCache').clear();
+            await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        } catch (e) {
+            console.warn('[Duplicates] Could not clear result caches:', e);
+        }
+    };
+
+    // Superseded rows are hidden from every consumer unless explicitly requested.
+    ds._applySupersededFilter = function(list, filters) {
+        if (filters && filters.includeSuperseded) return list || [];
+        return (list || []).filter(r => !this.isSupersededResult(r));
     };
 
     ds.getResults = async function(filters = {}) {
@@ -1146,7 +1605,7 @@
                 if (cached && cached.data && cached.data.length > 0) {
                     const age = Date.now() - (cached.cachedAt || 0);
                     if (age < CACHE_MAX_AGE && this._resultSnapshotsComplete(cached.data)) {
-                        return cached.data;
+                        return this._applySupersededFilter(cached.data, filters);
                     }
                 }
             } catch (e) { }
@@ -1177,17 +1636,19 @@
             const mappedResults = results.map(r => this._mapResult(r));
 
             // 2. Save to IDB (only if we got data — never overwrite good cache with empty)
+            // The cache stores the UNFILTERED list so the resolution UI can still read
+            // superseded rows; filtering happens on the way out.
             if (window.idb && mappedResults.length > 0) {
                 await window.idb.saveDashboardCache(cacheKey, mappedResults);
                 await window.idb.saveResults(mappedResults);
             }
 
-            return mappedResults;
+            return this._applySupersededFilter(mappedResults, filters);
         } catch (error) {
             // Fallback
             if (window.idb) {
                 const cached = await window.idb.getDashboardCache(cacheKey);
-                if (cached) return cached.data;
+                if (cached) return this._applySupersededFilter(cached.data, filters);
             }
             throw error;
         }
@@ -1207,7 +1668,7 @@
                     if (age < CACHE_MAX_AGE) {
                         console.log(`📦 Serving result summaries from cache (${Math.round(age / 1000)}s old)`);
                         _perf.end(_p, { source: 'cache', count: cached.data.length });
-                        return cached.data;
+                        return this._applySupersededFilter(cached.data, filters);
                     }
                 }
             } catch (e) { }
@@ -1244,12 +1705,12 @@
             }
 
             _perf.end(_p, { source: 'network', count: mappedResults.length, size: JSON.stringify(mappedResults).length });
-            return mappedResults;
+            return this._applySupersededFilter(mappedResults, filters);
         } catch (error) {
             if (window.idb) {
                 try {
                     const cached = await window.idb.getDashboardCache(cacheKey);
-                    if (cached) return cached.data;
+                    if (cached) return this._applySupersededFilter(cached.data, filters);
                 } catch (e) { /* ignore */ }
             }
             throw error;
@@ -1732,40 +2193,171 @@
         }
     };
 
+    // --- Pending Submission Queue ---
+    //
+    // Queued submissions historically lived in TWO stores that never agreed:
+    // saveResult() wrote to both IndexedDB and localStorage, while the takeExam
+    // fallback wrote to localStorage only. The sync then read IndexedDB alone and
+    // finished by blanket-overwriting localStorage with its own failure list —
+    // silently destroying any localStorage-only submission before it was ever sent.
+    //
+    // These helpers make the two stores one logical queue: reads merge both, writes
+    // go to one, and removals clear both.
+
+    const PENDING_LS_KEY = 'cbt_pending_submissions';
+
+    ds._pendingIdentity = function(p) {
+        return `${p.exam_id || p.examId || ''}|${p.student_id || p.studentId || ''}`;
+    };
+
+    ds._readLocalStoragePending = function() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(PENDING_LS_KEY) || '[]');
+            return Array.isArray(raw) ? raw : [];
+        } catch (e) {
+            console.warn('[PendingSync] localStorage queue unreadable, treating as empty:', e);
+            return [];
+        }
+    };
+
+    // Single write path. Prefers IndexedDB (no 5MB cap — exam answers can be large)
+    // and falls back to localStorage, but never writes both.
+    ds.queuePendingSubmission = async function(payload) {
+        if (window.idb && window.idb.isIndexedDBAvailable()) {
+            try {
+                await window.idb.queuePendingSubmission(payload);
+                return 'idb';
+            } catch (e) {
+                console.warn('[PendingSync] IndexedDB queue failed, falling back to localStorage:', e);
+            }
+        }
+
+        const pending = this._readLocalStoragePending();
+        pending.push({ ...payload, _local_id: payload._local_id || Date.now() });
+        localStorage.setItem(PENDING_LS_KEY, JSON.stringify(pending));
+        return 'localStorage';
+    };
+
+    // Merges both stores into one list of { source, payload } entries.
+    ds._loadPendingQueue = async function() {
+        const entries = [];
+
+        if (window.idb && window.idb.isIndexedDBAvailable()) {
+            try {
+                const idbItems = await window.idb.getPendingSubmissions();
+                for (const payload of idbItems) {
+                    entries.push({ source: 'idb', storageKey: payload.localId, payload });
+                }
+            } catch (e) {
+                console.warn('[PendingSync] Could not read IndexedDB queue:', e);
+            }
+        }
+
+        for (const payload of this._readLocalStoragePending()) {
+            entries.push({ source: 'ls', storageKey: payload._local_id, payload });
+        }
+
+        return entries;
+    };
+
+    // Clears an identity from BOTH stores. Only one results row can exist per
+    // exam+student, so identity is the correct unit of removal.
+    ds._removePendingIdentities = async function(entries) {
+        const idbKeys = entries
+            .filter(e => e.source === 'idb' && e.storageKey != null)
+            .map(e => e.storageKey);
+
+        for (const key of idbKeys) {
+            try {
+                await window.idb.removePendingSubmission(key);
+            } catch (e) {
+                console.warn('[PendingSync] Could not remove synced submission from IndexedDB:', e);
+            }
+        }
+
+        const removedIdentities = new Set(
+            entries.filter(e => e.source === 'ls').map(e => this._pendingIdentity(e.payload))
+        );
+
+        if (removedIdentities.size === 0) return;
+
+        try {
+            // Re-read rather than reusing the snapshot, so a submission queued
+            // while this sync was running is not clobbered.
+            const current = this._readLocalStoragePending();
+            const remaining = current.filter(p => !removedIdentities.has(this._pendingIdentity(p)));
+            localStorage.setItem(PENDING_LS_KEY, JSON.stringify(remaining));
+        } catch (e) {
+            console.warn('[PendingSync] Could not prune localStorage queue:', e);
+        }
+    };
+
     ds.syncPendingResults = async function() {
         if (!navigator.onLine) return { synced: 0, pending: 0 };
 
-        const useIndexedDB = window.idb && window.idb.isIndexedDBAvailable();
-        let pending = [];
-
-        // Get pending submissions
-        if (useIndexedDB) {
-            try {
-                pending = await window.idb.getPendingSubmissions();
-            } catch (err) {
-                console.warn('Could not read from IndexedDB, trying localStorage:', err);
-                pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-            }
-        } else {
-            pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
+        // Re-entrancy guard: the driver, the `online` event and the service worker
+        // can all fire at once. Two concurrent runs would race on the same rows and
+        // double-create results.
+        if (ds._syncInFlight) {
+            console.log('[PendingSync] Sync already running, skipping duplicate call');
+            return ds._syncInFlight;
         }
 
-        if (pending.length === 0) return { synced: 0, pending: 0 };
+        ds._syncInFlight = (async () => {
+            try {
+                return await ds._runPendingSync();
+            } finally {
+                ds._syncInFlight = null;
+            }
+        })();
 
-        console.log(`📤 Syncing ${pending.length} pending submissions...`);
-        const failed = [];
+        return ds._syncInFlight;
+    };
+
+    ds._runPendingSync = async function() {
+        const entries = await this._loadPendingQueue();
+
+        if (entries.length === 0) return { synced: 0, pending: 0 };
+
+        // Group by exam+student. The same submission can legitimately appear in both
+        // stores (older builds double-wrote), and only one results row can exist per
+        // pair — so sync the newest payload once and clear every copy of it.
+        const groups = new Map();
+        for (const entry of entries) {
+            const identity = this._pendingIdentity(entry.payload);
+            if (!groups.has(identity)) {
+                groups.set(identity, { payload: entry.payload, entries: [] });
+            }
+            const group = groups.get(identity);
+            group.entries.push(entry);
+
+            const currentAt = Date.parse(group.payload.submitted_at || group.payload.submittedAt || 0) || 0;
+            const candidateAt = Date.parse(entry.payload.submitted_at || entry.payload.submittedAt || 0) || 0;
+            if (candidateAt > currentAt) group.payload = entry.payload;
+        }
+
+        console.log(`📤 Syncing ${groups.size} pending submission(s) from ${entries.length} queued cop${entries.length === 1 ? 'y' : 'ies'}...`);
         let syncedCount = 0;
+        let failedCount = 0;
 
-        for (const submission of pending) {
+        for (const group of groups.values()) {
+            const submission = group.payload;
             try {
                 const { _local_id, localId, timestamp, synced, cachedAt, ...cleanPayload } = submission;
+
+                // `??` not `||` — a legitimately low pass mark must not be swallowed,
+                // and 50 is the fallback only when nothing was recorded at all.
+                const rawPassScore = cleanPayload.pass_score ?? cleanPayload.passScore;
+                const passScore = Number.isFinite(Number(rawPassScore)) ? Number(rawPassScore) : 50;
+                const passed = cleanPayload.passed ?? (Number(cleanPayload.score) >= passScore);
 
                 const data = {
                     exam_id: cleanPayload.exam_id || cleanPayload.examId,
                     student_id: cleanPayload.student_id || cleanPayload.studentId,
                     score: cleanPayload.score,
                     total_points: cleanPayload.total_points || cleanPayload.totalPoints,
-                    pass_score: cleanPayload.pass_score || cleanPayload.passScore,
+                    pass_score: passScore,
+                    passed,
                     answers: cleanPayload.answers,
                     flags: cleanPayload.flags || {},
                     submitted_at: cleanPayload.submitted_at || cleanPayload.submittedAt || new Date().toISOString(),
@@ -1777,39 +2369,87 @@
                     exam_theory_count: cleanPayload.exam_theory_count ?? cleanPayload.examTheoryCount ?? 0
                 };
 
-                try {
-                    // Check if already exists
-                    const existing = await this.pb.collection('results').getFirstListItem(
-                        `exam_id="${data.exam_id}" && student_id="${data.student_id}"`
-                    );
-                    // Update existing
-                    await this.pb.collection('results').update(existing.id, data);
-                    syncedCount++;
-                } catch (notFoundErr) {
-                    // Create new
-                    await this.pb.collection('results').create(data);
+                {
+                    // A lookup failure here throws to the outer catch and the submission
+                    // stays queued for the next attempt. Creating on an unknown lookup
+                    // result would duplicate the row — and because this runs unattended,
+                    // nobody would notice until the scores looked wrong.
+                    const existing = await this._findExistingResult(data.exam_id, data.student_id);
+
+                    if (existing) {
+                        await this.pb.collection('results').update(existing.id, data);
+                    } else {
+                        await this.pb.collection('results').create(data);
+                    }
                     syncedCount++;
                 }
 
-                // Remove from IndexedDB if using it
-                if (useIndexedDB && submission.localId) {
-                    try {
-                        await window.idb.removePendingSubmission(submission.localId);
-                    } catch (e) {
-                        console.warn('Could not remove synced submission from IndexedDB:', e);
-                    }
-                }
+                // Only now that the server has accepted it is it safe to drop the
+                // local copies — and every copy goes, across both stores.
+                await this._removePendingIdentities(group.entries);
             } catch (err) {
+                // Leave the entry exactly where it is. It will be retried on the next
+                // driver tick. Nothing is rewritten, so nothing can be lost here.
                 console.error('Failed to sync submission:', submission, err);
-                failed.push(submission);
+                failedCount++;
             }
         }
 
-        // Update storage with failed submissions only
-        localStorage.setItem('cbt_pending_submissions', JSON.stringify(failed));
+        console.log(`✅ Sync complete: ${syncedCount} sent, ${failedCount} still pending`);
+        return { synced: syncedCount, pending: failedCount };
+    };
 
-        console.log(`✅ Sync complete: ${syncedCount} sent, ${failed.length} pending`);
-        return { synced: syncedCount, pending: failed.length };
+    // --- Pending Sync Driver ---
+    //
+    // Historically syncPendingResults() was only ever called from a
+    // window 'online' listener. On a slow-but-alive connection the browser never
+    // goes offline, so that event never fires and a queued submission sat in
+    // IndexedDB forever — leaving the score-0 placeholder row that
+    // startExamSession() created as the student's permanent result.
+    //
+    // This driver retries on its own: immediately, on an interval while anything
+    // is still queued, when the tab regains focus, and on the 'online' event.
+    ds.startPendingSyncDriver = function(options = {}) {
+        if (ds._syncDriverStarted) return;
+        ds._syncDriverStarted = true;
+
+        const intervalMs = options.intervalMs || 60000;
+        const onSynced = typeof options.onSynced === 'function' ? options.onSynced : null;
+
+        const attempt = async (trigger) => {
+            if (!navigator.onLine) return;
+            // Syncing writes to the results collection — pointless (and noisy) without auth.
+            if (!ds.pb || !ds.pb.authStore || !ds.pb.authStore.isValid) return;
+
+            try {
+                const { synced, pending } = await ds.syncPendingResults();
+                if (synced > 0) {
+                    console.log(`[PendingSync] ${synced} submission(s) synced (trigger: ${trigger})`);
+                    if (onSynced) {
+                        try { onSynced(synced, pending); } catch (e) { console.warn('[PendingSync] onSynced handler failed:', e); }
+                    }
+                }
+            } catch (err) {
+                // Never let a sync failure break the page — it retries on the next tick.
+                console.warn(`[PendingSync] Attempt failed (trigger: ${trigger}):`, err);
+            }
+        };
+
+        attempt('startup');
+
+        ds._syncDriverTimer = setInterval(() => attempt('interval'), intervalMs);
+
+        window.addEventListener('online', () => attempt('online'));
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') attempt('visibility');
+        });
+
+        return () => {
+            if (ds._syncDriverTimer) clearInterval(ds._syncDriverTimer);
+            ds._syncDriverTimer = null;
+            ds._syncDriverStarted = false;
+        };
     };
 
     // --- One-time IDB Migration ---

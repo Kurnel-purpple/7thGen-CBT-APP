@@ -45,14 +45,18 @@ const auth = {
             const user = await dataService.login(username, password);
             console.log('Login successful:', user);
 
+            // replace(), not href. Pushing left the login page sitting in
+            // history directly behind the dashboard, so Back out of any page
+            // eventually landed on the login form — with a valid session still
+            // in hand — and looked like being signed out.
             if (user.role === 'student') {
-                window.location.href = 'pages/student-dashboard.html';
+                window.location.replace('pages/student-dashboard.html');
             } else if (user.role === 'teacher') {
-                window.location.href = 'pages/teacher-dashboard.html';
+                window.location.replace('pages/teacher-dashboard.html');
             } else if (user.role === 'admin') {
-                window.location.href = 'pages/admin-dashboard.html';
+                window.location.replace('pages/admin-dashboard.html');
             } else if (user.role === 'super_admin') {
-                window.location.href = 'pages/master-admin.html';
+                window.location.replace('pages/master-admin.html');
             } else {
                 auth.showError('Unknown user role.');
                 submitBtn.textContent = originalBtnText;
@@ -85,12 +89,12 @@ const auth = {
 
     logout: async () => {
         await dataService.logout();
-        // Check if we are in a subdirectory (pages/) or root
-        if (window.location.pathname.includes('/pages/')) {
-            window.location.href = '../index.html';
-        } else {
-            window.location.href = 'index.html';
-        }
+        // replace() so the signed-in page is not left behind the login form
+        // for Back to return to with a session that no longer exists.
+        const target = window.location.pathname.includes('/pages/')
+            ? '../index.html'
+            : 'index.html';
+        window.location.replace(target);
     },
 
     togglePassword: (inputId, button) => {

@@ -5,17 +5,25 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('CBT App Initialized');
 
-    // Check if user is already logged in and at the login page
+    // Landing on the login page while already signed in — usually by pressing
+    // Back far enough — should send you straight on to your dashboard.
+    //
+    // This used to name teacher and student only, so an admin who came back
+    // here was left staring at the login form with a perfectly good session,
+    // and had to sign in again. Utils.getDashboardUrl covers every role.
+    //
+    // replace(), not href: pushing would leave the login page sitting in
+    // history for Back to find all over again.
     const user = dataService.getCurrentUser();
     const isLoginPage = document.getElementById('login-form');
 
     if (user && isLoginPage) {
-        // Redirect to dashboard if already logged in
-        if (user.role === 'teacher') {
-            window.location.href = 'pages/teacher-dashboard.html';
-        } else if (user.role === 'student') {
-            window.location.href = 'pages/student-dashboard.html';
-        }
+        const dashboard = (window.Utils && typeof Utils.getKnownDashboardUrl === 'function')
+            ? Utils.getKnownDashboardUrl(user)
+            : null;
+        // Null for an unrecognised role — leave those on the login form rather
+        // than bouncing them to a dashboard whose guard will throw them back.
+        if (dashboard) window.location.replace('pages/' + dashboard);
     }
 });
 

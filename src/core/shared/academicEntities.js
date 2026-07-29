@@ -77,12 +77,42 @@
         };
     }
 
+    // End-of-session promotion ladder: each class advances to the next at
+    // the start of a new school session; the top class graduates.
+    const PROMOTION_LADDER = ['Grade 4', 'Grade 5&6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+    const GRADUATED_CLASS = 'Graduated';
+
+    // Compare class names ignoring spaces/case so "JSS 1", "jss1" and "JSS1"
+    // all map to the same ladder rung.
+    function _classKey(v) {
+        return String(v || '').replace(/\s+/g, '').toUpperCase();
+    }
+
+    /**
+     * The class a student moves to at the start of a new session.
+     * @param {string} classValue current class (matched to PROMOTION_LADDER,
+     *   tolerant of spacing/case)
+     * @returns {string|null} next class, GRADUATED_CLASS for the top class,
+     *   or null when the class isn't on the ladder (blank/unknown/graduated)
+     */
+    function getNextClass(classValue) {
+        const key = _classKey(classValue);
+        if (!key) return null;
+        const i = PROMOTION_LADDER.findIndex((c) => _classKey(c) === key);
+        if (i === -1) return null;
+        if (i === PROMOTION_LADDER.length - 1) return GRADUATED_CLASS;
+        return PROMOTION_LADDER[i + 1];
+    }
+
     const api = {
         LEVEL_LABELS,
+        PROMOTION_LADDER,
+        GRADUATED_CLASS,
         getCatalog,
         getAllClasses,
         getClassesByLevel,
-        getSubjectsByLevel
+        getSubjectsByLevel,
+        getNextClass
     };
 
     global.academicEntities = api;

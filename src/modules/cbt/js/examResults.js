@@ -13,9 +13,14 @@ const examResults = {
     currentExam: null,
     hasTheoryQuestions: false,
     manualTheoryScores: {}, // { resultId: manualScore }
-    manualTheoryTotals: {}, // { resultId: manualTheoryTotal }
+    manualTheoryTotals: {}, // { resultId: manualTheoryTotal } — legacy per-result, still read on load for seeding
     caScores: {},           // { resultId: caScore }
-    caTotals: {},           // { resultId: caTotal }
+    caTotals: {},           // { resultId: caTotal } — legacy per-result, still read on load for seeding
+    // Expected (out-of) totals now live at the page level: the teacher sets them
+    // once at the top and every student card is scored against them. null = unset.
+    globalTheoryTotal: null,
+    globalCaTotal: null,
+    _globalsInitialized: false,
 
     /**
      * Calculate points for a single result based on exam questions.
@@ -97,6 +102,43 @@ const examResults = {
     _escapeHtml(str) {
         if (typeof str !== 'string') return str;
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+    // Compact number formatting: whole numbers stay whole, otherwise one decimal.
+    _fmt(n) {
+        if (n === null || n === undefined || n === '') return '0';
+        const x = Number(n);
+        if (!isFinite(x)) return '0';
+        return Number.isInteger(x) ? String(x) : x.toFixed(1);
+    },
+
+    // Seed the page-level expected totals once per load from any previously
+    // saved per-result totals (use the max so no student's score exceeds the
+    // total), falling back to the exam's own theory total for theory and blank
+    // for CA. Never overwrites values the teacher has already typed this session.
+    _initGlobalTotals(exam) {
+        if (examResults._globalsInitialized) return;
+        const savedTheory = examResults.results
+            .map(r => r.manualTheoryTotal)
+            .filter(v => v !== null && v !== undefined && !isNaN(v));
+        const savedCa = examResults.results
+            .map(r => r.caTotal)
+            .filter(v => v !== null && v !== undefined && !isNaN(v));
+
+        const theoryPossible = examResults._getTheoryPossible(exam);
+        examResults.globalTheoryTotal = savedTheory.length
+            ? Math.max(...savedTheory)
+            : (theoryPossible > 0 ? theoryPossible : null);
+        examResults.globalCaTotal = savedCa.length ? Math.max(...savedCa) : null;
+        examResults._globalsInitialized = true;
+    },
+
+    // Reflect the current global totals into the expected-scores bar inputs.
+    renderExpectedBar() {
+        const theoryInput = document.getElementById('global-theory-total');
+        const caInput = document.getElementById('global-ca-total');
+        if (theoryInput) theoryInput.value = examResults.globalTheoryTotal ?? '';
+        if (caInput) caInput.value = examResults.globalCaTotal ?? '';
     },
 
     _csvCell(value) {
@@ -208,7 +250,9 @@ const examResults = {
             }
 
             examResults.results = examResults._processResults(rawResults, exam);
+            examResults._initGlobalTotals(exam);
 
+            examResults.renderExpectedBar();
             examResults.renderStats();
             examResults.renderTable();
             examResults.renderCards();
@@ -233,7 +277,9 @@ const examResults = {
                         examResults.hasTheoryQuestions = freshExam.questions.some(q => q.type === 'theory');
 
                         examResults.results = examResults._processResults(freshResults, freshExam);
+                        examResults._initGlobalTotals(freshExam);
 
+                        examResults.renderExpectedBar();
                         examResults.renderStats();
                         examResults.renderTable();
                         examResults.renderCards();
@@ -258,10 +304,12 @@ const examResults = {
      */
     _getEffectiveScore(r) {
         const manualScore = examResults.manualTheoryScores[r.id];
-        const manualTheoryTotal = examResults.manualTheoryTotals[r.id];
+        const globalTheoryTotal = examResults.globalTheoryTotal;
         const hasManualScore = manualScore !== undefined && manualScore !== null && manualScore >= 0;
-        let effectiveTheoryTotal = (manualTheoryTotal !== undefined && manualTheoryTotal !== null && manualTheoryTotal >= 0)
-            ? manualTheoryTotal
+        // Expected theory total is now page-level; fall back to the exam's own
+        // theory total when the teacher hasn't set one.
+        let effectiveTheoryTotal = (globalTheoryTotal !== null && globalTheoryTotal !== undefined && globalTheoryTotal >= 0)
+            ? globalTheoryTotal
             : r.theoryPossible;
         // Preview safety: never show a theory total below the theory score being
         // applied (matters on exams with no theory questions, where the default
@@ -269,11 +317,11 @@ const examResults = {
         const appliedTheory = hasManualScore ? manualScore : r.theoryPoints;
         if (appliedTheory > effectiveTheoryTotal) effectiveTheoryTotal = appliedTheory;
 
-        // CA component
+        // CA component — expected total is page-level.
         const caScoreRaw = examResults.caScores[r.id];
-        const caTotalRaw = examResults.caTotals[r.id];
+        const globalCaTotal = examResults.globalCaTotal;
         const caScore = (caScoreRaw !== undefined && caScoreRaw !== null && caScoreRaw >= 0) ? caScoreRaw : 0;
-        let caTotal = (caTotalRaw !== undefined && caTotalRaw !== null && caTotalRaw >= 0) ? caTotalRaw : 0;
+        let caTotal = (globalCaTotal !== null && globalCaTotal !== undefined && globalCaTotal >= 0) ? globalCaTotal : 0;
         if (caScore > caTotal) caTotal = caScore;
 
         const effectiveTotalPoints = r.objectivePossible + effectiveTheoryTotal + caTotal;
@@ -317,28 +365,31 @@ const examResults = {
             return;
         }
 
+        const gTheoryDisp = examResults.globalTheoryTotal !== null
+            ? examResults._fmt(examResults.globalTheoryTotal)
+            : (examResults._getTheoryPossible(examResults.currentExam) > 0
+                ? examResults._fmt(examResults._getTheoryPossible(examResults.currentExam)) : '—');
+        const gCaDisp = examResults.globalCaTotal !== null ? examResults._fmt(examResults.globalCaTotal) : '—';
+
         container.innerHTML = examResults.results.map(r => {
             const { effectivePoints, effectiveTotalPoints, percentage } = examResults._getEffectiveScore(r);
             const passScore = examResults.currentExam ? (examResults.currentExam.passScore || 50) : 50;
             const isPassed = percentage >= passScore;
 
-            const maxTheoryPoints = examResults._getTheoryPossible(examResults.currentExam);
-
             const currentManual = examResults.manualTheoryScores[r.id] !== undefined
                 ? examResults.manualTheoryScores[r.id] : '';
-            const currentManualTotal = examResults.manualTheoryTotals[r.id] !== undefined
-                ? examResults.manualTheoryTotals[r.id] : '';
             const currentCa = examResults.caScores[r.id] !== undefined
                 ? examResults.caScores[r.id] : '';
-            const currentCaTotal = examResults.caTotals[r.id] !== undefined
-                ? examResults.caTotals[r.id] : '';
             const hasAppTheory = r.theoryPoints > 0;
-            const hasAnyEntry = currentManual !== '' || currentManualTotal !== '' || currentCa !== '' || currentCaTotal !== '';
+            const hasAnyEntry = currentManual !== '' || currentCa !== '';
 
             return `
                 <div class="result-box">
                     <div class="result-box-row1">
-                        <span class="result-box-name">${examResults._escapeHtml(r.studentName)}</span>
+                        <div class="result-box-identity">
+                            <span class="result-box-name">${examResults._escapeHtml(r.studentName)}</span>
+                            <span class="result-box-date">${Utils.formatDate(r.submittedAt)}</span>
+                        </div>
                         <div class="result-box-row1-right">
                             <span class="score-pill ${isPassed ? 'pass' : 'fail'}">${isPassed ? 'PASS' : 'FAIL'}</span>
                             <button class="btn-view-detail" onclick="location.href='results.html?id=${r.id}'">
@@ -346,66 +397,50 @@ const examResults = {
                             </button>
                         </div>
                     </div>
-                    <div class="result-box-data-row" style="display:flex; justify-content:space-between; align-items:flex-start; padding-top:10px; border-top:1px solid var(--border-color); margin-top:8px;">
-                        <div style="display:flex; flex-direction:column; gap:4px; flex: 1.2;">
-                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Date</span>
-                            <span class="result-box-cell">${Utils.formatDate(r.submittedAt)}</span>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 0.8;">
-                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Obj. Score</span>
+                    <div class="result-box-data-row">
+                        <div class="result-box-metric">
+                            <span class="result-box-metric-label">Obj</span>
                             <span class="result-box-cell result-box-bold">${r.objectivePoints.toFixed(1)}</span>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 2.2;">
-                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Theory (Manual)</span>
-                            <div class="result-box-cell result-box-theory-inputs">
+                        <div class="result-box-metric result-box-metric--input">
+                            <span class="result-box-metric-label">Theory</span>
+                            <div class="result-box-theory-inputs">
                                 <input type="number"
                                     id="manual-theory-${r.id}"
+                                    class="${examResults._isOverLimit('theory', currentManual) ? 'score-over' : ''}"
                                     value="${currentManual}"
                                     min="0" step="0.5"
                                     placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
+                                    oninput="examResults.onScoreInput(this, '${r.id}', 'theory')"
                                     onchange="examResults.onManualTheoryChange('${r.id}', this.value)"
                                     title="${hasAppTheory ? 'App-graded: ' + r.theoryPoints.toFixed(1) + ' pts' : 'Enter theory score'}"
                                 />
-                                <span class="result-box-divider">/</span>
-                                <input type="number"
-                                    id="manual-theory-total-${r.id}"
-                                    value="${currentManualTotal}"
-                                    min="0" step="0.5"
-                                    placeholder="${maxTheoryPoints.toFixed(1)}"
-                                    onchange="examResults.onManualTheoryTotalChange('${r.id}', this.value)"
-                                    title="Theory total. Leave blank for the exam default."
-                                />
+                                <span class="result-box-divider">/ ${gTheoryDisp}</span>
                                 ${hasAppTheory ? '<span class="result-box-app-badge" title="App-graded">App</span>' : ''}
                             </div>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 2.2;">
-                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">CA Score</span>
-                            <div class="result-box-cell result-box-theory-inputs">
+                        <div class="result-box-metric result-box-metric--input">
+                            <span class="result-box-metric-label">CA</span>
+                            <div class="result-box-theory-inputs">
                                 <input type="number"
                                     id="ca-score-${r.id}"
+                                    class="${examResults._isOverLimit('ca', currentCa) ? 'score-over' : ''}"
                                     value="${currentCa}"
                                     min="0" step="0.5"
                                     placeholder="0"
+                                    oninput="examResults.onScoreInput(this, '${r.id}', 'ca')"
                                     onchange="examResults.onCaScoreChange('${r.id}', this.value)"
                                     title="Continuous assessment score"
                                 />
-                                <span class="result-box-divider">/</span>
-                                <input type="number"
-                                    id="ca-total-${r.id}"
-                                    value="${currentCaTotal}"
-                                    min="0" step="0.5"
-                                    placeholder="30"
-                                    onchange="examResults.onCaTotalChange('${r.id}', this.value)"
-                                    title="What the CA is marked out of (e.g. 30)"
-                                />
+                                <span class="result-box-divider">/ ${gCaDisp}</span>
                             </div>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; flex: 1;">
-                            <span style="font-size:0.65rem; color:var(--light-text); text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Total</span>
+                        <div class="result-box-metric">
+                            <span class="result-box-metric-label">Total</span>
                             <span class="result-box-cell result-box-bold result-box-primary">${effectivePoints.toFixed(1)}/${effectiveTotalPoints.toFixed(1)}</span>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end; width: 40px; margin-top:14px;">
-                            ${hasAnyEntry ? `<button class="result-box-save-btn" onclick="examResults.saveManualTheoryScore('${r.id}')" title="Save theory/CA scores"><i class="fas fa-save"></i></button>` : '<span class="result-box-cell result-box-save-placeholder"></span>'}
+                        <div class="result-box-metric result-box-metric--save">
+                            ${hasAnyEntry ? `<button class="result-box-save-btn" onclick="examResults.saveManualTheoryScore('${r.id}')" title="Save theory/CA scores"><i class="fas fa-save"></i></button>` : '<span class="result-box-save-placeholder"></span>'}
                         </div>
                     </div>
                 </div>`;
@@ -420,91 +455,80 @@ const examResults = {
             return;
         }
 
+        const gTheoryDisp = examResults.globalTheoryTotal !== null
+            ? examResults._fmt(examResults.globalTheoryTotal)
+            : (examResults._getTheoryPossible(examResults.currentExam) > 0
+                ? examResults._fmt(examResults._getTheoryPossible(examResults.currentExam)) : '—');
+        const gCaDisp = examResults.globalCaTotal !== null ? examResults._fmt(examResults.globalCaTotal) : '—';
+
         cardsContainer.innerHTML = examResults.results.map(r => {
             const { effectivePoints, effectiveTotalPoints, percentage } = examResults._getEffectiveScore(r);
             const passScore = examResults.currentExam ? (examResults.currentExam.passScore || 50) : 50;
             const isPassed = percentage >= passScore;
 
-            const maxTheoryPoints = examResults._getTheoryPossible(examResults.currentExam);
-
             const currentManual = examResults.manualTheoryScores[r.id] !== undefined
                 ? examResults.manualTheoryScores[r.id] : '';
-            const currentManualTotal = examResults.manualTheoryTotals[r.id] !== undefined
-                ? examResults.manualTheoryTotals[r.id] : '';
             const currentCa = examResults.caScores[r.id] !== undefined
                 ? examResults.caScores[r.id] : '';
-            const currentCaTotal = examResults.caTotals[r.id] !== undefined
-                ? examResults.caTotals[r.id] : '';
             const hasAppTheory = r.theoryPoints > 0;
+            const hasAnyEntry = currentManual !== '' || currentCa !== '';
 
             const gradeInputHtml = `
-                    <div class="result-card-row" style="flex-direction:column; align-items:stretch; gap:6px; padding:10px; background:var(--inner-bg); border-radius:8px; margin-top:4px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
-                            <span class="result-card-label">📝 Theory Score (Manual)</span>
-                            ${hasAppTheory ? '<span style="font-size:0.7rem; padding:2px 6px; background:rgba(46,204,113,0.15); color:var(--success-color); border-radius:4px;">App: ' + r.theoryPoints.toFixed(1) + '</span>' : ''}
+                    <div class="grade-inputs">
+                        <div class="grade-input-group">
+                            <div class="grade-input-head">
+                                <span class="result-card-label">Theory</span>
+                                ${hasAppTheory ? '<span class="grade-app-badge">App: ' + r.theoryPoints.toFixed(1) + '</span>' : ''}
+                            </div>
+                            <div class="grade-input-line">
+                                <input type="number"
+                                    id="mobile-manual-theory-${r.id}"
+                                    class="${examResults._isOverLimit('theory', currentManual) ? 'score-over' : ''}"
+                                    value="${currentManual}"
+                                    min="0" step="0.5"
+                                    placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
+                                    oninput="examResults.onScoreInput(this, '${r.id}', 'theory', true)"
+                                    onchange="examResults.onManualTheoryChange('${r.id}', this.value, true)"
+                                />
+                                <span class="grade-input-total">/ ${gTheoryDisp}</span>
+                            </div>
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px; width: 100%;">
-                            <input type="number"
-                                id="mobile-manual-theory-${r.id}"
-                                value="${currentManual}"
-                                min="0" step="0.5"
-                                placeholder="${hasAppTheory ? r.theoryPoints.toFixed(1) : '0'}"
-                                style="flex:1; width:0; min-width:50px; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
-                                onchange="examResults.onManualTheoryChange('${r.id}', this.value, true)"
-                            />
-                            <span style="font-size:0.85rem; color:var(--light-text); flex-shrink:0;">/</span>
-                            <input type="number"
-                                id="mobile-manual-theory-total-${r.id}"
-                                value="${currentManualTotal}"
-                                min="0" step="0.5"
-                                placeholder="${maxTheoryPoints.toFixed(1)}"
-                                style="flex:1; width:0; min-width:50px; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
-                                onchange="examResults.onManualTheoryTotalChange('${r.id}', this.value, true)"
-                            />
+                        <div class="grade-input-group">
+                            <div class="grade-input-head">
+                                <span class="result-card-label">CA</span>
+                            </div>
+                            <div class="grade-input-line">
+                                <input type="number"
+                                    id="mobile-ca-score-${r.id}"
+                                    class="${examResults._isOverLimit('ca', currentCa) ? 'score-over' : ''}"
+                                    value="${currentCa}"
+                                    min="0" step="0.5"
+                                    placeholder="0"
+                                    oninput="examResults.onScoreInput(this, '${r.id}', 'ca', true)"
+                                    onchange="examResults.onCaScoreChange('${r.id}', this.value, true)"
+                                />
+                                <span class="grade-input-total">/ ${gCaDisp}</span>
+                            </div>
                         </div>
-                        <div style="font-size:0.8rem; color:var(--light-text);">Leave theory total blank to keep the exam default of ${maxTheoryPoints.toFixed(1)}.</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; margin-top:6px;">
-                            <span class="result-card-label">📋 CA Score</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px; width: 100%;">
-                            <input type="number"
-                                id="mobile-ca-score-${r.id}"
-                                value="${currentCa}"
-                                min="0" step="0.5"
-                                placeholder="0"
-                                style="flex:1; width:0; min-width:50px; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
-                                onchange="examResults.onCaScoreChange('${r.id}', this.value, true)"
-                            />
-                            <span style="font-size:0.85rem; color:var(--light-text); flex-shrink:0;">/</span>
-                            <input type="number"
-                                id="mobile-ca-total-${r.id}"
-                                value="${currentCaTotal}"
-                                min="0" step="0.5"
-                                placeholder="30"
-                                style="flex:1; width:0; min-width:50px; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem;"
-                                onchange="examResults.onCaTotalChange('${r.id}', this.value, true)"
-                            />
-                        </div>
-                        <div style="font-size:0.8rem; color:var(--light-text);">CA adds to both the score and the total (e.g. 25/30).</div>
-                        <button class="btn btn-primary" style="padding:10px 16px; font-size:0.85rem; width: 100%; border-radius: 8px; font-weight: 600; margin-top:4px;" onclick="examResults.saveManualTheoryScore('${r.id}')">💾 Save Scores</button>
                     </div>
                 `;
 
             return `
             <div class="result-card">
                 <div class="result-card-header">
-                    <div class="result-card-student">${examResults._escapeHtml(r.studentName)}</div>
-                    <span class="score-pill ${isPassed ? 'pass' : 'fail'}">
-                        ${isPassed ? 'PASS' : 'FAIL'}
-                    </span>
+                    <div class="result-card-identity">
+                        <div class="result-card-student">${examResults._escapeHtml(r.studentName)}</div>
+                        <div class="result-card-date">${Utils.formatDate(r.submittedAt)}</div>
+                    </div>
+                    <div class="result-card-header-actions">
+                        <span class="score-pill ${isPassed ? 'pass' : 'fail'}">${isPassed ? 'PASS' : 'FAIL'}</span>
+                        ${hasAnyEntry ? `<button class="card-icon-btn save" onclick="examResults.saveManualTheoryScore('${r.id}')" title="Save scores" aria-label="Save scores"><i class="fas fa-save"></i></button>` : ''}
+                        <button class="card-icon-btn" onclick="location.href='results.html?id=${r.id}'" title="View details" aria-label="View details"><i class="fas fa-eye"></i></button>
+                    </div>
                 </div>
                 <div class="result-card-body">
                     <div class="result-card-row">
-                        <span class="result-card-label">Date</span>
-                        <span class="result-card-value">${Utils.formatDate(r.submittedAt)}</span>
-                    </div>
-                    <div class="result-card-row">
-                        <span class="result-card-label">Objective</span>
+                        <span class="result-card-label">Obj</span>
                         <span class="result-card-value" style="font-weight: bold;">${r.objectivePoints.toFixed(1)} pts</span>
                     </div>
                     <div class="result-card-row">
@@ -513,12 +537,88 @@ const examResults = {
                     </div>
                     ${gradeInputHtml}
                 </div>
-                <div class="result-card-actions">
-                    <button class="btn btn-primary" style="flex: 1; padding: 8px;" onclick="location.href='results.html?id=${r.id}'">View Details</button>
-                </div>
             </div>
         `;
         }).join('');
+    },
+
+    /**
+     * Rapid-entry auto-advance for the theory/CA score inputs.
+     *
+     * Fires on every keystroke. The moment the box holds exactly two digits
+     * (scores are marked out of two-digit totals, so a third digit is never
+     * meaningful) the value is committed and focus jumps on:
+     *   theory → the same student's CA box → the NEXT student's theory box → …
+     * letting a teacher key a whole class's scores without touching the mouse.
+     *
+     * Two things this must respect:
+     *  - decimals: "12" jumps, but anything containing "." never auto-jumps
+     *    (half marks like 12.5 are entered as "12.5" + Tab, or "1." first);
+     *  - the change handlers below re-render the entire table AND the card
+     *    list, destroying the input mid-keystroke — so commit through them
+     *    FIRST, then find the target by id in the fresh DOM and focus it.
+     */
+    /**
+     * The maximum a theory/CA entry can sensibly be: the page-level expected
+     * total if the teacher set one, else (for theory) what the exam's theory
+     * questions are actually worth. Null = no known limit, never flag.
+     */
+    _scoreLimit: (kind) => {
+        if (kind === 'theory') {
+            if (examResults.globalTheoryTotal !== null) return examResults.globalTheoryTotal;
+            const possible = examResults._getTheoryPossible(examResults.currentExam);
+            return possible > 0 ? possible : null;
+        }
+        return examResults.globalCaTotal;
+    },
+
+    _isOverLimit: (kind, value) => {
+        if (value === '' || value === undefined || value === null) return false;
+        const limit = examResults._scoreLimit(kind);
+        const num = parseFloat(value);
+        return limit !== null && !isNaN(num) && num > limit;
+    },
+
+    onScoreInput: (inputEl, resultId, kind, isMobile = false) => {
+        const raw = String(inputEl.value || '');
+
+        // Live over-limit indicator: a score above the expected total (57/30)
+        // is greyed out the moment it's typed, so the slip is visible while
+        // the teacher is still on that box.
+        const limit = examResults._scoreLimit(kind);
+        const num = parseFloat(raw);
+        const over = limit !== null && !isNaN(num) && num > limit;
+        inputEl.classList.toggle('score-over', over);
+        inputEl.title = over ? `Higher than the expected total of ${examResults._fmt(limit)} — check this score` : '';
+
+        if (!/^\d{2}$/.test(raw)) return;
+        // Never auto-jump away from a problem entry — leaving focus on the
+        // greyed value is what makes the teacher stop and look at it.
+        if (over) return;
+
+        if (kind === 'theory') {
+            examResults.onManualTheoryChange(resultId, raw, isMobile);
+        } else {
+            examResults.onCaScoreChange(resultId, raw, isMobile);
+        }
+
+        let nextId = null;
+        if (kind === 'theory') {
+            nextId = (isMobile ? 'mobile-ca-score-' : 'ca-score-') + resultId;
+        } else {
+            const idx = examResults.results.findIndex(r => r.id === resultId);
+            const next = idx >= 0 ? examResults.results[idx + 1] : null;
+            if (next) nextId = (isMobile ? 'mobile-manual-theory-' : 'manual-theory-') + next.id;
+        }
+        if (!nextId) return;
+
+        requestAnimationFrame(() => {
+            const el = document.getElementById(nextId);
+            if (!el) return;
+            el.focus();
+            if (typeof el.select === 'function') el.select();
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
     },
 
     /**
@@ -549,26 +649,23 @@ const examResults = {
         }
     },
 
-    onManualTheoryTotalChange: (resultId, value, isMobile = false) => {
+    // Page-level expected totals — one value applied to every student card.
+    onGlobalTheoryTotalChange: (value) => {
         const numValue = parseFloat(value);
-        if (value === '' || isNaN(numValue) || numValue < 0) {
-            delete examResults.manualTheoryTotals[resultId];
-        } else {
-            examResults.manualTheoryTotals[resultId] = numValue;
-        }
-
-        const desktopInput = document.getElementById(`manual-theory-total-${resultId}`);
-        const mobileInput = document.getElementById(`mobile-manual-theory-total-${resultId}`);
-        if (isMobile && desktopInput) desktopInput.value = value;
-        if (!isMobile && mobileInput) mobileInput.value = value;
-
+        examResults.globalTheoryTotal = (value === '' || isNaN(numValue) || numValue < 0) ? null : numValue;
+        examResults._globalsInitialized = true;
         examResults.renderStats();
+        examResults.renderTable();
+        examResults.renderCards();
+    },
 
-        const result = examResults.results.find(r => r.id === resultId);
-        if (result) {
-            examResults.renderTable();
-            examResults.renderCards();
-        }
+    onGlobalCaTotalChange: (value) => {
+        const numValue = parseFloat(value);
+        examResults.globalCaTotal = (value === '' || isNaN(numValue) || numValue < 0) ? null : numValue;
+        examResults._globalsInitialized = true;
+        examResults.renderStats();
+        examResults.renderTable();
+        examResults.renderCards();
     },
 
     /**
@@ -596,28 +693,6 @@ const examResults = {
         }
     },
 
-    onCaTotalChange: (resultId, value, isMobile = false) => {
-        const numValue = parseFloat(value);
-        if (value === '' || isNaN(numValue) || numValue < 0) {
-            delete examResults.caTotals[resultId];
-        } else {
-            examResults.caTotals[resultId] = numValue;
-        }
-
-        const desktopInput = document.getElementById(`ca-total-${resultId}`);
-        const mobileInput = document.getElementById(`mobile-ca-total-${resultId}`);
-        if (isMobile && desktopInput) desktopInput.value = value;
-        if (!isMobile && mobileInput) mobileInput.value = value;
-
-        examResults.renderStats();
-
-        const result = examResults.results.find(r => r.id === resultId);
-        if (result) {
-            examResults.renderTable();
-            examResults.renderCards();
-        }
-    },
-
     /**
      * Save the manual theory and CA scores for a specific student result.
      * This persists the scores to the database and recalculates the total.
@@ -625,15 +700,16 @@ const examResults = {
      */
     saveManualTheoryScore: async (resultId) => {
         const manualScore = examResults.manualTheoryScores[resultId];
-        const manualTheoryTotal = examResults.manualTheoryTotals[resultId];
         const caScore = examResults.caScores[resultId];
-        const caTotal = examResults.caTotals[resultId];
+        // Totals come from the page-level expected inputs, shared by every card.
+        const manualTheoryTotal = examResults.globalTheoryTotal;
+        const caTotal = examResults.globalCaTotal;
         const hasManualScore = manualScore !== undefined && manualScore !== null;
         const hasManualTotal = manualTheoryTotal !== undefined && manualTheoryTotal !== null;
         const hasCaScore = caScore !== undefined && caScore !== null;
         const hasCaTotal = caTotal !== undefined && caTotal !== null;
 
-        if (!hasManualScore && !hasManualTotal && !hasCaScore && !hasCaTotal) {
+        if (!hasManualScore && !hasCaScore) {
             await Utils.showAlert('No Changes', 'Please enter a theory or CA score first.');
             return false;
         }
@@ -651,20 +727,20 @@ const examResults = {
                 : result.theoryPossible;
 
             if (theoryPointsToUse > effectiveTheoryTotal) {
-                await Utils.showAlert('Invalid Theory Total',
+                await Utils.showAlert('Invalid Theory Score',
                     effectiveTheoryTotal === 0
-                        ? 'This exam has no theory questions, so enter a theory total (what the theory is marked out of) along with the score.'
-                        : 'The theory total cannot be less than the theory score you entered.');
+                        ? 'Set the expected Theory total at the top of the page (what theory is marked out of) before entering theory scores.'
+                        : `The theory score can't be more than the expected total of ${examResults._fmt(effectiveTheoryTotal)}.`);
                 return false;
             }
 
             const caPointsToUse = hasCaScore ? caScore : 0;
             const effectiveCaTotal = hasCaTotal ? caTotal : 0;
             if (caPointsToUse > effectiveCaTotal) {
-                await Utils.showAlert('Invalid CA Total',
+                await Utils.showAlert('Invalid CA Score',
                     effectiveCaTotal === 0
-                        ? 'Enter the CA total (what the CA is marked out of, e.g. 30) along with the CA score.'
-                        : 'The CA total cannot be less than the CA score you entered.');
+                        ? 'Set the expected CA total at the top of the page (what CA is marked out of, e.g. 30) before entering CA scores.'
+                        : `The CA score can't be more than the expected total of ${examResults._fmt(effectiveCaTotal)}.`);
                 return false;
             }
 
@@ -728,9 +804,7 @@ const examResults = {
     saveAllManualTheoryScores: async () => {
         const resultIds = Array.from(new Set([
             ...Object.keys(examResults.manualTheoryScores),
-            ...Object.keys(examResults.manualTheoryTotals),
-            ...Object.keys(examResults.caScores),
-            ...Object.keys(examResults.caTotals)
+            ...Object.keys(examResults.caScores)
         ]));
         if (resultIds.length === 0) {
             await Utils.showAlert('No Changes', 'No manual theory or CA scores have been entered.');
@@ -770,19 +844,19 @@ const examResults = {
             const passScore = examResults.currentExam ? (examResults.currentExam.passScore || 50) : 50;
             const isPassed = percentage >= passScore;
             const manualScore = examResults.manualTheoryScores[r.id];
-            const manualTotal = examResults.manualTheoryTotals[r.id];
+            const manualTotal = examResults.globalTheoryTotal;
             const caScore = examResults.caScores[r.id];
-            const caTotal = examResults.caTotals[r.id];
+            const caTotal = examResults.globalCaTotal;
 
             return [
                 r.studentName,
                 new Date(r.submittedAt).toLocaleDateString(),
                 r.objectivePoints.toFixed(1),
                 r.theoryPoints.toFixed(1),
-                manualScore !== undefined ? manualScore : '',
-                manualTotal !== undefined ? manualTotal : '',
-                caScore !== undefined ? caScore : '',
-                caTotal !== undefined ? caTotal : '',
+                manualScore !== undefined && manualScore !== null ? manualScore : '',
+                manualTotal !== undefined && manualTotal !== null ? manualTotal : '',
+                caScore !== undefined && caScore !== null ? caScore : '',
+                caTotal !== undefined && caTotal !== null ? caTotal : '',
                 effectivePoints.toFixed(1),
                 effectiveTotalPoints.toFixed(1),
                 percentage,

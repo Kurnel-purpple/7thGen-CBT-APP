@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Test Submitted</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../modules/admissions/css/admissions.css">
+</head>
+
+<body class="adm-candidate-body">
+    <main class="adm-candidate-shell">
+        <header class="adm-candidate-head">
+            <div class="adm-candidate-mark">Admission Test</div>
+        </header>
+
+        <!-- Confirmed on the server -->
+        <section class="adm-candidate-card" data-adm-done-view="done" style="display:none;">
+            <div class="adm-done-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="30" height="30">
+                    <path d="M20 6L9 17l-5-5"/>
+                </svg>
+            </div>
+            <h2 class="adm-candidate-step-title">Your responses have been recorded</h2>
+            <p class="adm-candidate-step-sub">
+                Thank you, <strong id="adm-done-name">candidate</strong>. Your answers reached the school
+                successfully.
+            </p>
+            <p class="adm-candidate-step-sub">
+                Results are not shown here &mdash; the school will contact you about the outcome of your
+                application. You may now close this page and return the device to the supervisor.
+            </p>
+            <button type="button" class="adm-btn-primary adm-block-btn" id="adm-exit-btn">Finish</button>
+        </section>
+
+        <!-- Queued locally, not yet on the server -->
+        <section class="adm-candidate-card" data-adm-done-view="pending" style="display:none;">
+            <div class="adm-done-mark pending">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="30" height="30">
+                    <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                </svg>
+            </div>
+            <h2 class="adm-candidate-step-title">Not sent yet &mdash; keep this page open</h2>
+            <p class="adm-candidate-step-sub">
+                Your answers are safely saved <strong>on this device</strong>, but they have not reached the school
+                yet. This usually means the connection dropped.
+            </p>
+            <div class="adm-notice warn">
+                <div>
+                    <strong>Do not close this page</strong>
+                    Reconnect to the internet and leave this page open. Your answers will send automatically. If you
+                    close it before then, tell the exam supervisor immediately.
+                </div>
+            </div>
+            <div id="adm-pending-status" class="adm-status" role="status"></div>
+            <button type="button" class="adm-btn-primary adm-block-btn" id="adm-retry-btn">Try sending now</button>
+        </section>
+
+        <!-- Initial state before the queue is inspected -->
+        <section class="adm-candidate-card" data-adm-done-view="checking">
+            <div class="adm-spinner" aria-hidden="true"></div>
+            <h2 class="adm-candidate-step-title">Confirming your submission&hellip;</h2>
+            <p class="adm-candidate-step-sub">Please wait &mdash; do not close this page.</p>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        import { loadScripts } from '../core/modules/pageBootstrap.js';
+        import '../modules/admissions/manifest.js';
+
+        await initConfig();
+
+        await loadScripts([
+            '../modules/cbt/js/idb.js',
+            '../js/utils.js',
+            '../js/dataService.js',
+            // cbtDataService overrides syncPendingResults with the hardened
+            // version (re-entrancy guard + dedup across both queue stores).
+            // Without it this page would fall back to the weaker core one.
+            '../modules/cbt/js/cbtDataService.js',
+            '../modules/admissions/js/admissionsDataService.js',
+            '../modules/admissions/js/admissionComplete.js'
+        ]);
+
+        window.admissionComplete?.init();
+    </script>
+</body>
+
+</html>

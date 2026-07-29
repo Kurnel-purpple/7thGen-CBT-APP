@@ -4,9 +4,10 @@ import questionBankManifest from '../../modules/question_bank/manifest.js';
 import reportCardsManifest from '../../modules/report_cards/manifest.js';
 import homeworkManifest from '../../modules/homework/manifest.js';
 import broadsheetManifest from '../../modules/broadsheet/manifest.js';
+import admissionsManifest from '../../modules/admissions/manifest.js';
 
 export function getBuiltinModuleManifests() {
-    return [cbtManifest, attendanceManifest, questionBankManifest, reportCardsManifest, homeworkManifest, broadsheetManifest];
+    return [cbtManifest, attendanceManifest, questionBankManifest, reportCardsManifest, homeworkManifest, broadsheetManifest, admissionsManifest];
 }
 
 export default {

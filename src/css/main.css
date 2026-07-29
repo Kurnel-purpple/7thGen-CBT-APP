@@ -1,7 +1,7 @@
 /* ============================================================
-   Google Fonts — DM Sans (headings) + Nunito (body)
+   Google Fonts — Inter (body and headings)
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Nunito:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ============================================================
    CSS VARIABLES — Light Theme (Google Drive inspired)
@@ -59,8 +59,8 @@
     --spacing-xl: 32px;
 
     /* Typography */
-    --font-family: 'Nunito', sans-serif;
-    --font-heading: 'DM Sans', sans-serif;
+    --font-family: 'Inter', sans-serif;
+    --font-heading: 'Inter', sans-serif;
     --font-size-base: 16px;
 
     /* Neumorphism legacy — mapped to flat shadows for backward compat */
@@ -1112,6 +1112,44 @@ body:has(.app-container.no-sidebar) {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================================
+   MOBILE BOTTOM-SHEET MODALS
+   Add .modal-sheet-mobile to any .modal and on phones its card
+   docks to the bottom edge and slides in from below — the app's
+   one canonical mobile modal presentation. Desktop is untouched.
+   The !importants are required: modal-content elements commonly
+   carry inline width/margin styles that would win otherwise.
+   ============================================================ */
+@keyframes modal-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .modal.modal-sheet-mobile .modal-content {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 18px 18px 0 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25);
+        animation: modal-sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        /* No !important: modals that set their own inline max-height keep it;
+           this only catches ones with none, so a sheet can't overflow the
+           screen upward. */
+        max-height: 92vh;
+        overflow-y: auto;
+    }
+}
+
 /* Responsive Text Visibility */
 .mobile-text {
     display: none;
@@ -1250,7 +1288,6 @@ body:has(.app-container.no-sidebar) {
 .question-summary-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-left: 4px solid var(--primary);
     border-radius: var(--radius-card);
     margin-bottom: var(--spacing-sm);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
@@ -1291,7 +1328,6 @@ body:has(.app-container.no-sidebar) {
 /* Options detail panel */
 .q-card-options {
     padding: 0 var(--spacing-lg) var(--spacing-md);
-    padding-left: calc(var(--spacing-lg) + 36px + var(--spacing-md));
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -1447,6 +1483,23 @@ body:has(.app-container.no-sidebar) {
 
 .question-summary-text {
     flex: 1;
+    min-width: 0;
+}
+
+/* Header top row: [number badge + type pill] on the left, [edit/delete] on
+   the right, spread across the card's full width. */
+.q-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.q-head-ident {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
 }
 
@@ -1725,12 +1778,7 @@ body:has(.app-container.no-sidebar) {
     margin: var(--spacing-lg) 0 var(--spacing-md);
     padding: var(--spacing-sm) var(--spacing-md);
     background: var(--inner-bg);
-    border-left: 4px solid var(--primary);
     border-radius: 4px;
-}
-
-.question-section-divider.theory {
-    border-left-color: var(--accent-color);
 }
 
 .question-section-divider h3 {
@@ -1983,23 +2031,18 @@ body:has(.app-container.no-sidebar) {
         font-size: 0.72rem;
     }
 
-    /* Move edit/delete to top-right of card */
-    .q-card-header .question-summary-actions {
-        position: absolute;
-        top: var(--spacing-sm);
-        right: var(--spacing-md);
-    }
+    /* Edit/delete live inline in the header top row now (q-head-row spreads
+       them right via space-between) — no absolute positioning needed. */
 
     /* Hide chevron on mobile — card still toggles on tap */
     .q-card-header .q-chevron {
         display: none;
     }
 
-    /* Summary text takes full width after badge */
+    /* Summary text spans the card's full width */
     .question-summary-text {
         flex: 1;
         min-width: 0;
-        padding-right: 80px; /* space for the action buttons */
     }
 
     /* Question preview text — show full, allow wrapping */
@@ -2019,8 +2062,11 @@ body:has(.app-container.no-sidebar) {
         font-size: 0.74rem;
     }
 
+    /* Options align flush with the header content above them — the card
+       header uses spacing-md horizontal padding on mobile, so the options
+       panel uses the same (the old badge-column indent is gone). */
     .q-card-options {
-        padding-left: calc(var(--spacing-md) + 28px + var(--spacing-sm));
+        padding-left: var(--spacing-md);
         padding-right: var(--spacing-md);
     }
 
@@ -2561,6 +2607,123 @@ body:has(.app-container.no-sidebar) {
     height: 22px;
 }
 
+/* ---- Contextual bottom nav ------------------------------------------------
+   A page whose bottom nav swaps items to match the actions available on the
+   current view marks its <nav> with .bottom-nav-dynamic. Items then share the
+   width evenly so an extra action slot still fits on a small phone, and an
+   action item can be tinted (primary) or reddened (destructive) in place of
+   the view item it replaced. */
+/* Contextual labels vary in length ("Auto Generate", "Seed Exam"), so the bar
+   grows a little rather than truncating them. */
+.bottom-nav-dynamic {
+    height: auto;
+    min-height: 56px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.bottom-nav-dynamic .bottom-nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 2px;
+    gap: 3px;
+}
+
+.bottom-nav-dynamic .bottom-nav-item > span:last-child {
+    max-width: 100%;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    /* Two lines maximum, then ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* The action that replaces the current view's item keeps that item's emphasis,
+   plus a tinted pill so it reads as the page's primary verb. */
+.bottom-nav-item.nav-action-primary {
+    color: var(--primary);
+    background: var(--primary-light, rgba(26, 115, 232, 0.12));
+    border-radius: 12px;
+}
+
+.bottom-nav-item.nav-action-danger {
+    color: var(--danger, #e74c3c);
+}
+
+.bottom-nav-item:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.bottom-nav-item:active {
+    transform: scale(0.97);
+}
+
+/* ---- Floating bottom nav (desktop too) ------------------------------------
+   The normal .bottom-nav is a mobile-only edge-to-edge bar. A page whose
+   actions are worth keeping within reach on a large screen adds
+   .bottom-nav-floating: the bar detaches from the edge and becomes a centred
+   pill that floats above the content, sized to its items instead of the
+   viewport. Mobile is untouched — there it stays the full-width bar, because
+   a floating pill on a phone just steals thumb room.
+
+   Being fixed, it overlaps the end of the page: give the scroll container
+   room with `padding-bottom` (see .has-floating-nav below). */
+@media (min-width: 769px) {
+    .bottom-nav-floating {
+        display: flex;
+        left: 50%;
+        right: auto;
+        bottom: 24px;
+        transform: translateX(-50%);
+        width: auto;
+        max-width: calc(100vw - 48px);
+        height: auto;
+        min-height: 0;
+        padding: 8px;
+        gap: 4px;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-pill, 50px);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+    }
+
+    [data-theme="dark"] .bottom-nav-floating {
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Items sit side by side as pills rather than sharing the width evenly */
+    .bottom-nav-floating .bottom-nav-item {
+        flex: 0 0 auto;
+        flex-direction: row;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: var(--radius-pill, 50px);
+        font-size: 0.85rem;
+        font-weight: 700;
+        white-space: nowrap;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .bottom-nav-floating .bottom-nav-item > span:last-child {
+        -webkit-line-clamp: none;
+        display: inline;
+        overflow: visible;
+    }
+
+    .bottom-nav-floating .bottom-nav-item:hover {
+        background: var(--primary-light, rgba(26, 115, 232, 0.1));
+        color: var(--primary);
+    }
+
+    /* Pages that mount a floating nav add this so it never covers the last row */
+    body.has-floating-nav .main-content {
+        padding-bottom: 96px;
+    }
+}
+
 .bottom-nav-badge {
     position: absolute;
     top: -6px;
@@ -2592,4 +2755,155 @@ body:has(.app-container.no-sidebar) {
     .main-content {
         padding-bottom: 72px;
     }
+}
+
+/* ============================================================
+   MOBILE ACTION BAR (Mobile only) — reusable convention
+   Contextual page/modal actions rendered as icon + sub-label,
+   styled to match the bottom nav. The primary verb is tinted;
+   secondary/destructive actions collapse into a "More" popup.
+   Desktop keeps its existing buttons (this bar stays hidden).
+   ============================================================ */
+.mobile-action-bar { display: none; }
+.mab-more-menu { display: none; }
+/* Higher-specificity hide so a bar can be toggled off (e.g. no selection)
+   without a JS inline style that would leak onto desktop. */
+.mobile-action-bar.mab-hidden { display: none; }
+
+@media (max-width: 768px) {
+    .mobile-action-bar {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        min-height: 60px;
+        background: var(--card-bg, #fff);
+        border-top: 1px solid var(--border-color, #e0e0e0);
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.07);
+        z-index: 95;
+        align-items: stretch;
+        justify-content: space-around;
+        gap: 4px;
+        padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* When the bar and the bottom nav coexist, the bar sits above the nav */
+    .bottom-nav ~ .mobile-action-bar,
+    .mobile-action-bar.above-nav {
+        bottom: 56px;
+    }
+
+    .mab-item {
+        flex: 1;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-width: 44px;
+        padding: 6px 4px;
+        background: none;
+        border: none;
+        border-radius: 12px;
+        color: var(--light-text, #5F6368);
+        font-family: inherit;
+        font-size: 0.66rem;
+        font-weight: 700;
+        line-height: 1.1;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .mab-item svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .mab-item:active {
+        transform: scale(0.95);
+    }
+
+    /* Primary verb — tinted pill so it reads as THE action */
+    .mab-item.mab-primary {
+        color: var(--primary-color, var(--primary, #1A73E8));
+        background: var(--primary-light, rgba(26, 115, 232, 0.12));
+    }
+
+    .mab-item.mab-danger {
+        color: var(--danger, #e74c3c);
+    }
+
+    .mab-item:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    /* Overflow ("More") popup — opens above the bar */
+    .mab-more-wrap {
+        position: relative;
+        flex: 1;
+        display: inline-flex;
+    }
+
+    .mab-more-menu.open {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: fixed;
+        right: 10px;
+        bottom: 70px;
+        min-width: 210px;
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--border-color, #e0e0e0);
+        border-radius: 14px;
+        padding: 8px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+        z-index: 96;
+    }
+
+    .mab-more-menu.open button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 11px 14px;
+        background: none;
+        border: none;
+        border-radius: 10px;
+        color: var(--text-color, #202124);
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .mab-more-menu.open button svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    .mab-more-menu.open button:active {
+        background: var(--primary-light, rgba(74, 144, 226, 0.12));
+    }
+
+    .mab-more-menu.open button.mab-danger {
+        color: var(--danger, #e74c3c);
+    }
+
+    /* Pages that mount an action bar add this to clear the fixed bar */
+    body.has-action-bar .main-content {
+        padding-bottom: 84px;
+    }
+}
+
+[data-theme="dark"] .mobile-action-bar {
+    background: var(--dm-surface, #1A1D27);
+}
+
+[data-theme="dark"] .mab-more-menu.open {
+    background: var(--dm-surface-2, #22263A);
+    border-color: var(--border, #2E3347);
 }

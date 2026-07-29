@@ -136,7 +136,7 @@
                     PASSED</div>
             </div>
 
-            <button class="btn btn-primary" onclick="window.location.href='student-dashboard.html'"
+            <button class="btn btn-primary" id="result-exit-btn" onclick="window.location.href = takeExam._exitUrl()"
                 style="width: 100%; padding: 14px; font-size: 1.1rem; border-radius: 8px; font-weight: 600;">Return to
                 Dashboard</button>
         </div>
@@ -171,6 +171,10 @@
             ],
             moduleScripts: [
                 '../modules/cbt/js/cbtDataService.js',
+                // Admission candidates sit their entrance exam through this same
+                // engine; this supplies the endpoint that serves their paper
+                // (they have no read access to the exams collection).
+                '../modules/admissions/js/admissionsDataService.js',
                 '../modules/cbt/js/timer.js',
                 '../modules/cbt/js/takeExam.js'
             ],

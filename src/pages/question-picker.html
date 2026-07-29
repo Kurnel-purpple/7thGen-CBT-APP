@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>Add from Question Bank</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        /* main.css pins body to 100vh with overflow:hidden, because the app
+           shell scrolls its own inner panes. This page has no shell — the
+           document itself is what scrolls — so that has to be undone. */
+        html, body {
+            height: auto;
+            min-height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .qp-shell {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 20px 40px;
+        }
+
+        /* ---- Header ---- */
+        .qp-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .qp-header h1 {
+            margin: 0 0 5px;
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .qp-header p {
+            margin: 0;
+            font-size: 0.86rem;
+            color: var(--light-text);
+            line-height: 1.5;
+        }
+        .qp-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font: inherit;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 9px 16px;
+            border-radius: 50px;
+            border: 1.5px solid var(--border-color);
+            background: transparent;
+            color: var(--text-color);
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .qp-back:hover { border-color: var(--primary-color); color: var(--primary-color); }
+
+        .qp-context-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            align-items: center;
+            padding: 11px 16px;
+            border-radius: 12px;
+            background: var(--primary-light, #E8F0FE);
+            color: var(--primary-dark, #1557B0);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 18px;
+        }
+        .qp-context-bar span:last-child { font-weight: 600; opacity: 0.85; }
+
+        /* ---- Panels ---- */
+        .qp-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+        .qp-panel-title {
+            margin: 0 0 12px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 800;
+            color: var(--light-text);
+        }
+
+        /* ---- Random auto-select ---- */
+        .qp-random-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .qp-random-avail {
+            font-size: 0.8rem;
+            color: var(--light-text);
+            font-weight: 600;
+        }
+        .qp-random-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font: inherit;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: none;
+            background: var(--primary-color);
+            color: #fff;
+            cursor: pointer;
+        }
+        .qp-random-btn:active { transform: scale(0.97); }
+        .qp-random-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .qp-random-hint {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary-dark, #1557B0);
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: opacity 0.2s ease, max-height 0.2s ease;
+        }
+        .qp-random-hint.is-visible { opacity: 1; max-height: 60px; }
+
+        /* ---- Number wheel ---- */
+        .qp-wheel-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 90;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qp-wheel-overlay[hidden] { display: none; }
+        .qp-wheel-card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 22px 24px 18px;
+            width: 92%;
+            max-width: 320px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        .qp-wheel-card h3 {
+            margin: 0 0 3px;
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .qp-wheel-avail {
+            margin: 0 0 14px;
+            font-size: 0.78rem;
+            color: var(--light-text);
+        }
+
+        /* The scroll wheel: a snapping column with a highlight band fixed
+           across the middle, so whatever sits under the band is the value. */
+        .qp-wheel-viewport {
+            position: relative;
+            height: 180px;
+            margin-bottom: 16px;
+        }
+        .qp-wheel-band {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 70px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--primary-light, #E8F0FE);
+            pointer-events: none;
+        }
+        .qp-wheel-track {
+            position: relative;
+            height: 100%;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .qp-wheel-track::-webkit-scrollbar { display: none; }
+        .qp-wheel-track:focus-visible { outline: 2px solid var(--primary-color); border-radius: 10px; }
+
+        /* Half the viewport minus half a row, so the first and last numbers
+           can still come to rest under the band. */
+        .qp-wheel-pad { height: 70px; }
+
+        .qp-wheel-num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 40px;
+            scroll-snap-align: center;
+            font: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--light-text);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: color 0.15s ease, transform 0.15s ease;
+        }
+        .qp-wheel-num.is-active {
+            color: var(--primary-dark, #1557B0);
+            font-size: 1.3rem;
+            transform: scale(1.05);
+        }
+
+        .qp-wheel-actions { display: flex; gap: 10px; }
+        .qp-wheel-actions button {
+            flex: 1;
+            font: inherit;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 11px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            min-height: 44px;
+            border: none;
+        }
+        .qp-wheel-cancel {
+            background: transparent;
+            border: 1.5px solid var(--border-color) !important;
+            color: var(--text-color);
+        }
+        .qp-wheel-confirm { background: var(--primary-color); color: #fff; }
+        .qp-wheel-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* ---- Filters ----
+           Underlined text controls, not boxed inputs: each reads as an inline
+           value you can change rather than a form field to fill in. */
+        .qp-filters {
+            display: flex;
+            gap: 8px 22px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .qp-filters input[type="search"],
+        .qp-filters select {
+            font: inherit;
+            font-size: 0.86rem;
+            font-weight: 600;
+            padding: 7px 2px;
+            border: none;
+            border-bottom: 1.5px solid var(--border-color);
+            border-radius: 0;
+            background: transparent;
+            color: var(--text-color);
+            transition: border-color 0.15s ease, color 0.15s ease;
+        }
+        .qp-filters input[type="search"] {
+            flex: 1 1 200px;
+            min-width: 160px;
+            /* Magnifier sits on the right, mirroring the selects' chevron.
+               Same fixed grey — a data-URI background cannot inherit
+               currentColor, and this reads on both themes. */
+            padding-right: 24px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239AA0AC' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16' y2='16'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 2px center;
+            background-size: 15px 15px;
+        }
+        /* WebKit's own clear button would land on top of that icon */
+        .qp-filters input[type="search"]::-webkit-search-cancel-button,
+        .qp-filters input[type="search"]::-webkit-search-decoration {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Nothing chosen yet reads quieter than a real value — for the search
+           placeholder and for any select still on its "All …" option. */
+        .qp-filters input[type="search"]::placeholder {
+            color: var(--light-text);
+            font-weight: 500;
+            opacity: 0.65;
+        }
+        .qp-filters select.is-placeholder {
+            color: var(--light-text);
+            font-weight: 500;
+            opacity: 0.75;
+        }
+        .qp-filters select.is-placeholder:focus {
+            color: var(--primary-dark, #1557B0);
+            opacity: 1;
+        }
+
+        /* Native select chrome would fight the underline, so it is replaced
+           with a chevron. Neutral grey reads correctly in both themes, which
+           a currentColor SVG cannot do from a data URI. */
+        .qp-filters select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239AA0AC' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 2px center;
+            background-size: 13px 13px;
+            cursor: pointer;
+        }
+        /* The dropdown list itself still needs a solid backdrop */
+        .qp-filters select option {
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        .qp-filters input:hover,
+        .qp-filters select:hover { border-bottom-color: var(--light-text); }
+        .qp-filters input:focus,
+        .qp-filters select:focus {
+            outline: none;
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-dark, #1557B0);
+        }
+        .qp-filters select:focus-visible { outline: none; }
+        .qp-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 9px 4px;
+        }
+        .qp-toggle input { width: 17px; height: 17px; cursor: pointer; }
+
+        /* ---- Bulk row ---- */
+        .qp-bulk {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .qp-bulk button {
+            font: inherit;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 6px 13px;
+            border-radius: 50px;
+            border: 1.5px solid var(--border-color);
+            background: transparent;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+        .qp-bulk button:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        .qp-bulk .qp-shown { margin-left: auto; font-size: 0.78rem; color: var(--light-text); }
+
+        /* ---- List ---- */
+        .qp-list { display: flex; flex-direction: column; }
+        .qp-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 13px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            min-height: 44px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .qp-row:last-child { border-bottom: none; }
+        .qp-row:hover { background: var(--inner-bg, #f4f6f8); }
+        .qp-row.is-in-exam { opacity: 0.55; }
+        .qp-row input[type="checkbox"] {
+            margin-top: 2px;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .qp-row-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+        .qp-text { font-size: 0.88rem; line-height: 1.45; word-break: break-word; color: var(--text-color); }
+        .qp-meta {
+            font-size: 0.72rem;
+            color: var(--light-text);
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .qp-chip {
+            display: inline-block;
+            padding: 1px 9px;
+            border-radius: 50px;
+            background: var(--inner-bg, #f4f6f8);
+            font-weight: 700;
+        }
+        .qp-chip.is-warn { background: rgba(249, 171, 0, 0.18); color: #9a6a00; }
+        .qp-empty { padding: 44px 12px; text-align: center; color: var(--light-text); }
+        .qp-empty p { margin: 0 0 6px; font-size: 0.92rem; }
+        .qp-empty-hint { font-size: 0.82rem !important; opacity: 0.8; }
+
+        /* ---- Desktop footer ---- */
+        .qp-footer {
+            position: sticky;
+            bottom: 0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+        }
+        .qp-footer .qp-summary { margin-right: auto; font-size: 0.85rem; color: var(--light-text); font-weight: 600; }
+        .qp-footer button {
+            font: inherit;
+            font-size: 0.87rem;
+            font-weight: 700;
+            padding: 11px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            border: none;
+        }
+        .qp-footer .qp-cancel {
+            background: transparent;
+            border: 1.5px solid var(--border-color);
+            color: var(--text-color);
+        }
+        .qp-footer .qp-add { background: var(--primary-color); color: #fff; }
+        .qp-footer .qp-add:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* ---- Mobile: every action moves into the bottom bar ---- */
+        .qp-mab { display: none; }
+
+        @media (max-width: 768px) {
+            .qp-shell { padding: 16px 14px 88px; }
+            .qp-header { flex-direction: column; gap: 12px; }
+            .qp-header h1 { font-size: 1.2rem; }
+            .qp-back { display: none; }
+            /* Stacked, still underlined, with a 44px tap target each */
+            .qp-filters { gap: 0; }
+            .qp-filters input[type="search"],
+            .qp-filters select {
+                flex: 1 1 100%;
+                min-height: 44px;
+                background-position: right 2px center;
+            }
+            .qp-random-btn { flex: 1; justify-content: center; min-height: 48px; }
+            .qp-footer { display: none; }
+
+            .qp-mab {
+                display: flex;
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 60;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+                background: var(--card-bg);
+                border-top: 1px solid var(--border-color);
+                box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+            }
+            .qp-mab button {
+                flex: 1;
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+                min-width: 44px;
+                min-height: 52px;
+                padding: 6px 4px;
+                background: none;
+                border: none;
+                border-radius: 12px;
+                color: var(--light-text);
+                font-family: inherit;
+                font-size: 0.66rem;
+                font-weight: 700;
+                line-height: 1.1;
+                cursor: pointer;
+            }
+            .qp-mab button svg { width: 22px; height: 22px; }
+            .qp-mab button:active { transform: scale(0.95); }
+            .qp-mab button:disabled { opacity: 0.45; }
+            .qp-mab .qp-mab-primary {
+                color: var(--primary-color);
+                background: var(--primary-light, rgba(26, 115, 232, 0.12));
+            }
+            .qp-mab .qp-mab-danger { color: var(--danger, #e74c3c); }
+            .qp-mab-badge {
+                position: absolute;
+                transform: translate(16px, -14px);
+                background: var(--primary-color);
+                color: #fff;
+                border-radius: 50px;
+                font-size: 0.6rem;
+                font-weight: 800;
+                padding: 1px 6px;
+                min-width: 16px;
+            }
+            .qp-mab-badge:empty { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="qp-shell">
+        <header class="qp-header">
+            <h1>Add from Question Bank</h1>
+            <button type="button" class="qp-back" id="qp-back-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Back to exam
+            </button>
+        </header>
+
+        <div class="qp-context-bar">
+            <span id="qp-context">Adding to the exam you are building</span>
+            <span id="qp-existing-count"></span>
+        </div>
+
+        <!-- Filters: narrow the pool first, then the random pick draws from it -->
+        <section class="qp-panel">
+            <h2 class="qp-panel-title">Filter</h2>
+            <div class="qp-filters">
+                <input type="search" id="qp-search" placeholder="Search question text…" aria-label="Search questions">
+                <select id="qp-filter-subject" aria-label="Subject"></select>
+                <select id="qp-filter-term" aria-label="Term"></select>
+                <select id="qp-filter-class" aria-label="Class"></select>
+                <select id="qp-filter-type" aria-label="Question type"></select>
+                <label class="qp-toggle">
+                    <input type="checkbox" id="qp-hide-used">
+                    Hide ones already in this exam
+                </label>
+            </div>
+        </section>
+
+        <!-- Random auto-select, drawing from whatever the filters above show -->
+        <section class="qp-panel" id="qp-random-panel">
+            <h2 class="qp-panel-title">Random auto-select</h2>
+            <div class="qp-random-row">
+                <button type="button" class="qp-random-btn" id="qp-random-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+                    Select at random
+                </button>
+                <span class="qp-random-avail" id="qp-random-avail"></span>
+            </div>
+            <div class="qp-random-hint" id="qp-random-hint"></div>
+        </section>
+
+        <!-- Question list -->
+        <section class="qp-panel">
+            <div class="qp-bulk">
+                <button type="button" id="qp-select-all">Select all shown</button>
+                <button type="button" id="qp-clear">Clear selection</button>
+                <span class="qp-shown" id="qp-shown"></span>
+            </div>
+            <div class="qp-list" id="qp-list"></div>
+        </section>
+
+        <div class="qp-footer">
+            <span class="qp-summary" id="qp-summary">Nothing selected</span>
+            <button type="button" class="qp-cancel" id="qp-cancel-btn">Cancel</button>
+            <button type="button" class="qp-add" id="qp-add-btn" disabled>Add to exam</button>
+        </div>
+    </div>
+
+    <!-- Number wheel — opened by "Select at random" -->
+    <div class="qp-wheel-overlay" id="qp-wheel" hidden>
+        <div class="qp-wheel-card" role="dialog" aria-modal="true" aria-labelledby="qp-wheel-title">
+            <h3 id="qp-wheel-title">How many questions?</h3>
+            <p class="qp-wheel-avail" id="qp-wheel-avail"></p>
+
+            <div class="qp-wheel-viewport">
+                <div class="qp-wheel-band" aria-hidden="true"></div>
+                <div class="qp-wheel-track" id="qp-wheel-track" role="listbox"
+                     aria-label="Number of questions" tabindex="0"></div>
+            </div>
+
+            <div class="qp-wheel-actions">
+                <button type="button" class="qp-wheel-cancel" id="qp-wheel-cancel">Cancel</button>
+                <button type="button" class="qp-wheel-confirm" id="qp-wheel-confirm">
+                    Select <span id="qp-wheel-value">0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile: every action lives here -->
+    <nav class="qp-mab" aria-label="Question picker actions">
+        <button type="button" id="qp-mab-cancel" class="qp-mab-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button type="button" id="qp-mab-random">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+            <span>Random</span>
+        </button>
+        <button type="button" id="qp-mab-add" class="qp-mab-primary" disabled>
+            <span class="qp-mab-badge" id="qp-mab-count"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span>Add to exam</span>
+        </button>
+    </nav>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        try {
+            const ok = await bootstrapModulePage({
+                moduleId: 'question_bank',
+                moduleName: 'Question Bank',
+                title: 'Question Bank module is not enabled',
+                message: 'The question bank feature is not available for this school configuration.',
+                currentModuleId: 'question_bank',
+                renderNav: false,
+                globalScripts: [
+                    '../core/shared/academicEntities.js',
+                    '../js/utils.js',
+                    '../js/dataService.js',
+                    '../js/auth.js'
+                ],
+                moduleScripts: [
+                    '../modules/cbt/js/idb.js',
+                    '../modules/cbt/js/examSnapshot.js',
+                    // Flags questions the exam already holds, including reworded copies
+                    '../modules/question_bank/js/questionSimilarity.js',
+                    '../modules/question_bank/js/questionBankDataService.js',
+                    '../modules/question_bank/js/questionPicker.js'
+                ]
+            });
+
+            if (ok && window.questionPicker?.init) {
+                window.questionPicker.init();
+            }
+        } catch (err) {
+            console.error('[QuestionPicker] Failed to bootstrap page:', err);
+        }
+    </script>
+</body>
+
+</html>

@@ -58,11 +58,25 @@ class DataService {
         this._serverTimeOffsetMs = null;
         const savedOffset = localStorage.getItem('server_time_offset_ms');
         const savedOffsetAt = localStorage.getItem('server_time_offset_synced_at');
+        const savedOffsetSource = localStorage.getItem('server_time_offset_source');
         if (savedOffset !== null) {
-            this._serverTimeOffsetMs = parseInt(savedOffset, 10);
-            const age = Date.now() - parseInt(savedOffsetAt || '0', 10);
-            if (age > 24 * 60 * 60 * 1000) {
-                console.warn('[TimeSync] Persisted offset is >24h old, will re-sync ASAP');
+            const parsed = parseInt(savedOffset, 10);
+            // Devices that synced before the record-timestamp bug was fixed are
+            // still carrying its output: an offset equal to the age of the
+            // newest record (hours in the past), which hides every scheduled
+            // exam. Those were only ever written unsourced and negative, so
+            // drop them and re-sync rather than keep grading against them.
+            const poisoned = Number.isFinite(parsed) && parsed < 0 && !savedOffsetSource;
+            if (poisoned) {
+                console.warn('[TimeSync] Discarding a legacy negative offset of unknown origin; re-syncing');
+                localStorage.removeItem('server_time_offset_ms');
+                localStorage.removeItem('server_time_offset_synced_at');
+            } else {
+                this._serverTimeOffsetMs = parsed;
+                const age = Date.now() - parseInt(savedOffsetAt || '0', 10);
+                if (age > 24 * 60 * 60 * 1000) {
+                    console.warn('[TimeSync] Persisted offset is >24h old, will re-sync ASAP');
+                }
             }
         }
     }
@@ -131,20 +145,39 @@ class DataService {
 
     /**
      * Sync server time. Tries (in order):
-     *   1. Date HTTP header from /api/health
-     *   2. PocketBase record timestamp fallback (dashboard_versions or exams)
+     *   1. /api/cbt/time — server clock in the response BODY
+     *   2. Date HTTP header from /api/health
+     *   3. PocketBase record timestamp — only ever corrects a slow clock
      * Non-blocking — safe to call and not await if you want fire-and-forget.
      */
     async syncServerTime() {
         const _p = _perf.start('syncServerTime');
         try {
-            // Strategy 1: Date header from /api/health
+            // Strategy 1: the time endpoint. Preferred because it works
+            // cross-origin — `Date` is not a CORS-safelisted response header,
+            // so on the deployed site (Netlify frontend, Fly API) the header
+            // strategy below always comes back empty.
+            try {
+                const timeResp = await fetch(this.pb.baseUrl + '/api/cbt/time', { method: 'GET', cache: 'no-store' });
+                if (timeResp.ok) {
+                    const body = await timeResp.json();
+                    const serverMs = Number(body && body.now);
+                    if (Number.isFinite(serverMs) && serverMs > 0) {
+                        this._applyServerOffset(serverMs, 'time-endpoint');
+                        _perf.end(_p, { source: 'time-endpoint' });
+                        console.log(`[TimeSync] Server time synced from /api/cbt/time (offset: ${this._formatOffset()})`);
+                        return true;
+                    }
+                }
+            } catch (_) { /* endpoint not deployed yet — fall through */ }
+
+            // Strategy 2: Date header from /api/health (same-origin / Electron)
             const resp = await fetch(this.pb.baseUrl + '/api/health', { method: 'GET', cache: 'no-store' });
             const dateHeader = resp.headers.get('Date');
             if (dateHeader) {
                 const serverMs = new Date(dateHeader).getTime();
                 if (!isNaN(serverMs)) {
-                    this._applyServerOffset(serverMs);
+                    this._applyServerOffset(serverMs, 'date-header');
                     _perf.end(_p, { source: 'header' });
                     console.log(`[TimeSync] Server time synced from Date header (offset: ${this._formatOffset()})`);
                     return true;
@@ -189,8 +222,39 @@ class DataService {
     }
 
     /**
-     * Fallback: derive server time from a PocketBase record's `updated` timestamp.
-     * Uses lightweight queries against collections the user can already read.
+     * A record's `updated` is a LOWER BOUND on server time, never a reading of
+     * it: it proves the server clock had reached that value at some point, and
+     * says nothing about how long ago. So it may only correct a device clock
+     * that is running BEHIND the floor — never drag time backwards.
+     *
+     * Treating it as "now" is what broke the dashboard: whenever the Date
+     * header was missing, the offset became the *age of the newest record*
+     * (e.g. -12.8h), which pushed every scheduled exam into the future so
+     * resolveExamAvailability hid them all. The offset persists to
+     * localStorage, so the dashboard stayed empty until a later sync
+     * overwrote it — which is why re-logging in appeared to be the cure.
+     *
+     * @returns {boolean} true only when the floor actually moved time forward
+     */
+    _applyServerFloor(serverMs, source) {
+        if (!Number.isFinite(serverMs)) return false;
+        const localNow = Date.now();
+        if (serverMs <= localNow) {
+            // The device clock is already at or past this record — nothing
+            // learned. Leaving the offset alone is the correct outcome.
+            console.log(`[TimeSync] ${source} timestamp is behind the device clock — no offset change`);
+            return false;
+        }
+        this._applyServerOffset(serverMs, 'record-floor');
+        console.log(`[TimeSync] Device clock was behind ${source}; corrected forward (offset: ${this._formatOffset()})`);
+        return true;
+    }
+
+    /**
+     * Fallback: bound server time using a PocketBase record's `updated`
+     * timestamp. Uses lightweight queries against collections the user can
+     * already read. Only ever corrects a clock running slow — see
+     * _applyServerFloor for why it cannot do more than that.
      */
     async _syncFromRecordTimestamp() {
         try {
@@ -202,9 +266,7 @@ class DataService {
                 const ts = record.items[0].updated;
                 if (ts) {
                     const serverMs = new Date(ts).getTime();
-                    if (!isNaN(serverMs)) {
-                        this._applyServerOffset(serverMs);
-                        console.log(`[TimeSync] Server time synced from PocketBase record timestamp (offset: ${this._formatOffset()})`);
+                    if (!isNaN(serverMs) && this._applyServerFloor(serverMs, 'dashboard_versions')) {
                         return true;
                     }
                 }
@@ -220,9 +282,7 @@ class DataService {
                 const ts = record.items[0].updated;
                 if (ts) {
                     const serverMs = new Date(ts).getTime();
-                    if (!isNaN(serverMs)) {
-                        this._applyServerOffset(serverMs);
-                        console.log(`[TimeSync] Server time synced from exams record timestamp (offset: ${this._formatOffset()})`);
+                    if (!isNaN(serverMs) && this._applyServerFloor(serverMs, 'exams')) {
                         return true;
                     }
                 }
@@ -232,11 +292,16 @@ class DataService {
         return false;
     }
 
-    /** Store computed offset to memory + localStorage */
-    _applyServerOffset(serverMs) {
+    /**
+     * Store computed offset to memory + localStorage. The source is recorded
+     * so a later load can tell a real reading from the legacy record-timestamp
+     * guess — see the constructor.
+     */
+    _applyServerOffset(serverMs, source) {
         this._serverTimeOffsetMs = serverMs - Date.now();
         localStorage.setItem('server_time_offset_ms', String(this._serverTimeOffsetMs));
         localStorage.setItem('server_time_offset_synced_at', String(Date.now()));
+        localStorage.setItem('server_time_offset_source', source || 'sync');
     }
 
     /** Format offset for logging */
@@ -442,7 +507,7 @@ class DataService {
 
         } catch (err) {
             // Offline Fallback
-            if (!navigator.onLine || err.message === 'Failed to fetch') {
+            if (this.isNetworkError(err)) {
                 const cachedUser = this.getCurrentUser();
                 if (cachedUser && cachedUser.email === email) {
                     console.warn('Network error, logging in with cached credentials.');
@@ -475,13 +540,27 @@ class DataService {
 
     // Background profile sync — runs after login redirect, doesn't block sign-in
     async _syncProfileInBackground(record, userObj) {
-        try {
-            let profile = null;
-            try {
-                profile = await this.pb.collection('profiles').getFirstListItem(`user="${record.id}"`);
+        // Admission candidates ("applicant") deliberately have NO profiles row.
+        // profiles is the student roster — every roster query in the app
+        // (broadsheet, attendance, report cards, the user manager) reads it, so
+        // keeping candidates out of it contains them everywhere for free.
+        // Without this guard the block below would happily create one.
+        if ((record.role || userObj.role) === 'applicant') {
+            return;
+        }
 
+        try {
+            // Tolerant lookup: user relation, canonical id==user id, cached id.
+            // The old `user="<id>"` filter alone missed profiles with a blank
+            // user field and then CREATED a duplicate profile carrying the
+            // stale users-record class — the "profile spam" bug.
+            let profile = await this._findProfileForUser(record.id, userObj.profileId);
+            if (profile) {
                 // Sync missing fields from user record to profile
                 const syncFields = {};
+                if (!profile.user) {
+                    syncFields.user = record.id; // repair blank relation so future lookups hit
+                }
                 if (!profile.school_version && record.school_version) {
                     syncFields.school_version = record.school_version;
                 }
@@ -496,8 +575,8 @@ class DataService {
                         console.warn('Failed to sync fields to profile:', syncErr.message);
                     }
                 }
-            } catch (profileErr) {
-                // Profile doesn't exist — create it
+            } else {
+                // Profile genuinely doesn't exist — create it
                 const profileData = {
                     user: record.id,
                     role: record.role || 'student',
@@ -522,7 +601,7 @@ class DataService {
                 userObj.profileId = profile.id;
                 userObj.role = profile.role || userObj.role;
                 userObj.name = profile.full_name || userObj.name;
-                userObj.classLevel = profile.class_level || userObj.classLevel;
+                userObj.classLevel = profile.class_level ? this._canonicalClass(profile.class_level) : userObj.classLevel;
                 userObj.schoolVersion = profile.school_version || userObj.schoolVersion;
                 localStorage.setItem('cbt_user_meta', JSON.stringify(userObj));
             }
@@ -534,6 +613,146 @@ class DataService {
     getCurrentUser() {
         const cached = localStorage.getItem('cbt_user_meta');
         return cached ? JSON.parse(cached) : null;
+    }
+
+    /**
+     * Map a class spelling to the canonical dropdown value that exams store
+     * (e.g. "JSS 1" / "jss1" -> "JSS1"), so class matching never breaks on
+     * spacing/case. Falls back to the trimmed input if it's not a known class.
+     */
+    _canonicalClass(v) {
+        const raw = String(v == null ? '' : v).trim();
+        if (!raw) return raw;
+        const norm = (s) => String(s).replace(/\s+/g, '').toUpperCase();
+        const key = norm(raw);
+        let values = [];
+        try {
+            if (typeof window !== 'undefined' && window.academicEntities && window.academicEntities.getAllClasses) {
+                values = window.academicEntities.getAllClasses().map((c) => c.value);
+            }
+        } catch (_) { /* ignore */ }
+        if (!values.length) values = ['Grade 4', 'Grade 5&6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+        values = values.concat(['Graduated']);
+        const match = values.find((val) => norm(val) === key);
+        return match || raw;
+    }
+
+    /**
+     * Find the signed-in user's profile row, tolerating the data shapes that
+     * exist in production:
+     *   1. profile.user relation set  -> filter user="<id>"
+     *   2. canonical row, blank user  -> profile id == user id (getOne)
+     *   3. neither                    -> last-known profileId from the cache
+     * Many older profiles have a BLANK user field (the cleanup scripts all used
+     * `p.user || p.id` for this reason), so the filter lookup alone misses them
+     * — which left promoted students stuck on their old class.
+     */
+    async _findProfileForUser(userId, fallbackProfileId) {
+        try {
+            return await this.pb.collection('profiles').getFirstListItem(`user="${userId}"`);
+        } catch (_) { /* fall through */ }
+        try {
+            return await this.pb.collection('profiles').getOne(userId);
+        } catch (_) { /* fall through */ }
+        if (fallbackProfileId && fallbackProfileId !== userId) {
+            try {
+                return await this.pb.collection('profiles').getOne(fallbackProfileId);
+            } catch (_) { /* fall through */ }
+        }
+        return null;
+    }
+
+    /**
+     * Re-fetch the signed-in user's authoritative profile (class + school) and
+     * update the cached user meta. Returns the refreshed user (or the cached
+     * one when offline / on failure). This is what lets a just-promoted student
+     * immediately see their NEW class's exams instead of the old class's — the
+     * admin only writes profiles.class_level, so the local cache is stale until
+     * we pull it here, before the dashboard filters exams by class. The class is
+     * canonicalized so a non-canonical profile spelling ("JSS 1") never stops
+     * exams (stored as "JSS1") from matching.
+     */
+    async refreshCurrentUser() {
+        const cached = this.getCurrentUser();
+        if (!cached || !navigator.onLine) return cached;
+        try {
+            const userId = (cached._pb_user && cached._pb_user.id) || cached.id;
+            if (!userId) return cached;
+            const profile = await this._findProfileForUser(userId, cached.profileId);
+            if (profile) {
+                let changed = false;
+                if (profile.class_level) {
+                    const canonClass = this._canonicalClass(profile.class_level);
+                    if (canonClass && canonClass !== cached.classLevel) { cached.classLevel = canonClass; changed = true; }
+                }
+                if (profile.school_version && profile.school_version !== cached.schoolVersion) { cached.schoolVersion = profile.school_version; changed = true; }
+                if (profile.id && profile.id !== cached.profileId) { cached.profileId = profile.id; changed = true; }
+                if (changed) localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
+
+                // CRITICAL: the server's exam rules filter by the AUTH (users)
+                // record's class_level — which promotions CANNOT write (admins
+                // may only update profiles). Students may self-update, so mirror
+                // the profile class onto the users record here; otherwise the
+                // server keeps hiding the new class's exams from a promoted
+                // student no matter what the client asks for.
+                if (profile.class_level) {
+                    const targetCls = this._canonicalClass(profile.class_level);
+                    const authRec = this.pb.authStore && this.pb.authStore.model;
+                    if (targetCls && authRec && authRec.class_level !== targetCls) {
+                        try {
+                            await this.pb.collection('users').update(userId, { class_level: targetCls });
+                            authRec.class_level = targetCls;
+                        } catch (_) { /* rules may block — server-side sync covers it */ }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('refreshCurrentUser failed:', e && e.message);
+        }
+        return cached;
+    }
+
+    // Detects "the request never completed" failures, as distinct from genuine
+    // HTTP errors (400/403/404) which must NOT be retried or queued offline.
+    //
+    // The PocketBase SDK (0.21.x) does not surface raw fetch errors. It wraps them in
+    // a ClientResponseError with a generic message:
+    //   network failure -> status 0, originalError = TypeError, message =
+    //                      "Something went wrong while processing your request."
+    //   autocancelled   -> isAbort = true, message = "The request was autocancelled..."
+    //
+    // Checking `err.message.includes('Failed to fetch')` therefore never matched a real
+    // PocketBase failure — which is why slow connections behaved inconsistently.
+    isNetworkError(err) {
+        if (!navigator.onLine) return true;
+        if (!err) return false;
+
+        // Auto-cancelled: superseded before completing, so the outcome is unknown.
+        if (err.isAbort === true) return true;
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') return true;
+
+        // status 0 means no HTTP response arrived (DNS, TLS, timeout, reset).
+        if (err.status === 0) return true;
+
+        // Gateway / overload responses are transient.
+        if (err.status === 502 || err.status === 503 || err.status === 504) return true;
+
+        // Last resort: unwrap and string-match the browser variants —
+        // Chrome "Failed to fetch", Firefox "NetworkError", Safari "Load failed".
+        const messages = [
+            err.message,
+            err.originalError && err.originalError.message,
+            err.originalError && err.originalError.cause && err.originalError.cause.message
+        ].filter(m => typeof m === 'string');
+
+        return messages.some(m =>
+            m.includes('Failed to fetch') ||
+            m.includes('NetworkError') ||
+            m.includes('Load failed') ||
+            m.includes('network timeout') ||
+            m.includes('ECONNREFUSED') ||
+            m.includes('ERR_INTERNET_DISCONNECTED')
+        );
     }
 
     getSchoolContext() {
@@ -599,6 +818,135 @@ class DataService {
         return result;
     }
 
+    // ================================================================
+    // APP SETTINGS (per-school key/value store — app_settings collection)
+    // First consumer: the term calendar (key "term_calendar") that drives
+    // Utils.getCurrentTerm. All methods fail soft: when the collection does
+    // not exist yet (migration not deployed) or the network is down, the
+    // client keeps using the month-based fallback rule.
+    // ================================================================
+
+    _appSettingsFilter(key) {
+        const school = this.getSchoolContext();
+        const sv = school.schoolVersion || '';
+        return {
+            filter: this.pb.filter('key = {:key} && school_version = {:sv}', { key, sv }),
+            schoolVersion: sv
+        };
+    }
+
+    /**
+     * Returns the stored value, which may be null when the record exists but
+     * was explicitly cleared. Returns undefined when the record (or the whole
+     * collection) doesn't exist or the request failed — callers use the
+     * distinction to keep local caches on failure but drop them on clear.
+     */
+    async getAppSetting(key) {
+        try {
+            const { filter } = this._appSettingsFilter(key);
+            const record = await this.pb.collection('app_settings').getFirstListItem(filter);
+            return record?.value ?? null;
+        } catch (error) {
+            if (error?.status !== 404) {
+                console.warn(`getAppSetting(${key}) failed:`, error?.message || error);
+            }
+            return undefined;
+        }
+    }
+
+    async saveAppSetting(key, value) {
+        const { filter, schoolVersion } = this._appSettingsFilter(key);
+        try {
+            const existing = await this.pb.collection('app_settings').getFirstListItem(filter);
+            return await this.pb.collection('app_settings').update(existing.id, { value });
+        } catch (error) {
+            if (error?.status === 404) {
+                return await this.pb.collection('app_settings').create({
+                    key,
+                    value,
+                    school_version: schoolVersion
+                });
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Load the admin-configured term calendar and install it into
+     * Utils.setTermCalendar. Serves a localStorage copy first (no flash of
+     * wrong term on slow networks), then refreshes from the server.
+     */
+    async loadTermCalendar() {
+        const CACHE_KEY = 'cbt_term_calendar';
+        try {
+            const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+            if (cached && window.Utils?.setTermCalendar) Utils.setTermCalendar(cached);
+        } catch (_) { /* corrupt cache — ignore */ }
+
+        const value = await this.getAppSetting('term_calendar');
+        if (value && window.Utils?.setTermCalendar) {
+            Utils.setTermCalendar(value);
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify(value)); } catch (_) { /* quota */ }
+        } else if (value === null) {
+            // Record exists but was explicitly cleared by an admin — revert
+            // to the month-based rule and drop the local cache.
+            if (window.Utils?.setTermCalendar) Utils.setTermCalendar(null);
+            try { localStorage.removeItem(CACHE_KEY); } catch (_) { /* ignore */ }
+        }
+        // value === undefined → offline / collection not deployed: keep
+        // whatever the cache installed rather than clearing a valid calendar.
+        return window.Utils?.termCalendar || null;
+    }
+
+    async saveTermCalendar(calendar) {
+        const saved = await this.saveAppSetting('term_calendar', calendar);
+        if (window.Utils?.setTermCalendar) Utils.setTermCalendar(calendar);
+        try { localStorage.setItem('cbt_term_calendar', JSON.stringify(calendar)); } catch (_) { /* quota */ }
+        return saved;
+    }
+
+    // ================================================================
+    // END-OF-SESSION CLASS PROMOTION
+    // State lives in app_settings under "class_promotion":
+    //   { lastSession, dismissedSession, promotedAt, promotedCount }
+    // ================================================================
+
+    async getPromotionState() {
+        const value = await this.getAppSetting('class_promotion');
+        return value || null;
+    }
+
+    async savePromotionState(state) {
+        return await this.saveAppSetting('class_promotion', state);
+    }
+
+    /**
+     * Move one student to a new class. Profiles is the authoritative,
+     * admin-writable record (login prefers profile.class_level); the users
+     * collection is mirrored best-effort — its API rules only allow
+     * self-updates, so that mirror usually only succeeds server-side.
+     * @param {{id:string, user?:string}} profileRecord from getUsers()
+     * @param {string} toClass
+     */
+    async promoteStudentClass(profileRecord, toClass) {
+        const profileId = profileRecord.id;
+        const userId = profileRecord.user || profileRecord.id;
+        await this.pb.collection('profiles').update(profileId, { class_level: toClass });
+        try {
+            await this.pb.collection('users').update(userId, { class_level: toClass });
+        } catch (_) {
+            // Expected for non-self updates — profile is what the app reads.
+        }
+    }
+
+    /** Remove the configured calendar — the app reverts to the month-based rule. */
+    async clearTermCalendar() {
+        const saved = await this.saveAppSetting('term_calendar', null);
+        if (window.Utils?.setTermCalendar) Utils.setTermCalendar(null);
+        try { localStorage.removeItem('cbt_term_calendar'); } catch (_) { /* ignore */ }
+        return saved;
+    }
+
     async logout() {
         try {
             this.pb.authStore.clear();
@@ -608,7 +956,11 @@ class DataService {
             localStorage.removeItem('cbt_user_meta');
             localStorage.removeItem('pb_auth');
             localStorage.removeItem('cbt_exam_cache');
-            localStorage.removeItem('cbt_pending_submissions');
+            // NOTE: 'cbt_pending_submissions' is deliberately NOT cleared here.
+            // It holds exam results that have not reached the server yet. On a shared
+            // exam-hall machine a student logging out so the next one can log in was
+            // silently destroying their own unsent submission — leaving the score-0
+            // placeholder row as their permanent result.
         }
     }
 
@@ -1906,7 +2258,7 @@ class DataService {
             return result;
 
         } catch (err) {
-            if (!navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+            if (this.isNetworkError(err)) {
                 const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
                 data._local_id = Date.now();
                 pending.push(data);

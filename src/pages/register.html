@@ -171,9 +171,24 @@
 
     <!-- Configuration System -->
     <script type="module">
-        import { initConfig } from '../config/index.js';
+        import { initConfig, getConfig } from '../config/index.js';
         // Initialize configuration before other scripts
         await initConfig();
+        // Auto-fill (and lock) the student School ID from the client config so
+        // students can't leave it blank or mistype it.
+        try {
+            const schoolId = getConfig()?.client?.schoolId;
+            if (schoolId) {
+                window.__defaultSchoolId = schoolId;
+                const el = document.getElementById('student-school-id');
+                if (el) {
+                    el.value = schoolId;
+                    el.readOnly = true;
+                    const hint = el.parentElement && el.parentElement.querySelector('small');
+                    if (hint) hint.textContent = 'Set by your school — no need to change this.';
+                }
+            }
+        } catch (e) { /* no configured school id — field stays editable/required */ }
     </script>
 
     <script src="../js/utils.js"></script>
@@ -294,6 +309,11 @@
 
             if (role === 'student' && !classLevel) {
                 await Utils.showAlert('Selection Missing', 'Please select a class.');
+                return;
+            }
+
+            if (role === 'student' && !studentSchoolId) {
+                await Utils.showAlert('School ID Required', 'Please enter your School ID. Your admin will provide it — without it your account stays invisible to your school.');
                 return;
             }
 

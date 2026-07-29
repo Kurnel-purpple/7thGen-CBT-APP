@@ -47,10 +47,6 @@
                         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></span>
                         <span class="sidebar-nav-label">Term Broadsheet</span>
                     </a>
-                    <a href="#" class="sidebar-nav-item" data-bs-nav="session">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg></span>
-                        <span class="sidebar-nav-label">Session Broadsheet</span>
-                    </a>
                 </nav>
 
                 <div class="sidebar-divider"></div>
@@ -87,20 +83,26 @@
                     <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     </button>
-                    <div>
-                        <div class="topbar-page-title">Broadsheet</div>
-                        <div id="topbar-subtitle" style="font-size:0.75rem; color:var(--light-text);">Term Broadsheet</div>
-                    </div>
+                    <button class="topbar-back-btn" onclick="Utils.goBack()" aria-label="Go back" title="Go back" style="display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; border:none; background:transparent; color:var(--text-color); cursor:pointer;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    </button>
                 </div>
             </header>
 
-            <main class="main-content" style="padding: 0 32px 32px;">
+            <!-- Padding lives in broadsheet.css, not inline: an inline
+                 shorthand outranks every stylesheet rule, so the mobile
+                 overrides below could never touch it. -->
+            <main class="main-content">
 
                 <!-- ===== VIEW: Term Broadsheet ===== -->
                 <div class="bs-view active" id="bs-view-term">
                     <section class="bs-hero">
                         <h2>Term Broadsheet</h2>
-                        <p>A class-wide performance sheet for a term: every student's CA, exam score, and total per subject, with their overall total, percentage, and position in the class.</p>
+                        <!-- On a phone this copy is clamped to two lines and
+                             the rest sits behind "more". Desktop shows it whole
+                             and the link stays hidden. -->
+                        <p class="bs-hero-copy" id="bs-term-copy">A class-wide performance sheet for a term: every student's CA, exam score, and total per subject, with their overall total, percentage, and position in the class. Compile the <strong>3rd Term</strong> and the sheet also carries each student's session performance — 1st, 2nd and 3rd term totals, the section total, and the session average, percentage and position.</p>
+                        <button type="button" class="bs-more-link" data-bs-more="bs-term-copy" aria-controls="bs-term-copy" aria-expanded="false">more</button>
                     </section>
 
                     <section class="bs-panel bs-form-panel">
@@ -114,14 +116,17 @@
                                 </div>
                                 <div class="bs-form-group">
                                     <label for="bs-term">Term</label>
-                                    <select id="bs-term" required>
+                                    <select id="bs-term" required data-default-term>
                                         <option value="">Select Term</option>
                                         <option value="1st Term">1st Term</option>
                                         <option value="2nd Term">2nd Term</option>
                                         <option value="3rd Term">3rd Term</option>
                                     </select>
                                 </div>
-                                <div class="bs-form-group">
+                                <!-- Spans both columns on mobile: a session
+                                     reads "2025/2026" and looks cramped in half
+                                     a row next to two short selects. -->
+                                <div class="bs-form-group bs-form-group-wide">
                                     <label for="bs-session-input">Session (optional)</label>
                                     <input id="bs-session-input" type="text" placeholder="e.g. 2025/2026" />
                                 </div>
@@ -153,64 +158,53 @@
                         </div>
                         <div id="bs-term-table"></div>
                     </section>
-                </div>
 
-                <!-- ===== VIEW: Session Broadsheet ===== -->
-                <div class="bs-view" id="bs-view-session">
-                    <section class="bs-hero">
-                        <h2>Session Broadsheet</h2>
-                        <p>End-of-session overview: each student's total from 1st, 2nd, and 3rd term combined into a final session total, percentage, and position — the overall performance for the class that session.</p>
-                    </section>
-
-                    <section class="bs-panel bs-form-panel">
-                        <form id="bs-session-generate-form">
-                            <div class="bs-form-grid">
-                                <div class="bs-form-group">
-                                    <label for="bs-session-class">Class</label>
-                                    <select id="bs-session-class" required>
-                                        <option value="">Select Class</option>
-                                    </select>
-                                </div>
-                                <div class="bs-form-group">
-                                    <label for="bs-session-session">Session (optional)</label>
-                                    <input id="bs-session-session" type="text" placeholder="e.g. 2025/2026" />
-                                </div>
-                            </div>
-
-                            <div style="margin-top:20px;">
-                                <button id="bs-session-generate-btn" type="submit" class="btn btn-primary" style="font-size:0.9rem; font-weight:700;">Compile Session Broadsheet</button>
-                            </div>
-                            <div id="bs-session-gen-status" class="bs-gen-status"></div>
-                        </form>
-                    </section>
-
-                    <section class="bs-panel" id="bs-session-result" style="display:none;">
-                        <div class="bs-result-header">
-                            <div>
-                                <h3 class="bs-result-title" id="bs-session-title">Session Broadsheet</h3>
-                                <div class="bs-result-meta" id="bs-session-meta"></div>
-                            </div>
-                            <div class="bs-result-actions">
-                                <button id="bs-session-export-btn" class="ghost-cta" type="button" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:14px; color:var(--primary-color); background:none; border:none; cursor:pointer; padding:4px 0;">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                    Export Excel
-                                </button>
-                                <button id="bs-session-print-btn" class="ghost-cta" type="button" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:14px; color:var(--light-text); background:none; border:none; cursor:pointer; padding:4px 0;">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                                    Print
-                                </button>
-                            </div>
-                        </div>
-                        <div id="bs-session-table"></div>
-                    </section>
                 </div>
 
             </main>
         </div>
     </div>
 
+    <!-- Mobile bottom nav. Back leaves the topbar and sits within thumb reach
+         here alongside the page's own verbs; Export and Print reveal once a
+         sheet is compiled. Sits outside .app-container because it is fixed and
+         must not inherit .bs-view's display toggling. Hidden above 768px by
+         .bottom-nav; .bottom-nav-dynamic shares the width evenly so four items
+         fit on a small phone. -->
+    <nav class="bottom-nav bottom-nav-dynamic" aria-label="Term broadsheet actions">
+        <button type="button" class="bottom-nav-item" onclick="Utils.goBack()" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button type="button" class="bottom-nav-item nav-action-primary" onclick="document.getElementById('bs-generate-form').requestSubmit()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+            <span>Compile</span>
+        </button>
+        <button type="button" class="bottom-nav-item" id="bs-mab-term-export" style="display:none;" onclick="document.getElementById('bs-term-export-btn').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export</span>
+        </button>
+        <button type="button" class="bottom-nav-item" id="bs-mab-term-print" style="display:none;" onclick="document.getElementById('bs-term-print-btn').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Print</span>
+        </button>
+    </nav>
+
     <!-- Sidebar helper scripts -->
     <script>
+        // "more" on the hero copy. Delegated so it does not care when the
+        // button is parsed, and it flips the label back to "less" so the
+        // expanded state has a way out.
+        document.addEventListener('click', function (ev) {
+            var link = ev.target.closest && ev.target.closest('[data-bs-more]');
+            if (!link) return;
+            var copy = document.getElementById(link.getAttribute('data-bs-more'));
+            if (!copy) return;
+            var expanded = copy.classList.toggle('is-expanded');
+            link.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            link.textContent = expanded ? 'less' : 'more';
+        });
+
         window.toggleSidebarMobile = function() {
             var sidebar = document.getElementById('app-sidebar');
             var overlay = document.getElementById('sidebar-overlay');

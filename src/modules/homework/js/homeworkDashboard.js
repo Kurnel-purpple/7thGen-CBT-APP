@@ -41,7 +41,6 @@
                 roleText: document.getElementById('homework-role-text'),
                 createForm: document.getElementById('hw-create-form'),
                 editIdInput: document.getElementById('hw-edit-id'),
-                titleInput: document.getElementById('hw-title'),
                 subjectSelect: document.getElementById('hw-subject'),
                 classSelect: document.getElementById('hw-class'),
                 dueDateInput: document.getElementById('hw-due-date'),
@@ -63,7 +62,10 @@
                 viewButtons: Array.from(document.querySelectorAll('[data-hw-view-btn]')),
                 viewSections: Array.from(document.querySelectorAll('[data-hw-view]')),
                 searchInput: document.getElementById('hw-search-input'),
-                createCta: document.getElementById('hw-create-cta'),
+                // Topbar on desktop, bottom nav on mobile — both marked
+                // [data-hw-create] so neither the admin hide nor the click
+                // binding has to know which one is on screen.
+                createCtas: Array.from(document.querySelectorAll('[data-hw-create]')),
                 gradeModal: document.getElementById('hw-grade-modal'),
                 gradeForm: document.getElementById('hw-grade-form'),
                 gradeStudent: document.getElementById('hw-grade-student'),
@@ -85,6 +87,16 @@
             }
             if (this.nodes.roleText) this.nodes.roleText.textContent = user.role === 'admin' ? 'Administrator' : 'Teacher';
 
+            // Admin view is read-only oversight: no authoring, so hide the
+            // "New Assignment" CTA and relabel the workspace header.
+            if (this.userRole === 'admin') {
+                this.nodes.createCtas.forEach((cta) => { cta.style.display = 'none'; });
+                const eyebrow = document.querySelector('.hw-page-eyebrow');
+                if (eyebrow) eyebrow.textContent = 'Admin Overview';
+                const subtitle = document.querySelector('.hw-page-subtitle');
+                if (subtitle) subtitle.textContent = 'Review homework set by teachers. You can remove an assignment, but not edit its content.';
+            }
+
             if (this.nodes.createForm) {
                 this.nodes.createForm.addEventListener('submit', (event) => this.handleCreate(event));
             }
@@ -101,9 +113,9 @@
                 });
             }
 
-            if (this.nodes.createCta) {
-                this.nodes.createCta.addEventListener('click', () => this.openComposer());
-            }
+            this.nodes.createCtas.forEach((cta) => {
+                cta.addEventListener('click', () => this.openComposer());
+            });
 
             if (this.nodes.composerModal) {
                 Array.from(this.nodes.composerModal.querySelectorAll('[data-hw-close-composer]')).forEach((el) => {
@@ -203,18 +215,20 @@
                 this.nodes.assignmentsMeta.textContent = `${list.length} ${list.length === 1 ? 'assignment' : 'assignments'}`;
             }
 
+            const isAdmin = this.userRole === 'admin';
+
             if (!list.length) {
                 this.nodes.assignmentsList.innerHTML = `
                     <div class="hw-empty">
                         <div class="hw-empty-title">${this.searchQuery ? 'No matches' : 'No homework yet'}</div>
                         <div>${this.searchQuery
                             ? 'No assignments match your search.'
-                            : 'Click <strong>+ New Assignment</strong> to publish your first one.'}</div>
+                            : (isAdmin
+                                ? 'No teachers have published homework yet.'
+                                : 'Click <strong>+ New Assignment</strong> to publish your first one.')}</div>
                     </div>`;
                 return;
             }
-
-            const isAdmin = this.userRole === 'admin';
 
             this.nodes.assignmentsList.innerHTML = list.map((assignment) => {
                 const summary = this.submissionSummary.find((item) => item.assignmentId === assignment.id);
@@ -222,28 +236,32 @@
                 const submissionCount = summary?.submissionCount || 0;
                 const gradedCount = summary?.gradedCount || 0;
                 return `
-                    <article class="hw-row" data-hw-assignment-id="${this.escape(assignment.id)}">
-                        <div class="hw-row-main">
-                            <h3 class="hw-row-title">${this.escape(assignment.title)}</h3>
-                            <div class="hw-row-meta">${this.escape(assignment.subject)} &middot; ${this.escape(assignment.targetClass)} &middot; Due ${this.formatDate(assignment.dueDate)}</div>
-                            ${assignment.instructions ? `<div class="hw-row-copy">${this.escape(this.stripHtml(assignment.instructions))}</div>` : ''}
-                            <div class="hw-row-chips">
-                                <span class="hw-chip ${dueState.className}">${dueState.label}</span>
-                                <span class="hw-chip primary">${assignment.points || 0} pts</span>
-                                <span class="hw-chip muted">${submissionCount} submission${submissionCount === 1 ? '' : 's'}</span>
-                                ${submissionCount > 0
-                                    ? `<span class="hw-chip ${gradedCount === submissionCount ? 'success' : 'warn'}">${gradedCount}/${submissionCount} graded</span>`
-                                    : ''}
-                                ${isAdmin ? `<span class="hw-chip muted">By ${this.escape(assignment.createdByName || 'Teacher')}</span>` : ''}
+                    <article class="hw-row hw-row-stack" data-hw-assignment-id="${this.escape(assignment.id)}">
+                        <div class="hw-row-top">
+                            <h3 class="hw-row-title">${this.escape(assignment.subject)}</h3>
+                            <div class="hw-row-aside">
+                                ${isAdmin ? '' : `
+                                <button type="button" class="hw-icon-btn" data-hw-action="edit" title="Edit" aria-label="Edit assignment">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                                </button>`}
+                                <button type="button" class="hw-icon-btn danger" data-hw-action="delete" title="Delete" aria-label="Delete assignment">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                </button>
                             </div>
                         </div>
-                        <div class="hw-row-aside">
-                            <button type="button" class="hw-icon-btn" data-hw-action="edit" title="Edit" aria-label="Edit assignment">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-                            </button>
-                            <button type="button" class="hw-icon-btn danger" data-hw-action="delete" title="Delete" aria-label="Delete assignment">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                            </button>
+                        <div class="hw-row-meta">
+                            <span>${this.escape(assignment.targetClass)}</span>
+                            <span class="hw-row-due">Due &mdash; <span class="hw-row-date">${this.formatDate(assignment.dueDate)}</span></span>
+                        </div>
+                        ${assignment.instructions ? `<div class="hw-row-copy">${this.escape(this.stripHtml(assignment.instructions))}</div>` : ''}
+                        <div class="hw-row-chips">
+                            <span class="hw-chip ${dueState.className}">${dueState.label}</span>
+                            <span class="hw-chip primary">${assignment.points || 0} pts</span>
+                            <span class="hw-chip muted">${submissionCount} submission${submissionCount === 1 ? '' : 's'}</span>
+                            ${submissionCount > 0
+                                ? `<span class="hw-chip ${gradedCount === submissionCount ? 'success' : 'warn'}">${gradedCount}/${submissionCount} graded</span>`
+                                : ''}
+                            ${isAdmin ? `<span class="hw-chip muted">By ${this.escape(assignment.createdByName || 'Teacher')}</span>` : ''}
                         </div>
                     </article>
                 `;
@@ -251,16 +269,22 @@
 
             Array.from(this.nodes.assignmentsList.querySelectorAll('[data-hw-assignment-id]')).forEach((card) => {
                 const id = card.getAttribute('data-hw-assignment-id');
-                card.querySelector('[data-hw-action="edit"]').addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    this.openComposer(id);
-                });
                 card.querySelector('[data-hw-action="delete"]').addEventListener('click', (event) => {
                     event.stopPropagation();
                     this.handleDelete(id);
                 });
-                // Clicking the row also opens edit (deliberate path)
-                card.addEventListener('click', () => this.openComposer(id));
+                // Admins get a read-only view — no content editing. Teachers can
+                // edit via the pencil or by clicking the row.
+                if (!isAdmin) {
+                    const editBtn = card.querySelector('[data-hw-action="edit"]');
+                    if (editBtn) {
+                        editBtn.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            this.openComposer(id);
+                        });
+                    }
+                    card.addEventListener('click', () => this.openComposer(id));
+                }
             });
         },
 
@@ -283,21 +307,24 @@
                         : 'Awaiting grade';
 
                     rows.push(`
-                        <article class="hw-row" data-hw-submission-id="${this.escape(submission.id)}" data-hw-assignment-id="${this.escape(assignment.id)}">
-                            <div class="hw-row-main">
+                        <article class="hw-row hw-row-stack" data-hw-submission-id="${this.escape(submission.id)}" data-hw-assignment-id="${this.escape(assignment.id)}">
+                            <div class="hw-row-top">
                                 <h3 class="hw-row-title">${this.escape(submission.studentName || 'Student')}</h3>
-                                <div class="hw-row-meta">${this.escape(assignment.title)} &middot; ${this.escape(submission.classLevel || assignment.targetClass || '')} &middot; ${this.formatDateTime(submission.submittedAt)}</div>
-                                <div class="hw-row-copy">${this.escape(submission.content)}</div>
-                                <div class="hw-row-chips">
-                                    <span class="hw-chip ${statusClass}">${this.statusLabel(submission.status)}</span>
-                                    <span class="hw-chip muted">${this.escape(scoreLabel)}</span>
-                                    ${submission.feedback ? `<span class="hw-chip muted">Feedback sent</span>` : ''}
+                                <div class="hw-row-aside">
+                                    <button type="button" class="hw-icon-btn success" data-hw-action="grade" title="Grade" aria-label="Grade submission">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="hw-row-aside">
-                                <button type="button" class="hw-icon-btn success" data-hw-action="grade" title="Grade" aria-label="Grade submission">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                                </button>
+                            <div class="hw-row-meta">
+                                <span>${this.escape(assignment.subject)} &middot; ${this.escape(submission.classLevel || assignment.targetClass || '')}</span>
+                                <span class="hw-row-due">Sent &mdash; <span class="hw-row-date">${this.formatDateTime(submission.submittedAt)}</span></span>
+                            </div>
+                            <div class="hw-row-copy">${this.escape(submission.content)}</div>
+                            <div class="hw-row-chips">
+                                <span class="hw-chip ${statusClass}">${this.statusLabel(submission.status)}</span>
+                                <span class="hw-chip muted">${this.escape(scoreLabel)}</span>
+                                ${submission.feedback ? `<span class="hw-chip muted">Feedback sent</span>` : ''}
                             </div>
                         </article>
                     `);
@@ -335,7 +362,6 @@
                 if (!assignment) return;
                 this.editingId = assignmentId;
                 if (this.nodes.editIdInput) this.nodes.editIdInput.value = assignmentId;
-                if (this.nodes.titleInput) this.nodes.titleInput.value = assignment.title || '';
                 if (this.nodes.subjectSelect) this.nodes.subjectSelect.value = assignment.subject || '';
                 if (this.nodes.classSelect) this.nodes.classSelect.value = assignment.targetClass || '';
                 if (this.nodes.dueDateInput) this.nodes.dueDateInput.value = this.toDateInputValue(assignment.dueDate);
@@ -355,7 +381,7 @@
             this.setStatus('', '');
             if (this.nodes.composerModal) {
                 this.nodes.composerModal.hidden = false;
-                setTimeout(() => this.nodes.titleInput?.focus(), 80);
+                setTimeout(() => this.nodes.subjectSelect?.focus(), 80);
             }
         },
 
@@ -368,7 +394,11 @@
         async handleCreate(event) {
             event.preventDefault();
             const payload = {
-                title: this.nodes.titleInput.value,
+                // The subject names the assignment. `title` is still what the
+                // record and the student's view are keyed on, so it is filled
+                // from the subject rather than dropped — nothing downstream
+                // has to learn that the field went away.
+                title: this.nodes.subjectSelect.value,
                 subject: this.nodes.subjectSelect.value,
                 targetClass: this.nodes.classSelect.value,
                 dueDate: this.nodes.dueDateInput.value,
@@ -393,14 +423,22 @@
         async handleDelete(assignmentId) {
             const assignment = this.assignments.find((a) => a.id === assignmentId);
             if (!assignment) return;
-            const ok = global.confirm(`Delete "${assignment.title}"? Students will no longer see it, and any submissions for it will be removed.`);
+            const ok = await this.askConfirm(
+                'Delete assignment',
+                `Delete the <strong>${this.escape(assignment.subject)}</strong> assignment for ` +
+                `<strong>${this.escape(assignment.targetClass)}</strong>?<br><br>` +
+                'Students will no longer see it, and any submissions for it will be removed.'
+            );
             if (!ok) return;
             try {
                 await global.dataService.deleteHomeworkAssignment(assignmentId);
                 if (this.editingId === assignmentId) this.closeComposer();
                 await this.refresh();
             } catch (error) {
-                this.setStatus(this.friendlyError(error, 'Could not delete assignment.'), 'error');
+                // Not setStatus: that writes into the composer modal, which is
+                // closed during a delete from the list, so the message would
+                // never be seen.
+                this.notify('Delete failed', this.escape(this.friendlyError(error, 'Could not delete assignment.')));
             }
         },
 
@@ -414,7 +452,7 @@
             this.gradingAssignment = assignment;
 
             this.nodes.gradeStudent.textContent = submission.studentName || 'Student';
-            this.nodes.gradeAssignment.textContent = `${assignment.title} (${assignment.points || 0} pts)`;
+            this.nodes.gradeAssignment.textContent = `${assignment.subject} (${assignment.points || 0} pts)`;
             this.nodes.gradeWhen.textContent = this.formatDateTime(submission.submittedAt);
             this.nodes.gradeContent.textContent = submission.content || '';
             this.nodes.gradeScore.value = submission.score != null ? String(submission.score) : '';
@@ -537,6 +575,26 @@
             const div = document.createElement('div');
             div.textContent = String(value || '');
             return div.innerHTML;
+        },
+
+        // Utils.showConfirm / showAlert are the app's own dialogs — a bottom
+        // sheet on mobile — and fall back to the native ones only if utils.js
+        // somehow failed to load. Both render their message as HTML, so
+        // callers escape anything that came out of the database; the fallback
+        // strips the markup back out for the plain-text native dialog.
+        askConfirm(title, message) {
+            if (global.Utils && typeof global.Utils.showConfirm === 'function') {
+                return global.Utils.showConfirm(title, message);
+            }
+            return Promise.resolve(global.confirm(String(message).replace(/<[^>]*>/g, '')));
+        },
+
+        notify(title, message) {
+            if (global.Utils && typeof global.Utils.showAlert === 'function') {
+                return global.Utils.showAlert(title, message);
+            }
+            global.alert(String(message).replace(/<[^>]*>/g, ''));
+            return Promise.resolve();
         },
 
         friendlyError(error, fallback) {

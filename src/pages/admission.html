@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admission Test</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../modules/admissions/css/admissions.css">
+</head>
+
+<body class="adm-candidate-body">
+    <main class="adm-candidate-shell">
+        <header class="adm-candidate-head">
+            <div class="adm-candidate-mark">Admission Test</div>
+            <p class="adm-candidate-tagline">Enter the details on your access slip to begin.</p>
+        </header>
+
+        <!-- 1. Code entry -->
+        <section class="adm-candidate-card" data-adm-view="entry">
+            <form id="adm-entry-form" novalidate>
+                <div class="adm-form-group full">
+                    <label for="adm-candidate-id">Candidate ID</label>
+                    <input id="adm-candidate-id" type="text" class="adm-code-input" autocomplete="off"
+                           autocapitalize="characters" spellcheck="false" placeholder="SCH-2027-0001" required>
+                    <p class="adm-form-hint">Copy it exactly as printed on your slip, including the zeros.</p>
+                </div>
+                <div class="adm-form-group full" style="margin-top:16px;">
+                    <label for="adm-access-code">Access Code</label>
+                    <input id="adm-access-code" type="text" class="adm-code-input" autocomplete="off"
+                           autocapitalize="characters" spellcheck="false" maxlength="8" placeholder="ABCD2345" required>
+                </div>
+                <button type="submit" class="adm-btn-primary adm-block-btn" id="adm-entry-submit">Begin</button>
+                <div id="adm-entry-status" class="adm-status" role="status"></div>
+            </form>
+            <p class="adm-candidate-help">
+                Lost or mistyped your code? Ask the exam supervisor &mdash; codes cannot be recovered, only reissued.
+            </p>
+        </section>
+
+        <!-- 2. Name capture (blank walk-in codes only) -->
+        <section class="adm-candidate-card" data-adm-view="name" style="display:none;">
+            <h2 class="adm-candidate-step-title">What is your name?</h2>
+            <p class="adm-candidate-step-sub">
+                This is saved once and cannot be changed afterwards, so please check the spelling.
+            </p>
+            <form id="adm-name-form" novalidate>
+                <div class="adm-form-group full">
+                    <label for="adm-full-name">Full name</label>
+                    <input id="adm-full-name" type="text" autocomplete="name" placeholder="e.g. Ada Obi" required>
+                </div>
+                <button type="submit" class="adm-btn-primary adm-block-btn" id="adm-name-submit">Continue</button>
+                <div id="adm-name-status" class="adm-status" role="status"></div>
+            </form>
+        </section>
+
+        <!-- 3. Pre-flight download -->
+        <section class="adm-candidate-card" data-adm-view="preflight" style="display:none;">
+            <div class="adm-spinner" aria-hidden="true"></div>
+            <h2 class="adm-candidate-step-title" id="adm-preflight-label">Preparing your exam&hellip;</h2>
+            <p class="adm-candidate-step-sub">
+                Your whole exam is being saved to this device first, so a weak connection cannot interrupt you
+                partway through. Please do not close this page.
+            </p>
+        </section>
+
+        <!-- 4. Ready -->
+        <section class="adm-candidate-card" data-adm-view="ready" style="display:none;">
+            <span class="adm-page-eyebrow">Ready to start</span>
+            <h2 class="adm-candidate-step-title" id="adm-ready-name">Candidate</h2>
+
+            <dl class="adm-meta-list">
+                <div class="adm-meta-row">
+                    <dt>Exam</dt><dd id="adm-ready-exam">&mdash;</dd>
+                </div>
+                <div class="adm-meta-row">
+                    <dt>Subject</dt><dd id="adm-ready-subject">&mdash;</dd>
+                </div>
+                <div class="adm-meta-row">
+                    <dt>Questions</dt><dd id="adm-ready-questions">&mdash;</dd>
+                </div>
+                <div class="adm-meta-row">
+                    <dt>Duration</dt><dd id="adm-ready-duration">&mdash;</dd>
+                </div>
+                <div class="adm-meta-row highlight">
+                    <dt>Time remaining</dt><dd id="adm-ready-remaining">&mdash;</dd>
+                </div>
+            </dl>
+
+            <div class="adm-notice warn">
+                <div>
+                    <strong>Your time has already started</strong>
+                    The clock runs from the moment your code was accepted, so start now. If your connection drops
+                    during the exam you can carry on &mdash; your answers are saved on this device and sent when
+                    you are back online.
+                </div>
+            </div>
+
+            <button type="button" class="adm-btn-primary adm-block-btn" id="adm-start-btn">Start Exam</button>
+        </section>
+
+        <!-- 5. Error -->
+        <section class="adm-candidate-card" data-adm-view="error" style="display:none;">
+            <h2 class="adm-candidate-step-title">We couldn't start your exam</h2>
+            <p class="adm-candidate-step-sub" id="adm-error-message"></p>
+            <button type="button" class="adm-btn-primary adm-block-btn" id="adm-error-retry">Try again</button>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { initConfig } from '../config/index.js';
+        import { loadScripts } from '../core/modules/pageBootstrap.js';
+        // Importing the manifest publishes window.admissionsService, which the
+        // classic scripts below rely on.
+        import '../modules/admissions/manifest.js';
+
+        // Config must resolve before dataService constructs, so the PocketBase
+        // client points at the right backend.
+        await initConfig();
+
+        await loadScripts([
+            '../modules/cbt/js/idb.js',
+            '../js/utils.js',
+            '../js/dataService.js',
+            '../modules/admissions/js/admissionsDataService.js',
+            '../modules/admissions/js/candidateEntry.js'
+        ]);
+
+        window.candidateEntry?.init();
+    </script>
+</body>
+
+</html>

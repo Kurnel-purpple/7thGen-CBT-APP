@@ -52,7 +52,8 @@
         selectedSheet: null,
         currentColumnKey: '',
         currentDate: '',
-        saving: false
+        saving: false,
+        controlsOpen: false // when true, keep selection dropdowns visible even with a full selection
     };
 
     // ---------- DOM refs (resolved once on init) ----------
@@ -271,6 +272,11 @@
 
     // ---------- render student list ----------
     function _renderStudentList() {
+        _renderStudentListImpl();
+        _applyControlsVisibility();
+    }
+
+    function _renderStudentListImpl() {
         if (!$studentList) return;
 
         if (!state.currentClass) {
@@ -320,16 +326,52 @@
                 <span class="attendance-student-index">${i + 1}</span>
                 <span class="attendance-student-name">${_escapeHtml(student.name)}</span>
                 <div class="status-toggle-group">
-                    <button class="status-toggle${att.status === 'present' ? ' active-present' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','present')">Present</button>
-                    <button class="status-toggle${att.status === 'absent' ? ' active-absent' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','absent')">Absent</button>
-                    <button class="status-toggle${att.status === 'ph' ? ' active-ph' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','ph')" title="Public Holiday">PH</button>
-                    <button class="status-toggle${att.status === 'mtb' ? ' active-mtb' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','mtb')" title="Mid-Term Break">MTB</button>
+                    <button class="status-toggle status-toggle-present${att.status === 'present' ? ' active-present' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','present')"><span class="st-full">Present</span><span class="st-short">P</span></button>
+                    <button class="status-toggle status-toggle-absent${att.status === 'absent' ? ' active-absent' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','absent')"><span class="st-full">Absent</span><span class="st-short">A</span></button>
+                    <button class="status-toggle status-toggle-ph${att.status === 'ph' ? ' active-ph' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','ph')" title="Public Holiday">PH</button>
+                    <button class="status-toggle status-toggle-mtb${att.status === 'mtb' ? ' active-mtb' : ''}" onclick="attendanceDashboard.toggleStatus('${_escapeHtml(student.id)}','mtb')" title="Mid-Term Break">MTB</button>
                 </div>
             </div>`;
         });
 
         $studentList.innerHTML = html;
         if ($actionBar) $actionBar.style.display = 'flex';
+    }
+
+    // ---------- controls collapse (declutter once a roster is showing) ----------
+    // Once class + sheet + date are all chosen, the selection dropdowns fold
+    // away into a slim summary strip so the roster gets the whole screen.
+    // Tapping "Change" on the strip re-opens the dropdowns.
+    function _applyControlsVisibility() {
+        const controls = $markView ? $markView.querySelector('.attendance-controls') : null;
+        const summary = document.getElementById('selection-summary');
+        if (!controls || !summary) return;
+
+        const fullSelection = !!(state.currentClass && state.selectedSheet && state.currentColumnKey);
+        const collapse = fullSelection && !state.controlsOpen;
+
+        controls.style.display = collapse ? 'none' : '';
+        summary.style.display = collapse ? 'flex' : 'none';
+
+        if (collapse) {
+            const classText = ($classSelect && $classSelect.selectedOptions[0])
+                ? $classSelect.selectedOptions[0].text : state.currentClass;
+            const sheetText = state.selectedSheet
+                ? (state.selectedSheet.subject || (state.selectedSheet.kind === 'form' ? 'Form register' : 'Sheet'))
+                : '';
+            const dateOpt = ($dateSelect && $dateSelect.options[$dateSelect.selectedIndex]) || null;
+            const dateText = dateOpt ? dateOpt.text : (state.currentDate || '');
+            const titleEl = document.getElementById('sel-summary-title');
+            const dateEl = document.getElementById('sel-summary-date');
+            if (titleEl) titleEl.textContent = sheetText ? (classText + ' · ' + sheetText) : classText;
+            if (dateEl) dateEl.textContent = dateText;
+        }
+    }
+
+    // Re-open the selection dropdowns from the summary strip
+    function showControls() {
+        state.controlsOpen = true;
+        _applyControlsVisibility();
     }
 
     // ---------- stats ----------
@@ -412,10 +454,16 @@
         }
 
         state.saving = true;
-        const saveBtn = $actionBar ? $actionBar.querySelector('.btn:last-child') : null;
+        const saveBtn = document.getElementById('save-attendance-btn') ||
+            ($actionBar ? $actionBar.querySelector('.btn:last-child') : null);
         if (saveBtn) {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Saving...';
+        }
+        const saveIconBtn = document.getElementById('save-attendance-topbar');
+        if (saveIconBtn) {
+            saveIconBtn.disabled = true;
+            saveIconBtn.classList.add('saving');
         }
 
         let saved = 0;
@@ -456,6 +504,10 @@
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save Attendance';
             }
+            if (saveIconBtn) {
+                saveIconBtn.disabled = false;
+                saveIconBtn.classList.remove('saving');
+            }
         }
     }
 
@@ -467,6 +519,10 @@
         });
 
         var $sheetsView = document.getElementById('sheets-view');
+
+        // Topbar save icon (mobile) only makes sense while marking
+        var $topbarSave = document.getElementById('save-attendance-topbar');
+        if ($topbarSave) $topbarSave.style.display = (view === 'mark') ? '' : 'none';
 
         if (view === 'mark') {
             if ($markView) $markView.style.display = 'flex';
@@ -514,6 +570,8 @@
                 item.classList.add('active');
             } else if (view === 'history' && text === 'history') {
                 item.classList.add('active');
+            } else if (view === 'sheets' && text === 'sheets') {
+                item.classList.add('active');
             } else {
                 item.classList.remove('active');
             }
@@ -525,6 +583,7 @@
         if ($classSelect) {
             state.currentClass = $classSelect.value;
         }
+        state.controlsOpen = false;
         _loadSheetsForClass();
     }
 
@@ -532,6 +591,7 @@
         if (!$sheetSelect) return;
         const sheetId = $sheetSelect.value;
         state.selectedSheet = state.sheets.find(function(s) { return s.id === sheetId; }) || null;
+        state.controlsOpen = false;
         _populateDateSelect();
         _loadSheetRoster();
     }
@@ -541,6 +601,7 @@
         state.currentColumnKey = $dateSelect.value;
         const opt = $dateSelect.options[$dateSelect.selectedIndex];
         state.currentDate = opt ? (opt.getAttribute('data-date') || '') : '';
+        state.controlsOpen = false;
         _loadSheetRoster();
     }
 
@@ -705,6 +766,7 @@
         markAllAs,
         saveAttendance,
         switchView,
+        showControls,
         loadHistory
     };
 

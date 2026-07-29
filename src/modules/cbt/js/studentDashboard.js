@@ -28,6 +28,42 @@ const studentDashboard = {
             return;
         }
         studentDashboard.user = user;
+
+        // Pull the latest class from the authoritative profile BEFORE loading
+        // exams, so a just-promoted student sees their NEW class's exams — not
+        // the class they were promoted from (the local cache is otherwise stale
+        // until the next fresh login). Non-fatal: falls back to the cache.
+        try {
+            const fresh = await dataService.refreshCurrentUser();
+            if (fresh) {
+                const classChanged = fresh.classLevel !== user.classLevel;
+                user.classLevel = fresh.classLevel;
+                user.schoolVersion = fresh.schoolVersion;
+                user.profileId = fresh.profileId || user.profileId;
+                studentDashboard.user = user;
+                // Class moved — drop any exam cache keyed to the old class so we
+                // never render stale exams for a moment before the fresh fetch.
+                if (classChanged) {
+                    try {
+                        Object.keys(localStorage)
+                            .filter(k => k.startsWith('cbt_dashboard_exams_cache:'))
+                            .forEach(k => localStorage.removeItem(k));
+                    } catch (_) { /* ignore */ }
+                }
+            }
+        } catch (_) { /* offline / permission — use cached class */ }
+
+        // Promotion context for the exam list. Old results (before class
+        // snapshots existed) can't tell us WHICH class's version of an exam
+        // they were for — but if this student was promoted, any attempt
+        // submitted BEFORE the promotion was necessarily the old class's
+        // version, so it must not hide the exam now that it targets the
+        // student's new class. Non-fatal when offline.
+        studentDashboard.promotion = null;
+        try {
+            studentDashboard.promotion = await dataService.getPromotionState();
+        } catch (_) { /* offline — legacy results fall back to staying hidden */ }
+
         document.getElementById('user-name').textContent = user.name;
 
         // Set app subtitle from config (if available)
@@ -71,6 +107,15 @@ const studentDashboard = {
         await studentDashboard.loadData();
         studentDashboard.setupConnectionMonitoring();
         studentDashboard.setupRealtimeExamSync();
+
+        // Drain any offline submissions left over from a previous session. This must
+        // not rely on the 'online' event — on a slow-but-alive connection the browser
+        // never reports going offline, so that event never fires.
+        if (dataService.startPendingSyncDriver) {
+            dataService.startPendingSyncDriver({
+                onSynced: () => studentDashboard.loadData()
+            });
+        }
     },
 
     setupConnectionMonitoring: () => {
@@ -184,6 +229,46 @@ const studentDashboard = {
         studentDashboard._legacyRealtimeCleaned = true;
         // Drop any subscription left over from a previous app version
         dataService.unsubscribeFromExams().catch(() => {});
+    },
+
+    // Reads the unified pending queue (both stores), keeps this student's rows,
+    // dedupes by exam so a submission that exists in both stores is shown once,
+    // and maps it into the shape renderCompleted() expects.
+    _loadMyPendingResults: async (userId) => {
+        if (!userId || !dataService._loadPendingQueue) return [];
+
+        let entries = [];
+        try {
+            entries = await dataService._loadPendingQueue();
+        } catch (pendingErr) {
+            console.warn('Could not load pending submissions:', pendingErr);
+            return [];
+        }
+
+        const byExam = new Map();
+        for (const { payload: p } of entries) {
+            if ((p.student_id || p.studentId) !== userId) continue;
+            const examId = p.exam_id || p.examId;
+            const existing = byExam.get(examId);
+            const at = Date.parse(p.submitted_at || p.submittedAt || 0) || 0;
+            if (!existing || at > existing._at) {
+                byExam.set(examId, {
+                    _at: at,
+                    id: p.localId || p._local_id || `pending-${examId}`,
+                    examId,
+                    studentId: p.student_id || p.studentId,
+                    score: p.score,
+                    totalPoints: p.total_points || p.totalPoints,
+                    answers: p.answers,
+                    submittedAt: p.submitted_at || p.submittedAt,
+                    studentName: studentDashboard.user.name,
+                    passed: p.score >= (p.pass_score || p.passScore || 50),
+                    isPending: true
+                });
+            }
+        }
+
+        return Array.from(byExam.values()).map(({ _at, ...r }) => r);
     },
 
     syncResults: async () => {
@@ -384,33 +469,8 @@ const studentDashboard = {
             }
         }
 
-        // Merge with Pending Submissions (from IndexedDB or localStorage)
-        let myPending = [];
-        try {
-            if (useIndexedDB) {
-                const allPending = await window.idb.getPendingSubmissions();
-                myPending = allPending.filter(p => p.student_id === userId || p.studentId === userId);
-            } else {
-                const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-                myPending = pending.filter(p => p.student_id === userId);
-            }
-        } catch (pendingErr) {
-            console.warn('Could not load pending submissions:', pendingErr);
-        }
-
-        // Map pending to match result structure
-        const mappedPending = myPending.map(p => ({
-            id: p.localId || p._local_id || 'pending-' + Date.now(),
-            examId: p.exam_id || p.examId,
-            studentId: p.student_id || p.studentId,
-            score: p.score,
-            totalPoints: p.total_points || p.totalPoints,
-            answers: p.answers,
-            submittedAt: p.submitted_at || p.submittedAt,
-            studentName: studentDashboard.user.name,
-            passed: p.score >= (p.pass_score || p.passScore || 50),
-            isPending: true
-        }));
+        // Merge with Pending Submissions (unified IndexedDB + localStorage queue)
+        const mappedPending = await studentDashboard._loadMyPendingResults(userId);
 
         // Combine results
         studentDashboard.results = [...mappedPending, ...serverResults];
@@ -476,49 +536,7 @@ const studentDashboard = {
                 }
 
                 // Re-fetch pending submissions so they're not stale
-                let freshMappedPending = [];
-                try {
-                    let freshPending = [];
-                    if (window.idb && window.idb.isIndexedDBAvailable()) {
-                        const allPending = await window.idb.getPendingSubmissions();
-                        freshPending = allPending.filter(p => p.student_id === userId || p.studentId === userId);
-                    } else {
-                        const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-                        freshPending = pending.filter(p => p.student_id === userId);
-                    }
-                    freshMappedPending = freshPending.map(p => ({
-                        id: p.localId || p._local_id || 'pending-' + Date.now(),
-                        examId: p.exam_id || p.examId,
-                        studentId: p.student_id || p.studentId,
-                        score: p.score,
-                        totalPoints: p.total_points || p.totalPoints,
-                        answers: p.answers,
-                        submittedAt: p.submitted_at || p.submittedAt,
-                        studentName: studentDashboard.user.name,
-                        passed: p.score >= (p.pass_score || p.passScore || 50),
-                        isPending: true
-                    }));
-                } catch (e) {
-                    console.warn('[ExamRefresh] Pending submissions refresh failed, falling back to localStorage', e);
-                    try {
-                        const pending = JSON.parse(localStorage.getItem('cbt_pending_submissions') || '[]');
-                        const fallbackPending = pending.filter(p => p.student_id === userId || p.studentId === userId);
-                        freshMappedPending = fallbackPending.map(p => ({
-                            id: p.localId || p._local_id || 'pending-' + Date.now(),
-                            examId: p.exam_id || p.examId,
-                            studentId: p.student_id || p.studentId,
-                            score: p.score,
-                            totalPoints: p.total_points || p.totalPoints,
-                            answers: p.answers,
-                            submittedAt: p.submitted_at || p.submittedAt,
-                            studentName: studentDashboard.user.name,
-                            passed: p.score >= (p.pass_score || p.passScore || 50),
-                            isPending: true
-                        }));
-                    } catch (storageError) {
-                        console.warn('[ExamRefresh] LocalStorage fallback failed', storageError);
-                    }
-                }
+                const freshMappedPending = await studentDashboard._loadMyPendingResults(userId);
 
                 // Update UI with fresh data
                 studentDashboard.results = [...freshMappedPending, ...freshResults];
@@ -823,17 +841,48 @@ const studentDashboard = {
         }
 
         // --- 2. Render Normal Available Exams ---
-        // Only exclude exams with completed results — allow in-progress exams back so students can continue
-        const completedExamIds = new Set(
-            studentDashboard.results
-                .filter(r => r.status !== 'in-progress')
-                .map(r => String(r.examId))
-        );
+        // Normalize class spellings for comparison (JSS 1 == jss1 == JSS1).
+        const normCls = (s) => String(s || '').replace(/\s+/g, '').toUpperCase();
+        // A completed result only hides an exam if it was taken for the exam's
+        // CURRENT target class. If the exam was later repurposed to a different
+        // class (e.g. after this student was promoted), the old result must NOT
+        // hide the new exam — the student hasn't taken THIS version yet.
+        // (In-progress attempts are allowed back so students can continue.)
+        const completedResults = studentDashboard.results.filter(r => r.status !== 'in-progress');
+
+        // When was THIS student last promoted? (0 = never / unknown)
+        let promotedAtMs = 0;
+        const promo = studentDashboard.promotion;
+        if (promo && promo.promotedStudents && promo.promotedAt) {
+            const u = studentDashboard.user || {};
+            if (promo.promotedStudents[u.id] || (u.profileId && promo.promotedStudents[u.profileId])) {
+                promotedAtMs = new Date(promo.promotedAt).getTime() || 0;
+            }
+        }
+
+        const isCompletedForCurrentClass = (exam) => {
+            const examCls = normCls(exam.targetClass || 'All');
+            return completedResults.some(r => {
+                if (String(r.examId) !== String(exam.id)) return false;
+                // Result carries a class snapshot: it only blocks the exam if it
+                // was taken for the exam's CURRENT target class.
+                if (r.examTargetClass) return normCls(r.examTargetClass) === examCls;
+                // Legacy result with no snapshot. If this student was promoted and
+                // the attempt predates the promotion, it was the OLD class's
+                // version of this (class-targeted) exam — don't hide the exam.
+                if (promotedAtMs && examCls !== 'ALL') {
+                    const submittedMs = new Date(r.submittedAt || 0).getTime() || 0;
+                    if (submittedMs && submittedMs < promotedAtMs) return false;
+                }
+                // Otherwise assume same class — stay hidden (one attempt).
+                return true;
+            });
+        };
         const inProgressResults = studentDashboard.results.filter(r => r.status === 'in-progress');
         const userClass = studentDashboard.user.classLevel;
 
         const available = studentDashboard.exams.filter(e => {
-            if (completedExamIds.has(String(e.id))) {
+            if (isCompletedForCurrentClass(e)) {
                 return false;
             }
             if (e.status === 'draft' || e.status === 'archived') {
@@ -852,14 +901,12 @@ const studentDashboard = {
             const targetClass = (e.targetClass || 'All').trim();
             const uClass = (userClass || '').trim();
 
-
-
-            if (targetClass !== 'All') {
+            if (normCls(targetClass) !== 'ALL') {
                 if (!uClass) {
 
                     return false;
                 }
-                if (targetClass !== uClass) {
+                if (normCls(targetClass) !== normCls(uClass)) {
 
                     return false;
                 }

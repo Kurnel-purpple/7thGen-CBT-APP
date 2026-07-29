@@ -673,7 +673,7 @@
                 password: password,
                 role: role,
                 name: role === 'teacher' ? 'Demo Teacher' : 'Demo Student',
-                classLevel: role === 'student' ? 'JSS 3' : null,
+                classLevel: role === 'student' ? 'JSS3' : null,
                 schoolVersion: schoolVersion
             });
 
@@ -710,11 +710,12 @@
                 if (count <= 0) {
                     clearInterval(demoCountdownTimer);
                     demoCountdownTimer = null;
-                    // Redirect based on role
+                    // replace(), so Back from the dashboard does not return to
+                    // the landing page's demo countdown and re-trigger it.
                     if (role === 'teacher') {
-                        window.location.href = 'pages/teacher-dashboard.html';
+                        window.location.replace('pages/teacher-dashboard.html');
                     } else {
-                        window.location.href = 'pages/student-dashboard.html';
+                        window.location.replace('pages/student-dashboard.html');
                     }
                 }
             }, 1000);

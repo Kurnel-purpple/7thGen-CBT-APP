@@ -82,8 +82,10 @@
         const targetClass = String(payload.targetClass || '').trim();
         const dueDate = payload.dueDate || '';
 
+        // `title` is filled from the subject by the composer — there is no
+        // separate Title field to send the teacher back to, so it is not named.
         if (!title || !subject || !targetClass || !dueDate) {
-            throw new Error('Title, subject, class, and due date are required.');
+            throw new Error('Subject, class, and due date are required.');
         }
 
         const school = this.getSchoolContext();

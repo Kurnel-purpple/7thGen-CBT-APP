@@ -6,6 +6,32 @@
 .rc-view { display: none; }
 .rc-view.active { display: block; }
 
+/* Topbar — .app-topbar carries no global styling, so the page sets its own */
+.app-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 64px;
+    min-height: 64px;
+    padding: 0 32px;
+}
+.main-content {
+    padding: 0 32px 32px;
+}
+/* Mobile only — desktop keeps the hero heading */
+.rc-topbar-title {
+    display: none;
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Hero section */
 .rc-hero {
     padding: 28px 0 20px;
@@ -82,11 +108,11 @@
     min-height: 1.5em;
 }
 
-/* Report card list items */
+/* Report card list items.
+   Row 1 spreads the identity (checkbox + name + status) against the actions;
+   the meta lines then run the full width beneath, rather than being squeezed
+   into the gap between them. */
 .rc-card {
-    display: flex;
-    gap: 14px;
-    align-items: center;
     padding: 14px 0;
     border-top: 1px solid var(--border-color);
 }
@@ -94,18 +120,42 @@
     border-top: none;
     padding-top: 0;
 }
-.rc-card-check {
-    flex-shrink: 0;
-}
 .rc-card-body {
-    flex: 1;
     min-width: 0;
+}
+.rc-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.rc-card-ident {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+/* Checkboxes stay out of the way until selection mode is switched on by a
+   long-press (touch) or a double-click (mouse) — see reportCardDashboard.js. */
+.rc-card-check {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+}
+#rc-review-list.rc-selecting .rc-card-check {
+    display: flex;
+}
+/* A long-press must not leave the row's text highlighted behind the popup,
+   and a double-click must not select a word instead of the row. */
+#rc-review-list .rc-card {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 .rc-card-header {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 4px;
     flex-wrap: wrap;
 }
 .rc-card-header strong {
@@ -117,10 +167,39 @@
     color: var(--light-text);
     margin-top: 2px;
 }
+.rc-card-top + .rc-card-meta {
+    margin-top: 6px;
+}
 .rc-card-actions {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+}
+
+/* Empty state — "Generate" in the copy is a live action, not a signpost */
+.rc-empty {
+    color: var(--light-text);
+    padding: 20px 0;
+    line-height: 1.6;
+}
+.rc-inline-link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary-color);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.rc-inline-link:hover {
+    opacity: 0.75;
+}
+.rc-inline-link:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 3px;
 }
 
 /* Badges */
@@ -174,6 +253,54 @@
 .rc-panel .ghost-cta-danger { color: #EA4335; }
 .rc-panel .ghost-cta-danger:focus-visible { outline-color: #EA4335; }
 
+/* ---- "Select All" popup -------------------------------------------------
+   Raised by the long-press / double-click that turns on selection mode.
+   Sits above the bottom nav (90) but below the modals (900+). */
+.rc-select-popup {
+    position: fixed;
+    z-index: 300;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+    padding: 4px;
+    animation: rc-select-popup-in 0.12s ease-out;
+}
+[data-theme="dark"] .rc-select-popup {
+    background: var(--dm-surface-2, #22263A);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+.rc-select-popup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 9px;
+    background: none;
+    color: var(--primary-color);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.rc-select-popup-btn:hover {
+    background: var(--primary-light, #E8F0FE);
+}
+[data-theme="dark"] .rc-select-popup-btn:hover {
+    background: var(--dm-surface-3, #2C3150);
+}
+.rc-select-popup-btn:active {
+    transform: scale(0.97);
+}
+@keyframes rc-select-popup-in {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: none; }
+}
+
 /* Bulk action bar */
 .rc-bulk-actions {
     display: flex;
@@ -193,6 +320,222 @@
 .rc-filter-bar .rc-form-group {
     min-width: 140px;
     flex: 0 1 auto;
+}
+
+/* ============================================================
+   CARD DESIGN (Admin)
+   Editor on the left, live preview on the right — the preview is
+   the real document renderer, not a mock-up.
+   ============================================================ */
+.rc-tpl-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+@media (max-width: 1100px) {
+    .rc-tpl-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.rc-tpl-heading {
+    margin: 28px 0 14px;
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--light-text);
+}
+.rc-tpl-heading:first-child { margin-top: 0; }
+
+.rc-tpl-hint {
+    margin: 8px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--light-text);
+}
+
+/* Logo picker */
+/* The picker, the uploaded image and the hint stack; only the image and its
+   Remove share a line. */
+.rc-tpl-logo-row {
+    display: block;
+    margin-bottom: 20px;
+}
+/* Preview left, Remove hard right — the row spans the panel rather than
+   bunching both against the left edge. */
+.rc-tpl-logo-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 10px 0 8px;
+}
+.rc-tpl-logo-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 84px;
+    height: 84px;
+    flex-shrink: 0;
+    border: 1.5px dashed var(--border-color);
+    border-radius: 12px;
+    background: var(--inner-bg, #f7f8fa);
+    color: var(--light-text);
+    overflow: hidden;
+}
+.rc-tpl-logo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.rc-tpl-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--light-text);
+}
+.rc-tpl-file {
+    font-size: 0.82rem;
+    color: var(--text-color);
+    max-width: 100%;
+}
+
+.rc-form-group textarea {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    background: var(--card-bg);
+    color: var(--text-color);
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+.rc-form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+[data-theme="dark"] .rc-form-group textarea {
+    background: var(--inner-bg, #141a20);
+}
+
+.rc-tpl-color {
+    width: 100%;
+    height: 42px;
+    padding: 4px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--card-bg);
+    cursor: pointer;
+}
+
+/* Grading scale editor — one row per band */
+.rc-grade-scale {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+.rc-grade-head,
+.rc-grade-row {
+    display: grid;
+    grid-template-columns: 72px 56px 68px minmax(0, 1fr) 36px;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+.rc-grade-head {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--light-text);
+}
+.rc-grade-row input {
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.88rem;
+}
+.rc-grade-row input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+[data-theme="dark"] .rc-grade-row input {
+    background: var(--inner-bg, #141a20);
+}
+.rc-grade-range {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--light-text);
+    white-space: nowrap;
+}
+/* The catch-all band always reaches 0, so its lower bound is not editable
+   in practice — flagged rather than hidden so the rule is visible. */
+.rc-grade-row-lowest input[data-grade-min] {
+    opacity: 0.65;
+}
+.rc-grade-row [data-grade-remove] {
+    justify-self: center;
+}
+
+@media (max-width: 560px) {
+    .rc-grade-head { display: none; }
+    .rc-grade-row {
+        grid-template-columns: 64px 52px 60px minmax(0, 1fr) 32px;
+        gap: 6px;
+    }
+    .rc-grade-row input {
+        padding: 8px 6px;
+        font-size: 0.82rem;
+    }
+}
+
+.rc-tpl-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 24px;
+}
+
+.rc-tpl-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+}
+.rc-tpl-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+/* Preview column */
+.rc-tpl-preview-panel { position: sticky; top: 16px; }
+@media (max-width: 1100px) {
+    .rc-tpl-preview-panel { position: static; }
+}
+.rc-tpl-preview-frame {
+    max-height: 70vh;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #fff;
+}
+.rc-tpl-preview-frame .rcd-sheet {
+    max-width: none;
 }
 
 /* ============================================================
@@ -225,12 +568,26 @@
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
+/* Name and the status/close pair share the top row, spread to the full width;
+   the meta line then runs underneath rather than beside them. */
 .rc-detail-header {
     padding: 24px 24px 16px;
     border-bottom: 1px solid var(--border-color);
+}
+.rc-detail-header-inner {
+    min-width: 0;
+}
+.rc-detail-title-row {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
+    gap: 12px;
+}
+.rc-detail-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 .rc-detail-name {
     font-size: 1.2rem;
@@ -273,62 +630,24 @@
     padding: 20px 24px 24px;
 }
 
-/* Subject table */
-.rc-detail-subjects {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-    font-size: 0.88rem;
+/* The document itself. .rcd-sheet is ink on white in both themes — it is
+   paper — so in dark mode it needs its own edge to sit on rather than
+   bleeding into the panel. fitSheets() scales the 800px composition down to
+   whatever width the modal leaves it. */
+.rc-detail-doc {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
 }
-.rc-detail-subjects th {
-    text-align: left;
-    padding: 8px 10px;
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+[data-theme="dark"] .rc-detail-doc {
+    border-color: rgba(255, 255, 255, 0.14);
+}
+.rc-doc-fallback {
+    padding: 24px 0;
+    text-align: center;
     color: var(--light-text);
-    font-weight: 700;
-    border-bottom: 1.5px solid var(--border-color);
 }
-.rc-detail-subjects td {
-    padding: 10px;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-color);
-}
-.rc-detail-subjects tr:last-child td {
-    border-bottom: none;
-}
-.rc-detail-subjects tr:hover td {
-    background: var(--inner-bg, rgba(0,0,0,0.02));
-}
-[data-theme="dark"] .rc-detail-subjects tr:hover td {
-    background: rgba(255, 255, 255, 0.03);
-}
-
-/* Average summary */
-.rc-detail-average {
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--primary-color);
-    padding: 12px 0;
-    border-top: 1.5px solid var(--border-color);
-    margin-bottom: 16px;
-}
-
-/* Attendance section */
-.rc-detail-attendance {
-    margin-bottom: 20px;
-}
-.rc-att-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    font-size: 0.88rem;
-    border-bottom: 1px solid var(--border-color);
-}
-.rc-att-row:last-child { border-bottom: none; }
-.rc-att-row span { color: var(--light-text); }
-.rc-att-row strong { color: var(--text-color); }
 
 /* Remarks */
 .rc-remarks-section {
@@ -364,12 +683,15 @@
     background: var(--inner-bg, #141a20);
 }
 
-/* Detail footer */
+/* Detail footer. Right-aligned rather than spread: Save is hidden on a
+   published card, and space-between would strand the remaining button against
+   the left edge. */
 .rc-detail-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 12px;
 }
 
@@ -507,6 +829,16 @@
 [data-theme="dark"] .rc-access-table tr:hover {
     background: var(--dm-surface-3, #2C3150);
 }
+/* Send sits between the code and the actions; actions stay flush right so the
+   row spans the panel instead of bunching to the left. */
+.rc-access-table th.rc-col-send,
+.rc-access-table td.rc-col-send {
+    text-align: center;
+}
+.rc-access-table th.rc-col-actions,
+.rc-access-table td.rc-col-actions {
+    text-align: right;
+}
 .rc-code-display {
     font-family: var(--font-heading);
     font-size: 1.1rem;
@@ -519,41 +851,241 @@
     font-style: italic;
     font-size: 0.85rem;
 }
+/* Generate lives in the Access Code column itself — a ghost CTA that the
+   generated code then replaces in place. */
+.rc-code-generate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary, #1A73E8);
+    transition: opacity 0.15s ease;
+}
+.rc-code-generate:hover {
+    opacity: 0.75;
+}
+.rc-code-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    color: var(--primary, #1A73E8);
+    transition: background 0.15s, opacity 0.15s;
+}
+.rc-code-icon-btn:hover:not(:disabled) {
+    background: var(--primary-light, #E8F0FE);
+}
+.rc-code-icon-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
 .rc-code-actions {
     display: flex;
     gap: 8px;
     align-items: center;
+    justify-content: flex-end;
 }
-.rc-code-actions button {
+/* ============================================================
+   SEND ACCESS CODE MODAL (Admin -> form teacher)
+   ============================================================ */
+.rc-send-card {
+    max-width: 520px;
+}
+.rc-send-code-chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 6px 14px;
+    border-radius: 50px;
+    background: var(--primary-light, #E8F0FE);
+    color: var(--primary, #1A73E8);
+    font-family: var(--font-heading);
     font-weight: 700;
-    font-size: 0.8rem;
-    cursor: pointer;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+}
+.rc-send-label {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--light-text);
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+.rc-send-search {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 50px;
+    background: var(--inner-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.88rem;
+    margin-bottom: 10px;
+}
+.rc-send-search:focus {
+    outline: none;
+    border-color: var(--primary, #1A73E8);
+}
+.rc-send-teacher-list {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+.rc-send-teacher {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
     background: none;
     border: none;
-    padding: 6px 10px;
-    border-radius: 8px;
-    transition: background 0.15s, opacity 0.15s;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-color);
 }
-.rc-code-actions .rc-gen-code-btn {
-    color: var(--primary, #1A73E8);
+.rc-send-teacher:last-child {
+    border-bottom: none;
 }
-.rc-code-actions .rc-gen-code-btn:hover {
+.rc-send-teacher:hover {
     background: var(--primary-light, #E8F0FE);
 }
-.rc-code-actions .rc-remove-code-btn {
-    color: #EA4335;
+.rc-send-teacher.selected {
+    background: var(--primary-light, #E8F0FE);
+    box-shadow: inset 3px 0 0 var(--primary, #1A73E8);
 }
-.rc-code-actions .rc-remove-code-btn:hover {
-    background: rgba(234, 67, 53, 0.08);
+.rc-send-avatar {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary, #1A73E8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.78rem;
+}
+.rc-send-teacher-info {
+    min-width: 0;
+    flex: 1;
+}
+.rc-send-teacher-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rc-send-teacher-sub {
+    font-size: 0.72rem;
+    color: var(--light-text);
+}
+.rc-send-form-badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 50px;
+    background: var(--primary, #1A73E8);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.rc-send-empty {
+    padding: 20px 12px;
+    text-align: center;
+    color: var(--light-text);
+    font-size: 0.85rem;
+}
+.rc-send-message {
+    width: 100%;
+    min-height: 96px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--inner-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+.rc-send-message:focus {
+    outline: none;
+    border-color: var(--primary, #1A73E8);
+}
+.rc-send-group {
+    margin-bottom: 18px;
+}
+.rc-send-group:last-child {
+    margin-bottom: 0;
 }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+    /* --- Topbar: carries the view name; Back moved to the bottom nav --- */
+    .app-topbar {
+        height: 56px;
+        min-height: 56px;
+        padding: 0 12px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
+    }
+    .app-topbar .topbar-back-btn {
+        display: none !important;
+    }
+    .rc-topbar-title {
+        display: block;
+    }
+
+    /* --- De-carded: sections span the page instead of sitting in a card --- */
+    .rc-panel {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        margin-bottom: 0;
+    }
+    /* The view name lives in the topbar now, so the hero (heading + blurb) goes */
+    .rc-hero {
+        display: none;
+    }
+    /* Last value clears the fixed bottom nav */
+    .main-content {
+        padding: 16px 16px 80px;
+    }
+
     .rc-form-grid {
         grid-template-columns: 1fr;
+    }
+    /* Generate / publish / delete all live in the bottom nav on mobile */
+    .rc-desktop-actions,
+    .rc-bulk-actions {
+        display: none;
+    }
+
+    /* Actions sit tight to the right edge of the row */
+    .rc-card-actions {
+        gap: 14px;
     }
     .rc-detail-overlay {
         padding: 16px 8px;
@@ -567,14 +1099,56 @@
         padding-left: 16px;
         padding-right: 16px;
     }
-    .rc-detail-subjects {
-        font-size: 0.82rem;
+    /* The sheet keeps its full composition and is scaled to fit by
+       fitSheets() — see the "Small screens" note in report-card-document.css.
+       Squared off, because at phone width the rounded corners clip visibly
+       into the letterhead. */
+    .rc-detail-doc {
+        border-radius: 8px;
     }
-    .rc-detail-subjects th,
-    .rc-detail-subjects td {
-        padding: 8px 6px;
-    }
+    /* Class + Term are both short — spread them across the row rather than
+       stacking two full-width selects. */
     .rc-filter-bar {
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .rc-filter-bar .rc-form-group {
+        min-width: 0;
+    }
+    /* The hidden bulk toolbar used to provide this gap on desktop */
+    #rc-review-list,
+    #rc-published-list {
+        margin-top: 16px;
+    }
+    /* Without the panel's padding the code table can reach the viewport edge */
+    #rc-access-codes-list {
+        overflow-x: auto;
+    }
+    /* Four columns on a phone — tighten the gutters so Send and Actions stay
+       on-screen without the table needing to scroll sideways. */
+    .rc-access-table th,
+    .rc-access-table td {
+        padding: 10px 6px;
+    }
+    .rc-access-table th {
+        font-size: 0.62rem;
+        letter-spacing: 0.04em;
+    }
+    .rc-code-display {
+        font-size: 0.95rem;
+        letter-spacing: 0.1em;
+    }
+    .rc-code-icon-btn {
+        width: 44px;
+        height: 44px;
+    }
+    .rc-send-card {
+        border-radius: 14px;
+    }
+    .rc-send-teacher-list {
+        max-height: 180px;
     }
 }
