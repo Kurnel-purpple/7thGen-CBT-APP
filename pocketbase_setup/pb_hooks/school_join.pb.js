@@ -25,10 +25,8 @@
  * per handler rather than shared — same reason as admin_user_password.pb.js.
  */
 
-// Unambiguous alphabet: no O/0 or I/1, because these get read aloud and copied by hand.
-const JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const JOIN_CODE_LENGTH = 8;
-const DEFAULT_EXPIRY_HOURS = 24;
+// NOTE: no module-level constants. Each handler below runs in its own goja runtime, so
+// anything declared out here is undefined inside them — values are inlined per handler.
 
 routerAdd("POST", "/api/cbt/join/code", (c) => {
     const info = $apis.requestInfo(c);
@@ -59,9 +57,13 @@ routerAdd("POST", "/api/cbt/join/code", (c) => {
         throw new BadRequestError("Your account has no school assigned, so it cannot issue codes for one.");
     }
 
-    const body = new DynamicModel({ expiresInHours: null, maxUses: null });
-    try { c.bind(body); } catch (e) { /* empty body is fine, defaults apply */ }
+    // Read the parsed body off requestInfo rather than binding a DynamicModel.
+    // DynamicModel infers field types from the defaults you give it, so passing null
+    // gives it nothing to infer from and it throws — which surfaced as a bare 400
+    // "Something went wrong while processing your request."
+    const body = info.data || {};
 
+    const DEFAULT_EXPIRY_HOURS = 24;
     let hours = parseInt(body.expiresInHours, 10);
     if (isNaN(hours) || hours < 1) hours = DEFAULT_EXPIRY_HOURS;
     if (hours > 24 * 30) hours = 24 * 30;
@@ -69,18 +71,46 @@ routerAdd("POST", "/api/cbt/join/code", (c) => {
     let maxUses = parseInt(body.maxUses, 10);
     if (isNaN(maxUses) || maxUses < 0) maxUses = 0; // 0 = unlimited until expiry
 
-    const collection = dao.findCollectionByNameOrId("school_join_codes");
+    let collection;
+    try {
+        collection = dao.findCollectionByNameOrId("school_join_codes");
+    } catch (e) {
+        // Distinguish "migration 1791500100 never applied" from a genuine failure —
+        // otherwise a missing collection is an unhandled throw and a bare 400.
+        throw new BadRequestError("Registration codes are not set up on this server yet. Deploy the school_join_codes migration first.");
+    }
 
     // Unique index on `code` makes a collision a save error rather than a silent
     // overwrite, so retry a few times instead of trusting one draw.
+    // Unambiguous alphabet: no O/0 or I/1, because codes get read aloud and copied by
+    // hand. Inlined here, not module-level — see the note at the top of this file.
+    const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const LENGTH = 8;
+
+    function makeCode() {
+        // Prefer the CSPRNG; fall back if this build's $security surface differs, since a
+        // missing helper would otherwise be an unhandled throw and a bare 400.
+        try {
+            const s = $security.randomStringWithAlphabet(LENGTH, ALPHABET);
+            if (s && s.length === LENGTH) return s;
+        } catch (e) { /* fall through */ }
+        let out = "";
+        for (let i = 0; i < LENGTH; i++) {
+            out += ALPHABET.charAt(Math.floor(Math.random() * ALPHABET.length));
+        }
+        return out;
+    }
+
     let saved = null;
     let lastErr = null;
     for (let attempt = 0; attempt < 5 && !saved; attempt++) {
-        const code = $security.randomStringWithAlphabet(JOIN_CODE_LENGTH, JOIN_CODE_ALPHABET);
+        const code = makeCode();
         const rec = new Record(collection);
         rec.set("code", code);
         rec.set("school_version", schoolVersion);
-        rec.set("expires_at", new Date(Date.now() + hours * 3600000).toISOString());
+        // "YYYY-MM-DD HH:MM:SS.sssZ", not the 'T'-separated form toISOString() returns —
+        // matches the layout PocketBase's date fields use elsewhere in this project.
+        rec.set("expires_at", new Date(Date.now() + hours * 3600000).toISOString().replace('T', ' '));
         rec.set("max_uses", maxUses);
         rec.set("uses", 0);
         rec.set("revoked", false);
@@ -120,9 +150,7 @@ routerAdd("POST", "/api/cbt/join", (c) => {
         throw new ForbiddenError("Administrator accounts cannot join a school with a code.");
     }
 
-    const body = new DynamicModel({ code: "" });
-    c.bind(body);
-
+    const body = info.data || {};
     const code = (body.code || "").trim().toUpperCase();
     if (!code) {
         throw new BadRequestError("Enter the registration code your school gave you.");
@@ -172,7 +200,7 @@ routerAdd("POST", "/api/cbt/join", (c) => {
     // the client so a visitor cannot extend their own trial — users.Update lets them
     // write their own record, and demo_expiry is not otherwise guarded.
     if (schoolVersion === "GEN7DEMO") {
-        userRec.set("demo_expiry", new Date(Date.now() + 3600000).toISOString());
+        userRec.set("demo_expiry", new Date(Date.now() + 3600000).toISOString().replace('T', ' '));
     }
 
     dao.saveRecord(userRec);
