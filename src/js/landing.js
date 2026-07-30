@@ -516,11 +516,14 @@
     // ── Quick Demo ──────────────────────────────────────────────────
 
     // Demo exam templates (persistent demo teacher creates these on first setup)
+    // targetClass values here must match the class_level values the register form writes
+    // ('JSS3', not 'JSS 3'): getExams filters target_class against the student's class
+    // verbatim, so with a space a demo student saw an empty exam list.
     var DEMO_EXAMS = [
         {
             title: 'Basic Mathematics (Demo)',
             subject: 'Mathematics',
-            targetClass: 'JSS 3',
+            targetClass: 'JSS3',
             schoolLevel: 'Junior Secondary',
             duration: 30,
             passScore: 50,
@@ -538,7 +541,7 @@
         {
             title: 'English Language (Demo)',
             subject: 'English',
-            targetClass: 'JSS 3',
+            targetClass: 'JSS3',
             schoolLevel: 'Junior Secondary',
             duration: 25,
             passScore: 50,
@@ -555,7 +558,7 @@
         {
             title: 'General Science (Demo)',
             subject: 'Science',
-            targetClass: 'JSS 3',
+            targetClass: 'JSS3',
             schoolLevel: 'Junior Secondary',
             duration: 20,
             passScore: 50,
@@ -572,7 +575,7 @@
         {
             title: 'Social Studies (Demo)',
             subject: 'Social Studies',
-            targetClass: 'JSS 3',
+            targetClass: 'JSS3',
             schoolLevel: 'Junior Secondary',
             duration: 35,
             passScore: 40,
@@ -661,24 +664,31 @@
         showDemoStep('loading');
 
         var sessionId = Math.random().toString(36).substr(2, 8);
-        var expiry = Date.now() + 3600000; // 1 hour
-        var schoolVersion = 'DEMO_' + expiry + '_' + sessionId;
+        var expiry = Date.now() + 3600000; // 1 hour — mirrors the server-side stamp
         var username = 'demo_' + role.charAt(0) + '_' + sessionId;
         var password = 'Demo' + Math.random().toString(36).substr(2, 8) + '!';
 
         try {
-            // Register the demo user
+            // Register the demo user WITHOUT a school. school_version decides which
+            // school's exams an account can read, so the server refuses to let a client
+            // set it — the demo joins the reserved GEN7DEMO school by redeeming a code,
+            // exactly like any other account. That code is public on purpose: GEN7DEMO
+            // holds nothing but demo content, and the join endpoint refuses privileged
+            // roles, so it grants nothing worth having.
             await dataService.registerUser({
                 username: username,
                 password: password,
                 role: role,
                 name: role === 'teacher' ? 'Demo Teacher' : 'Demo Student',
-                classLevel: role === 'student' ? 'JSS3' : null,
-                schoolVersion: schoolVersion
+                classLevel: role === 'student' ? 'JSS3' : null
             });
 
             // Login
             await dataService.login(username, password);
+
+            // Join the demo school. The join hook also stamps demo_expiry server-side,
+            // which is what demo_cleanup.pb.js reaps against.
+            await dataService.joinSchoolWithCode('GEN7DEMO');
 
             // For teacher demos, seed demo exams under this teacher
             if (role === 'teacher') {

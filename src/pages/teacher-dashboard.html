@@ -1252,40 +1252,47 @@
         };
 
         // Save Teacher School ID
+        // Join / change school by redeeming a registration code.
+        //
+        // This used to write school_version straight to the profile. It can't any more:
+        // school_version is the tenancy boundary for exams, so the server rejects client
+        // writes to it — otherwise anyone could type another school's ID and read that
+        // school's exams and answer keys. The school's admin issues a short-lived code
+        // instead, and the server validates it.
         window.saveTeacherSchoolId = async function (isMobile = false) {
-            const inputId = isMobile ? 'mobile-teacher-school-id' : 'teacher-school-id';
-            const input = document.getElementById(inputId);
-            const schoolId = input ? input.value.trim() : '';
+            const current = (dataService.getCurrentUser() || {}).schoolVersion || '';
 
-            if (!schoolId) {
-                Utils.showAlert('Missing Info', 'Please enter a School ID');
-                return;
-            }
+            const code = await Utils.showPrompt(
+                current ? 'Change School' : 'Join a School',
+                current
+                    ? 'Enter the registration code from the school you are joining. Your current school is ' + current + '.'
+                    : 'Enter the registration code your school gave you.',
+                { placeholder: 'e.g. K7M2QW4X' }
+            );
+            if (!code) return;
+
+            const btn = isMobile ?
+                document.querySelector('.mobile-actions button[onclick^="saveTeacherSchoolId"]') :
+                document.querySelector('.user-menu button[onclick^="saveTeacherSchoolId"]');
+            const originalText = btn ? btn.textContent : 'Save';
+            if (btn) btn.textContent = '⏳ ...';
 
             try {
-                // Show loading state
-                const btn = isMobile ?
-                    document.querySelector('.mobile-actions button[onclick^="saveTeacherSchoolId"]') :
-                    document.querySelector('.user-menu button[onclick^="saveTeacherSchoolId"]');
+                const schoolVersion = await dataService.joinSchoolWithCode(code);
 
-                const originalText = btn ? btn.textContent : 'Save';
-                if (btn) btn.textContent = '⏳ ...';
-
-                await dataService.updateProfile({ schoolVersion: schoolId });
-
-                // Sync both inputs
                 const desktopInput = document.getElementById('teacher-school-id');
                 const mobileInput = document.getElementById('mobile-teacher-school-id');
-                if (desktopInput) desktopInput.value = schoolId;
-                if (mobileInput) mobileInput.value = schoolId;
+                if (desktopInput) desktopInput.value = schoolVersion;
+                if (mobileInput) mobileInput.value = schoolVersion;
 
-                Utils.showToast('School ID saved and shared with Admin!', 'success');
-
-                if (btn) btn.textContent = originalText;
-
+                Utils.showToast('You have joined ' + schoolVersion, 'success');
+                // Exams are scoped to the school, so reload rather than leaving the
+                // previous school's (now inaccessible) list on screen.
+                setTimeout(() => window.location.reload(), 900);
             } catch (err) {
-                console.error('Error saving school ID:', err);
-                await Utils.showAlert('Error', 'Failed to save: ' + err.message);
+                console.error('Error joining school:', err);
+                if (btn) btn.textContent = originalText;
+                await Utils.showAlert('Could not join', err.message || 'That code could not be used.');
             }
         };
 
@@ -1879,6 +1886,20 @@
                     if (schoolIdInput) schoolIdInput.value = mobileSchoolIdInput.value;
                 });
             }
+
+            // School ID is the tenancy boundary for exams, so the server rejects any
+            // attempt by the browser to write it. The field is display-only now, and
+            // joining or changing school means redeeming a code from that school.
+            [schoolIdInput, mobileSchoolIdInput].forEach((el) => {
+                if (!el) return;
+                el.readOnly = true;
+                el.title = 'Your school is set by the registration code your school gives you.';
+                el.style.cursor = 'not-allowed';
+                el.style.opacity = '0.75';
+            });
+            document.querySelectorAll('button[onclick^="saveTeacherSchoolId"]').forEach((btn) => {
+                btn.textContent = user.schoolVersion ? 'Change' : 'Join';
+            });
 
             // Load Admin Messages
             await loadAdminMessages(teacherId);

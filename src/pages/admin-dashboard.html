@@ -1958,6 +1958,7 @@
                     <button class="dropdown-item" onclick="openChangePasswordModal()" style="color:#fff; padding:10px 16px; font-size:0.85rem;">Change Password</button>
                     <div style="height:1px; background:rgba(255,255,255,0.1); margin:4px 0;"></div>
                     <button class="dropdown-item" onclick="openResetUserPasswordModal(); toggleSidebarProfileDropdown();" style="color:#F9AB00; padding:10px 16px; font-size:0.85rem;">Reset User Password</button>
+                    <button class="dropdown-item" onclick="generateJoinCode(); toggleSidebarProfileDropdown();" style="color:#fff; padding:10px 16px; font-size:0.85rem;">Registration Code</button>
                     <div style="height:1px; background:rgba(255,255,255,0.1); margin:4px 0;"></div>
                     <button class="dropdown-item" onclick="handleLogout()" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
                 </div>
@@ -2014,6 +2015,10 @@
                             <button class="dropdown-item" onclick="openResetUserPasswordModal()" style="color: #F9AB00;">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 010-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                                 <span>Reset User Password</span>
+                            </button>
+                            <button class="dropdown-item" onclick="generateJoinCode()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h6"/></svg>
+                                <span>Registration Code</span>
                             </button>
                             <div class="dropdown-divider"></div>
                             <button class="dropdown-item danger" onclick="handleLogout()">
@@ -7063,6 +7068,65 @@
         // Reset User Password (Admin Feature)
         // ============================================================
         let resetTargetUserId = null;
+
+        /**
+         * Mint a registration code for THIS admin's school.
+         *
+         * Students and teachers can no longer type a School ID at signup — school_version
+         * decides which school's exams an account can read, so a self-declared value
+         * would let anyone into any school. The admin issues a short-lived code out of
+         * band ("use K7M2QW4X when you register") and the server validates it.
+         *
+         * The server derives the school from the caller, so an admin cannot mint a code
+         * for a school that isn't theirs.
+         */
+        window.generateJoinCode = async function () {
+            const hoursRaw = await Utils.showPrompt(
+                'Registration Code',
+                'How many hours should this code stay valid? Students and teachers use it once each while registering.',
+                { value: '24', placeholder: '24', uppercase: false }
+            );
+            if (hoursRaw === null) return;
+
+            const hours = parseInt(hoursRaw, 10);
+            if (isNaN(hours) || hours < 1) {
+                Utils.showToast('Enter a number of hours (1 or more)', 'error');
+                return;
+            }
+
+            const usesRaw = await Utils.showPrompt(
+                'Maximum Uses',
+                'How many accounts may use this code? Enter 0 for no limit until it expires.',
+                { value: '0', placeholder: '0', uppercase: false }
+            );
+            if (usesRaw === null) return;
+
+            const maxUses = parseInt(usesRaw, 10);
+            if (isNaN(maxUses) || maxUses < 0) {
+                Utils.showToast('Enter 0 or a positive number', 'error');
+                return;
+            }
+
+            try {
+                const result = await dataService.createSchoolJoinCode({
+                    expiresInHours: hours,
+                    maxUses: maxUses
+                });
+
+                const expires = result.expiresAt ? new Date(result.expiresAt).toLocaleString() : 'soon';
+                await Utils.showAlert('Registration Code',
+                    '<div style="font-size:2rem; font-weight:800; letter-spacing:4px; margin:8px 0;">' +
+                    result.code + '</div>' +
+                    '<div style="font-size:0.9rem; line-height:1.6;">School: <strong>' + (result.schoolVersion || '') + '</strong><br>' +
+                    'Expires: ' + expires + '<br>' +
+                    (maxUses > 0 ? 'Uses allowed: ' + maxUses : 'Unlimited uses until it expires') + '</div>' +
+                    '<div style="font-size:0.8rem; color:#888; margin-top:12px;">Give this to the people registering. ' +
+                    'Anyone with it can join your school, so share it directly rather than posting it publicly.</div>');
+            } catch (err) {
+                console.error('generateJoinCode failed:', err);
+                await Utils.showAlert('Could Not Generate Code', err.message || 'Please try again.');
+            }
+        };
 
         window.openResetUserPasswordModal = function () {
             document.getElementById('reset-user-password-modal').style.display = 'flex';
