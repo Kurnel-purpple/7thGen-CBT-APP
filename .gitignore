@@ -2,6 +2,13 @@ node_modules
 .env
 dist
 .DS_Store
+
+# Migrations written but deliberately NOT deployed yet. Kept out of the (public)
+# repo because their comments describe holes that are still open in production,
+# and because release-client.js runs `git add -A` — without this they would be
+# committed and pushed to the client branch by accident. Move a file into
+# pb_migrations/ and delete its line here when it actually ships.
+pocketbase_setup/pb_migrations_pending/
 USER_MANUAL.md
 ADDON_ARCHITECTURE_PLAN.md
 MODULE_SYSTEM_TECHNICAL_BLUEPRINT.md
