@@ -528,7 +528,7 @@
             duration: 30,
             passScore: 50,
             status: 'active',
-            instructions: '<p>Answer all questions. Each question carries equal marks. <strong>This is a demo exam.</strong></p>',
+            instructions: 'Answer all questions. Each question carries equal marks. This is a demo exam.',
             scrambleQuestions: false,
             questions: [
                 { id: 'dq1', type: 'mcq', text: 'What is 15 + 27?', options: [{ id: 'a', text: '42', isCorrect: true }, { id: 'b', text: '32', isCorrect: false }, { id: 'c', text: '52', isCorrect: false }, { id: 'd', text: '41', isCorrect: false }] },
@@ -546,7 +546,7 @@
             duration: 25,
             passScore: 50,
             status: 'active',
-            instructions: '<p>Choose the best answer for each question. <strong>This is a demo exam.</strong></p>',
+            instructions: 'Choose the best answer for each question. This is a demo exam.',
             scrambleQuestions: false,
             questions: [
                 { id: 'dq6', type: 'mcq', text: 'Choose the correct spelling:', options: [{ id: 'a', text: 'Accomodation', isCorrect: false }, { id: 'b', text: 'Accommodation', isCorrect: true }, { id: 'c', text: 'Acommodation', isCorrect: false }, { id: 'd', text: 'Acomodation', isCorrect: false }] },
@@ -563,7 +563,7 @@
             duration: 20,
             passScore: 50,
             status: 'active',
-            instructions: '<p>Answer all questions. <strong>This is a demo exam.</strong></p>',
+            instructions: 'Answer all questions. This is a demo exam.',
             scrambleQuestions: false,
             questions: [
                 { id: 'dq10', type: 'mcq', text: 'What is the chemical symbol for water?', options: [{ id: 'a', text: 'O2', isCorrect: false }, { id: 'b', text: 'H2O', isCorrect: true }, { id: 'c', text: 'CO2', isCorrect: false }, { id: 'd', text: 'NaCl', isCorrect: false }] },
@@ -580,7 +580,7 @@
             duration: 35,
             passScore: 40,
             status: 'active',
-            instructions: '<p>Answer all questions. The theory question requires a written response. <strong>This is a demo exam.</strong></p>',
+            instructions: 'Answer all questions. The theory question requires a written response. This is a demo exam.',
             scrambleQuestions: false,
             questions: [
                 { id: 'dq14', type: 'mcq', text: 'What is the capital city of Nigeria?', options: [{ id: 'a', text: 'Lagos', isCorrect: false }, { id: 'b', text: 'Abuja', isCorrect: true }, { id: 'c', text: 'Kano', isCorrect: false }, { id: 'd', text: 'Port Harcourt', isCorrect: false }] },
