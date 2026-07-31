@@ -33,26 +33,30 @@ cronAdd("demo_cleanup", "*/10 * * * *", (c) => {
         }
     }
 
-    // Current scheme: an explicit expiry date. Wrapped because the column does not exist
-    // until 1791500200 is deployed, and filtering on a missing column throws.
+    // Gather candidates with cheap filters, then decide expiry in JS below.
+    //
+    // The comparison deliberately does NOT happen in the filter any more. Doing
+    // `demo_expiry < {:now}` meant relying on how PocketBase compares a date column
+    // against a string, and the formats did not agree: values are written
+    // space-separated ("2026-07-30 12:00:00.000Z") while toISOString() produces
+    // "2026-07-30T12:00:00.000Z". A space sorts before 'T', so every *future* expiry
+    // compared as already past and freshly created demo accounts were deleted within
+    // minutes — taking their profiles and their ability to log in with them.
     try {
-        collect(dao.findRecordsByFilter(
-            "users",
-            'demo_expiry != "" && demo_expiry < {:now}',
-            "-created",
-            200,
-            0,
-            { now: new Date(now).toISOString() }
-        ));
+        collect(dao.findRecordsByFilter("users", 'demo_expiry != ""', "-created", 200, 0));
     } catch (e) {
+        // demo_expiry does not exist until 1791500200 is deployed, and filtering on a
+        // missing column throws.
         console.log("[Demo Cleanup] demo_expiry lookup skipped:", e.message);
     }
 
-    // Legacy scheme: DEMO_<expiryMs>_<sessionId>. Kept until those accounts are gone.
+    // Legacy scheme: DEMO_<expiryMs>_<sessionId>. A broad contains-match is fine because
+    // the loop below refuses to delete anything without a verified expiry — an earlier
+    // attempt at `~ "DEMO$_%"` was silently matching nothing, since `~` has no ESCAPE.
     try {
         collect(dao.findRecordsByFilter(
             "users",
-            'school_version ~ "DEMO$_%" && school_version != "DEMO_PERSISTENT"',
+            'school_version ~ "DEMO" && school_version != "DEMO_PERSISTENT"',
             "-created",
             200,
             0
@@ -72,17 +76,25 @@ cronAdd("demo_cleanup", "*/10 * * * *", (c) => {
         const user = candidates[i];
         const sv = user.getString("school_version") || "";
 
-        // Legacy rows still need their expiry parsed out of school_version. Rows found by
-        // demo_expiry are already known to be expired.
-        const hasExpiryField = !!user.get("demo_expiry");
-        if (!hasExpiryField) {
-            if (sv.indexOf("_") === -1) continue; // not a legacy demo school after all
+        // Never delete without an explicit, verified expiry in the past. Being returned
+        // by either query above is not on its own evidence that an account is expired —
+        // both filters are deliberately broad, and an account with a cleared expiry (the
+        // persistent demo teacher and student) must survive forever.
+        const rawExpiry = user.getString("demo_expiry") || "";
+        let expiryMs = NaN;
+
+        if (rawExpiry) {
+            // Stored space-separated; Date.parse wants the 'T'.
+            expiryMs = Date.parse(rawExpiry.replace(' ', 'T'));
+        } else if (sv.indexOf("_") !== -1) {
+            // Legacy DEMO_<expiryMs>_<sessionId>. Values without a literal underscore
+            // (GEN7DEMO, DEMOCBT2026) fall through and are left alone.
             const parts = sv.split("_");
-            if (parts.length < 2) continue;
-            const expiry = parseInt(parts[1], 10);
-            if (isNaN(expiry) || now < expiry) {
-                continue; // Not expired yet
-            }
+            if (parts.length >= 2) expiryMs = parseInt(parts[1], 10);
+        }
+
+        if (isNaN(expiryMs) || now < expiryMs) {
+            continue; // no verifiable expiry, or not due yet
         }
 
         const userId = user.getId();

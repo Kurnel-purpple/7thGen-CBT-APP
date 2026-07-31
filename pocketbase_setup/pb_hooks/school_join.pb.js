@@ -210,11 +210,33 @@ routerAdd("POST", "/api/cbt/join", (c) => {
         if (profiles.length > 0) {
             profiles[0].set("school_version", schoolVersion);
             dao.saveRecord(profiles[0]);
+        } else {
+            // Create the roster row here rather than leaving it to the client.
+            //
+            // registerUser()'s own profiles.create() always fails — it posts before the
+            // user is authenticated and profiles.createRule requires a caller — and the
+            // fallback, _syncProfileInBackground, is deferred 5s after login. Both the
+            // registration flow and the landing-page demo navigate away well inside that
+            // window, so the row never got written and the account stayed invisible to
+            // its own school: profiles is the roster that the admin dashboard, broadsheet,
+            // attendance and report cards all read.
+            //
+            // Doing it here is server-side and atomic with the join, so it cannot be lost
+            // to a navigation, and the elevated DAO is not subject to createRule.
+            const profileCollection = dao.findCollectionByNameOrId("profiles");
+            const p = new Record(profileCollection);
+            p.set("user", caller.getId());
+            p.set("role", caller.getString("role") || "student");
+            // full_name is required on profiles; fall back so a blank never blocks the join.
+            p.set("full_name", caller.getString("full_name") || caller.getString("username") || "Student");
+            p.set("class_level", caller.getString("class_level") || "");
+            p.set("school_version", schoolVersion);
+            dao.saveRecord(p);
         }
-        // No profile row yet: the client creates it on first login and will read the
-        // school off the users record, so there is nothing to reconcile here.
     } catch (e) {
-        console.log("[join] could not update profile for", caller.getId(), e.message);
+        // A missing roster row is recoverable (the client sync repairs it on a later
+        // login), so never fail an otherwise-successful join over it.
+        console.log("[join] could not write profile for", caller.getId(), e.message);
     }
 
     rec.set("uses", uses + 1);
