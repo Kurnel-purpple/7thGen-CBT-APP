@@ -391,6 +391,13 @@ class DataService {
     async registerUser(userData) {
         const email = this._generateEmail(userData.username);
 
+        // school_version is OMITTED rather than sent as null when there is none.
+        // The create rules allow it only when `:isset = false` or equal to "" — sending
+        // an explicit null makes `:isset` true and the comparison unreliable, which
+        // would reject the registration outright. Normal signups leave it unset and get
+        // their school from the join code (pb_hooks/school_join.pb.js).
+        const school = (userData.schoolVersion || '').trim();
+
         try {
             // Create user in PocketBase
             const user = await this.pb.collection('users').create({
@@ -400,7 +407,7 @@ class DataService {
                 role: userData.role,
                 full_name: userData.name,
                 class_level: userData.classLevel || null,
-                school_version: userData.schoolVersion || null,
+                ...(school && { school_version: school }),
                 emailVisibility: false
             });
 
@@ -411,7 +418,7 @@ class DataService {
                     role: userData.role,
                     full_name: userData.name,
                     class_level: userData.classLevel || null,
-                    school_version: userData.schoolVersion || null,
+                    ...(school && { school_version: school }),
                     user: user.id
                 });
             } catch (profileErr) {
@@ -1210,6 +1217,79 @@ class DataService {
 
 
 
+    /**
+     * Join (or move to) a school by redeeming a code the school's admin issued.
+     *
+     * This is the ONLY way school_version gets set. The users/profiles rules reject any
+     * attempt by the browser to write it, because school_version is the tenancy
+     * boundary for exams and profiles — if the client could set it, a user could simply
+     * declare themselves into another school and read its exams and answer keys.
+     * The code is validated server-side by pb_hooks/school_join.pb.js.
+     */
+    async joinSchoolWithCode(code) {
+        const trimmed = (code || '').trim().toUpperCase();
+        if (!trimmed) throw new Error('Enter the registration code your school gave you.');
+
+        const res = await fetch(`${this.pb.baseUrl}/api/cbt/join`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: this.pb.authStore.token
+            },
+            body: JSON.stringify({ code: trimmed })
+        });
+
+        let payload = {};
+        try { payload = await res.json(); } catch (e) { /* non-JSON error body */ }
+
+        if (!res.ok) {
+            throw new Error(payload.message || 'That registration code could not be used.');
+        }
+
+        const schoolVersion = payload.schoolVersion || '';
+
+        // Keep the cached identity in step, or the UI keeps showing the old school
+        // until the next full login.
+        try {
+            const cached = this.getCurrentUser();
+            if (cached) {
+                cached.schoolVersion = schoolVersion;
+                localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
+            }
+            if (this.pb.authStore.model) {
+                this.pb.authStore.model.school_version = schoolVersion;
+            }
+        } catch (e) {
+            console.warn('joinSchoolWithCode: could not refresh cached identity', e);
+        }
+
+        // No cache flush needed: getExams() folds the school into its IDB cache key, so
+        // a school change lands on a different key and simply misses rather than
+        // serving the previous school's exams.
+
+        return schoolVersion;
+    }
+
+    /** Admin: mint a registration code for their own school. */
+    async createSchoolJoinCode({ expiresInHours, maxUses } = {}) {
+        const res = await fetch(`${this.pb.baseUrl}/api/cbt/join/code`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: this.pb.authStore.token
+            },
+            body: JSON.stringify({ expiresInHours: expiresInHours, maxUses: maxUses })
+        });
+
+        let payload = {};
+        try { payload = await res.json(); } catch (e) { /* non-JSON error body */ }
+
+        if (!res.ok) {
+            throw new Error(payload.message || 'Could not generate a registration code.');
+        }
+        return payload;
+    }
+
     async getUsers(filters = {}) {
         const { forceRefresh, ...cacheFilters } = filters;
         const cacheKey = `users_${JSON.stringify(cacheFilters)}`;
@@ -1328,6 +1408,18 @@ class DataService {
     async getExams(filters = {}) {
         // Exclude forceRefresh from cache key so we update the same cache entry
         const { forceRefresh, ...cacheFilters } = filters;
+
+        // Scope to the caller's school. The server rules already enforce this, but the
+        // IndexedDB cache key is built purely from the filters — without the school in
+        // it, an exam-hall machine shared by two schools would serve one school's
+        // cached exams to the other school's student, entirely client-side and past
+        // any API rule. super_admin is deliberately unscoped; it manages all tenants.
+        const currentUser = this.getCurrentUser() || {};
+        if (currentUser.role !== 'super_admin') {
+            const sv = (cacheFilters.schoolVersion || currentUser.schoolVersion || '').trim();
+            if (sv) cacheFilters.schoolVersion = sv;
+        }
+
         const cacheKey = `exams_${JSON.stringify(cacheFilters)}`;
 
         // 1. Try IDB Cache first (max 3 minutes before refetching)
@@ -1380,6 +1472,11 @@ class DataService {
             if (filters.targetClass) {
                 if (filterString) filterString += ' && ';
                 filterString += `(target_class="${filters.targetClass}" || target_class="All")`;
+            }
+
+            if (cacheFilters.schoolVersion) {
+                if (filterString) filterString += ' && ';
+                filterString += `school_version="${cacheFilters.schoolVersion}"`;
             }
 
             const options = {
@@ -1568,6 +1665,12 @@ class DataService {
                 questions: questions,
                 status: examData.status || 'draft',
                 created_by: examData.createdBy,
+                // Tenancy. Falls back to the signed-in user's school so an exam is
+                // never created unscoped — an unscoped exam becomes invisible to its
+                // own students once the exams rules are tightened.
+                school_version: examData.schoolVersion
+                    || (this.getCurrentUser() || {}).schoolVersion
+                    || '',
                 scheduled_date: examData.scheduledDate || null,
                 scramble_questions: examData.scrambleQuestions || false,
                 client_id: clientGeneratedId,
@@ -1925,6 +2028,7 @@ class DataService {
             questions: questions,
             status: dbExam.status,
             createdBy: dbExam.created_by,
+            schoolVersion: dbExam.school_version || '',
             createdAt: dbExam.created,
             updatedAt: dbExam.updated,
             extensions: dbExam.extensions || {},

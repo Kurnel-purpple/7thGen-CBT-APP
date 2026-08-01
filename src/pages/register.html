@@ -120,20 +120,29 @@
                             </select>
                         </div>
 
-                        <!-- Student School ID Field (shown for students) -->
+                        <!-- Student registration code (shown for students).
+                             Was a free-text School ID. It is a code now because
+                             school_version decides which school's exams you can read,
+                             so it cannot be self-declared — the server issues and
+                             validates the code. Element id kept to avoid churn in the
+                             config pre-fill and submit handler. -->
                         <div class="form-group" id="student-school-group">
-                            <label>School ID</label>
+                            <label>Registration Code</label>
                             <input type="text" id="student-school-id" class="form-control"
-                                placeholder="Enter school ID from your admin">
-                            <small style="color: #666; font-size: 0.85rem;">Your admin will provide this ID.</small>
+                                placeholder="e.g. K7M2QW4X" autocomplete="off" spellcheck="false"
+                                style="text-transform: uppercase; letter-spacing: 1px;">
+                            <small style="color: #666; font-size: 0.85rem;">Your school gives you this code. It
+                                expires, so use it soon after you receive it.</small>
                         </div>
 
-                        <!-- Teacher School ID Field (Hidden by default) -->
+                        <!-- Teacher registration code (hidden by default) -->
                         <div class="form-group hidden" id="teacher-school-group">
-                            <label>School ID</label>
+                            <label>Registration Code</label>
                             <input type="text" id="teacher-school-id" class="form-control"
-                                placeholder="Enter school ID from your admin">
-                            <small style="color: #666; font-size: 0.85rem;">Your admin will provide this ID.</small>
+                                placeholder="e.g. K7M2QW4X" autocomplete="off" spellcheck="false"
+                                style="text-transform: uppercase; letter-spacing: 1px;">
+                            <small style="color: #666; font-size: 0.85rem;">Your school gives you this code. It
+                                expires, so use it soon after you receive it.</small>
                         </div>
 
                         <div class="form-group">
@@ -174,21 +183,24 @@
         import { initConfig, getConfig } from '../config/index.js';
         // Initialize configuration before other scripts
         await initConfig();
-        // Auto-fill (and lock) the student School ID from the client config so
-        // students can't leave it blank or mistype it.
+        // The student field used to be auto-filled and locked to the client config's
+        // schoolId. That is gone: pre-filling a School ID was only ever a UX control —
+        // `readOnly` is a DOM attribute the API never sees, so anyone could post any
+        // school and read its exams. The school now comes from a server-validated
+        // registration code, so there is nothing to pre-fill.
+        //
+        // The configured school is still recorded for messaging ("Registering for
+        // SEATOS SCHOOLS"), which is presentation only.
         try {
-            const schoolId = getConfig()?.client?.schoolId;
-            if (schoolId) {
-                window.__defaultSchoolId = schoolId;
+            const cfg = getConfig();
+            window.__defaultSchoolId = cfg?.client?.schoolId || null;
+            const clientName = cfg?.client?.name;
+            if (clientName && window.__defaultSchoolId) {
                 const el = document.getElementById('student-school-id');
-                if (el) {
-                    el.value = schoolId;
-                    el.readOnly = true;
-                    const hint = el.parentElement && el.parentElement.querySelector('small');
-                    if (hint) hint.textContent = 'Set by your school — no need to change this.';
-                }
+                const hint = el && el.parentElement && el.parentElement.querySelector('small');
+                if (hint) hint.textContent = 'Ask ' + clientName + ' for your registration code. It expires, so use it soon.';
             }
-        } catch (e) { /* no configured school id — field stays editable/required */ }
+        } catch (e) { /* branding is optional */ }
     </script>
 
     <script src="../js/utils.js"></script>
@@ -312,13 +324,22 @@
                 return;
             }
 
-            if (role === 'student' && !studentSchoolId) {
-                await Utils.showAlert('School ID Required', 'Please enter your School ID. Your admin will provide it — without it your account stays invisible to your school.');
+            // The school is set by redeeming a server-validated code, so students and
+            // teachers need one. (The field ids still say "school-id" — see the markup.)
+            const joinCode = (role === 'student' ? studentSchoolId : teacherSchoolId).trim().toUpperCase();
+            if ((role === 'student' || role === 'teacher') && !joinCode) {
+                await Utils.showAlert('Registration Code Required',
+                    'Please enter the registration code your school gave you. Without it your account is not attached to a school and you will not see any exams.');
                 return;
             }
 
-            if (role === 'admin' && !adminSchoolVersion) {
-                await Utils.showAlert('Selection Missing', 'Please specify the School ID.');
+            if (role === 'admin') {
+                // Admin accounts can no longer be self-registered: the users create rule
+                // rejects privileged roles, because anyone who could register as an admin
+                // could then issue codes for any school. Say so plainly instead of
+                // letting the request fail with a raw API error.
+                await Utils.showAlert('Not Available Here',
+                    'Administrator accounts are created by the platform operator, not through this form. Please contact support to have your admin account set up.');
                 return;
             }
 
@@ -327,27 +348,36 @@
             errorDiv.style.display = 'none';
 
             try {
-                // Determine school version based on role
-                let schoolVersion = null;
-                if (role === 'admin') {
-                    schoolVersion = adminSchoolVersion;
-                } else if (role === 'teacher' && teacherSchoolId) {
-                    schoolVersion = teacherSchoolId;
-                } else if (role === 'student' && studentSchoolId) {
-                    schoolVersion = studentSchoolId;
-                }
-
-                const userData = {
+                // school_version is deliberately NOT sent — the server rejects client
+                // writes to it. It gets stamped by the join endpoint below.
+                await dataService.registerUser({
                     name,
                     username,
                     password,
                     role,
-                    ...(role === 'student' && { classLevel: classLevel }),
-                    ...(schoolVersion && { schoolVersion: schoolVersion })
-                };
+                    ...(role === 'student' && { classLevel: classLevel })
+                });
 
-                await dataService.registerUser(userData);
-                await Utils.showAlert('Success', 'Account created successfully! Please login.');
+                // Redeeming the code requires an authenticated caller, so log in first.
+                submitBtn.textContent = 'Joining your school...';
+                await dataService.login(username, password);
+
+                try {
+                    const schoolVersion = await dataService.joinSchoolWithCode(joinCode);
+                    await Utils.showAlert('Success',
+                        'Account created and joined ' + schoolVersion + '. Please login.');
+                } catch (joinErr) {
+                    // The account exists but is unattached. Do not imply total failure —
+                    // they can log in and redeem a working code from the sidebar.
+                    console.error('join failed after registration:', joinErr);
+                    await Utils.showAlert('Account Created — Code Not Accepted',
+                        (joinErr.message || 'That registration code could not be used.') +
+                        '<br><br>Your account was created. Log in and use the <strong>Join</strong> button beside School ID to enter a valid code.');
+                }
+
+                // logout() is async — awaited so the auth store is cleared before the
+                // redirect, and so a rejection can't escape as an unhandled promise.
+                await Promise.resolve(dataService.logout()).catch(() => { });
                 window.location.href = '../index.html';
 
             } catch (err) {

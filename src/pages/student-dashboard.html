@@ -246,7 +246,7 @@
                     <input type="text" id="student-school-id" class="form-control"
                         placeholder="e.g. SCH2026"
                         style="flex:1; min-width:0; padding:6px 10px; font-size:0.8rem; border-radius:6px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.08); color:#fff;">
-                    <button class="btn" onclick="saveStudentSchoolId()" style="padding:6px 10px; font-size:0.75rem; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:6px; flex-shrink:0;">Save</button>
+                    <button class="btn" data-school-id-save onclick="saveStudentSchoolId()" style="padding:6px 10px; font-size:0.75rem; background:rgba(255,255,255,0.15); color:#fff; border:none; border-radius:6px; flex-shrink:0;">Save</button>
                 </div>
             </div>
 
@@ -744,6 +744,21 @@
             if (desktopInput) desktopInput.addEventListener('input', () => { if (mobileInput) mobileInput.value = desktopInput.value; });
             if (mobileInput) mobileInput.addEventListener('input', () => { if (desktopInput) desktopInput.value = mobileInput.value; });
 
+            // School ID is no longer typed in directly. It is the tenancy boundary for
+            // exams, so the server rejects any attempt by the browser to write it —
+            // changing school means redeeming a code from the school you are joining.
+            // The field is display-only; the button opens the code prompt.
+            [desktopInput, mobileInput].forEach((el) => {
+                if (!el) return;
+                el.readOnly = true;
+                el.title = 'Your school is set by the registration code your school gives you.';
+                el.style.cursor = 'not-allowed';
+                el.style.opacity = '0.75';
+            });
+            document.querySelectorAll('[data-school-id-save]').forEach((btn) => {
+                btn.textContent = user && user.schoolVersion ? 'Change' : 'Join';
+            });
+
             // Show a temporary "Newly promoted" banner if this student was just
             // promoted this session (recorded by the admin's Promote flow).
             setTimeout(showNewlyPromotedBanner, 600);
@@ -1011,37 +1026,40 @@
             document.head.appendChild(st);
         }
 
-        // Save School ID
-        window.saveStudentSchoolId = async function (source) {
-            const inputId = source === 'mobile' ? 'mobile-student-school-id' : 'student-school-id';
-            const input = document.getElementById(inputId);
-            if (!input) return;
+        // Join / change school by redeeming a registration code.
+        //
+        // This used to write school_version straight to the profile. It can't any more:
+        // school_version is the tenancy boundary for exams, so the server rejects client
+        // writes to it — otherwise anyone could type another school's ID and read that
+        // school's exams and answer keys. The school's admin issues a short-lived code
+        // instead, and the server validates it.
+        window.saveStudentSchoolId = async function () {
+            const current = (dataService.getCurrentUser() || {}).schoolVersion || '';
 
-            const schoolId = input.value.trim().toUpperCase();
-            if (!schoolId) {
-                Utils.showToast('Please enter a School ID', 'error');
-                return;
-            }
+            const code = await Utils.showPrompt(
+                current ? 'Change School' : 'Join a School',
+                current
+                    ? 'Enter the registration code from the school you are joining. Your current school is ' + current + '.'
+                    : 'Enter the registration code your school gave you.',
+                { placeholder: 'e.g. K7M2QW4X' }
+            );
+            if (!code) return;
 
             try {
-                await dataService.updateProfile({ schoolVersion: schoolId });
+                const schoolVersion = await dataService.joinSchoolWithCode(code);
 
-                // Update local cache
-                const cached = dataService.getCurrentUser();
-                if (cached) {
-                    cached.schoolVersion = schoolId;
-                    localStorage.setItem('cbt_user_meta', JSON.stringify(cached));
-                }
-
-                // Sync inputs
                 const desktopInput = document.getElementById('student-school-id');
                 const mobileInput = document.getElementById('mobile-student-school-id');
-                if (desktopInput) desktopInput.value = schoolId;
-                if (mobileInput) mobileInput.value = schoolId;
+                if (desktopInput) desktopInput.value = schoolVersion;
+                if (mobileInput) mobileInput.value = schoolVersion;
+                document.querySelectorAll('[data-school-id-save]').forEach((btn) => { btn.textContent = 'Change'; });
 
-                Utils.showToast('School ID saved successfully!', 'success');
+                Utils.showToast('You have joined ' + schoolVersion, 'success');
+                // The exam list is scoped to the school, so reload it rather than
+                // leaving the previous school's (now inaccessible) list on screen.
+                setTimeout(() => window.location.reload(), 900);
             } catch (err) {
-                Utils.showToast('Failed to save School ID: ' + err.message, 'error');
+                Utils.showToast(err.message || 'Could not use that code', 'error');
             }
         };
 

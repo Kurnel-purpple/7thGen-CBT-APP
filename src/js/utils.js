@@ -371,8 +371,48 @@ const Utils = {
     },
 
     /**
+     * Show a custom prompt modal (single text input)
+     * @param {string} title
+     * @param {string} message
+     * @param {{placeholder?: string, value?: string, uppercase?: boolean}} [opts]
+     * @returns {Promise<string|null>} trimmed value, or null if cancelled
+     */
+    showPrompt: (title, message, opts = {}) => {
+        Utils._ensureModalHtml();
+        return new Promise((resolve) => {
+            const modal = document.getElementById('utils-prompt-modal');
+            document.getElementById('utils-prompt-title').innerHTML = title || 'Enter a value';
+            document.getElementById('utils-prompt-message').innerHTML = message || '';
+
+            const input = document.getElementById('utils-prompt-input');
+            input.value = opts.value || '';
+            input.placeholder = opts.placeholder || '';
+            input.style.textTransform = opts.uppercase === false ? 'none' : 'uppercase';
+
+            const okBtn = document.getElementById('utils-prompt-ok-btn');
+            const cancelBtn = document.getElementById('utils-prompt-cancel-btn');
+
+            const finish = (value) => {
+                input.onkeydown = null;
+                Utils._closeModal(modal).then(() => resolve(value));
+            };
+
+            okBtn.onclick = () => finish(input.value.trim() || null);
+            cancelBtn.onclick = () => finish(null);
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); okBtn.click(); }
+                if (e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); }
+            };
+
+            modal.classList.remove('closing');
+            modal.style.display = 'flex';
+            setTimeout(() => input.focus(), 60);
+        });
+    },
+
+    /**
      * Show a toast notification
-     * @param {string} message 
+     * @param {string} message
      * @param {string} type - 'info', 'success', 'warning', 'error'
      */
     showToast: (message, type = 'info') => {
@@ -487,6 +527,23 @@ const Utils = {
                 </div>
             </div>
 
+            <div id="utils-prompt-modal" class="utils-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div class="utils-modal-card" style="background: white; width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: utils-pop 0.3s ease-out;">
+                    <div style="background: var(--primary-color, #4a90c8); color: white; padding: 20px; text-align: center;">
+                        <h3 id="utils-prompt-title" style="margin: 0; font-size: 1.2rem;">Enter a value</h3>
+                    </div>
+                    <div style="padding: 24px; color: #333;">
+                        <p id="utils-prompt-message" style="margin: 0 0 14px; line-height: 1.6; font-size: 0.95rem; text-align: center;"></p>
+                        <input id="utils-prompt-input" type="text" autocomplete="off" spellcheck="false"
+                            style="width: 100%; box-sizing: border-box; padding: 12px 14px; font-size: 1.05rem; letter-spacing: 1px; text-align: center; border: 1px solid var(--border-color, #E0E0E0); border-radius: 10px; background: var(--inner-background, #fafafa); color: inherit;">
+                    </div>
+                    <div style="padding: 0 24px 24px; display: flex; justify-content: center; gap: 12px;">
+                        <button id="utils-prompt-cancel-btn" style="background: #95a5a6; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Cancel</button>
+                        <button id="utils-prompt-ok-btn" style="background: var(--primary-color, #4a90c8); color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: 1;">Continue</button>
+                    </div>
+                </div>
+            </div>
+
             <style>
                 @keyframes utils-pop {
                     0% { transform: scale(0.9); opacity: 0; }
@@ -498,12 +555,19 @@ const Utils = {
                 .utils-modal-overlay.closing .utils-modal-card { animation: utils-pop-out 0.2s ease-in forwards; }
 
                 [data-theme="dark"] #utils-alert-modal > div,
-                [data-theme="dark"] #utils-confirm-modal > div {
+                [data-theme="dark"] #utils-confirm-modal > div,
+                [data-theme="dark"] #utils-prompt-modal > div {
                     background: #2c3e50 !important;
                 }
                 [data-theme="dark"] #utils-alert-message,
-                [data-theme="dark"] #utils-confirm-message {
+                [data-theme="dark"] #utils-confirm-message,
+                [data-theme="dark"] #utils-prompt-message {
                     color: #ecf0f1 !important;
+                }
+                [data-theme="dark"] #utils-prompt-input {
+                    background: #22263A !important;
+                    border-color: #2E3347 !important;
+                    color: #E8EAED !important;
                 }
 
                 /* Mobile: dialogs become a bottom sheet that slides up, and
