@@ -199,7 +199,15 @@ routerAdd("POST", "/api/cbt/join", (c) => {
     // Landing-page demo accounts are time-limited. The expiry is set here rather than by
     // the client so a visitor cannot extend their own trial — users.Update lets them
     // write their own record, and demo_expiry is not otherwise guarded.
-    if (schoolVersion === "GEN7DEMO") {
+    //
+    // Scoped to the usernames landing.js generates (demo_t_<id> / demo_s_<id>) rather than
+    // to the school. Everything that joins GEN7DEMO used to get an expiry, which meant a
+    // seeded demo cohort — the students that make a register, broadsheet or class position
+    // worth looking at — was deleted within the hour. Those are permanent members of the
+    // demo school, not throwaway visitors.
+    const identity = (caller.getString("email") || "") + " " + (caller.getString("username") || "");
+    const isLandingDemo = identity.indexOf("demo_t_") !== -1 || identity.indexOf("demo_s_") !== -1;
+    if (schoolVersion === "GEN7DEMO" && isLandingDemo) {
         userRec.set("demo_expiry", new Date(Date.now() + 3600000).toISOString().replace('T', ' '));
     }
 
