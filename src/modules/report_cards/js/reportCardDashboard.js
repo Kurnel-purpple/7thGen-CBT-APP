@@ -1422,7 +1422,7 @@
             window.location.href = 'teacher-dashboard.html';
         });
 
-        function attempt() {
+        async function attempt() {
             var code = (input ? input.value : '').trim();
             if (!code || code.length !== 6) {
                 if (errorEl) {
@@ -1433,7 +1433,16 @@
             }
 
             // Check the code against all classes
-            var codes = window.dataService.getReportCardAccessCodes();
+            var codes;
+            try {
+                codes = await window.dataService.getReportCardAccessCodes();
+            } catch (error) {
+                if (errorEl) {
+                    errorEl.textContent = 'Could not verify the access code. Please check your connection and try again.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
             var matchedClass = null;
             Object.keys(codes).forEach(function(cl) {
                 if (codes[cl] === code) matchedClass = cl;
@@ -1475,12 +1484,18 @@
         return out;
     }
 
-    function renderAccessCodesTable(academic) {
+    async function renderAccessCodesTable(academic) {
         var list = document.getElementById('rc-access-codes-list');
         if (!list) return;
 
         var allClasses = allClassesOf(academic);
-        var codes = window.dataService.getReportCardAccessCodes();
+        var codes;
+        try {
+            codes = await window.dataService.getReportCardAccessCodes();
+        } catch (error) {
+            list.innerHTML = '<p class="rc-empty">Could not load access codes. Please check your connection and try again.</p>';
+            return;
+        }
 
         // Generate lives in the Access Code cell and is replaced by the code
         // once there is one; Actions keeps only Regenerate so the send column
@@ -1530,9 +1545,13 @@
         }
 
         list.querySelectorAll('.rc-code-generate').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                window.dataService.generateReportCardAccessCode(btn.getAttribute('data-class'));
-                renderAccessCodesTable(academic);
+            btn.addEventListener('click', async function() {
+                try {
+                    await window.dataService.generateReportCardAccessCode(btn.getAttribute('data-class'));
+                    await renderAccessCodesTable(academic);
+                } catch (error) {
+                    notify('Could not generate code', 'Please check your connection and try again.');
+                }
             });
         });
 
@@ -1547,15 +1566,26 @@
                     '? The current code will stop working immediately.'
                 );
                 if (!ok) return;
-                window.dataService.generateReportCardAccessCode(classLevel);
-                renderAccessCodesTable(academic);
+                try {
+                    await window.dataService.generateReportCardAccessCode(classLevel);
+                    await renderAccessCodesTable(academic);
+                } catch (error) {
+                    notify('Could not regenerate code', 'Please check your connection and try again.');
+                }
             });
         });
 
         list.querySelectorAll('.rc-send-code-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', async function() {
                 var classLevel = btn.getAttribute('data-class');
-                var code = window.dataService.getReportCardAccessCodes()[classLevel];
+                var codes;
+                try {
+                    codes = await window.dataService.getReportCardAccessCodes();
+                } catch (error) {
+                    notify('Could not load code', 'Please check your connection and try again.');
+                    return;
+                }
+                var code = codes[classLevel];
                 if (!code) return;
                 openSendCodeModal(classLevel, classTextOf(classLevel), code);
             });

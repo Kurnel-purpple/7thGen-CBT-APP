@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-exam-v22';
+const CACHE_NAME = 'cbt-exam-v23';
 const ASSETS = [
 
     './',
