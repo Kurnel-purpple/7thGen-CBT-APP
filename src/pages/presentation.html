@@ -103,8 +103,45 @@
     pointer-events: auto; visibility: visible;
   }
   .slide.is-left { transform: translateX(-6%); }
+  .slide.is-active .eyebrow,
+  .slide.is-active h1,
+  .slide.is-active h2,
+  .slide.is-active .lede,
+  .slide.is-active .points,
+  .slide.is-active .kicker,
+  .slide.is-active .os-tags,
+  .slide.is-active .cta-line,
+  .slide.is-active .cover-mark,
+  .slide.is-active .cover-foot,
+  .slide.is-active .shot,
+  .slide.is-active .shot-stack,
+  .slide.is-active .devices,
+  .slide.is-active .scramble,
+  .slide.is-active .mod-grid {
+    animation: cinematic-in 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .slide.is-active h1, .slide.is-active h2 { animation-delay: 0.08s; }
+  .slide.is-active .lede, .slide.is-active .points, .slide.is-active .scramble, .slide.is-active .mod-grid { animation-delay: 0.18s; }
+  .slide.is-active .shot, .slide.is-active .shot-stack, .slide.is-active .devices { animation-delay: 0.28s; }
+  .slide.is-active .cover-foot, .slide.is-active .cta-line, .slide.is-active .os-tags, .slide.is-active .kicker { animation-delay: 0.36s; }
+  .slide.is-active .mod { animation: card-in 0.48s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .slide.is-active .mod:nth-child(1) { animation-delay: 0.26s; }
+  .slide.is-active .mod:nth-child(2) { animation-delay: 0.32s; }
+  .slide.is-active .mod:nth-child(3) { animation-delay: 0.38s; }
+  .slide.is-active .mod:nth-child(4) { animation-delay: 0.44s; }
+  .slide.is-active .mod:nth-child(5) { animation-delay: 0.50s; }
+  .slide.is-active .mod:nth-child(6) { animation-delay: 0.56s; }
+  @keyframes cinematic-in {
+    from { opacity: 0; transform: translateY(22px); filter: blur(8px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: scale(0.94) translateY(14px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
   @media (prefers-reduced-motion: reduce) {
     .slide, .progress { transition: none; }
+    .slide.is-active * { animation: none !important; }
   }
 
   /* Paper counter-theme */
@@ -436,6 +473,21 @@
   }
   .arrows button:hover { border-color: var(--orange); background: rgba(244,81,30,0.18); }
   .arrows button:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+  .film-control {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 9px;
+    border: 1px solid rgba(243,239,231,0.2); border-radius: 999px;
+    padding: 7px 12px; background: rgba(11,11,13,0.74); color: var(--chalk);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.2px;
+    text-transform: uppercase; backdrop-filter: blur(12px);
+  }
+  .film-control button {
+    width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%;
+    background: var(--orange); color: #fff; font-size: 11px; cursor: pointer;
+  }
+  .film-control button:focus-visible { outline: 2px solid var(--chalk); outline-offset: 2px; }
+  .film-control span { min-width: 42px; }
+  @media (max-width: 580px) { .film-control { display: none; } }
 </style>
 
 <div class="deck">
@@ -952,6 +1004,10 @@
 
   <nav class="nav" aria-label="Slide navigation">
     <div class="dots" id="dots"></div>
+    <div class="film-control" aria-label="Cinematic presentation controls">
+      <button type="button" id="play-pause" aria-label="Pause presentation">Ⅱ</button>
+      <span id="playback-label">Playing</span>
+    </div>
     <div class="arrows">
       <button type="button" id="prev" aria-label="Previous slide">←</button>
       <button type="button" id="next" aria-label="Next slide">→</button>
@@ -965,8 +1021,13 @@
     const dotsWrap = document.getElementById('dots');
     const counter = document.getElementById('counter');
     const progress = document.getElementById('progress');
+    const playbackButton = document.getElementById('play-pause');
+    const playbackLabel = document.getElementById('playback-label');
     const total = slides.length;
+    const sceneDuration = 5000;
     let current = 0;
+    let isPlaying = true;
+    let advanceTimer = null;
 
     slides.forEach((_, i) => {
       const b = document.createElement('button');
@@ -989,16 +1050,39 @@
       counter.innerHTML = '<b>' + pad(current + 1) + '</b> / ' + pad(total);
       progress.style.width = (((current + 1) / total) * 100) + '%';
       if (history.replaceState) history.replaceState(null, '', '#' + (current + 1));
+      scheduleAdvance();
+    }
+
+    function setPlayback(playing) {
+      isPlaying = playing;
+      playbackButton.textContent = playing ? 'Ⅱ' : '▶';
+      playbackButton.setAttribute('aria-label', playing ? 'Pause presentation' : 'Play presentation');
+      playbackLabel.textContent = playing ? 'Playing' : 'Paused';
+      scheduleAdvance();
+    }
+
+    function scheduleAdvance() {
+      if (advanceTimer) clearTimeout(advanceTimer);
+      if (!isPlaying) return;
+      advanceTimer = setTimeout(() => {
+        if (current === total - 1) {
+          setPlayback(false);
+          return;
+        }
+        go(current + 1);
+      }, sceneDuration);
     }
 
     document.getElementById('prev').addEventListener('click', () => go(current - 1));
     document.getElementById('next').addEventListener('click', () => go(current + 1));
+    playbackButton.addEventListener('click', () => setPlayback(!isPlaying));
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(current + 1); }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(current - 1); }
       else if (e.key === 'Home') { e.preventDefault(); go(0); }
       else if (e.key === 'End') { e.preventDefault(); go(total - 1); }
+      else if (e.key.toLowerCase() === 'p') { e.preventDefault(); setPlayback(!isPlaying); }
     });
 
     // Swipe
