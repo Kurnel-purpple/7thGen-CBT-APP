@@ -752,6 +752,7 @@
     // ================================================================
 
     var ACCESS_CODE_KEY = 'report_cards.access_codes';
+    var ACCESS_CODES_SETTING_KEY = 'report_card_access_codes';
 
     function readAccessCodes() {
         try {
@@ -778,11 +779,33 @@
      * Get all access codes for the current school.
      * Returns { classLevel: code, ... }
      */
-    ds.getReportCardAccessCodes = function() {
+    ds.getReportCardAccessCodes = async function() {
         var school = ds.getSchoolContext() || {};
         var sv = school.schoolVersion || 'default';
-        var all = readAccessCodes();
-        return all[sv] || {};
+        var legacy = readAccessCodes()[sv] || {};
+        var stored = await ds.getAppSetting(ACCESS_CODES_SETTING_KEY);
+
+        if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+            return stored;
+        }
+
+        // Codes created before this change only exist in the admin's browser.
+        // When that admin next opens the Codes page, copy them once into the
+        // shared, school-scoped store so teachers can use the existing codes.
+        var user = ds.getCurrentUser ? ds.getCurrentUser() : null;
+        var canMigrate = user && (user.role === 'admin' || user.role === 'super_admin');
+        if (legacy && Object.keys(legacy).length && canMigrate && stored !== undefined) {
+            try {
+                await ds.saveAppSetting(ACCESS_CODES_SETTING_KEY, legacy);
+                return legacy;
+            } catch (error) {
+                console.warn('Could not migrate report-card access codes:', error);
+            }
+        }
+
+        // Keep the legacy copy as an offline fallback. It is never the source
+        // of truth once shared settings are available.
+        return legacy;
     };
 
     /**
@@ -790,13 +813,20 @@
      * @param {string} classLevel
      * @returns {string} the generated code
      */
-    ds.generateReportCardAccessCode = function(classLevel) {
+    ds.generateReportCardAccessCode = async function(classLevel) {
+        var codes = await ds.getReportCardAccessCodes();
+        var code = generateCode();
+        codes[classLevel] = code;
+
+        await ds.saveAppSetting(ACCESS_CODES_SETTING_KEY, codes);
+
+        // Retain a local copy for offline display, but shared storage above is
+        // authoritative and is what makes the code work for every teacher.
         var school = ds.getSchoolContext() || {};
         var sv = school.schoolVersion || 'default';
         var all = readAccessCodes();
         if (!all[sv]) all[sv] = {};
-        var code = generateCode();
-        all[sv][classLevel] = code;
+        all[sv] = codes;
         writeAccessCodes(all);
         return code;
     };
@@ -805,7 +835,11 @@
      * Remove an access code for a specific class.
      * @param {string} classLevel
      */
-    ds.removeReportCardAccessCode = function(classLevel) {
+    ds.removeReportCardAccessCode = async function(classLevel) {
+        var codes = await ds.getReportCardAccessCodes();
+        delete codes[classLevel];
+        await ds.saveAppSetting(ACCESS_CODES_SETTING_KEY, codes);
+
         var school = ds.getSchoolContext() || {};
         var sv = school.schoolVersion || 'default';
         var all = readAccessCodes();
@@ -821,8 +855,8 @@
      * @param {string} code
      * @returns {boolean}
      */
-    ds.verifyReportCardAccessCode = function(classLevel, code) {
-        var codes = ds.getReportCardAccessCodes();
+    ds.verifyReportCardAccessCode = async function(classLevel, code) {
+        var codes = await ds.getReportCardAccessCodes();
         // If no code is set for this class, deny access
         if (!codes[classLevel]) return false;
         return codes[classLevel] === code;
@@ -833,8 +867,8 @@
      * @param {string} classLevel
      * @returns {boolean}
      */
-    ds.hasReportCardAccessCode = function(classLevel) {
-        var codes = ds.getReportCardAccessCodes();
+    ds.hasReportCardAccessCode = async function(classLevel) {
+        var codes = await ds.getReportCardAccessCodes();
         return !!codes[classLevel];
     };
 
