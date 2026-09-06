@@ -130,6 +130,9 @@
             });
         }
 
+        // Floating dark mode toggle
+        initThemeToggle();
+
         // Scroll reveal animations
         initScrollReveal();
 
@@ -144,6 +147,23 @@
 
         // Quick Demo modal
         initDemo();
+    }
+
+    // ── Theme toggle ───────────────────────────────────────────────
+    // The bootstrap script in index.html already mirrors the device theme when
+    // nothing is saved. Clicking here makes an explicit choice and persists it,
+    // which stops the page from following the device from then on.
+    function initThemeToggle() {
+        var btn = document.getElementById('landing-theme-toggle');
+        if (!btn) return;
+
+        btn.addEventListener('click', function () {
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('theme', next); } catch (e) { /* private mode */ }
+            btn.setAttribute('aria-label', next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+        });
     }
 
     // ── Scroll reveal ──────────────────────────────────────────────

@@ -109,8 +109,16 @@ class DataService {
             });
 
             if (!res.ok) {
-                // If server rejects fields, retry without them
-                if (fields && res.status === 400) {
+                const body = await res.text().catch(() => '');
+
+                // Only drop `fields` when the server actually complains about them.
+                // Any 400 used to trigger this retry, but the server also returns a
+                // generic 400 ("Something went wrong...") when it is simply under
+                // load — and retrying without `fields` then downloads the FULL
+                // records (the heavy `answers` / `questions` blobs the field list
+                // exists to avoid), deepening the memory pressure that caused the
+                // failure in the first place.
+                if (fields && res.status === 400 && /field/i.test(body)) {
                     console.warn(`[RawList] fields rejected for ${collection}, retrying without`);
                     params.delete('fields');
                     const retry = await fetch(`${base}/api/collections/${collection}/records?${params.toString()}`, {
@@ -119,26 +127,53 @@ class DataService {
                     if (!retry.ok) throw new Error(`PocketBase ${collection} query failed: ${retry.status}`);
                     return retry.json();
                 }
-                throw new Error(`PocketBase ${collection} query failed: ${res.status}`);
+                // Carry the server's own message — a bare status code sent us
+                // chasing the wrong cause once already.
+                throw new Error(`PocketBase ${collection} query failed: ${res.status}${body ? ` — ${body.slice(0, 200)}` : ''}`);
             }
             return res.json();
         };
 
-        if (fullList) {
-            // Paginate through all results (same as SDK getFullList)
-            const pp = perPage || 200;
-            let allItems = [];
-            let pg = 1;
-            while (true) {
-                const data = await fetchPage(pg, pp);
-                allItems = allItems.concat(data.items || []);
-                if (allItems.length >= data.totalItems || !data.items || data.items.length < pp) break;
-                pg++;
+        const run = async () => {
+            if (fullList) {
+                // Paginate through all results (same as SDK getFullList)
+                const pp = perPage || 200;
+                let allItems = [];
+                let pg = 1;
+                while (true) {
+                    const data = await fetchPage(pg, pp);
+                    allItems = allItems.concat(data.items || []);
+                    if (allItems.length >= data.totalItems || !data.items || data.items.length < pp) break;
+                    pg++;
+                }
+                return allItems;
+            } else {
+                return fetchPage(page || 1, perPage || 30);
             }
-            return allItems;
-        } else {
-            return fetchPage(page || 1, perPage || 30);
-        }
+        };
+
+        // In-flight de-duplication.
+        //
+        // The teacher dashboard calls loadAndRenderFlags() (not awaited) and then
+        // loadDashboardData() on the same page load, and both ask for the same exams
+        // and results with forceRefresh — so the identical fullList queries were being
+        // issued twice concurrently. For results that is ~32 paged requests each, for
+        // the same 6,375 rows, which is what tips the server into 400s. Callers that
+        // ask for exactly the same thing while a fetch is already running now share it.
+        //
+        // The auth token is part of the key, so two different users can never be served
+        // each other's response.
+        this._inflight = this._inflight || new Map();
+        const key = JSON.stringify([collection, page, perPage, filter, sort, fields, fullList, token || '']);
+
+        const inflight = this._inflight.get(key);
+        // Hand every caller its own array so one caller sorting or splicing the result
+        // cannot corrupt another's copy (the item objects themselves are shared).
+        if (inflight) return inflight.then((r) => (Array.isArray(r) ? r.slice() : r));
+
+        const pending = run().finally(() => this._inflight.delete(key));
+        this._inflight.set(key, pending);
+        return pending.then((r) => (Array.isArray(r) ? r.slice() : r));
     }
 
     // --- V2D: Trusted Server Time ---

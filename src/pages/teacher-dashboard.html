@@ -2944,10 +2944,14 @@
             try {
                 // Fetch fresh data
                 const user = dataService.getCurrentUser();
-                const [exams, allResults] = await Promise.all([
-                    dataService.getExamSummaries({ teacherId: user.id, includeDeleted: true, forceRefresh: true }),
-                    dataService.getResultSummaries({ forceRefresh: true })
-                ]);
+                // Exams first, then only the results belonging to them. This costs one
+                // extra round trip and saves downloading every result on the server —
+                // processAndRenderUi() discards anything outside cachedExams anyway.
+                const exams = await dataService.getExamSummaries({ teacherId: user.id, includeDeleted: true, forceRefresh: true });
+                const allResults = await dataService.getResultSummaries({
+                    examIds: exams.map(e => e.id),
+                    forceRefresh: true
+                });
 
                 cachedExams = await hydrateFlagReviewExams(exams, allResults);
                 cachedResults = allResults;
@@ -3100,10 +3104,14 @@
                 }
 
                 console.log('🌐 Fetching fresh dashboard data...');
-                const [exams, results] = await Promise.all([
-                    dataService.getExamSummaries({ teacherId: user.id, forceRefresh: true, includeDeleted: true }),
-                    dataService.getResultSummaries({ forceRefresh: true })
-                ]);
+                // Exams first, then only their results — updateDashboardStats() filters
+                // to teacherExamIds immediately, so pulling the whole results
+                // collection was downloading ~6,375 rows to use a handful.
+                const exams = await dataService.getExamSummaries({ teacherId: user.id, forceRefresh: true, includeDeleted: true });
+                const results = await dataService.getResultSummaries({
+                    examIds: exams.map(e => e.id),
+                    forceRefresh: true
+                });
 
                 cachedExams = exams;
                 cachedResults = results;
