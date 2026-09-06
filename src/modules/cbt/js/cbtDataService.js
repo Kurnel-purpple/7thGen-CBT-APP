@@ -1697,7 +1697,36 @@
                 options.perPage = 100;
             }
 
-            const results = await this._rawList('results', options);
+            let results;
+            if (Array.isArray(filters.examIds)) {
+                // Scope to a known set of exams instead of pulling the whole collection.
+                // The teacher dashboard only ever uses results belonging to its own
+                // exams (it filters by teacherExamIds immediately after fetching), but
+                // it was downloading every result on the server first — 6,375 rows over
+                // ~32 paged requests — which is what pushes the backend into 400s.
+                const ids = filters.examIds.filter((id) => /^[a-zA-Z0-9_]+$/.test(id || ''));
+                if (ids.length === 0) {
+                    results = [];
+                } else {
+                    // Chunked so the filter (and the URL) stays a sane length for a
+                    // teacher with many exams. Sequential, not parallel — the point is
+                    // to reduce concurrent load, and firing every chunk at once would
+                    // defeat that.
+                    const CHUNK = 25;
+                    results = [];
+                    for (let i = 0; i < ids.length; i += CHUNK) {
+                        const clause = '(' + ids.slice(i, i + CHUNK)
+                            .map((id) => `exam_id="${id}"`).join(' || ') + ')';
+                        const rows = await this._rawList('results', {
+                            ...options,
+                            filter: filterString ? `${filterString} && ${clause}` : clause
+                        });
+                        results = results.concat(rows);
+                    }
+                }
+            } else {
+                results = await this._rawList('results', options);
+            }
             const mappedResults = results.map(r => this._mapResultSummary(r));
 
             if (window.idb && mappedResults.length > 0) {

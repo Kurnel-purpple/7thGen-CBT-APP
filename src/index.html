@@ -10,11 +10,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700;800&family=Jost:wght@400;500;600;700;800;900&family=Nunito:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
     <script>
-        // Prevent dark mode flash — apply theme before first paint
+        // Prevent dark mode flash — apply theme before first paint.
+        // With no saved preference we mirror the viewing device's theme, and keep
+        // mirroring it live if the device switches while the page is open.
         (function() {
-            var t = localStorage.getItem('theme');
-            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', t);
+            var mq = window.matchMedia('(prefers-color-scheme: dark)');
+            function systemTheme() { return mq.matches ? 'dark' : 'light'; }
+            function apply(t) { document.documentElement.setAttribute('data-theme', t); }
+
+            apply(localStorage.getItem('theme') || systemTheme());
+
+            function onSystemChange() {
+                // Only follow the device while the user has made no explicit choice
+                if (!localStorage.getItem('theme')) apply(systemTheme());
+            }
+            if (mq.addEventListener) mq.addEventListener('change', onSystemChange);
+            else if (mq.addListener) mq.addListener(onSystemChange);
         })();
     </script>
     <link rel="stylesheet" href="css/main.css">
