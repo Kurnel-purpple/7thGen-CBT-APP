@@ -2267,7 +2267,140 @@
                             </span>
                             <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
+
+                        <!-- Demo tenant only. Hidden unless the signed-in admin's school
+                             IS the demo school, so it can never appear on a real client's
+                             dashboard. The server enforces the same restriction — this is
+                             presentation, not the security boundary. -->
+                        <button type="button" class="settings-row" id="demo-reset-row" style="display:none;"
+                            onclick="resetDemoData()">
+                            <span class="settings-row-icon" style="color:#EA4335;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                            </span>
+                            <span class="settings-row-text">
+                                <span class="settings-row-title" style="color:#EA4335;">Reset Demo Data</span>
+                                <span class="settings-row-desc" id="demo-reset-desc">Wipe and rebuild the demo school &mdash; exams, results, report cards, attendance, homework. Use between client demonstrations to undo anything done during the last one.</span>
+                            </span>
+                            <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
                     </div>
+                </div>
+
+                <!-- Demo rebuild progress. Matches the Utils modal language (blurred
+                     scrim, 16px card, coloured header) rather than introducing a fourth
+                     dialog style.
+
+                     The bar is INDETERMINATE on purpose. The rebuild is a single request
+                     with no progress stream, so a percentage would be invented — and an
+                     invented percentage that sticks at 80% is worse than an honest
+                     "working". The phase list below it says what the job involves; it
+                     does not claim to track where the job has got to. -->
+                <div id="demo-reset-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10002; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+                    <div class="demo-reset-card">
+                        <div class="demo-reset-head" id="demo-reset-head">
+                            <h3 id="demo-reset-title">Rebuilding demo school</h3>
+                        </div>
+
+                        <div class="demo-reset-body">
+                            <!-- Working state -->
+                            <div id="demo-reset-working">
+                                <div class="demo-reset-track"><div class="demo-reset-fill"></div></div>
+                                <p class="demo-reset-status" id="demo-reset-status">Clearing the previous demo…</p>
+                                <ul class="demo-reset-phases">
+                                    <li>Accounts, exams and a full session of results</li>
+                                    <li>Report cards, broadsheet history and attendance</li>
+                                    <li>Homework, question bank and messages</li>
+                                </ul>
+                            </div>
+
+                            <!-- Result state -->
+                            <div id="demo-reset-result" style="display:none;">
+                                <p class="demo-reset-status" id="demo-reset-result-msg"></p>
+                                <div class="demo-reset-counts" id="demo-reset-counts"></div>
+                            </div>
+                        </div>
+
+                        <div class="demo-reset-foot" id="demo-reset-foot" style="display:none;">
+                            <button type="button" class="demo-reset-done" onclick="closeDemoResetOverlay()">Done</button>
+                        </div>
+                    </div>
+
+                    <style>
+                        .demo-reset-card {
+                            background: var(--card-background, #fff);
+                            color: var(--text-color, #202124);
+                            width: 90%; max-width: 440px;
+                            border-radius: 16px; overflow: hidden;
+                            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+                            animation: utils-pop 0.3s ease-out;
+                        }
+                        .demo-reset-head {
+                            background: var(--primary-color, #1A73E8);
+                            color: #fff; padding: 20px; text-align: center;
+                            transition: background 0.2s ease;
+                        }
+                        .demo-reset-head.is-error { background: #EA4335; }
+                        .demo-reset-head.is-done  { background: #34A853; }
+                        .demo-reset-head h3 { margin: 0; font-size: 1.15rem; }
+                        .demo-reset-body { padding: 26px 24px 20px; }
+
+                        /* Indeterminate: a fixed-width fill sliding across the track. */
+                        .demo-reset-track {
+                            height: 6px; border-radius: 50px; overflow: hidden;
+                            background: var(--inner-background, #eef1f5);
+                        }
+                        .demo-reset-fill {
+                            width: 38%; height: 100%; border-radius: 50px;
+                            background: var(--primary-color, #1A73E8);
+                            animation: demo-reset-slide 1.15s ease-in-out infinite;
+                        }
+                        @keyframes demo-reset-slide {
+                            0%   { transform: translateX(-100%); }
+                            100% { transform: translateX(265%); }
+                        }
+                        @media (prefers-reduced-motion: reduce) {
+                            .demo-reset-fill { animation-duration: 2.4s; }
+                        }
+
+                        .demo-reset-status {
+                            margin: 16px 0 0; text-align: center;
+                            font-size: 0.95rem; line-height: 1.5;
+                        }
+                        .demo-reset-phases {
+                            margin: 14px 0 0; padding: 0; list-style: none;
+                            text-align: center; font-size: 0.8rem;
+                            color: var(--light-text, #5F6368); line-height: 1.9;
+                        }
+                        .demo-reset-counts {
+                            display: grid; grid-template-columns: repeat(2, 1fr);
+                            gap: 8px; margin-top: 18px;
+                        }
+                        .demo-reset-counts div {
+                            background: var(--inner-background, #f6f8fa);
+                            border-radius: 10px; padding: 10px 12px;
+                            font-size: 0.82rem; color: var(--light-text, #5F6368);
+                        }
+                        .demo-reset-counts strong {
+                            display: block; font-size: 1.05rem;
+                            color: var(--text-color, #202124);
+                        }
+                        .demo-reset-foot { padding: 4px 24px 24px; display: flex; justify-content: center; }
+                        .demo-reset-done {
+                            background: var(--primary-color, #1A73E8); color: #fff;
+                            border: none; padding: 12px 42px; border-radius: 10px;
+                            font-weight: 600; cursor: pointer;
+                        }
+                        .demo-reset-done:active { transform: scale(0.97); }
+
+                        [data-theme="dark"] .demo-reset-card {
+                            background: var(--dm-surface-2, #22263A);
+                            color: var(--text-color, #E8EAED);
+                        }
+                        [data-theme="dark"] .demo-reset-track,
+                        [data-theme="dark"] .demo-reset-counts div {
+                            background: rgba(255,255,255,0.06);
+                        }
+                    </style>
                 </div>
 
                 <!-- Term Dates page — admin-configurable school term calendar.
@@ -3591,6 +3724,108 @@
         }
         window.setAdminPageTitle = setAdminPageTitle;
 
+        // ---- Demo tenant reset -------------------------------------------------
+        // The pitch tenant. Anything demonstrated during a client meeting — sitting an
+        // exam, resolving a flagged question, marking attendance — is a one-shot action
+        // otherwise, so the demo has to be restorable before the next meeting.
+        const DEMO_TENANT = 'DEMOCBT2026';
+
+        window.closeDemoResetOverlay = function() {
+            const ov = document.getElementById('demo-reset-overlay');
+            if (ov) ov.style.display = 'none';
+        };
+
+        window.resetDemoData = async function() {
+            const u = window.dataService?.getCurrentUser?.() || {};
+            if (u.schoolVersion !== DEMO_TENANT) return; // belt and braces; server refuses too
+
+            const ok = await Utils.showConfirm(
+                'Reset the demo school?',
+                'Everything in the demo school is deleted and rebuilt from scratch — exams, ' +
+                'results, report cards, attendance, homework and the demo accounts.<br><br>' +
+                '<strong>No other school is touched.</strong> This cannot be undone.'
+            );
+            if (!ok) return;
+
+            const overlay = document.getElementById('demo-reset-overlay');
+            const head = document.getElementById('demo-reset-head');
+            const title = document.getElementById('demo-reset-title');
+            const working = document.getElementById('demo-reset-working');
+            const result = document.getElementById('demo-reset-result');
+            const resultMsg = document.getElementById('demo-reset-result-msg');
+            const counts = document.getElementById('demo-reset-counts');
+            const foot = document.getElementById('demo-reset-foot');
+            const status = document.getElementById('demo-reset-status');
+
+            head.className = 'demo-reset-head';
+            title.textContent = 'Rebuilding demo school';
+            working.style.display = '';
+            result.style.display = 'none';
+            foot.style.display = 'none';
+            counts.innerHTML = '';
+            status.textContent = 'Clearing the previous demo…';
+            overlay.style.display = 'flex';
+
+            // The status line advances on a timer rather than on real events, so it says
+            // what the rebuild is doing in the order it does it — never a percentage, and
+            // it stops at the last line rather than looping, so it cannot imply the job
+            // finished when it has not.
+            const lines = [
+                'Clearing the previous demo…',
+                'Creating accounts and exams…',
+                'Writing a full session of results…',
+                'Building report cards and attendance…',
+                'Almost there…'
+            ];
+            let li = 0;
+            const ticker = setInterval(() => {
+                li++;
+                if (li >= lines.length) { clearInterval(ticker); return; }
+                status.textContent = lines[li];
+            }, 1400);
+
+            try {
+                // send() resolves the base URL and attaches the auth header itself, so
+                // this works unchanged against local, Fly, or a self-hosted server.
+                const res = await window.dataService.pb.send('/api/cbt/demo/reset', { method: 'POST' });
+                const made = (res && res.summary && res.summary.created) || {};
+
+                clearInterval(ticker);
+                head.className = 'demo-reset-head is-done';
+                title.textContent = 'Demo school rebuilt';
+                working.style.display = 'none';
+                result.style.display = '';
+                resultMsg.textContent = 'Sign in as demo.teacher or demo.student to check it.';
+
+                const cells = [
+                    ['Students', made.students], ['Exams', made.exams],
+                    ['Results', made.results], ['Report cards', made.reportCards],
+                    ['Attendance marks', made.attendanceMarks], ['Bank questions', made.questionBank]
+                ];
+                counts.innerHTML = cells.map(([label, n]) =>
+                    '<div><strong>' + (n || 0) + '</strong>' + label + '</div>'
+                ).join('');
+                foot.style.display = 'flex';
+
+            } catch (err) {
+                clearInterval(ticker);
+                // The seeder reports which phase failed; surface that rather than a
+                // generic message, because "it didn't work" an hour before a pitch is
+                // not a useful thing to be told.
+                const data = (err && err.data) || {};
+                const detail = data.error || err?.message || 'Unknown error';
+                const phase = data.step ? ' during ' + data.step : '';
+                console.error('[DemoReset] failed:', err);
+
+                head.className = 'demo-reset-head is-error';
+                title.textContent = 'Reset failed' + phase;
+                working.style.display = 'none';
+                result.style.display = '';
+                resultMsg.textContent = detail;
+                foot.style.display = 'flex';
+            }
+        };
+
         // The Settings index. Entries either open another admin page (Term
         // Dates) or hand off to the module that owns the setting.
         window.openSettings = function() {
@@ -3607,6 +3842,16 @@
 
             // Entries for disabled modules stay hidden by the [data-module]
             // rule — nothing to do here.
+
+            // The demo reset is revealed only inside the demo school. Checked on every
+            // open rather than once at load, because the cached user is refreshed
+            // asynchronously and may not carry a school yet on first paint.
+            const demoRow = document.getElementById('demo-reset-row');
+            if (demoRow) {
+                const u = window.dataService?.getCurrentUser?.() || {};
+                demoRow.style.display = (u.schoolVersion === DEMO_TENANT) ? '' : 'none';
+            }
+
             activeAdminSection = 'settings';
             setAdminPageTitle('Settings');
             highlightStatCard(null);

@@ -336,6 +336,9 @@
         })();
     </script>
 
+    <!-- Real PDF generation for the Download button. From a CDN, so studentReportCard's
+         downloadPdf() falls back to the print dialog when it cannot be loaded. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
     <script type="module">
         import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';

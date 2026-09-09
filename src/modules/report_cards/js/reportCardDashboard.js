@@ -344,6 +344,64 @@
     }
 
     /**
+     * The start/end dates of a term, from the admin-configured Term Dates.
+     * Returns { start:'', end:'' } when the term has no configured range — callers
+     * treat an empty range as "count every record for this term".
+     */
+    function termDateRange(term) {
+        var canon = (window.Utils && Utils.normalizeTerm) ? Utils.normalizeTerm(term) : term;
+        var cal = (window.Utils && Utils.termCalendar) || null;
+        if (!cal || !Array.isArray(cal.terms)) return { start: '', end: '' };
+        var hit = cal.terms.find(function(t) { return t.term === canon; });
+        return hit ? { start: hit.start, end: hit.end } : { start: '', end: '' };
+    }
+
+    function formatRangeDate(isoDate) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || ''));
+        if (!m) return isoDate || '';
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return m[3] + ' ' + months[+m[2] - 1] + ' ' + m[1];
+    }
+
+    /**
+     * Show which dates attendance will be counted over for the selected term, or
+     * warn — with a way to fix it — when Term Dates have not been set.
+     */
+    function renderAttendanceRange() {
+        var el = document.getElementById('rc-attendance-range');
+        if (!el) return;
+        var term = document.getElementById('rc-term')?.value || '';
+
+        if (!term) {
+            el.innerHTML = '<p class="rc-range-note">Select a term to see the attendance period.</p>';
+            return;
+        }
+
+        var range = termDateRange(term);
+        if (range.start && range.end) {
+            el.innerHTML =
+                '<p class="rc-range-note">' +
+                    '<strong>Attendance period:</strong> ' +
+                    escapeHtml(formatRangeDate(range.start)) + ' &ndash; ' +
+                    escapeHtml(formatRangeDate(range.end)) +
+                    ' <span class="rc-range-sub">(from Term Dates)</span>' +
+                '</p>';
+            return;
+        }
+
+        el.innerHTML =
+            '<div class="rc-range-warn">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">' +
+                    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>' +
+                    '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' +
+                '</svg>' +
+                '<span>Term Dates are not set for ' + escapeHtml(term) + '. Attendance will cover ' +
+                'every record for this term. <a href="admin-dashboard.html" class="rc-range-link">Set Term Dates</a></span>' +
+            '</div>';
+    }
+
+    /**
      * Generate + save, shared by the Generate form and the "Generate" link in
      * the review view's empty state.
      * @param {Object} params classLevel / term / session / dateRange
@@ -386,13 +444,16 @@
         var classLevel = document.getElementById('rc-class')?.value;
         var term = document.getElementById('rc-term')?.value;
         var session = document.getElementById('rc-session')?.value || '';
-        var startDate = document.getElementById('rc-date-start')?.value || '';
-        var endDate = document.getElementById('rc-date-end')?.value || '';
-
         if (!classLevel || !term) {
             notify('Pick a class and term', 'Select both a class and a term before generating.');
             return;
         }
+
+        // Attendance period comes from the term, not from two hand-typed dates. When
+        // Term Dates are unset the range is left empty, which makes the report card
+        // engine count every attendance record for the term rather than none — the
+        // warning under the field tells the admin how to make it exact.
+        var range = termDateRange(term);
 
         var genBtn = document.getElementById('rc-generate-btn');
         var statusEl = document.getElementById('rc-gen-status');
@@ -401,7 +462,7 @@
             classLevel: classLevel,
             term: term,
             session: session,
-            dateRange: { start: startDate, end: endDate }
+            dateRange: { start: range.start, end: range.end }
         }, {
             setStatus: function(text) { if (statusEl) statusEl.textContent = text; },
             setBusy: function(busy) {
@@ -1935,6 +1996,12 @@
         // Bind generate form
         var genForm = document.getElementById('rc-generate-form');
         if (genForm) genForm.addEventListener('submit', handleGenerate);
+
+        // Attendance period follows the term, so it has to repaint whenever the term
+        // changes — and once now, for whatever term is pre-selected on load.
+        var termSel = document.getElementById('rc-term');
+        if (termSel) termSel.addEventListener('change', renderAttendanceRange);
+        renderAttendanceRange();
 
         // Bind review filters
         if (reviewClassFilter) reviewClassFilter.addEventListener('change', loadReviewCards);

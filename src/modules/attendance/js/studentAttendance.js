@@ -91,7 +91,32 @@
         }
 
         try {
-            const records = await dataService.getAttendanceByStudent(_userId, startDate, endDate);
+            // Two sources, because attendance moved from the standalone `attendance`
+            // collection to sheet marks and the old rows were never migrated. Reading
+            // only the legacy one left the stat cards at zero and the list showing
+            // "No records found" directly above a grid full of real marks.
+            const user = dataService.getCurrentUser?.() || {};
+            const classLevel = user.classLevel || user.class_level || '';
+
+            const [legacy, fromSheets] = await Promise.all([
+                dataService.getAttendanceByStudent(_userId, startDate, endDate)
+                    .catch(() => []),
+                (typeof dataService.getStudentAttendanceHistory === 'function'
+                    ? dataService.getStudentAttendanceHistory(_userId, {
+                        classLevel: classLevel, startDate: startDate, endDate: endDate
+                      })
+                    : Promise.resolve([])).catch(() => [])
+            ]);
+
+            // Sheet marks win on a clash: one date can appear in both stores, and the
+            // sheet is where marking actually happens now.
+            const byDate = {};
+            (legacy || []).forEach(r => { if (r && r.date) byDate[r.date + '|legacy'] = r; });
+            (fromSheets || []).forEach(r => { byDate[r.date + '|' + (r.sheetId || '')] = r; });
+
+            const records = Object.keys(byDate).map(k => byDate[k])
+                .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
             _renderStats(records);
             _renderDayList(records);
         } catch (error) {
@@ -103,16 +128,22 @@
     }
 
     function _renderStats(records) {
-        let present = 0, absent = 0, late = 0, excused = 0;
+        // Sheet vocabulary: present | absent | ph (public holiday) | mtb (mid-term
+        // break). `late` and `excused` only ever came from the legacy collection and
+        // are still counted so old records keep reading correctly.
+        let present = 0, absent = 0, late = 0, excused = 0, offDays = 0;
         records.forEach(r => {
             if (r.status === 'present') present++;
             else if (r.status === 'absent') absent++;
             else if (r.status === 'late') late++;
             else if (r.status === 'excused') excused++;
+            else if (r.status === 'ph' || r.status === 'mtb') offDays++;
         });
 
-        const total = records.length;
-        const attended = present + late; // late still counts as attended
+        // Public holidays and mid-term breaks are not school days — counting them in
+        // the denominator would quietly drag every student's rate down.
+        const total = present + absent + late + excused;
+        const attended = present + late + excused; // late and excused still count as attended
         const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
 
         const rateColor = rate >= 80 ? '#27ae60' : rate >= 60 ? '#f39c12' : '#e74c3c';
@@ -123,7 +154,12 @@
         }
         if ($statPresent) $statPresent.textContent = present;
         if ($statAbsent) $statAbsent.textContent = absent;
-        if ($statLate) $statLate.textContent = late;
+        // No "late" status exists in the sheet system, so this card would always read
+        // zero for anyone marked on a sheet. It shows non-teaching days instead when
+        // that is all there is to report.
+        if ($statLate) $statLate.textContent = late || offDays;
+        const lateLabel = document.getElementById('stat-late-label');
+        if (lateLabel) lateLabel.textContent = (!late && offDays) ? 'Holiday / Break' : 'Late';
     }
 
     function _renderDayList(records) {
@@ -141,15 +177,30 @@
             return;
         }
 
-        // Records come sorted by -date from the data service
+        // Sheet statuses are codes, not words — "Ph" and "Mtb" would be meaningless
+        // to a student, so they get spelled out.
+        const STATUS_LABELS = {
+            present: 'Present',
+            absent: 'Absent',
+            late: 'Late',
+            excused: 'Excused',
+            ph: 'Public Holiday',
+            mtb: 'Mid-Term Break'
+        };
+
+        // Records come sorted by -date
         let html = '';
         records.forEach(r => {
             const status = r.status || 'unknown';
-            const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+            const statusLabel = STATUS_LABELS[status]
+                || (status.charAt(0).toUpperCase() + status.slice(1));
+            // Subject tells a student which class the mark came from — without it, a
+            // day with several subject periods looks like duplicate rows.
+            const context = r.subject || r.note || '';
             html += `<div class="student-attendance-day">
                 <span class="day-date">${_escapeHtml(_formatDate(r.date))}</span>
                 <span class="day-status ${_escapeHtml(status)}">${_escapeHtml(statusLabel)}</span>
-                ${r.note ? `<span style="flex:1; font-size:0.85rem; color:var(--light-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_escapeHtml(r.note)}</span>` : ''}
+                ${context ? `<span style="flex:1; font-size:0.85rem; color:var(--light-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_escapeHtml(context)}</span>` : ''}
             </div>`;
         });
 

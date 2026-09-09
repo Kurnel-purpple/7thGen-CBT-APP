@@ -143,16 +143,12 @@
                                 </div>
                             </div>
 
-                            <div class="rc-form-grid" style="margin-top:16px;">
-                                <div class="rc-form-group">
-                                    <label for="rc-date-start">Attendance From</label>
-                                    <input id="rc-date-start" type="date" />
-                                </div>
-                                <div class="rc-form-group">
-                                    <label for="rc-date-end">Attendance To</label>
-                                    <input id="rc-date-end" type="date" />
-                                </div>
-                            </div>
+                            <!-- Attendance no longer takes a manual date range. The term
+                                 already defines the period, and asking for both invited
+                                 a mismatch between the term being graded and the dates
+                                 attendance was counted over. The range is derived from
+                                 the admin's Term Dates and shown read-only. -->
+                            <div id="rc-attendance-range" class="rc-attendance-range" style="margin-top:16px;"></div>
 
                             <!-- Mobile drops this button — Generate is a bottom-nav action there -->
                             <div class="rc-desktop-actions" style="margin-top:20px;">

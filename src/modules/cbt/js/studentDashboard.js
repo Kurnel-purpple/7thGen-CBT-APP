@@ -706,9 +706,11 @@ const studentDashboard = {
         // Map 'flagged' to internal 'resolved' section
         const sectionTab = tab === 'flagged' ? 'resolved' : tab;
 
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        // Matched on data-tab, not on button text. The available-exams tab is labelled
+        // "Exams", so a text match against 'available' never highlighted it — and any
+        // future relabelling would silently break the highlight again.
         document.querySelectorAll('.tab-btn').forEach(b => {
-            if (b.textContent.toLowerCase().includes(tab)) b.classList.add('active');
+            b.classList.toggle('active', b.dataset.tab === tab);
         });
 
         // Also update bottom nav active state

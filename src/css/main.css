@@ -383,6 +383,20 @@ body:has(.app-container.no-sidebar) {
     flex-shrink: 0;
 }
 
+/* A second-level nav entry that scopes a view within the page above it, rather than
+   linking somewhere else — e.g. "My Subjects" under "My Attendance". Indented and a
+   shade quieter so the parent still reads as the section.
+   The icon deliberately keeps the standard 20px: the collapsed and mobile breakpoints
+   stack these icon-only with no size override of their own, so a smaller icon here
+   would sit unevenly beside its siblings. The indent below is overridden in those
+   breakpoints by the more specific `padding: 10px 4px` shorthand, which is what keeps
+   the icon centred when the labels are hidden. */
+.sidebar-nav-subitem {
+    padding-left: 34px;
+    font-size: 0.84rem;
+    color: rgba(255,255,255,0.6);
+}
+
 .sidebar-nav-label {
     white-space: nowrap;
     overflow: hidden;

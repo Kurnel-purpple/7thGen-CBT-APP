@@ -117,11 +117,12 @@
         if ($historyStartDate) $historyStartDate.value = today.slice(0, 8) + '01';
         if ($historyEndDate) $historyEndDate.value = today;
 
-        // Hide loading, show mark view
+        // Sheets is the landing view, not Mark. A teacher arriving here almost always
+        // wants a sheet that already exists; Mark starts empty until a class, sheet and
+        // date have all been picked, which made the page look like it had no data.
+        // switchView('sheets') also triggers the sheets list to load itself.
         if ($loadingState) $loadingState.style.display = 'none';
-        if ($markView) {
-            $markView.style.display = 'flex';
-        }
+        switchView('sheets');
     }
 
     // ---------- sheets dropdown (populated after class pick) ----------
@@ -554,6 +555,8 @@
             if (view === 'mark' && text === 'mark attendance') {
                 item.classList.add('active');
             } else if (view === 'history' && text === 'history') {
+                item.classList.add('active');
+            } else if (view === 'sheets' && text === 'sheets') {
                 item.classList.add('active');
             } else {
                 item.classList.remove('active');

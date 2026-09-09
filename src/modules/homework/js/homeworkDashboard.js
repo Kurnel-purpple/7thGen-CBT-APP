@@ -11,6 +11,9 @@
         assignments: [],
         submissionSummary: [],
         searchQuery: '',
+        // When set, the submissions list shows only this assignment's submissions.
+        // Driven by clicking an assignment card's "N submissions" chip.
+        submissionFilterId: null,
         editingId: null,
         gradingSubmission: null,
         gradingAssignment: null,
@@ -102,7 +105,17 @@
             }
 
             this.nodes.viewButtons.forEach((button) => {
-                button.addEventListener('click', () => this.switchView(button.getAttribute('data-hw-view-btn')));
+                button.addEventListener('click', () => {
+                    // Reaching Submissions from the view tab means "show me everything".
+                    // Without this, a filter set earlier by a chip would still be in
+                    // force and the list would look mysteriously short.
+                    if (this.submissionFilterId) {
+                        this.submissionFilterId = null;
+                        this.renderAssignments();
+                        this.renderSubmissions();
+                    }
+                    this.switchView(button.getAttribute('data-hw-view-btn'));
+                });
             });
 
             if (this.nodes.searchInput) {
@@ -257,7 +270,9 @@
                         <div class="hw-row-chips">
                             <span class="hw-chip ${dueState.className}">${dueState.label}</span>
                             <span class="hw-chip primary">${assignment.points || 0} pts</span>
-                            <span class="hw-chip muted">${submissionCount} submission${submissionCount === 1 ? '' : 's'}</span>
+                            ${submissionCount > 0
+                                ? `<button type="button" class="hw-chip muted hw-chip-btn ${this.submissionFilterId === assignment.id ? 'is-active' : ''}" data-hw-show-submissions="${this.escape(assignment.id)}" title="Show only this assignment's submissions">${submissionCount} submission${submissionCount === 1 ? '' : 's'}</button>`
+                                : `<span class="hw-chip muted">0 submissions</span>`}
                             ${submissionCount > 0
                                 ? `<span class="hw-chip ${gradedCount === submissionCount ? 'success' : 'warn'}">${gradedCount}/${submissionCount} graded</span>`
                                 : ''}
@@ -266,6 +281,16 @@
                     </article>
                 `;
             }).join('');
+
+            Array.from(this.nodes.assignmentsList.querySelectorAll('[data-hw-show-submissions]')).forEach((chip) => {
+                chip.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const id = chip.getAttribute('data-hw-show-submissions');
+                    // Clicking the chip of the assignment already being shown clears the
+                    // filter, so the chip toggles rather than being a one-way trip.
+                    this.setSubmissionFilter(this.submissionFilterId === id ? null : id);
+                });
+            });
 
             Array.from(this.nodes.assignmentsList.querySelectorAll('[data-hw-assignment-id]')).forEach((card) => {
                 const id = card.getAttribute('data-hw-assignment-id');
@@ -288,12 +313,33 @@
             });
         },
 
+        /**
+         * Scope the submissions list to one assignment (or all, with null).
+         * Re-renders the assignment cards too so the active chip reflects the filter.
+         */
+        setSubmissionFilter(assignmentId) {
+            this.submissionFilterId = assignmentId || null;
+            this.renderAssignments();
+            this.renderSubmissions();
+
+            // Submissions are a separate view section, hidden while the Assignments
+            // view is showing. Filtering alone did nothing visible — the chip has to
+            // take you to the list as well as scope it.
+            if (this.submissionFilterId) {
+                this.switchView('submissions');
+                if (this.nodes.submissionsList) {
+                    this.nodes.submissionsList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        },
+
         renderSubmissions() {
             if (!this.nodes.submissionsList) return;
             const rows = [];
             this.submissionSummary.forEach((summary) => {
                 const assignment = this.assignments.find((item) => item.id === summary.assignmentId);
                 if (!assignment || !summary.submissionCount) return;
+                if (this.submissionFilterId && assignment.id !== this.submissionFilterId) return;
 
                 summary.submissions.forEach((submission) => {
                     if (this.searchQuery) {
@@ -332,7 +378,17 @@
             });
 
             if (this.nodes.submissionsMeta) {
-                this.nodes.submissionsMeta.textContent = `${rows.length} ${rows.length === 1 ? 'submission' : 'submissions'}`;
+                const count = `${rows.length} ${rows.length === 1 ? 'submission' : 'submissions'}`;
+                if (this.submissionFilterId) {
+                    const filtered = this.assignments.find((a) => a.id === this.submissionFilterId);
+                    this.nodes.submissionsMeta.innerHTML =
+                        `${count} &middot; ${this.escape(filtered ? filtered.title : 'Selected assignment')} ` +
+                        `<button type="button" class="hw-clear-filter" data-hw-clear-filter="1">Show all</button>`;
+                    const clearBtn = this.nodes.submissionsMeta.querySelector('[data-hw-clear-filter]');
+                    if (clearBtn) clearBtn.addEventListener('click', () => this.setSubmissionFilter(null));
+                } else {
+                    this.nodes.submissionsMeta.textContent = count;
+                }
             }
 
             this.nodes.submissionsList.innerHTML = rows.length
