@@ -1152,3 +1152,48 @@
         max-height: 180px;
     }
 }
+
+/* ---- Attendance period (replaces the old From/To date inputs) ----
+   The term already defines the period being graded; showing it read-only keeps
+   the two from disagreeing, and the warning variant tells an admin how to make
+   the range exact rather than silently counting everything. */
+.rc-attendance-range { margin-top: 16px; }
+
+.rc-range-note {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--light-text, #5F6368);
+    line-height: 1.5;
+}
+
+.rc-range-note strong { color: var(--text-color, #202124); }
+
+.rc-range-sub { opacity: 0.8; }
+
+.rc-range-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: #8a6100;
+    background: rgba(249, 171, 0, 0.12);
+    border: 1px solid rgba(249, 171, 0, 0.35);
+}
+
+.rc-range-warn svg { flex-shrink: 0; margin-top: 2px; }
+
+.rc-range-link {
+    font-weight: 700;
+    color: inherit;
+    text-decoration: underline;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .rc-range-warn {
+    color: #F9AB00;
+    background: rgba(249, 171, 0, 0.10);
+    border-color: rgba(249, 171, 0, 0.28);
+}

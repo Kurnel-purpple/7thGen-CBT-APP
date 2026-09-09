@@ -61,6 +61,56 @@
     }
 
     /**
+     * Download the card as a real PDF file.
+     *
+     * "Download PDF" used to call window.print(), which opens the print dialog and
+     * leaves the user to discover "Save as PDF" for themselves. html2pdf comes from a
+     * CDN, so when it is unavailable — offline, or a filtered network — this falls
+     * back to the print dialog and says why, since print-to-PDF still yields a file.
+     */
+    async function downloadPdf(btn) {
+        var sheet = document.querySelector('#src-detail .rcd-sheet');
+        if (!sheet) { window.print(); return; }
+
+        if (typeof window.html2pdf === 'undefined') {
+            await Utils.showAlert(
+                'PDF Tool Unavailable',
+                'The PDF generator could not be loaded — you may be offline.<br><br>' +
+                'Opening the print dialog instead: choose <strong>Save as PDF</strong> as the destination.'
+            );
+            window.print();
+            return;
+        }
+
+        var original = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+
+        var name = (document.title || 'Report Card').replace(/[^a-zA-Z0-9]+/g, '_');
+        try {
+            await window.html2pdf()
+                .set({
+                    margin: 0,
+                    filename: name + '.pdf',
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                })
+                .from(sheet)
+                .save();
+        } catch (err) {
+            console.error('[StudentReportCard] PDF generation failed:', err);
+            await Utils.showAlert(
+                'Could Not Create PDF',
+                'Something went wrong generating the file. Opening the print dialog instead — ' +
+                'choose <strong>Save as PDF</strong> as the destination.'
+            );
+            window.print();
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+        }
+    }
+
+    /**
      * Renders the finished document — the very same renderer the printable
      * page and the admin preview use. Parents read this page, so what they see
      * here is exactly the card they can hand over on paper, not a look-alike.
@@ -97,7 +147,7 @@
             documentHtml;
 
         var download = document.getElementById('src-download');
-        if (download) download.addEventListener('click', function() { window.print(); });
+        if (download) download.addEventListener('click', function() { downloadPdf(this); });
 
         var fullpage = document.getElementById('src-fullpage');
         if (fullpage) fullpage.addEventListener('click', function() {

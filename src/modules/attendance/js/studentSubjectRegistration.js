@@ -171,13 +171,18 @@
             render();
         } catch (e) {
             console.error('[StudentSubjects] register failed:', e);
-            alert('Could not register: ' + (e.message || 'unknown error'));
+            await Utils.showAlert('Could Not Register', e.message || 'Please try again.');
             if (btn) { btn.disabled = false; btn.textContent = 'Register'; }
         }
     }
 
     async function doUnregister(regId, btn) {
-        if (!confirm('Unregister from this subject? You will be removed from the attendance roster.')) return;
+        var ok = await Utils.showConfirm(
+            'Unregister from Subject',
+            'You will be removed from this subject\'s attendance roster.<br><br>' +
+            'Attendance already recorded for you stays on the register.'
+        );
+        if (!ok) return;
         if (btn) { btn.disabled = true; btn.textContent = 'Removing…'; }
         try {
             await window.dataService.unregisterStudentFromSubject(regId);
@@ -187,7 +192,7 @@
             render();
         } catch (e) {
             console.error('[StudentSubjects] unregister failed:', e);
-            alert('Could not unregister: ' + (e.message || 'unknown error'));
+            await Utils.showAlert('Could Not Unregister', e.message || 'Please try again.');
             if (btn) { btn.disabled = false; }
             render();
         }

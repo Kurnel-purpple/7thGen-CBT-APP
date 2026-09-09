@@ -231,6 +231,14 @@
                     <span class="sidebar-nav-label">Results</span>
                     <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="history-count">0</span>
                 </button>
+                <!-- Flagged is a narrow, occasional view — it sits under Results rather
+                     than taking one of the two main tabs, which now carry Exams and
+                     Completed. -->
+                <button class="sidebar-nav-item sidebar-nav-subitem" onclick="studentDashboard.switchTab('flagged'); closeSidebarMobile();">
+                    <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+                    <span class="sidebar-nav-label">Flagged</span>
+                    <span style="margin-left:auto; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="resolved-count">0</span>
+                </button>
             </nav>
 
             <!-- Cross-module navigation (injected by sidebarBuilder) -->
@@ -316,11 +324,10 @@
                         <div class="panel-left-header">
                             <input type="text" class="panel-left-search" placeholder="Search exams..." id="panel-search">
                             <div class="tabs" style="margin-top: 12px; margin-bottom: 0; border-bottom: none;">
-                                <button class="tab-btn" onclick="studentDashboard.switchTab('flagged')">
-                                    <span class="tab-text">Flagged</span>
-                                    <span class="badge" id="resolved-count">0</span>
+                                <button class="tab-btn active" data-tab="available" onclick="studentDashboard.switchTab('available')">
+                                    <span class="tab-text">Exams</span>
                                 </button>
-                                <button class="tab-btn" onclick="studentDashboard.switchTab('completed')">
+                                <button class="tab-btn" data-tab="completed" onclick="studentDashboard.switchTab('completed')">
                                     <span class="tab-text">Completed</span>
                                 </button>
                             </div>

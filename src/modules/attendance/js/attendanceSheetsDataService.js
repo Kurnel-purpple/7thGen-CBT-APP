@@ -345,26 +345,84 @@
     // ================================================================
 
     /**
+     * Every student in the school, indexed by user id.
+     *
+     * Name resolution used to go through getClassStudents(sheet.classLevel), which
+     * only knows who is in the class RIGHT NOW. The moment a student was promoted,
+     * every sheet from their old class lost their name and showed "Unknown" — an
+     * attendance register is a historical record and must keep reading as one.
+     * Indexing the whole school means a name survives any number of promotions.
+     *
+     * Cached briefly: a sheet grid resolves the roster once per open, but a teacher
+     * moving between sheets would otherwise re-download the school each time.
+     */
+    var _studentIndex = null;
+    var _studentIndexAt = 0;
+    var STUDENT_INDEX_TTL_MS = 60 * 1000;
+
+    ds.getSchoolStudentIndex = async function(forceRefresh) {
+        if (!forceRefresh && _studentIndex && (Date.now() - _studentIndexAt) < STUDENT_INDEX_TTL_MS) {
+            return _studentIndex;
+        }
+        var map = {};
+        try {
+            var rows = await ds.getUsers({ role: 'student' });
+            (rows || []).forEach(function(r) {
+                var id = r.user || r.id;
+                if (!id) return;
+                map[id] = {
+                    name: r.full_name || r.name || r.username || '',
+                    classLevel: r.class_level || ''
+                };
+            });
+            _studentIndex = map;
+            _studentIndexAt = Date.now();
+        } catch (e) {
+            console.warn('[AttendanceSheets] student index fetch failed:', e);
+            return _studentIndex || {};
+        }
+        return _studentIndex;
+    };
+
+    /** Drop the cached index — call after a promotion or roster edit. */
+    ds.invalidateSchoolStudentIndex = function() { _studentIndex = null; };
+
+    /**
      * Resolve the roster for a sheet. Combines:
      *   - subject sheet: subject_registrations matching (classLevel, subject, term, session)
      *   - form sheet: all students in the class
      *   - plus any manualRoster entries
-     * Returns an array of { id, name, classLevel, source: 'registered' | 'class' | 'manual' }.
+     *   - plus any extraIds passed in (students who have marks on the sheet but have
+     *     since left the class — see the dashboard's grid loader)
+     *
+     * Returns [{ id, name, classLevel, source, former }] where `former` marks a student
+     * whose current class is no longer the sheet's class.
      */
-    ds.getSheetRoster = async function(sheet) {
+    ds.getSheetRoster = async function(sheet, extraIds) {
         if (!sheet) return [];
         var roster = [];
         var seen = new Set();
+        var index = await ds.getSchoolStudentIndex();
 
         function addStudent(student, source) {
             if (!student || !student.id) return;
             if (seen.has(student.id)) return;
             seen.add(student.id);
+
+            var known = index[student.id] || {};
+            // Prefer a live name over the one snapshotted on the registration row: a
+            // student who has since been renamed should read correctly everywhere.
+            var name = known.name || student.name || student.full_name || student.username || 'Unknown';
+            var currentClass = known.classLevel || student.classLevel || student.class_level || '';
+
             roster.push({
                 id: student.id,
-                name: student.name || student.full_name || student.username || 'Unknown',
-                classLevel: student.classLevel || student.class_level || sheet.classLevel,
-                source: source
+                name: name,
+                classLevel: currentClass || sheet.classLevel,
+                source: source,
+                // Only claim "former" when the student's current class is actually
+                // known and differs. An unknown class is not evidence of a move.
+                former: !!(currentClass && sheet.classLevel && currentClass !== sheet.classLevel)
             });
         }
 
@@ -382,32 +440,97 @@
                 term: sheet.term,
                 session: sheet.session
             });
-            // Resolve student names via class roster lookup
-            var classStudents = [];
-            try { classStudents = await ds.getClassStudents(sheet.classLevel); }
-            catch (e) { /* non-fatal */ }
-            var nameById = {};
-            classStudents.forEach(function(s) { nameById[s.id] = s.name; });
             regs.forEach(function(r) {
-                addStudent({ id: r.studentId, name: r.studentName || nameById[r.studentId] || 'Unknown', classLevel: r.classLevel }, 'registered');
+                addStudent({ id: r.studentId, name: r.studentName, classLevel: r.classLevel }, 'registered');
             });
         }
 
         // Manual additions (applied last so they don't overwrite registered/class entries)
         var manualIds = Array.isArray(sheet.manualRoster) ? sheet.manualRoster : [];
-        if (manualIds.length) {
-            var classStudents2 = [];
-            try { classStudents2 = await ds.getClassStudents(sheet.classLevel); }
-            catch (e) { /* non-fatal */ }
-            var nameById2 = {};
-            classStudents2.forEach(function(s) { nameById2[s.id] = s.name; });
-            manualIds.forEach(function(sid) {
-                if (!seen.has(sid)) addStudent({ id: sid, name: nameById2[sid] || 'Unknown', classLevel: sheet.classLevel }, 'manual');
-            });
-        }
+        manualIds.forEach(function(sid) {
+            if (!seen.has(sid)) addStudent({ id: sid }, 'manual');
+        });
+
+        // Students with marks on this sheet who are no longer picked up by any of the
+        // above — promoted, unregistered, or moved class since the sheet was marked.
+        // Dropping them would silently erase attendance that was actually taken.
+        (Array.isArray(extraIds) ? extraIds : []).forEach(function(sid) {
+            if (!seen.has(sid)) addStudent({ id: sid }, 'marked');
+        });
 
         roster.sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
         return roster;
+    };
+
+    /**
+     * One student's attendance across every sheet for their class, flattened into
+     * dated records.
+     *
+     * The student attendance page used to read the legacy `attendance` collection
+     * for its stat cards and day list. Nothing writes to that collection any more —
+     * marking happens on sheets, into `attendance_marks` — so the cards showed zero
+     * and the list showed "No records found" while the grid right below it displayed
+     * a term's worth of real marks. Both now read the same source.
+     *
+     * Statuses are the sheet vocabulary: present | absent | ph (public holiday) |
+     * mtb (mid-term break). PH and MTB are not school days, so callers should keep
+     * them out of any attendance-rate denominator.
+     *
+     * @param {string} studentId
+     * @param {{classLevel?: string, startDate?: string, endDate?: string}} [opts]
+     * @returns {Promise<Array<{date, status, subject, sheetId, sheetKind, term, session}>>}
+     */
+    ds.getStudentAttendanceHistory = async function(studentId, opts) {
+        if (!studentId) return [];
+        opts = opts || {};
+
+        var sheets = [];
+        try {
+            sheets = await ds.listAttendanceSheets(
+                opts.classLevel ? { classLevel: opts.classLevel } : {}
+            );
+        } catch (e) {
+            console.warn('[AttendanceSheets] history: sheet list failed:', e);
+            return [];
+        }
+        if (!sheets.length) return [];
+
+        var batches = await Promise.all(sheets.map(function(s) {
+            return ds.getSheetMarks(s.id).catch(function() { return []; });
+        }));
+
+        var out = [];
+        batches.forEach(function(marks, i) {
+            var sheet = sheets[i];
+            (marks || []).forEach(function(m) {
+                if (!m || m.studentId !== studentId) return;
+                if (!m.status) return;
+
+                // Prefer the mark's own date; fall back to the column it belongs to,
+                // since older marks were saved without one.
+                var date = m.date || '';
+                if (!date && Array.isArray(sheet.columns)) {
+                    var col = sheet.columns.find(function(c) { return c.key === m.columnKey; });
+                    if (col) date = col.date || '';
+                }
+                if (!date) return;
+                if (opts.startDate && date < opts.startDate) return;
+                if (opts.endDate && date > opts.endDate) return;
+
+                out.push({
+                    date: date,
+                    status: m.status,
+                    subject: sheet.subject || '',
+                    sheetId: sheet.id,
+                    sheetKind: sheet.kind || 'subject',
+                    term: sheet.term || '',
+                    session: sheet.session || ''
+                });
+            });
+        });
+
+        out.sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); });
+        return out;
     };
 
     ds.addStudentToSheetRoster = async function(sheetId, studentId) {

@@ -201,12 +201,13 @@
     }
 
     async function deleteSheet(sheetId) {
-        if (!confirm('Delete this attendance sheet? All marks on it will be removed.')) return;
+        if (!(await Utils.showConfirm('Delete Attendance Sheet',
+            'This sheet and every mark recorded on it will be removed. This cannot be undone.'))) return;
         try {
             await window.dataService.deleteAttendanceSheet(sheetId);
             await refresh();
         } catch (e) {
-            alert('Delete failed: ' + (e.message || 'unknown error'));
+            await Utils.showAlert('Delete Failed', e.message || 'Please try again.');
         }
     }
 
@@ -223,8 +224,18 @@
     }
 
     function bindEvents() {
-        var newBtn = document.getElementById('sheets-new-btn');
-        if (newBtn) newBtn.addEventListener('click', function() { openBuilder(null); });
+        // The New Sheet button appears in every view's tab strip, so bind by attribute
+        // rather than by id — three elements cannot share one id.
+        document.querySelectorAll('[data-new-sheet]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                // Creating a sheet from the Mark or History view should land you back
+                // on the sheets list once it is saved.
+                if (window.attendanceDashboard?.switchView) {
+                    window.attendanceDashboard.switchView('sheets');
+                }
+                openBuilder(null);
+            });
+        });
 
         var form = document.getElementById('sheet-builder-form');
         if (form) form.addEventListener('submit', handleSubmit);
@@ -251,7 +262,7 @@
         });
     }
 
-    function openBuilder(sheetId) {
+    async function openBuilder(sheetId) {
         state.editingSheetId = sheetId || null;
         state.manualRoster = new Set();
 
@@ -261,7 +272,7 @@
 
         if (sheetId) {
             var sheet = state.sheets.find(function(s) { return s.id === sheetId; });
-            if (!sheet) { alert('Sheet not found.'); return; }
+            if (!sheet) { await Utils.showAlert('Sheet Not Found', 'That attendance sheet no longer exists. Refresh the list and try again.'); return; }
             titleEl.textContent = 'Edit Attendance Sheet';
             fillBuilder(sheet);
         } else {
@@ -404,7 +415,17 @@
             panel.innerHTML = '<div style="color:var(--light-text); font-size:0.85rem;">No students found in this class.</div>';
             return;
         }
-        var html = '<div class="sb-roster-grid">';
+        // Select-all sits above the list. Ticking students one at a time is the common
+        // case for a subject sheet, but a form register is usually the whole class, and
+        // that was 30-odd clicks.
+        var allTicked = students.every(function(s) { return state.manualRoster.has(s.id); });
+        var html =
+            '<label class="sb-roster-item sb-roster-all">' +
+                '<input type="checkbox" id="sb-roster-all" ' + (allTicked ? 'checked' : '') + '> ' +
+                '<span>Add all students <span class="sb-roster-count" id="sb-roster-count"></span></span>' +
+            '</label>';
+
+        html += '<div class="sb-roster-grid">';
         students.forEach(function(s) {
             var checked = state.manualRoster.has(s.id) ? 'checked' : '';
             html +=
@@ -415,13 +436,44 @@
         });
         html += '</div>';
         panel.innerHTML = html;
-        panel.querySelectorAll('input[data-roster-id]').forEach(function(cb) {
+
+        var allBox = panel.querySelector('#sb-roster-all');
+        var countEl = panel.querySelector('#sb-roster-count');
+        var boxes = panel.querySelectorAll('input[data-roster-id]');
+
+        function syncHeader() {
+            var picked = students.filter(function(s) { return state.manualRoster.has(s.id); }).length;
+            if (countEl) countEl.textContent = '(' + picked + ' of ' + students.length + ' selected)';
+            if (allBox) {
+                allBox.checked = picked === students.length && students.length > 0;
+                // Partial selection reads as indeterminate rather than unticked, so the
+                // header never implies "none selected" when some are.
+                allBox.indeterminate = picked > 0 && picked < students.length;
+            }
+        }
+
+        boxes.forEach(function(cb) {
             cb.addEventListener('change', function() {
                 var id = cb.getAttribute('data-roster-id');
                 if (cb.checked) state.manualRoster.add(id);
                 else state.manualRoster.delete(id);
+                syncHeader();
             });
         });
+
+        if (allBox) {
+            allBox.addEventListener('change', function() {
+                var on = allBox.checked;
+                students.forEach(function(s) {
+                    if (on) state.manualRoster.add(s.id);
+                    else state.manualRoster.delete(s.id);
+                });
+                boxes.forEach(function(cb) { cb.checked = on; });
+                syncHeader();
+            });
+        }
+
+        syncHeader();
     }
 
     async function handleSubmit(e) {
@@ -433,13 +485,13 @@
         var term = document.getElementById('sb-term').value;
         var session = document.getElementById('sb-session').value.trim();
 
-        if (!classLevel) { alert('Please select a class.'); return; }
-        if (!term) { alert('Please select a term.'); return; }
-        if (kind === 'subject' && !subject) { alert('Please enter a subject name for a subject-period sheet.'); return; }
+        if (!classLevel) { await Utils.showAlert('Class Required', 'Select a class for this sheet.'); return; }
+        if (!term) { await Utils.showAlert('Term Required', 'Select a term for this sheet.'); return; }
+        if (kind === 'subject' && !subject) { await Utils.showAlert('Subject Required', 'Enter a subject name for a subject-period sheet.'); return; }
 
         var columns = computeColumns();
         if (!columns.length) {
-            alert('No columns generated — please check the date range' + (kind === 'subject' ? ' and meeting days.' : '.'));
+            await Utils.showAlert('No Columns Generated', 'Check the date range' + (kind === 'subject' ? ' and the meeting days you selected.' : '.'));
             return;
         }
 
@@ -471,7 +523,7 @@
             await refresh();
         } catch (err) {
             console.error('[AttendanceSheets] save failed:', err);
-            alert('Save failed: ' + (err.message || 'unknown error'));
+            await Utils.showAlert('Save Failed', err.message || 'Please try again.');
         } finally {
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText; }
         }
@@ -492,7 +544,7 @@
 
     async function openSheetGrid(sheetId) {
         var sheet = state.sheets.find(function(s) { return s.id === sheetId; });
-        if (!sheet) { alert('Sheet not found.'); return; }
+        if (!sheet) { await Utils.showAlert('Sheet Not Found', 'That attendance sheet no longer exists. Refresh the list and try again.'); return; }
 
         var listWrap = document.getElementById('sheets-list-wrap');
         var gridWrap = document.getElementById('sheet-grid-wrap');
@@ -517,14 +569,27 @@
 
         try {
             var ds = window.dataService;
-            var rosterPromise = ds.getSheetRoster(sheet);
+            // Marks are fetched first so the roster can be told about students who
+            // were marked on this sheet but have since left the class. Without that,
+            // a promoted student's attendance is still in the database but invisible,
+            // and the register stops matching what was actually taken.
             var marksPromise = ds.getSheetMarks(sheet.id);
             var progressPromise = sheet.kind === 'form' ? ds.getFormSheetProgress(sheet) : Promise.resolve(null);
 
-            var results = await Promise.all([rosterPromise, marksPromise, progressPromise]);
+            var marks = (await marksPromise) || [];
+
+            var markedIds = [];
+            var seenMarked = {};
+            marks.forEach(function(m) {
+                if (m && m.studentId && !seenMarked[m.studentId]) {
+                    seenMarked[m.studentId] = true;
+                    markedIds.push(m.studentId);
+                }
+            });
+
+            var results = await Promise.all([ds.getSheetRoster(sheet, markedIds), progressPromise]);
             var roster = results[0] || [];
-            var marks = results[1] || [];
-            var progress = results[2] || null;
+            var progress = results[1] || null;
 
             // Index marks by (studentId, columnKey)
             var marksIndex = {};
@@ -562,6 +627,35 @@
         refresh();
     }
 
+    var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    /**
+     * Column heading for the mark grid: weekday on top, short date beneath.
+     *
+     * Derived from the column's DATE rather than its stored label. Subject sheets
+     * were labelled "Session 1", "Session 2" at creation, which tells a teacher
+     * nothing about when the class actually met — and because this reads the date,
+     * sheets created before the change get the new headings too, with no migration.
+     *
+     * The date is parsed as UTC (the stored value is a plain YYYY-MM-DD). Letting
+     * `new Date('2026-09-08')` be reinterpreted in a behind-UTC local zone would
+     * shift it to the 7th and name the wrong day.
+     */
+    function columnHeading(c) {
+        var raw = (c && c.date) ? String(c.date).slice(0, 10) : '';
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+        if (!m) {
+            var fallback = (c && (c.label || c.key)) || '';
+            return { top: fallback, bottom: '', title: fallback };
+        }
+        var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+        var day = DAY_NAMES[d.getUTCDay()];
+        var short = m[3] + ' ' + MONTH_NAMES[d.getUTCMonth()];
+        return { top: day, bottom: short, title: day + ' ' + short + ' ' + m[1] };
+    }
+
     function renderGridTable() {
         var container = document.getElementById('sheet-grid-container');
         if (!container || !state.grid) return;
@@ -589,19 +683,25 @@
         var html = '<div class="grid-scroll"><table class="mark-grid"><thead><tr>';
         html += '<th class="mg-sticky-col mg-head-corner">Student</th>';
         cols.forEach(function(c) {
+            var head = columnHeading(c);
             html += '<th class="mg-col-head" data-col-head="1"' +
                         ' data-col="' + escapeHtml(c.key) + '"' +
                         ' data-date="' + escapeHtml(c.date || '') + '"' +
-                        ' title="Double-click to mark all students">' +
-                        '<div class="mg-col-head-label">' + escapeHtml(c.label || c.key) + '</div>' +
-                        (c.date ? '<div class="mg-col-head-date">' + escapeHtml(c.date) + '</div>' : '') +
+                        ' title="' + escapeHtml(head.title) + ' — double-click to mark all students">' +
+                        '<div class="mg-col-head-label">' + escapeHtml(head.top) + '</div>' +
+                        (head.bottom ? '<div class="mg-col-head-date">' + escapeHtml(head.bottom) + '</div>' : '') +
                     '</th>';
         });
         html += '</tr></thead><tbody>';
 
         g.roster.forEach(function(student) {
             html += '<tr>';
-            html += '<td class="mg-sticky-col mg-row-label">' + escapeHtml(student.name) + '</td>';
+            html += '<td class="mg-sticky-col mg-row-label">' + escapeHtml(student.name) +
+                    (student.former
+                        ? '<span class="mg-former" title="No longer in ' + escapeHtml(g.sheet.classLevel) +
+                          '. Kept because attendance was taken for them on this sheet.">former</span>'
+                        : '') +
+                    '</td>';
             cols.forEach(function(c) {
                 html += renderCell(student, c, isForm);
             });
@@ -756,7 +856,7 @@
             renderGridTable();
         } catch (e) {
             console.error('[AttendanceSheets] cell update failed:', e);
-            alert('Could not save mark: ' + (e.message || 'unknown error'));
+            await Utils.showAlert('Could Not Save Mark', e.message || 'Please try again.');
             if (prev) g.marks[key] = prev;
             else delete g.marks[key];
             renderGridTable();
@@ -942,7 +1042,7 @@
             setTimeout(function() { setGridStatus(''); }, 1500);
         } catch (e) {
             console.error('[AttendanceSheets] bulk update failed:', e);
-            alert('Bulk update failed: ' + (e.message || 'unknown error'));
+            await Utils.showAlert('Bulk Update Failed', e.message || 'Please try again.');
             setGridStatus('Update failed', 'error');
         }
     }

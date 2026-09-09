@@ -547,6 +547,10 @@
 .day-status.absent { background: rgba(231, 76, 60, 0.12); color: #e74c3c; }
 .day-status.late { background: rgba(243, 156, 18, 0.12); color: #f39c12; }
 .day-status.excused { background: rgba(52, 152, 219, 0.12); color: #3498db; }
+/* Sheet-only statuses: non-teaching days. Deliberately neutral — they are neither
+   a good nor a bad mark against the student. */
+.day-status.ph { background: rgba(155, 89, 182, 0.12); color: #9b59b6; }
+.day-status.mtb { background: rgba(127, 140, 141, 0.14); color: #7f8c8d; }
 
 /* Dark Mode */
 [data-theme="dark"] .attendance-controls select,
@@ -1155,6 +1159,25 @@
 
 .sb-roster-item:hover { background: var(--primary-light, #E8F0FE); }
 
+/* Select-all header above the student list. Separated by a rule so it reads as a
+   control over the list rather than the first student in it. */
+.sb-roster-all {
+    display: flex;
+    width: 100%;
+    font-weight: 700;
+    margin-bottom: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color, #E0E0E0);
+    border-radius: 6px 6px 0 0;
+}
+
+.sb-roster-count {
+    font-weight: 500;
+    font-size: 0.78rem;
+    color: var(--light-text);
+    margin-left: 4px;
+}
+
 .sb-actions {
     display: flex;
     justify-content: flex-end;
@@ -1303,6 +1326,24 @@ table.mark-grid tbody tr:last-child td {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* A student who has left this class but was marked on this sheet. Quiet enough
+   not to compete with the name, explicit enough that nobody wonders why someone
+   is listed who is no longer in the class. */
+.mg-former {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 50px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    vertical-align: middle;
+    color: var(--light-text);
+    background: var(--inner-background, rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
 }
 
 .mg-cell {

@@ -132,7 +132,8 @@
                     </div>
                     <div class="attendance-view-tabs">
                         <button class="attendance-tab active" onclick="attendanceDashboard.switchView('mark')" data-view="mark">Mark</button>
-                        <button class="attendance-tab" onclick="attendanceDashboard.switchView('history')" data-view="history">History</button>
+                        <button class="attendance-tab" onclick="attendanceDashboard.switchView('sheets')" data-view="sheets">Sheets</button>
+                        <button class="btn" data-new-sheet="1" style="background:var(--primary-color); color:white; font-weight:700; padding:8px 14px; border-radius:10px;">+ New Sheet</button>
                     </div>
                 </div>
 
@@ -209,7 +210,8 @@
                     </div>
                     <div class="attendance-view-tabs">
                         <button class="attendance-tab" onclick="attendanceDashboard.switchView('mark')" data-view="mark">Mark</button>
-                        <button class="attendance-tab active" onclick="attendanceDashboard.switchView('history')" data-view="history">History</button>
+                        <button class="attendance-tab" onclick="attendanceDashboard.switchView('sheets')" data-view="sheets">Sheets</button>
+                        <button class="btn" data-new-sheet="1" style="background:var(--primary-color); color:white; font-weight:700; padding:8px 14px; border-radius:10px;">+ New Sheet</button>
                     </div>
                 </div>
 
@@ -232,9 +234,8 @@
                     <div class="attendance-controls" style="justify-content:flex-end;">
                         <div class="attendance-view-tabs" style="gap:8px;">
                             <button class="attendance-tab" onclick="attendanceDashboard.switchView('mark')" data-view="mark">Mark</button>
-                            <button class="attendance-tab" onclick="attendanceDashboard.switchView('history')" data-view="history">History</button>
                             <button class="attendance-tab active" onclick="attendanceDashboard.switchView('sheets')" data-view="sheets">Sheets</button>
-                            <button class="btn" id="sheets-new-btn" style="background:var(--primary-color); color:white; font-weight:700; padding:8px 14px; border-radius:10px;">+ New Sheet</button>
+                            <button class="btn" data-new-sheet="1" style="background:var(--primary-color); color:white; font-weight:700; padding:8px 14px; border-radius:10px;">+ New Sheet</button>
                         </div>
                     </div>
                     <div style="flex:1; overflow:auto; padding:20px 28px;" id="sheets-list">
@@ -483,11 +484,15 @@
             ]
         });
 
-        if (ok && window.attendanceDashboard?.init) {
-            window.attendanceDashboard.init();
-        }
+        // Sheets first: it is now the landing view, and attendanceDashboard.init()
+        // ends by calling switchView('sheets'), which asks this module to refresh.
+        // Initialising it second meant that call hit an undefined module and the
+        // list only filled on the next interaction.
         if (ok && window.attendanceSheetsDashboard?.init) {
             window.attendanceSheetsDashboard.init();
+        }
+        if (ok && window.attendanceDashboard?.init) {
+            window.attendanceDashboard.init();
         }
     </script>
 </body>

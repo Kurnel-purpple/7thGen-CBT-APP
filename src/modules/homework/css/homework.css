@@ -315,6 +315,41 @@
     letter-spacing: 0.04em;
 }
 
+/* The submissions chip is interactive — it filters the list below. It keeps the
+   chip's appearance so the card's chip row still reads as one strip, and earns a
+   pointer, a hover tint and an active state to show it does something. */
+.hw-chip-btn {
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.hw-chip-btn:hover {
+    border-color: rgba(26, 115, 232, 0.45);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+.hw-chip-btn.is-active {
+    border-color: var(--primary);
+    color: var(--text-on-primary);
+    background: var(--primary);
+}
+
+.hw-clear-filter {
+    margin-left: 8px;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-weight: 700;
+    color: var(--primary);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.hw-clear-filter:hover { opacity: 0.75; }
+
 .hw-chip.primary {
     border-color: rgba(26, 115, 232, 0.35);
     color: var(--primary);

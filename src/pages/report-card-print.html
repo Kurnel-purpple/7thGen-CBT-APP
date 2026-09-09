@@ -19,6 +19,18 @@
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../modules/report_cards/css/report-card-document.css">
     <style>
+        /* main.css locks the app shell to the viewport — `body { height: 100vh;
+           overflow: hidden }` — because every dashboard scrolls inside its own panel.
+           This page has no such panel: the sheet is simply taller than the screen, so
+           the lock has to be lifted here or everything below the fold is unreachable.
+           This was the "full page report card doesn't scroll" bug. */
+        html, body {
+            height: auto;
+            min-height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
         /* The page around the sheet. The sheet itself is always paper-white;
            only this backdrop follows the app theme. */
         .rcd-page {
@@ -166,6 +178,9 @@
         </nav>
     </div>
 
+    <!-- Real PDF generation for the Download button. Loaded from a CDN, so downloadPdf()
+         falls back to the print dialog when it is unavailable (offline, filtered network). -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
     <script type="module">
         import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
@@ -186,9 +201,65 @@
             else window.location.href = 'admin-dashboard.html';
         }
 
+        /**
+         * Download the report card as an actual PDF file.
+         *
+         * This button used to call window.print(), which opens the print dialog and
+         * leaves it to the user to find "Save as PDF" — not what a button labelled
+         * "Download PDF" promises.
+         *
+         * html2pdf is loaded from a CDN, so it can be missing on a machine that is
+         * offline or behind a filter. Rather than fail, that case falls back to the
+         * print dialog and says so, because print-to-PDF still gets the user a file.
+         */
+        async function downloadPdf(btn) {
+            var sheet = document.querySelector('#rcd-stage .rcd-sheet') ||
+                        document.getElementById('rcd-stage');
+            if (!sheet) return;
+
+            if (typeof window.html2pdf === 'undefined') {
+                await Utils.showAlert(
+                    'PDF Tool Unavailable',
+                    'The PDF generator could not be loaded — you may be offline.<br><br>' +
+                    'Opening the print dialog instead: choose <strong>Save as PDF</strong> as the destination.'
+                );
+                window.print();
+                return;
+            }
+
+            var original = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+
+            var name = (document.title || 'Report Card').replace(/[^a-zA-Z0-9]+/g, '_');
+            try {
+                await window.html2pdf()
+                    .set({
+                        margin: 0,
+                        filename: name + '.pdf',
+                        // Rendered at 2x so text stays sharp in print rather than
+                        // reading as a screenshot of a screen.
+                        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['css', 'legacy'] }
+                    })
+                    .from(sheet)
+                    .save();
+            } catch (err) {
+                console.error('[ReportCard] PDF generation failed:', err);
+                await Utils.showAlert(
+                    'Could Not Create PDF',
+                    'Something went wrong generating the file. Opening the print dialog instead — ' +
+                    'choose <strong>Save as PDF</strong> as the destination.'
+                );
+                window.print();
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = original; }
+            }
+        }
+
         document.getElementById('rcd-back').addEventListener('click', goBack);
-        document.getElementById('rcd-download').addEventListener('click', () => window.print());
-        document.getElementById('rcd-download-mobile').addEventListener('click', () => window.print());
+        document.getElementById('rcd-download').addEventListener('click', function () { downloadPdf(this); });
+        document.getElementById('rcd-download-mobile').addEventListener('click', function () { downloadPdf(this); });
 
         try {
             const ok = await bootstrapModulePage({
