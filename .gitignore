@@ -29,3 +29,6 @@ android/local.properties
 # Capacitor iOS build outputs
 ios/App/Pods
 ios/.idea
+
+# /brag launch video output (large media, not for the public repo)
+brag-output/

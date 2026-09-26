@@ -1950,7 +1950,12 @@
                         <div class="sidebar-profile-name" id="admin-name">Admin</div>
                         <div class="sidebar-profile-role">Administrator</div>
                     </div>
-                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                    <!-- Opens the profile dropdown (which holds Logout) — same
+                         affordance as before, just the student sidebar's
+                         log-out glyph instead of the ▲ chevron. -->
+                    <span style="color:rgba(255,255,255,0.5); display:inline-flex;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </span>
                 </div>
                 <!-- Profile dropdown -->
                 <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
@@ -5296,6 +5301,31 @@
             }
         };
 
+        /**
+         * Let a student back into an attempt the proctor auto-submitted.
+         *
+         * Their answers are kept and the clock resumes from where the breach
+         * stopped it, so this is a second chance at the rest of the paper — not a
+         * fresh full-length sitting. Grant a time extension as well if they should
+         * get more than that.
+         */
+        window.grantRetake = async function(studentId) {
+            if (!currentExamExtensionsId) return;
+            if (!confirm('Let this student back into the exam?\n\nTheir existing answers are kept and the timer resumes with the time that was left when the exam was auto-submitted.')) return;
+
+            try {
+                const reopened = await dataService.reopenResultForExtension(currentExamExtensionsId, studentId);
+                const updatedExam = await dataService.getExamById(currentExamExtensionsId);
+                const results = await dataService.getResults({ examId: currentExamExtensionsId });
+                renderExtensionsList(updatedExam, results);
+                showToast(reopened > 0
+                    ? 'Retake granted — the student can re-enter the exam'
+                    : 'Nothing to reopen — the attempt is already open or could not be found');
+            } catch (e) {
+                showToast('Failed to grant the retake: ' + e.message);
+            }
+        };
+
         function renderExtensionsList(exam, results = []) {
             const list = document.getElementById('ext-list');
             const ext = exam.extensions || {};
@@ -5305,14 +5335,48 @@
 
             if (extensionsInterval) clearInterval(extensionsInterval);
 
+            // Attempts the proctor auto-submitted. These students cannot re-enter
+            // the exam until someone grants them a retake, so the grant has to live
+            // where staff will actually find it.
+            const breached = (results || []).filter(r => r.flags && r.flags._proctor && r.flags._proctor.breached);
+            let breachHtml = '';
+            if (breached.length > 0) {
+                breachHtml += `<h4 style="margin: 0 0 8px; font-size: 0.9rem;">Auto-submitted (proctoring)</h4>`;
+                breachHtml += breached.map(r => {
+                    const p = r.flags._proctor;
+                    const sid = r.studentId || r.student_id;
+                    const when = p.at ? new Date(p.at).toLocaleString() : 'unknown time';
+                    const why = p.reason === 'left_page' ? 'closed or left the page'
+                        : p.reason === 'back_button' ? 'left using the back button'
+                        : p.reason === 'lost_focus' ? 'switched to another window'
+                        : 'minimised or switched away';
+                    const left = Number.isFinite(Number(p.remainingSeconds)) && Number(p.remainingSeconds) > 0
+                        ? `${Math.round(Number(p.remainingSeconds) / 60)} min left on the clock`
+                        : 'no time left on the clock';
+                    return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); background-color: rgba(230, 126, 34, 0.08); border-radius: 4px; margin-bottom: 6px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">${r.studentName || sid}</div>
+                            <div style="font-size: 0.8rem; color: var(--light-text);">
+                                ${why} &middot; ${when} &middot; ${p.strikes || 1} strike(s) &middot; ${left}
+                            </div>
+                        </div>
+                        <button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.8rem;" onclick="grantRetake('${sid}')">Grant Retake</button>
+                    </div>
+                    `;
+                }).join('');
+                breachHtml += `<div style="height: 12px;"></div>`;
+            }
+
             if (studentIds.length === 0 && !globalExt) {
-                list.innerHTML = '<p style="font-size: 0.9rem; color: var(--light-text);">No extensions granted.</p>';
+                list.innerHTML = breachHtml +
+                    '<p style="font-size: 0.9rem; color: var(--light-text);">No extensions granted.</p>';
                 return;
             }
 
             const updateTimers = () => {
                 const now = new Date();
-                let html = '';
+                let html = breachHtml;
 
                 if (globalExt) {
                     const grantedAt = new Date(globalExt.grantedAt);
@@ -5657,6 +5721,10 @@
                 .then(results => {
                     const failed = results.filter(r => r.status === 'rejected').length;
                     if (failed) console.warn(`[chat] ${failed} read-receipts failed to save`);
+                    // Drop the topbar bell count now that these are read on the
+                    // server. Deliberately inside .then() — refreshing before
+                    // the read-receipts land would just re-read the old count.
+                    window.__notificationBell?.refresh();
                 });
         }
 
@@ -5786,9 +5854,27 @@
         async function loadMessageHistory() {
             try {
                 const userId = currentUser.id;
+                // NO schoolVersion filter here, deliberately.
+                //
+                // It used to be `{ fromId: userId, schoolVersion: currentVersion }`,
+                // and that is why teachers' replies never reached the admin. The
+                // teacher composer stamps `school_version` from the teacher's own
+                // cached profile (`user?.schoolVersion || ''`), which is blank on
+                // plenty of staff accounts and can differ in spelling from the
+                // `currentVersion` string the admin has loaded. Any reply whose
+                // stamp did not match exactly was filtered out here — while the
+                // teacher's own view, which never filtered by school, showed the
+                // whole conversation. Hence "the teacher replied and the admin
+                // saw nothing".
+                //
+                // Dropping the filter costs no tenancy safety: the messages
+                // collection rule is
+                //     @request.auth.id = from_id || @request.auth.id = to_id
+                // so this query can only ever return messages the admin is
+                // personally a party to, whatever school they belong to.
                 const [sentMessages, receivedMessages] = await Promise.all([
-                    dataService.getMessages({ fromId: userId, schoolVersion: currentVersion }),
-                    dataService.getMessages({ toId: userId, schoolVersion: currentVersion })
+                    dataService.getMessages({ fromId: userId }),
+                    dataService.getMessages({ toId: userId })
                 ]);
 
                 const mapRec = (msg, isSent) => {

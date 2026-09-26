@@ -1708,6 +1708,7 @@ class DataService {
                     || '',
                 scheduled_date: examData.scheduledDate || null,
                 scramble_questions: examData.scrambleQuestions || false,
+                proctoring: examData.proctoring || 'off',
                 client_id: clientGeneratedId,
                 question_count: questions.length,
                 has_theory: theoryQs.length > 0,
@@ -1768,6 +1769,7 @@ class DataService {
             if (updates.globalExtension !== undefined) data.global_extension = updates.globalExtension;
             if (updates.scheduledDate !== undefined) data.scheduled_date = updates.scheduledDate;
             if (updates.scrambleQuestions !== undefined) data.scramble_questions = updates.scrambleQuestions;
+            if (updates.proctoring !== undefined) data.proctoring = updates.proctoring;
 
             const mergedExamForRegrade = {
                 ...existingExam,
@@ -2072,7 +2074,9 @@ class DataService {
             scrambleQuestions: dbExam.scramble_questions || false,
             questionCount: dbExam.question_count ?? questions.length,
             hasTheory: dbExam.has_theory ?? questions.some(q => q.type === 'theory'),
-            theoryCount: dbExam.theory_count ?? questions.filter(q => q.type === 'theory').length
+            theoryCount: dbExam.theory_count ?? questions.filter(q => q.type === 'theory').length,
+            // Blank means off, so every exam that predates the field stays unproctored.
+            proctoring: dbExam.proctoring || 'off'
         };
     }
 
@@ -2096,7 +2100,8 @@ class DataService {
             scrambleQuestions: dbExam.scramble_questions || false,
             questionCount: dbExam.question_count || 0,
             hasTheory: dbExam.has_theory || false,
-            theoryCount: dbExam.theory_count || 0
+            theoryCount: dbExam.theory_count || 0,
+            proctoring: dbExam.proctoring || 'off'
         };
     }
 
@@ -2942,24 +2947,49 @@ class DataService {
                 filter += ` && student_id="${studentId}"`;
             }
             const results = await this.pb.collection('results').getFullList({ filter });
-            const completed = results.filter(r => r.flags && r.flags._status === 'completed');
+            // Also takes rows still marked in-progress but carrying a proctoring
+            // breach: those are attempts whose breach arrived by beacon as the page
+            // died, before the client could grade them. Selecting on "completed"
+            // alone would skip them and a retake would silently do nothing.
+            const toReopen = results.filter(r => {
+                const flags = r.flags || {};
+                if (flags._status === 'completed') return true;
+                return !!(flags._proctor && flags._proctor.breached);
+            });
 
-            for (const r of completed) {
+            for (const r of toReopen) {
                 try {
+                    const flags = r.flags || {};
+                    const breach = flags._proctor || null;
+
                     const updatedFlags = {
-                        ...r.flags,
+                        ...flags,
                         _status: 'in-progress',
                         _reopenedForExtension: true,
                         _reopenedAt: new Date().toISOString(),
                         _previousScore: r.score,
                         _previousSubmittedAt: r.submitted_at
                     };
+
+                    // The breach flag has to go or the exam page refuses entry
+                    // again immediately. Kept for the audit trail rather than
+                    // deleted, and _resumeSeconds carries the remaining clock so a
+                    // retake is not a free second sitting at full duration.
+                    if (breach) {
+                        delete updatedFlags._proctor;
+                        updatedFlags._previousProctor = breach;
+                        if (Number.isFinite(Number(breach.remainingSeconds))) {
+                            updatedFlags._resumeSeconds = Number(breach.remainingSeconds);
+                        }
+                    }
+
                     await this.pb.collection('results').update(r.id, {
                         flags: updatedFlags,
                         submitted_at: null
                     });
                     reopened++;
-                    console.log(`[Extension] Reopened result ${r.id} for student ${r.student_id}`);
+                    console.log(`[Extension] Reopened result ${r.id} for student ${r.student_id}` +
+                        (breach ? ' (clearing a proctoring breach)' : ''));
                 } catch (e) {
                     console.warn(`[Extension] Failed to reopen result ${r.id}:`, e.message);
                 }

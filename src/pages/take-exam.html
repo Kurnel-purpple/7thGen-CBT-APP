@@ -176,6 +176,11 @@
                 // (they have no read access to the exams collection).
                 '../modules/admissions/js/admissionsDataService.js',
                 '../modules/cbt/js/timer.js',
+                // Must load before takeExam.js — the controller starts the
+                // watcher as soon as the paper is on screen. examKiosk is inert
+                // outside Electron.
+                '../modules/cbt/js/proctorWatcher.js',
+                '../modules/cbt/js/examKiosk.js',
                 '../modules/cbt/js/takeExam.js'
             ],
             moduleModuleScripts: [

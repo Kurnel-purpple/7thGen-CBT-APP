@@ -413,9 +413,16 @@
         }
         /* Toggle titles must never wrap into a fat two-line label — shrink
            the font before the text, and keep it on one line. */
-        .create-exam-row3 .toggle-col .toggle-title {
+        .create-exam-row3 .toggle-col .toggle-title,
+        .create-exam-row-proctoring .toggle-title {
             white-space: nowrap;
             font-size: 0.85rem;
+        }
+
+        /* Proctoring gets a row to itself, directly under the numeric settings. */
+        .create-exam-row-proctoring {
+            width: 100%;
+            margin-bottom: 20px;
         }
 
         /* Scramble radio group */
@@ -487,7 +494,8 @@
             .create-exam-row3 { flex-wrap: wrap; gap: 12px; }
             .create-exam-row3 .compact-col,
             .create-exam-row3 .toggle-col { flex: 1 1 calc(50% - 6px); min-width: calc(50% - 6px); }
-            .create-exam-row3 .toggle-col .toggle-title { font-size: 0.78rem; }
+            .create-exam-row3 .toggle-col .toggle-title,
+            .create-exam-row-proctoring .toggle-title { font-size: 0.78rem; }
             .create-exam-row3 .scramble-radio-group { gap: 14px; }
             .steps-chain-value .desktop-label { display: none; }
             .steps-chain-value .mobile-label { display: inline; }
@@ -686,9 +694,25 @@
                     </div>
                 </div>
 
+                <!-- Row 4: Proctoring. On its own row rather than crowded in with
+                     the toggles above: it offers three choices where they offer
+                     two, and it is the only setting on this form that changes what
+                     happens to a student mid-exam. Off by default, so an exam is
+                     never proctored unless a teacher deliberately says so. -->
+                <div class="create-exam-row-proctoring">
+                    <div class="form-group">
+                        <label class="toggle-title" title="Warn: records and warns the student, but never submits for them. Strict: a second breach, or a confirmed close, submits the exam and locks it until you grant a retake.">Proctoring</label>
+                        <div class="scramble-radio-group">
+                            <label><input type="radio" name="exam-proctoring" id="exam-proctoring-off" value="off" checked> Off</label>
+                            <label><input type="radio" name="exam-proctoring" id="exam-proctoring-warn" value="warn"> Warn</label>
+                            <label><input type="radio" name="exam-proctoring" id="exam-proctoring-strict" value="strict"> Strict</label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="create-exam-divider"></div>
 
-                <!-- Row 4: General Instructions -->
+                <!-- Row 5: General Instructions -->
                 <div class="form-group">
                     <label for="exam-instructions">General Instructions</label>
                     <textarea id="exam-instructions" class="form-control" rows="3"

@@ -350,6 +350,14 @@ const takeExam = {
                 }
             }
 
+            // Proctoring gate. Runs before anything is drawn, so a locked attempt
+            // never shows the student the paper again. startExamSession opens the
+            // attempt row AND reports its state, so this costs no extra request.
+            if (takeExam.mode !== 'resolve') {
+                const session = await dataService.startExamSession(examId, user.id, user.name);
+                if (await takeExam._blockIfBreached(session)) return;
+            }
+
             takeExam.renderHeader();
             takeExam.setupPalette();
             // V2E: Now that palette buttons exist, mark restored answered/flagged questions
@@ -358,10 +366,7 @@ const takeExam = {
             }
             takeExam.renderAllQuestions();
             takeExam.startTimer();
-
-            if (takeExam.mode !== 'resolve') {
-                dataService.startExamSession(examId, user.id, user.name);
-            }
+            takeExam._startProctoring();
 
             // Listeners
             document.getElementById('submit-btn').onclick = takeExam.showSubmitModal;
@@ -657,6 +662,17 @@ const takeExam = {
             takeExam.showNotice('Time is up! Submitting your exam automatically.', 'warning');
             takeExam.submit();
         });
+
+        // A retake granted after a proctoring breach resumes the clock where the
+        // breach stopped it, plus whatever extra time the teacher attached.
+        // Without this the branch above hands back the full original duration,
+        // which would turn the penalty into a free second sitting.
+        const resume = Number(takeExam._resumeSeconds);
+        if (Number.isFinite(resume) && resume > 0) {
+            takeExam.timer.setRemaining(resume + (extraMinutes * 60));
+            console.log(`[Extension] Retake resuming with ${resume}s left + ${extraMinutes}min granted`);
+        }
+
         takeExam.timer.start();
     },
 
@@ -1234,6 +1250,223 @@ const takeExam = {
         }
     },
 
+    /**
+     * Drop this device's proctoring markers.
+     *
+     * Deliberately NOT part of _clearProgress, which also runs when a submission
+     * has merely been queued offline. While it sits in that queue the server still
+     * shows the attempt as open, so the local marker is the only thing stopping a
+     * student reloading their way back into an exam that auto-submitted. It is
+     * cleared only once the result is genuinely on the server.
+     */
+    _clearProctorMarkers: () => {
+        if (!window.ProctorWatcher || !takeExam.exam || !takeExam.user) return;
+        ProctorWatcher.clearLocalBreach(takeExam.exam.id, takeExam.user.id);
+        ProctorWatcher.clearStrikesFor(takeExam.exam.id, takeExam.user.id);
+    },
+
+    // =================================================================
+    // Light proctoring
+    //
+    // The watcher itself lives in proctorWatcher.js and knows nothing about
+    // exams; everything below is the exam side of the contract — what counts as
+    // locked, what a strike does, and how a breach becomes a submitted result.
+    // =================================================================
+
+    /**
+     * Refuse entry to an attempt that was auto-submitted for a breach.
+     *
+     * Two sources, and either is enough. The server's copy is authoritative and
+     * covers a student moving to a different device. The local marker covers the
+     * opposite case: a breach whose beacon never reached the server because the
+     * device was offline — without it, pulling the network cable before closing
+     * the page would be a reliable way to keep the attempt alive.
+     *
+     * @returns {Promise<boolean>} true when entry was refused and init must stop
+     */
+    _blockIfBreached: async (session) => {
+        if (!window.ProctorWatcher) return false;
+
+        const examId = takeExam.exam.id;
+        const userId = takeExam.user.id;
+
+        // A teacher or admin has granted a retake. That clears the server flag;
+        // clear this device's copies too, or the student would be locked out by a
+        // stale local marker the teacher has no way to see, let alone remove.
+        if (session && session.reopened) {
+            ProctorWatcher.clearLocalBreach(examId, userId);
+            ProctorWatcher.clearStrikesFor(examId, userId);
+            takeExam._resumeSeconds = Number.isFinite(Number(session.resumeSeconds))
+                ? Number(session.resumeSeconds)
+                : null;
+            return false;
+        }
+
+        const serverBreach = (session && session.proctor && session.proctor.breached)
+            ? session.proctor
+            : null;
+        const localBreach = ProctorWatcher.readLocalBreach(examId, userId);
+        const breach = serverBreach || localBreach;
+        if (!breach) return false;
+
+        // We are about to send them back to the dashboard, so make sure a lock
+        // left behind by an earlier attempt is not still holding the window.
+        if (window.ExamKiosk) ExamKiosk.release();
+
+        // The device knows about a breach the server does not. Push it up now, so
+        // the lock stops being device-local as soon as there is a connection.
+        if (localBreach && !serverBreach && !localBreach.synced) {
+            await takeExam._syncLocalBreach(localBreach);
+        }
+
+        takeExam.showAlert(
+            'Exam Closed',
+            'This exam was submitted automatically because it was closed or left during the attempt.\n\n' +
+            'You cannot continue it. If you believe this was a mistake, ask your teacher — ' +
+            'they can grant you a retake.',
+            () => { window.location.href = takeExam._exitUrl(); }
+        );
+        return true;
+    },
+
+    /**
+     * Best-effort catch-up write for a breach that was only ever recorded locally.
+     * Uses the same endpoint the beacon does; failure is fine, because the local
+     * marker stays put and this runs again on the next attempt to enter.
+     */
+    _syncLocalBreach: async (breach) => {
+        try {
+            const pb = dataService && dataService.pb;
+            if (!pb || !pb.authStore || !pb.authStore.token) return;
+            if (!navigator.onLine) return;
+
+            const url = String(pb.baseUrl || '').replace(/\/$/, '') + '/api/cbt/proctor-breach';
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: pb.authStore.token,
+                    examId: takeExam.exam.id,
+                    reason: breach.reason || 'left_page',
+                    strikes: breach.strikes || 1,
+                    remainingSeconds: breach.remainingSeconds ?? null,
+                    events: breach.events || []
+                })
+            });
+            if (res.ok) {
+                ProctorWatcher.markLocalBreachSynced(takeExam.exam.id, takeExam.user.id);
+                console.log('🛡️ Proctor: local breach synced to the server');
+            }
+        } catch (e) {
+            console.warn('[Proctor] could not sync the local breach:', e);
+        }
+    },
+
+    /**
+     * The desktop app stopped the student minimising or closing, and told us so
+     * the instant it happened. Warn them now, while the thing they just tried is
+     * still what is on their mind.
+     *
+     * Deliberately NOT a strike. The action was prevented — the window never went
+     * anywhere and nothing was breached. Strikes are for actually being away,
+     * which the watcher measures for itself.
+     */
+    _onBlockedAction: (action, mode) => {
+        const what = action === 'close' ? 'close' : 'minimise';
+
+        takeExam.showAlert(
+            'You cannot ' + what + ' during this exam',
+            mode === 'strict'
+                ? 'This exam is proctored. Leaving, minimising or closing it will submit your answers ' +
+                  'automatically and you will not be able to return to it.\n\n' +
+                  'Use the Submit button when you have finished.'
+                : 'This exam is proctored and that has been recorded for your teacher.\n\n' +
+                  'Please stay on this page until you have submitted your answers.'
+        );
+    },
+
+    _startProctoring: () => {
+        if (!window.ProctorWatcher) return;
+        if (takeExam.mode === 'resolve') return; // a review pass, not a sitting
+
+        const mode = (takeExam.exam && takeExam.exam.proctoring) || 'off';
+        if (mode !== 'warn' && mode !== 'strict') return;
+
+        takeExam.showNotice(
+            mode === 'strict'
+                ? 'Proctored exam: do not close, minimise or switch away from this page. ' +
+                  'Leaving will submit your exam automatically.'
+                : 'Proctored exam: leaving, minimising or closing this page is recorded for your teacher.',
+            'warning'
+        );
+
+        // Desktop only, and additive. On Electron we own the window, so the
+        // student can be warned AT THE CLICK instead of when they come back —
+        // strict refuses the minimise and close outright, warn intercepts each
+        // once and then steps aside. No-ops on web and Android, where nothing
+        // fires before a minimise and the warning can only ever be retrospective.
+        if (window.ExamKiosk && ExamKiosk.isAvailable()) {
+            ExamKiosk.lock({
+                examId: takeExam.exam.id,
+                durationSeconds: (takeExam.exam.duration || 0) * 60,
+                mode: mode,
+                onBlockedAction: (action) => takeExam._onBlockedAction(action, mode)
+            });
+        }
+
+        ProctorWatcher.start({
+            mode: mode,
+            examId: takeExam.exam.id,
+            userId: takeExam.user.id,
+
+            getRemainingSeconds: () => (takeExam.timer ? takeExam.timer.remainingSeconds : null),
+
+            // Grading is pure arithmetic over answers already in memory, so it can
+            // run synchronously inside the unload handler. That is what lets a
+            // closed page submit a finished, scored result instead of stranding
+            // the attempt half-written for a teacher to clean up.
+            buildBeacon: () => {
+                const graded = dataService._gradeExamAnswers(takeExam.exam, takeExam.answers);
+                const totalPoints = Number(graded.totalPoints) || 0;
+                const points = Number(graded.score) || 0;
+                const percentage = totalPoints > 0 ? Math.round((points / totalPoints) * 100) : 0;
+                return {
+                    score: percentage,
+                    totalPoints: Math.round(totalPoints),
+                    passScore: takeExam.exam.passScore || 50,
+                    answers: takeExam.answers
+                };
+            },
+
+            onWarn: (info) => {
+                const left = info.remaining;
+                takeExam.showAlert(
+                    'Warning — you left the exam',
+                    info.mode === 'strict'
+                        ? 'You left this exam page. This is a warning.\n\n' +
+                          (left > 0
+                              ? 'If you leave, minimise or close it again, your exam will be submitted automatically and you will not be able to return to it.'
+                              : 'Your next breach will submit the exam automatically.')
+                        : 'You left this exam page. This has been recorded for your teacher.'
+                );
+            },
+
+            onNudge: (info) => {
+                takeExam.showNotice('Please stay on the exam page until you submit.', 'warning');
+            },
+
+            onBreach: (info) => {
+                // Recorded here so submit() can stamp it into the result's flags.
+                takeExam._breachInfo = info;
+                takeExam.showNotice(
+                    'You left the exam again. Your answers are being submitted automatically.',
+                    'error'
+                );
+                takeExam.submit();
+            }
+        });
+    },
+
     // Normalize exam payload — ensures questions is always a valid array
     _normalizeExam: (exam) => {
         if (!exam) return exam;
@@ -1470,6 +1703,18 @@ const takeExam = {
         }
         takeExam._isSubmitting = true;
 
+        // Stand the watcher down before anything else. Submitting tears the page
+        // down and navigates, and every one of those steps looks exactly like a
+        // student walking out of the exam. Released here rather than after the
+        // save succeeds so a retry after a failed submission is not fighting a
+        // "leave site?" prompt of our own making.
+        if (window.ProctorWatcher && ProctorWatcher.isActive()) {
+            ProctorWatcher.release();
+        }
+        // Unconditional: this window may have been locked by an earlier load of
+        // the exam page, and an unlock nobody needed costs nothing.
+        if (window.ExamKiosk) ExamKiosk.release();
+
         // Disable submit button and show loading state
         const submitBtn = document.getElementById('submit-btn');
         const originalBtnText = submitBtn ? submitBtn.textContent : 'Submit Exam';
@@ -1647,6 +1892,23 @@ const takeExam = {
         finalFlags._real_total_points = totalPoints;
         finalFlags._real_points_scored = score;
 
+        // A proctoring breach forced this submission. The flag is what locks the
+        // attempt — the student dashboard already hides any exam with a completed
+        // result, so this adds the reason a teacher needs in order to decide
+        // whether to grant a retake, and the clock a retake should resume from.
+        if (takeExam._breachInfo) {
+            const b = takeExam._breachInfo;
+            finalFlags._proctor = {
+                breached: true,
+                reason: b.reason || 'left_page',
+                at: new Date().toISOString(),
+                strikes: b.strikes || 0,
+                remainingSeconds: b.remainingSeconds ?? null,
+                events: b.events || [],
+                via: 'client'
+            };
+        }
+
         const resultData = {
             examId: takeExam.exam.id,
             studentId: takeExam.user.id,
@@ -1717,6 +1979,8 @@ const takeExam = {
                 await dataService.saveResult(resultData);
                 await takeExam._clearProgress();
                 await takeExam._clearSnapshot();
+                // Safe only here: the server now holds the result, breach flag and all.
+                takeExam._clearProctorMarkers();
                 // Signal dashboard to force-refresh results on next load
                 sessionStorage.setItem('force_refresh_dashboard', '1');
                 const passed = percentage >= takeExam.exam.passScore;

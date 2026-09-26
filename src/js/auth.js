@@ -49,12 +49,40 @@ const auth = {
             // history directly behind the dashboard, so Back out of any page
             // eventually landed on the login form — with a valid session still
             // in hand — and looked like being signed out.
+            // School users land on the Feed, not their dashboard — it is the
+            // page with something new on it. The Dashboard link sits at the top
+            // of the sidebar on every page, so home is always one tap away.
+            //
+            // The guard matters: this page only knows the STATIC client config,
+            // not the per-tenant module list that pageBootstrap resolves later.
+            // A tenant without the feed module would otherwise be dropped on the
+            // "module not enabled" screen at every single login. feed.html
+            // carries the other half of this — it reads the autoland flag and
+            // bounces to the dashboard if the tenant override disagrees.
+            const feedLanding = (() => {
+                try {
+                    const enabled = window.__appConfig?.modules?.enabled;
+                    return Array.isArray(enabled) && enabled.includes('feed');
+                } catch (e) {
+                    return false;
+                }
+            })();
+
+            const goHome = (dashboardPage) => {
+                if (feedLanding) {
+                    try { sessionStorage.setItem('feed_autoland', dashboardPage); } catch (e) { /* private mode */ }
+                    window.location.replace('pages/feed.html');
+                    return;
+                }
+                window.location.replace('pages/' + dashboardPage);
+            };
+
             if (user.role === 'student') {
-                window.location.replace('pages/student-dashboard.html');
+                goHome('student-dashboard.html');
             } else if (user.role === 'teacher') {
-                window.location.replace('pages/teacher-dashboard.html');
+                goHome('teacher-dashboard.html');
             } else if (user.role === 'admin') {
-                window.location.replace('pages/admin-dashboard.html');
+                goHome('admin-dashboard.html');
             } else if (user.role === 'super_admin') {
                 window.location.replace('pages/master-admin.html');
             } else {

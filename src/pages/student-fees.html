@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>My Payments</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/fees/css/fees.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+                <div class="sidebar-brand">
+                    <div><span class="sidebar-brand-text">Gen7 CBT</span></div>
+                    <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+                </div>
+
+                <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+
+                <nav class="sidebar-nav">
+                    <a href="student-fees.html" class="sidebar-nav-item active">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>
+                        <span class="sidebar-nav-label">My Payments</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-divider"></div>
+
+                <div class="fee-sidebar-stats" aria-label="Payment stats">
+                    <div class="fee-sidebar-stats-label">At a glance</div>
+                    <div class="fee-sidebar-stat">
+                        <span class="fee-sidebar-stat-name">Awaiting confirmation</span>
+                        <span class="fee-sidebar-stat-value" id="fee-stat-pending">0</span>
+                    </div>
+                    <div class="fee-sidebar-stat">
+                        <span class="fee-sidebar-stat-name">Confirmed</span>
+                        <span class="fee-sidebar-stat-value" id="fee-stat-confirmed">0</span>
+                    </div>
+                    <div class="fee-sidebar-stat">
+                        <span class="fee-sidebar-stat-name">Total submitted</span>
+                        <span class="fee-sidebar-stat-value" id="fee-stat-total">0</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+                <nav class="sidebar-nav" id="module-nav-items"></nav>
+            </div>
+
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">S</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">Student</div>
+                        <div class="sidebar-profile-role" id="fee-student-class">Student</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button id="fee-logout-btn" class="dropdown-item" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <div class="app-main-wrapper">
+            <header class="main-header">
+                <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <h1 class="fee-topbar-title">My Payments</h1>
+
+                <div class="topbar-search"></div>
+
+                <div class="topbar-actions"></div>
+            </header>
+
+            <main class="main-content fee-main">
+                <!-- LIST VIEW (primary) -->
+                <section class="fee-list-view" id="fee-list-view">
+                    <header class="fee-page-head">
+                        <span class="fee-page-eyebrow">Fees &amp; Payments</span>
+                        <h1 class="fee-page-title">My Payments</h1>
+                        <p class="fee-page-subtitle">Upload a photo of your payment receipt and tell the school what it was for. The school office confirms it, and the result shows up here.</p>
+                    </header>
+
+                    <section class="fee-section" style="margin-top:0;">
+                        <div class="fee-section-head">
+                            <div>
+                                <span class="fee-section-eyebrow">Payment History</span>
+                                <h2 class="fee-section-title">Your submissions</h2>
+                            </div>
+                            <button type="button" class="fee-btn primary" id="fee-open-composer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Submit a payment
+                            </button>
+                        </div>
+                        <div class="fee-section-meta" id="fee-list-meta" style="margin-bottom:8px;">0 submissions</div>
+                        <div id="fee-student-list" class="fee-list" aria-live="polite"></div>
+                    </section>
+                </section>
+
+                <!-- DETAIL VIEW (revealed on row click) -->
+                <section class="fee-detail-view" id="fee-detail-view">
+                    <button type="button" class="fee-back-btn" id="fee-back-to-list" aria-label="Back to payment list">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                        <span>Back to payments</span>
+                    </button>
+                    <div id="fee-student-detail"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav" role="navigation" aria-label="Payment actions">
+        <button class="bottom-nav-item" type="button" onclick="Utils.goBack()" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item" type="button" onclick="window.studentFees?.openComposer()" aria-label="Submit a payment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Submit</span>
+        </button>
+        <button class="bottom-nav-item" type="button" onclick="window.studentFees?.refresh()" aria-label="Refresh payments">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <span>Refresh</span>
+        </button>
+    </nav>
+
+    <!-- Composer modal -->
+    <div class="fee-modal" id="fee-compose-modal" role="dialog" aria-modal="true" aria-labelledby="fee-compose-title">
+        <div class="fee-modal-card" role="document">
+            <div class="fee-modal-head">
+                <div>
+                    <h3 class="fee-modal-title" id="fee-compose-title">Submit a payment</h3>
+                    <p class="fee-modal-sub">Attach up to 5 photos of the receipt so the school can confirm it.</p>
+                </div>
+                <button type="button" class="fee-modal-close" id="fee-compose-close" aria-label="Close">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <form id="fee-compose-form" class="fee-form">
+                <div class="fee-field-row">
+                    <div class="fee-field">
+                        <label class="fee-label" for="fee-purpose">What was the payment for?</label>
+                        <select class="fee-select" id="fee-purpose" required>
+                            <option value="school_fees">School Fees</option>
+                            <option value="pta">PTA Levy</option>
+                            <option value="uniform">Uniform</option>
+                            <option value="exam_fee">Exam Fee</option>
+                            <option value="books">Books</option>
+                            <option value="transport">Transport</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="fee-field">
+                        <label class="fee-label" for="fee-amount">Amount <span class="fee-label-hint">(optional)</span></label>
+                        <input type="number" class="fee-input" id="fee-amount" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 45000">
+                    </div>
+                </div>
+
+                <div class="fee-field">
+                    <label class="fee-label" for="fee-caption">Note to the school</label>
+                    <textarea class="fee-textarea" id="fee-caption" maxlength="500" required
+                        placeholder="Tell the school what this payment covers — e.g. 'Second term school fees, paid at First Bank on 12 Sept. Teller number 448201.'"></textarea>
+                    <span class="fee-char-count" id="fee-caption-count">0 / 500</span>
+                </div>
+
+                <div class="fee-field">
+                    <label class="fee-label">Receipt photos <span class="fee-label-hint">(up to 5)</span></label>
+                    <div class="fee-dropzone" id="fee-dropzone" role="button" tabindex="0">
+                        <span class="fee-dropzone-icon">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </span>
+                        <p class="fee-dropzone-text">Tap to add receipt photos</p>
+                        <p class="fee-dropzone-hint">JPG or PNG. Photos are shrunk on your device before uploading.</p>
+                    </div>
+                    <input type="file" id="fee-file-input" accept="image/*" multiple hidden>
+                    <div class="fee-previews" id="fee-previews"></div>
+                </div>
+
+                <div id="fee-compose-status" class="fee-status-msg" role="status"></div>
+
+                <div class="fee-modal-actions">
+                    <button type="button" class="fee-btn secondary" id="fee-compose-cancel">Cancel</button>
+                    <button type="submit" class="fee-btn primary" id="fee-submit-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Send to school
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Receipt lightbox -->
+    <div class="fee-lightbox" id="fee-lightbox" role="dialog" aria-modal="true" aria-label="Receipt image">
+        <button type="button" class="fee-lightbox-close" id="fee-lightbox-close" aria-label="Close">&times;</button>
+        <button type="button" class="fee-lightbox-nav prev" id="fee-lightbox-prev" aria-label="Previous image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <img id="fee-lightbox-img" alt="Receipt">
+        <button type="button" class="fee-lightbox-nav next" id="fee-lightbox-next" aria-label="Next image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <span class="fee-lightbox-counter" id="fee-lightbox-counter"></span>
+    </div>
+
+    <script>
+        window.toggleSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active');
+            if (closeBtn) closeBtn.style.display = sidebar.classList.contains('mobile-open') ? 'flex' : 'none';
+        };
+        window.closeSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            if (closeBtn) closeBtn.style.display = 'none';
+        };
+        window.toggleThemeFromSidebar = function () {
+            var html = document.documentElement;
+            var current = html.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        };
+        window.toggleTabletSidebar = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            if (!sidebar) return;
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+            }
+        };
+        window.toggleSidebarProfileDropdown = function () {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+    </script>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        var ok = await bootstrapModulePage({
+            moduleId: 'fees',
+            moduleName: 'Fees',
+            title: 'Fees module is not enabled',
+            message: 'The fee payment feature is not available for this school configuration.',
+            currentModuleId: 'fees',
+            renderNav: true,
+            globalScripts: [
+                '../core/shared/academicEntities.js',
+                '../core/shared/imageUpload.js',
+                '../js/utils.js',
+                '../js/dataService.js',
+                '../js/auth.js',
+                '../modules/fees/js/feesDataService.js',
+                '../modules/fees/js/studentFees.js'
+            ]
+        });
+
+        if (ok && window.studentFees?.init) {
+            window.studentFees.init();
+        }
+    </script>
+</body>
+
+</html>

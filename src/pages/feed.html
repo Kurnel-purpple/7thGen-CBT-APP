@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="client-id" content="default">
+    <title>School Feed</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="manifest" href="../manifest.json">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../modules/feed/css/feed.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="app-sidebar" id="app-sidebar">
+            <button id="sidebar-expand-btn" class="sidebar-expand-toggle" onclick="toggleTabletSidebar()" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="sidebar-scrollable">
+                <div class="sidebar-brand">
+                    <div><span class="sidebar-brand-text">Gen7 CBT</span></div>
+                    <button onclick="closeSidebarMobile()" class="sidebar-close-btn" aria-label="Close menu" style="display:none; margin-left:auto; width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; line-height:1;">&times;</button>
+                </div>
+
+                <button id="sidebar-theme-toggle" onclick="toggleThemeFromSidebar()" title="Toggle Dark Mode" style="background:none; border:none; cursor:pointer; padding:8px; margin:4px 16px 8px; line-height:1; color:rgba(255,255,255,0.7);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+
+                <!-- No "School Feed" nav item here on purpose: sidebarBuilder
+                     puts the Feed link on the theme-toggle row above, and marks
+                     it active on this page. Listing it again would be the same
+                     link twice, one above the other. -->
+
+                <div class="sidebar-divider" id="module-nav-divider" style="display:none;"></div>
+                <nav class="sidebar-nav" id="module-nav-items"></nav>
+            </div>
+
+            <div class="sidebar-profile" style="position: relative;">
+                <div class="sidebar-profile-info" onclick="toggleSidebarProfileDropdown()" style="cursor:pointer;">
+                    <div class="sidebar-profile-avatar" id="sidebar-avatar">U</div>
+                    <div style="min-width:0; flex:1;">
+                        <div class="sidebar-profile-name" id="user-name">User</div>
+                        <div class="sidebar-profile-role" id="feed-user-role">Member</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">&#9650;</span>
+                </div>
+                <div id="sidebar-profile-dropdown" style="display:none; position:absolute; bottom:100%; left:12px; right:12px; background:var(--dm-surface, #1e2235); border-radius:10px; padding:6px 0; margin-bottom:6px; box-shadow:0 -4px 20px rgba(0,0,0,0.3); z-index:200; border:1px solid rgba(255,255,255,0.1);">
+                    <button id="feed-logout-btn" class="dropdown-item" style="color:#e74c3c; padding:10px 16px; font-size:0.85rem;">Logout</button>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebarMobile()"></div>
+
+        <div class="app-main-wrapper">
+            <header class="main-header">
+                <button class="topbar-hamburger" onclick="toggleSidebarMobile()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+
+                <h1 class="feed-topbar-title">School Feed</h1>
+
+                <div class="topbar-search"></div>
+
+                <div class="topbar-actions">
+                    <!-- Admin-only: who may post / comment in this school -->
+                    <button type="button" class="feed-icon-btn" id="feed-settings-btn" title="Feed settings" aria-label="Feed settings" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <main class="main-content feed-main">
+                <div class="feed-column">
+                    <!-- TIMELINE VIEW -->
+                    <section class="feed-timeline-view" id="feed-timeline-view">
+                        <div class="feed-tabs" id="feed-tabs" role="tablist"></div>
+                        <div id="feed-composer-host"></div>
+                        <div id="feed-list" aria-live="polite"></div>
+                        <button type="button" class="feed-load-more" id="feed-load-more" style="display:none;">Load more posts</button>
+                    </section>
+
+                    <!-- THREAD VIEW (a post and its comments) -->
+                    <section class="feed-thread-view" id="feed-thread-view">
+                        <div class="feed-thread-head">
+                            <button type="button" class="feed-back-btn" id="feed-back-btn" aria-label="Back to the feed">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                            </button>
+                            <h2 class="feed-thread-title">Post</h2>
+                        </div>
+                        <div id="feed-thread-host"></div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav" role="navigation" aria-label="Feed actions">
+        <button class="bottom-nav-item" type="button" onclick="Utils.goBack()" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Back</span>
+        </button>
+        <button class="bottom-nav-item" type="button" onclick="window.feedView?.refresh({ reset: true })" aria-label="Refresh feed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <span>Refresh</span>
+        </button>
+    </nav>
+
+    <!-- Post options menu (positioned in JS) -->
+    <div class="feed-menu" id="feed-menu" role="menu"></div>
+
+    <!-- Report modal -->
+    <div class="feed-modal" id="feed-report-modal" role="dialog" aria-modal="true" aria-labelledby="feed-report-title">
+        <div class="feed-modal-card" role="document">
+            <div class="feed-modal-head">
+                <div>
+                    <h3 class="feed-modal-title" id="feed-report-title">Report this post</h3>
+                    <p class="feed-modal-sub">A school admin will review it. Your name is shown to the admin so they can follow up.</p>
+                </div>
+                <button type="button" class="feed-modal-close" id="feed-report-close" aria-label="Close">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <form id="feed-report-form">
+                <div class="feed-field">
+                    <label class="feed-label" for="feed-report-reason">What is wrong with it?</label>
+                    <select class="feed-select" id="feed-report-reason" required>
+                        <option value="bullying">Bullying or harassment</option>
+                        <option value="inappropriate" selected>Inappropriate content</option>
+                        <option value="spam">Spam</option>
+                        <option value="exam_leak">Exam content leak</option>
+                        <option value="false_info">False information</option>
+                        <option value="other">Something else</option>
+                    </select>
+                </div>
+
+                <div class="feed-field">
+                    <label class="feed-label" for="feed-report-note">Anything else? <span class="feed-label-hint">(optional)</span></label>
+                    <textarea class="feed-textarea" id="feed-report-note" maxlength="500" placeholder="Add anything that would help the admin understand."></textarea>
+                </div>
+
+                <div class="feed-modal-actions">
+                    <button type="button" class="feed-btn secondary" id="feed-report-cancel">Cancel</button>
+                    <button type="submit" class="feed-btn danger">Send report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feed settings modal (admin only) -->
+    <div class="feed-modal" id="feed-settings-modal" role="dialog" aria-modal="true" aria-labelledby="feed-settings-title">
+        <div class="feed-modal-card" role="document">
+            <div class="feed-modal-head">
+                <div>
+                    <h3 class="feed-modal-title" id="feed-settings-title">Feed settings</h3>
+                    <p class="feed-modal-sub">Decide who may post and comment on your school's feed. This is enforced on the server, not just in the app.</p>
+                </div>
+                <button type="button" class="feed-modal-close" id="feed-settings-close" aria-label="Close">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <form id="feed-settings-form">
+                <div class="feed-field">
+                    <span class="feed-label">Who can post?</span>
+                    <label class="feed-radio-row">
+                        <input type="radio" name="whoCanPost" value="staff" checked>
+                        <span>
+                            <span class="feed-radio-label">Staff only</span>
+                            <span class="feed-radio-hint">Teachers and admins post; students read, like, repost, comment and save. This is the default.</span>
+                        </span>
+                    </label>
+                    <label class="feed-radio-row">
+                        <input type="radio" name="whoCanPost" value="everyone">
+                        <span>
+                            <span class="feed-radio-label">Everyone</span>
+                            <span class="feed-radio-hint">Students can post too. Keep an eye on the Reports tab — an open feed needs moderating.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="feed-field">
+                    <span class="feed-label">Who can comment?</span>
+                    <label class="feed-radio-row">
+                        <input type="radio" name="whoCanComment" value="everyone" checked>
+                        <span>
+                            <span class="feed-radio-label">Everyone</span>
+                            <span class="feed-radio-hint">Students can reply to posts.</span>
+                        </span>
+                    </label>
+                    <label class="feed-radio-row">
+                        <input type="radio" name="whoCanComment" value="staff">
+                        <span>
+                            <span class="feed-radio-label">Staff only</span>
+                            <span class="feed-radio-hint">The feed becomes announcement-only. Students can still like and save.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="feed-modal-actions">
+                    <button type="button" class="feed-btn secondary" id="feed-settings-cancel">Cancel</button>
+                    <button type="submit" class="feed-btn primary">Save settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image lightbox -->
+    <div class="feed-lightbox" id="feed-lightbox" role="dialog" aria-modal="true" aria-label="Image">
+        <button type="button" class="feed-lightbox-close" id="feed-lightbox-close" aria-label="Close">&times;</button>
+        <img id="feed-lightbox-img" alt="Post attachment">
+    </div>
+
+    <script>
+        window.toggleSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active');
+            if (closeBtn) closeBtn.style.display = sidebar.classList.contains('mobile-open') ? 'flex' : 'none';
+        };
+        window.closeSidebarMobile = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var overlay = document.getElementById('sidebar-overlay');
+            var closeBtn = sidebar ? sidebar.querySelector('.sidebar-close-btn') : null;
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+            if (closeBtn) closeBtn.style.display = 'none';
+        };
+        window.toggleThemeFromSidebar = function () {
+            var html = document.documentElement;
+            var current = html.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        };
+        window.toggleTabletSidebar = function () {
+            var sidebar = document.getElementById('app-sidebar');
+            var wrapper = document.querySelector('.app-main-wrapper');
+            if (!sidebar) return;
+            var isDesktop = window.innerWidth > 1024;
+            if (isDesktop) {
+                var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (wrapper) wrapper.classList.toggle('sidebar-collapsed', collapsed);
+                localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+            } else {
+                var expanded = sidebar.classList.toggle('sidebar-expanded');
+                if (wrapper) wrapper.classList.toggle('sidebar-expanded', expanded);
+            }
+        };
+        window.toggleSidebarProfileDropdown = function () {
+            var dd = document.getElementById('sidebar-profile-dropdown');
+            if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        };
+    </script>
+
+    <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js" crossorigin="anonymous"></script>
+    <script type="module">
+        import { bootstrapModulePage } from '../core/modules/pageBootstrap.js';
+
+        var ok = await bootstrapModulePage({
+            moduleId: 'feed',
+            moduleName: 'Feed',
+            title: 'Feed module is not enabled',
+            message: 'The school feed is not available for this school configuration.',
+            currentModuleId: 'feed',
+            renderNav: true,
+            globalScripts: [
+                '../core/shared/academicEntities.js',
+                '../core/shared/imageUpload.js',
+                '../js/utils.js',
+                '../js/dataService.js',
+                '../js/auth.js',
+                '../modules/feed/js/feedDataService.js',
+                '../modules/feed/js/feedView.js'
+            ]
+        });
+
+        // The other half of the login landing guard in auth.js. If the tenant's
+        // module list turns out NOT to include the feed, the user is here only
+        // because we sent them — so send them on to their dashboard rather than
+        // leaving them staring at a "feature locked" screen they never asked for.
+        // Someone who navigated here deliberately has no flag set and still sees
+        // the normal locked screen.
+        if (!ok) {
+            var autoland = null;
+            try { autoland = sessionStorage.getItem('feed_autoland'); } catch (e) { /* private mode */ }
+            if (autoland) {
+                try { sessionStorage.removeItem('feed_autoland'); } catch (e) { /* ignore */ }
+                window.location.replace(autoland);
+            }
+        }
+
+        if (ok) {
+            try { sessionStorage.removeItem('feed_autoland'); } catch (e) { /* ignore */ }
+            if (window.feedView?.init) window.feedView.init();
+        }
+    </script>
+</body>
+
+</html>

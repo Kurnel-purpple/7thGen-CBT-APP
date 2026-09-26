@@ -20,7 +20,9 @@
         { id: 'report_cards', name: 'Report Cards', description: 'Term report cards, analytics' },
         { id: 'homework', name: 'Homework', description: 'Assignments, submissions, grading' },
         { id: 'broadsheet', name: 'Broadsheet', description: 'Class-wide term & session performance sheets' },
-        { id: 'admissions', name: 'Admissions', description: 'Entrance/aptitude tests for prospective students — no account needed' }
+        { id: 'admissions', name: 'Admissions', description: 'Entrance/aptitude tests for prospective students — no account needed' },
+        { id: 'fees', name: 'Fees', description: 'Parents upload payment receipts; admins confirm or reject them' },
+        { id: 'feed', name: 'School Feed', description: 'School-wide timeline — posts, likes, reposts, comments and saves' }
     ];
 
     const masterAdmin = {

@@ -1,0 +1,1028 @@
+/* ========================================================
+   Feed module styling
+   - X/Twitter-shaped timeline: one centred column, posts
+     separated by hairline dividers rather than cards.
+   - Uses the shared design tokens from main.css, so dark
+     mode comes for free via the [data-theme="dark"] swap.
+   ======================================================== */
+
+.feed-main {
+    padding: 0 0 80px;
+    background: var(--bg);
+    overflow-y: auto;
+    width: 100%;
+}
+
+/* The timeline column. 640px is the width at which a paragraph of body text
+   reads comfortably — the same reason X and Threads sit near it. */
+.feed-column {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+    background: var(--card-bg);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    min-height: 100vh;
+}
+
+.feed-topbar-title {
+    display: none;
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+/* ---------- Sticky tab bar ---------- */
+
+.feed-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: stretch;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    /* The topbar above is opaque; this keeps the tab row legible while posts
+       scroll under it. */
+    backdrop-filter: saturate(180%) blur(8px);
+}
+
+.feed-tab {
+    flex: 1;
+    position: relative;
+    min-height: 50px;
+    padding: 14px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-family);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.feed-tab:hover { background: var(--primary-light); }
+.feed-tab.active { color: var(--text-primary); }
+
+.feed-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 56px;
+    height: 4px;
+    border-radius: 4px 4px 0 0;
+    background: var(--primary);
+}
+
+.feed-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 5px;
+    border-radius: var(--radius-pill);
+    background: #EA4335;
+    color: #FFFFFF;
+    font-size: 0.66rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+/* ---------- Composer ---------- */
+
+.feed-composer {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 8px solid var(--bg);
+}
+
+.feed-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.feed-avatar.sm { width: 36px; height: 36px; font-size: 0.9rem; }
+
+.feed-composer-body { flex: 1; min-width: 0; }
+
+.feed-composer-title,
+.feed-composer-text {
+    width: 100%;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    padding: 8px 0;
+    resize: none;
+}
+
+.feed-composer-title {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+}
+
+.feed-composer-text {
+    font-size: 1rem;
+    line-height: 1.55;
+    min-height: 76px;
+}
+
+.feed-composer-title:focus,
+.feed-composer-text:focus { outline: none; }
+
+.feed-composer-title::placeholder,
+.feed-composer-text::placeholder { color: var(--text-secondary); }
+
+.feed-composer-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.feed-composer-tools {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.feed-composer-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+/* Character counter — turns red past the limit, like every other composer
+   users already know. */
+.feed-counter {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.feed-counter.warn { color: #F9AB00; }
+.feed-counter.over { color: #EA4335; }
+
+.feed-icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+}
+
+.feed-icon-btn:hover { background: var(--primary-light); }
+.feed-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.feed-icon-btn svg { width: 20px; height: 20px; stroke-width: 2; }
+
+.feed-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 10px 22px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid transparent;
+    font-family: var(--font-family);
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.feed-btn:active { transform: scale(0.97); }
+.feed-btn svg { width: 16px; height: 16px; stroke-width: 2.4; }
+
+.feed-btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.25);
+}
+
+.feed-btn.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+
+.feed-btn.secondary {
+    background: var(--card-bg);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+.feed-btn.secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+.feed-btn.danger {
+    background: var(--card-bg);
+    border-color: rgba(234, 67, 53, 0.5);
+    color: #EA4335;
+}
+
+.feed-btn.danger:hover { background: rgba(234, 67, 53, 0.08); border-color: #EA4335; }
+
+.feed-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+/* Composer image previews — max 2, so a simple two-up row */
+.feed-composer-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.feed-composer-preview {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    aspect-ratio: 16 / 10;
+    background: var(--inner-bg);
+}
+
+.feed-composer-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.feed-preview-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.65);
+    color: #FFFFFF;
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feed-preview-remove:hover { background: #EA4335; }
+
+/* ---------- Notice strip (why you cannot post) ---------- */
+
+.feed-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 8px solid var(--bg);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+.feed-notice svg { flex-shrink: 0; color: var(--primary); margin-top: 1px; }
+
+/* ---------- Post ---------- */
+
+.feed-post {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.feed-post:hover { background: var(--primary-light); }
+
+.feed-post-body { flex: 1; min-width: 0; }
+
+.feed-post-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.feed-author {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.feed-role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.feed-dot { color: var(--text-secondary); opacity: 0.6; }
+
+.feed-time {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.feed-post-menu {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.feed-post-menu:hover { background: var(--card-bg); color: var(--primary); }
+
+.feed-post-title {
+    margin: 6px 0 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.feed-post-text {
+    margin: 4px 0 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Pinned strip above the author row */
+.feed-pinned-label,
+.feed-repost-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+/* On a repost the label IS the attribution line and sits inside the head row
+   next to the timestamp, so it does not need the stacked spacing. */
+.feed-post-head .feed-repost-label { margin-bottom: 0; }
+
+.feed-pinned-label svg,
+.feed-repost-label svg { width: 14px; height: 14px; stroke-width: 2.4; }
+
+/* ---------- Post images (max 2) ---------- */
+
+.feed-images {
+    display: grid;
+    gap: 4px;
+    margin-top: 12px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.feed-images.count-1 { grid-template-columns: 1fr; }
+.feed-images.count-2 { grid-template-columns: 1fr 1fr; }
+
+.feed-image {
+    padding: 0;
+    border: none;
+    background: var(--inner-bg);
+    cursor: zoom-in;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+}
+
+.feed-images.count-1 .feed-image { aspect-ratio: 16 / 9; }
+
+.feed-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ---------- Quoted original (repost) ---------- */
+
+.feed-quote {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--bg);
+}
+
+.feed-quote-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.feed-quote-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.feed-quote-text {
+    margin: 2px 0 0;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.feed-quote-missing {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* ---------- Action bar ---------- */
+
+.feed-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 12px;
+    max-width: 440px;
+}
+
+.feed-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 4px 10px 4px 6px;
+    border: none;
+    background: none;
+    border-radius: var(--radius-pill);
+    color: var(--text-secondary);
+    font-family: var(--font-family);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.feed-action svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+    fill: none;
+    transition: transform 0.15s ease;
+}
+
+.feed-action:active svg { transform: scale(0.88); }
+
+/* Each verb gets its own colour on hover and when active, so the state is
+   readable at a glance without reading the number. */
+.feed-action.like:hover { color: #EA4335; background: rgba(234, 67, 53, 0.1); }
+.feed-action.like.active { color: #EA4335; }
+.feed-action.like.active svg { fill: #EA4335; }
+
+.feed-action.repost:hover { color: #1E7E37; background: rgba(52, 168, 83, 0.1); }
+.feed-action.repost.active { color: #1E7E37; }
+
+.feed-action.comment:hover { color: var(--primary); background: var(--primary-light); }
+
+.feed-action.save:hover { color: var(--primary); background: var(--primary-light); }
+.feed-action.save.active { color: var(--primary); }
+.feed-action.save.active svg { fill: var(--primary); }
+
+[data-theme="dark"] .feed-action.repost:hover,
+[data-theme="dark"] .feed-action.repost.active { color: #5CC97A; }
+
+/* ---------- Thread (post detail) view ---------- */
+
+.feed-thread-view { display: none; }
+.feed-thread-view.active { display: block; }
+.feed-timeline-view.hidden { display: none; }
+
+.feed-thread-head {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.feed-back-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.feed-back-btn:hover { background: var(--primary-light); color: var(--primary); }
+.feed-back-btn svg { width: 20px; height: 20px; stroke-width: 2.5; }
+
+.feed-thread-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* The focused post sits larger than the replies under it */
+.feed-post.focused {
+    cursor: default;
+    border-bottom: 1px solid var(--border);
+}
+
+.feed-post.focused:hover { background: transparent; }
+.feed-post.focused .feed-post-title { font-size: 1.3rem; }
+.feed-post.focused .feed-post-text { font-size: 1.05rem; }
+
+.feed-comment-form {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 8px solid var(--bg);
+}
+
+.feed-comment-input {
+    width: 100%;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    padding: 10px 0;
+    min-height: 52px;
+    resize: none;
+}
+
+.feed-comment-input:focus { outline: none; }
+.feed-comment-input::placeholder { color: var(--text-secondary); }
+
+.feed-comment-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.feed-comment {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.feed-comment-body { flex: 1; min-width: 0; }
+
+.feed-comment-text {
+    margin: 3px 0 0;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ---------- Reports queue (admin) ---------- */
+
+.feed-report {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.feed-report-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.feed-report-reason {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(234, 67, 53, 0.12);
+    color: #C5342A;
+    border: 1px solid rgba(234, 67, 53, 0.35);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+[data-theme="dark"] .feed-report-reason { color: #F07B72; }
+
+.feed-report-note {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.feed-report-quote {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--bg);
+    margin-bottom: 12px;
+}
+
+.feed-report-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ---------- Empty / loading states ---------- */
+
+.feed-empty {
+    padding: 56px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.feed-empty-icon { color: var(--border); margin-bottom: 12px; display: inline-flex; }
+
+.feed-empty-title {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+}
+
+.feed-empty-text {
+    margin: 0 auto;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    max-width: 380px;
+}
+
+.feed-load-more {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    color: var(--primary);
+    font-family: var(--font-family);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.feed-load-more:hover { background: var(--primary-light); }
+.feed-load-more:disabled { color: var(--text-secondary); cursor: not-allowed; }
+
+.feed-status-msg {
+    padding: 0 16px 10px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.feed-status-msg.error { color: #EA4335; }
+.feed-status-msg.success { color: #1E7E37; }
+.feed-status-msg.info { color: var(--text-secondary); }
+
+/* ---------- Dropdown menu ---------- */
+
+.feed-menu {
+    position: fixed;
+    z-index: 800;
+    min-width: 200px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    display: none;
+}
+
+[data-theme="dark"] .feed-menu { background: var(--dm-surface-2, #22263A); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6); }
+
+.feed-menu.open { display: block; }
+
+.feed-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: none;
+    background: none;
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+}
+
+.feed-menu-item:hover { background: var(--primary-light); }
+.feed-menu-item svg { width: 16px; height: 16px; stroke-width: 2.2; flex-shrink: 0; }
+.feed-menu-item.danger { color: #EA4335; }
+.feed-menu-item.danger:hover { background: rgba(234, 67, 53, 0.1); }
+
+/* ---------- Modal ---------- */
+
+.feed-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(15, 23, 42, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.feed-modal.open { display: flex; }
+
+.feed-modal-card {
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--card-bg);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+    padding: 24px;
+}
+
+[data-theme="dark"] .feed-modal-card { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6); }
+
+.feed-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.feed-modal-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.feed-modal-sub {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.feed-modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--inner-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.feed-modal-close:hover { background: var(--primary-light); color: var(--primary); }
+
+.feed-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+}
+
+.feed-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+
+.feed-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+}
+
+.feed-label-hint { font-weight: 600; color: var(--text-secondary); font-size: 0.74rem; }
+
+.feed-select,
+.feed-textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 14px;
+    border-radius: var(--radius-btn);
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.92rem;
+}
+
+.feed-textarea { min-height: 96px; resize: vertical; line-height: 1.6; }
+
+.feed-select:focus,
+.feed-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Radio rows for the posting-rights setting */
+.feed-radio-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-btn);
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.feed-radio-row:hover { border-color: var(--primary); }
+.feed-radio-row.selected { border-color: var(--primary); background: var(--primary-light); }
+
+.feed-radio-row input { margin-top: 3px; accent-color: var(--primary); width: 18px; height: 18px; }
+
+.feed-radio-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+}
+
+.feed-radio-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: block;
+    margin-top: 2px;
+}
+
+/* ---------- Lightbox ---------- */
+
+.feed-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.feed-lightbox.open { display: flex; }
+
+.feed-lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.feed-lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.feed-lightbox-close:hover { background: rgba(255, 255, 255, 0.3); }
+
+/* ========================================================
+   Responsive
+   ======================================================== */
+
+@media (max-width: 768px) {
+    .feed-topbar-title { display: block; }
+
+    .feed-column {
+        border-left: none;
+        border-right: none;
+        max-width: 100%;
+    }
+
+    .feed-post,
+    .feed-composer,
+    .feed-comment,
+    .feed-comment-form,
+    .feed-report { padding: 14px 12px; }
+
+    .feed-actions { max-width: 100%; }
+
+    /* The counts stay, the labels were never there — but on a narrow phone the
+       four actions still need to fit, so tighten the gaps rather than hide. */
+    .feed-action { padding: 4px 6px; font-size: 0.78rem; gap: 4px; }
+    .feed-action svg { width: 17px; height: 17px; }
+
+    .feed-post.focused .feed-post-title { font-size: 1.15rem; }
+    .feed-post.focused .feed-post-text { font-size: 1rem; }
+
+    .feed-modal { padding: 0; align-items: flex-end; }
+    .feed-modal-card {
+        max-width: 100%;
+        max-height: 92vh;
+        border-radius: 20px 20px 0 0;
+        padding: 20px 16px 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .feed-avatar { width: 38px; height: 38px; font-size: 0.92rem; }
+    .feed-images.count-2 { grid-template-columns: 1fr; }
+}

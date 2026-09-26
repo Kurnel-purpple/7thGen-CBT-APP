@@ -344,6 +344,94 @@ body:has(.app-container.no-sidebar) {
     gap: 2px;
 }
 
+/* Utility row — the dark-mode toggle and the Feed link share one line, so the
+   feed is reachable from every page without spending a full nav slot on it. */
+.sidebar-utility-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 16px 8px;
+}
+
+.sidebar-utility-row #sidebar-theme-toggle {
+    flex-shrink: 0;
+    border-radius: 50%;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-utility-row #sidebar-theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #FFFFFF;
+}
+
+.sidebar-feed-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    /* grow factor 0.8, not 1: the row's free space is shared out at 80%, so the
+       pill renders a fifth narrower than it would filling the row. margin-left
+       auto then absorbs the leftover 20% BEFORE the pill instead of after it,
+       pinning it to the right edge so it lines up with the sidebar's gutter. */
+    flex: 0.8;
+    margin-left: auto;
+    min-width: 0;
+    padding: 8px 14px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    font-family: var(--font-family);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-feed-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+}
+
+.sidebar-feed-link.active {
+    background: #FFFFFF;
+    color: var(--sidebar-bg);
+}
+
+.sidebar-feed-link .nav-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.sidebar-feed-link svg { width: 18px; height: 18px; }
+
+/* Dashboard link sits above everything else in the nav — it is the way home
+   from the feed, which is now where people land. */
+.sidebar-top-nav { padding-bottom: 0; }
+
+.sidebar-dashboard-link {
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+/* Count badge — the admin's pending-fee notification. */
+.sidebar-nav-badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--radius-pill);
+    background: #EA4335;
+    color: #FFFFFF;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
 .sidebar-nav-item {
     display: flex;
     align-items: center;
@@ -630,6 +718,161 @@ body:has(.app-container.no-sidebar) {
 .topbar-icon-btn:hover {
     background: var(--primary-light);
     color: var(--primary);
+}
+
+/* ---- Topbar notification bell + dropdown ---- */
+
+.topbar-bell-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+/* The `hidden` attribute is only `display: none` in the UA stylesheet, so ANY
+   author display rule outranks it — .topbar-bell-badge sets `display: flex`,
+   which left an empty 18px red dot sitting there whenever the count was zero.
+   Scoped to the bell so it fixes every hidden element in this component (badge,
+   menu, empty note) without imposing an !important on the whole app. */
+.topbar-bell-wrap [hidden] {
+    display: none !important;
+}
+
+.topbar-bell-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: #EA4335;
+    color: #FFFFFF;
+    font-family: var(--font-family);
+    font-size: 0.64rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--card-bg);
+    pointer-events: none;
+}
+
+.topbar-bell-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 600;
+    width: 300px;
+    max-width: calc(100vw - 32px);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+    padding: 6px;
+    overflow: hidden;
+}
+
+[data-theme="dark"] .topbar-bell-menu {
+    background: var(--dm-surface-2, #22263A);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.topbar-bell-head {
+    padding: 10px 12px 8px;
+    font-family: var(--font-family);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.topbar-bell-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 10px 12px;
+    border: none;
+    background: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease;
+}
+
+.topbar-bell-group:hover { background: var(--primary-light); }
+
+.bell-group-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--inner-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* A group with something in it reads as actionable; an empty one stays quiet. */
+.topbar-bell-group.has-items .bell-group-icon {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.bell-group-text { flex: 1; min-width: 0; }
+
+.bell-group-title {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.bell-group-sub {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+.bell-group-count {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: var(--radius-pill);
+    background: #EA4335;
+    color: #FFFFFF;
+    font-family: var(--font-family);
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.topbar-bell-empty {
+    padding: 4px 12px 12px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+    /* Anchored to the viewport rather than the button: at phone width a 300px
+       menu hanging off a right-aligned icon runs past the screen edge. */
+    .topbar-bell-menu {
+        position: fixed;
+        top: 60px;
+        right: 12px;
+        left: 12px;
+        width: auto;
+        max-width: none;
+    }
 }
 
 [data-theme="dark"] .topbar-icon-btn {
@@ -2203,6 +2446,47 @@ body:has(.app-container.no-sidebar) {
     .app-sidebar.sidebar-collapsed .sidebar-nav {
         padding: 8px 0;
         align-items: center;
+    }
+
+    /* Collapsed: the utility row stacks, and the Feed link drops its label so
+       it stays a square target like every other collapsed nav item. */
+    .app-sidebar.sidebar-collapsed .sidebar-utility-row {
+        flex-direction: column;
+        gap: 6px;
+        padding: 4px 8px 8px;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-feed-link {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 10px;
+        /* The row is a COLUMN when collapsed, so the right-pinning auto margin
+           from the expanded layout would shunt this icon off the cross axis and
+           out of line with the theme toggle above it. */
+        margin-left: 0;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-feed-link span:not(.nav-icon) {
+        display: none;
+    }
+
+    /* The badge would overflow a 40px collapsed item, so pin it to the corner. */
+    .app-sidebar.sidebar-collapsed .sidebar-nav-badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        margin-left: 0;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        font-size: 0.6rem;
+    }
+
+    .app-sidebar.sidebar-collapsed .sidebar-nav-item {
+        position: relative;
     }
 
     .app-sidebar.sidebar-collapsed .sidebar-nav-item {
