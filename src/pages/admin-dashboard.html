@@ -2249,6 +2249,17 @@
                             <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
 
+                        <button type="button" class="settings-row" onclick="openSchoolBrandingPage()">
+                            <span class="settings-row-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                            </span>
+                            <span class="settings-row-text">
+                                <span class="settings-row-title">School Branding</span>
+                                <span class="settings-row-desc">Your school's name, logo and colours. Applies across the whole app &mdash; sidebar, buttons, login screen &mdash; for every student and teacher.</span>
+                            </span>
+                            <span class="settings-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+
                         <button type="button" class="settings-row" data-module="report_cards"
                             onclick="window.location.href='report-cards.html?view=template'">
                             <span class="settings-row-icon">
@@ -2410,6 +2421,112 @@
 
                 <!-- Term Dates page — admin-configurable school term calendar.
                      Drives the automatic term pre-selection app-wide (Utils.getCurrentTerm). -->
+                <!-- School Branding — the school's own name, logo and colours.
+                     Five fields only: everything else (backgrounds, borders,
+                     status colours) is derived in core/shared/schoolTheme.js so
+                     a school cannot accidentally make the app unreadable. -->
+                <div id="school-branding-section" class="admin-section" style="display:none;">
+                    <div class="section-header exams-list-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div class="exams-list-titlewrap">
+                            <h2 class="admin-section-title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                                School Branding
+                            </h2>
+                            <p style="margin:6px 0 0 30px; font-size:0.8rem; color:var(--light-text); max-width:640px;">
+                                Your school's name, logo and colours.<span class="term-dates-desc-extra"> These apply across the entire app for every student and teacher &mdash; sidebar, buttons, login screen. Leave a field blank to keep the default.</span>
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button class="btn exams-back-btn term-dates-desktop-back" onclick="closeSchoolBrandingPage()" style="padding:7px 16px; font-size:0.82rem;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+                                Back
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px; max-width:640px;">
+                        <div class="control-group" style="margin-bottom:20px;">
+                            <label for="brand-school-name" style="font-size:0.85rem; color:var(--light-text); display:block; margin-bottom:8px;">School name</label>
+                            <input type="text" id="brand-school-name" class="form-control" maxlength="80" placeholder="e.g. Seatos Schools">
+                        </div>
+
+                        <div class="control-group" style="margin-bottom:20px;">
+                            <label style="font-size:0.85rem; color:var(--light-text); display:block; margin-bottom:8px;">Logo</label>
+                            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                                <div id="brand-logo-preview"
+                                    style="width:64px; height:64px; border-radius:12px; border:1px solid var(--border-color); background:var(--inner-bg); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+                                    <span style="font-size:0.7rem; color:var(--light-text);">None</span>
+                                </div>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <label class="btn" style="padding:7px 16px; font-size:0.82rem; cursor:pointer; margin:0;">
+                                        Choose image
+                                        <input type="file" id="brand-logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+                                    </label>
+                                    <button type="button" class="btn" id="brand-logo-remove" onclick="removeSchoolLogo()" style="padding:7px 16px; font-size:0.82rem; display:none;">Remove</button>
+                                </div>
+                            </div>
+                            <p style="margin:8px 0 0; font-size:0.72rem; color:var(--light-text);">
+                                PNG, JPG, WebP or SVG. Large images are resized automatically before upload.
+                            </p>
+                        </div>
+
+                        <div class="control-group" style="margin-bottom:8px;">
+                            <label style="font-size:0.85rem; color:var(--light-text); display:block; margin-bottom:8px;">Colours</label>
+                        </div>
+                        <div style="display:flex; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:150px;">
+                                <label for="brand-primary" style="font-size:0.72rem; color:var(--light-text); display:block; margin-bottom:4px;">Primary</label>
+                                <input type="color" id="brand-primary" class="form-control" style="padding:4px; height:40px; cursor:pointer;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label for="brand-secondary" style="font-size:0.72rem; color:var(--light-text); display:block; margin-bottom:4px;">Secondary</label>
+                                <input type="color" id="brand-secondary" class="form-control" style="padding:4px; height:40px; cursor:pointer;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label for="brand-accent" style="font-size:0.72rem; color:var(--light-text); display:block; margin-bottom:4px;">Accent</label>
+                                <input type="color" id="brand-accent" class="form-control" style="padding:4px; height:40px; cursor:pointer;">
+                            </div>
+                        </div>
+                        <p id="brand-contrast-note" style="margin:0 0 18px; font-size:0.72rem; color:var(--light-text); display:none;"></p>
+
+                        <!-- Live preview. Paints from the same derivation the app
+                             uses, so what's shown here is what students will see. -->
+                        <div style="border:1px solid var(--border-color); border-radius:12px; overflow:hidden; margin-bottom:6px; display:flex; min-height:150px;">
+                            <!-- Mini sidebar: the largest branded surface in the app,
+                                 so it has to be in the preview. -->
+                            <div id="brand-preview-sidebar" style="width:92px; flex-shrink:0; padding:12px 10px; display:flex; flex-direction:column; gap:8px;">
+                                <div id="brand-preview-logo" style="width:28px; height:28px; border-radius:7px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:4px;"></div>
+                                <span style="display:block; background:#fff; border-radius:5px; height:9px; width:100%; opacity:0.95;"></span>
+                                <span style="display:block; background:rgba(255,255,255,0.4); border-radius:5px; height:9px; width:80%;"></span>
+                                <span style="display:block; background:rgba(255,255,255,0.4); border-radius:5px; height:9px; width:65%;"></span>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <div id="brand-preview-bar" style="height:8px; background:var(--primary-color);"></div>
+                                <div style="padding:16px; background:var(--card-bg); height:100%;">
+                                    <strong id="brand-preview-name" style="font-size:0.95rem; color:var(--text-color); display:block; margin-bottom:12px;">Your School</strong>
+                                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                        <span id="brand-preview-btn" style="display:inline-block; padding:8px 18px; border-radius:8px; font-size:0.8rem; font-weight:700; color:#fff;">Start Exam</span>
+                                        <span id="brand-preview-btn2" style="display:inline-block; padding:8px 18px; border-radius:8px; font-size:0.8rem; font-weight:700; background:transparent; border:1.5px solid var(--border-color);">Secondary</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="margin:0 0 18px; font-size:0.72rem; color:var(--light-text);">
+                            The sidebar uses your <strong>primary</strong> colour in light mode and your <strong>secondary</strong> colour in dark mode.
+                        </p>
+
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="btn btn-primary" id="brand-save-btn" onclick="saveSchoolBranding()" style="flex:1; min-width:160px;">Save branding</button>
+                            <button class="btn" id="brand-reset-btn" onclick="resetSchoolBranding()" style="padding:10px 18px;">Reset to default</button>
+                        </div>
+
+                        <div id="brand-status" role="status" style="margin-top:12px; font-size:0.85rem; color:var(--light-text);"></div>
+                        <div id="brand-error"
+                            style="color:var(--accent-color); font-size:0.85rem; margin-top:12px; display:none; background:rgba(231, 76, 60, 0.1); padding:10px; border-radius:6px; border:1px solid var(--accent-color);">
+                        </div>
+                    </div>
+                </div>
+
                 <div id="term-dates-section" class="admin-section" style="display:none;">
                     <div class="section-header exams-list-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
                         <div class="exams-list-titlewrap">
@@ -3033,11 +3150,13 @@
          is waiting on it and would otherwise hang instead of loading the
          dashboard. Hence the try/finally. -->
     <script type="module">
-        import { initConfig, isModuleEnabled } from '../config/index.js';
+        import { initConfig, isModuleEnabled, refreshSchoolTheme } from '../config/index.js';
         import { renderModuleNavItems } from '../core/ui/sidebarBuilder.js';
 
         try {
         await initConfig();
+        // The school's own branding, once we have an authenticated caller.
+        refreshSchoolTheme(window.dataService);
 
         const cbtEnabled = isModuleEnabled('cbt');
         window.__cbtEnabled = cbtEnabled;
@@ -3083,6 +3202,8 @@
     <script src="../modules/cbt/js/idb.js"></script>
     <script src="../core/shared/academicEntities.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../core/shared/imageUpload.js"></script>
+    <script src="../core/shared/schoolTheme.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../modules/cbt/js/cbtDataService.js"></script>
     <script src="../modules/report_cards/js/reportCardDataService.js"></script>
@@ -6075,6 +6196,270 @@
             openSettings();
         };
         window.closeTermDatesPage = window.closeTermDatesModal;
+
+        // ================= School Branding =================
+        // Five fields; everything else is derived in schoolTheme.js. The logo is
+        // uploaded as a real file into app_settings.logo, never inlined as base64.
+
+        // Mirrors what's on screen. Kept separate from the saved value so
+        // "Reset to default" can restore without a round trip.
+        let _brandDraft = { schoolName: '', logoUrl: '', primaryColor: '', secondaryColor: '', accentColor: '' };
+        let _brandPendingLogo = null;   // File chosen but not yet saved
+        let _brandLogoCleared = false;  // "Remove" pressed but not yet saved
+
+        function brandStatus(msg, isError) {
+            const statusEl = document.getElementById('brand-status');
+            const errEl = document.getElementById('brand-error');
+            if (isError) {
+                if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+                if (statusEl) statusEl.textContent = '';
+            } else {
+                if (errEl) errEl.style.display = 'none';
+                if (statusEl) statusEl.textContent = msg || '';
+            }
+        }
+
+        /** Paint the preview card from the draft, using the same derivation the app uses. */
+        function updateBrandPreview() {
+            const st = window.schoolTheme;
+            const primary = document.getElementById('brand-primary')?.value || '';
+            const secondary = document.getElementById('brand-secondary')?.value || '';
+            const name = document.getElementById('brand-school-name')?.value.trim();
+
+            const bar = document.getElementById('brand-preview-bar');
+            const btn = document.getElementById('brand-preview-btn');
+            const btn2 = document.getElementById('brand-preview-btn2');
+            const nameEl = document.getElementById('brand-preview-name');
+            const note = document.getElementById('brand-contrast-note');
+
+            // clampForWhiteText is what the live theme applies, so the preview
+            // shows the colour they will actually get — not the raw swatch.
+            const shown = (st && primary) ? st.colors.clampForWhiteText(primary) : primary;
+            if (bar) bar.style.background = shown || 'var(--primary-color)';
+            if (btn) btn.style.background = shown || 'var(--primary-color)';
+            if (btn2) btn2.style.color = secondary || 'var(--secondary-color)';
+            if (nameEl) nameEl.textContent = name || 'Your School';
+
+            // Sidebar: primary in light mode, secondary in dark — the same rule
+            // themeApplier.sidebarColors() applies, and clamped the same way, so
+            // this strip shows the real colour rather than the raw swatch.
+            const sidebarEl = document.getElementById('brand-preview-sidebar');
+            if (sidebarEl) {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const raw = isDark ? secondary : primary;
+                const resolved = (st && raw) ? st.colors.clampForWhiteText(raw, 4.6) : raw;
+                sidebarEl.style.background = resolved || 'var(--sidebar-bg)';
+            }
+
+            // Say so when we had to darken their pick, rather than silently
+            // handing back a different colour.
+            if (note) {
+                if (st && primary && shown && shown.toLowerCase() !== primary.toLowerCase()) {
+                    note.textContent = 'Your primary colour was darkened slightly so white button text stays readable on it.';
+                    note.style.display = 'block';
+                } else {
+                    note.style.display = 'none';
+                }
+            }
+
+            const logoBox = document.getElementById('brand-preview-logo');
+            if (logoBox) {
+                const url = _brandLogoCleared ? '' : (_brandDraft.logoUrl || '');
+                logoBox.innerHTML = url
+                    ? `<img src="${url}" alt="" style="width:100%; height:100%; object-fit:contain;">`
+                    : '';
+            }
+        }
+        window.updateBrandPreview = updateBrandPreview;
+
+        function renderBrandLogoPreview() {
+            const box = document.getElementById('brand-logo-preview');
+            const removeBtn = document.getElementById('brand-logo-remove');
+            const url = _brandLogoCleared ? '' : (_brandDraft.logoUrl || '');
+            if (box) {
+                box.innerHTML = url
+                    ? `<img src="${url}" alt="School logo" style="width:100%; height:100%; object-fit:contain;">`
+                    : '<span style="font-size:0.7rem; color:var(--light-text);">None</span>';
+            }
+            if (removeBtn) removeBtn.style.display = url ? '' : 'none';
+            updateBrandPreview();
+        }
+
+        window.openSchoolBrandingPage = async function () {
+            ['teachers-section', 'students-section', 'exams-list-section', 'promote-section', 'term-dates-section'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const wrap = document.getElementById('exams-section-wrapper');
+            if (wrap) wrap.style.display = 'none';
+            setAdminPageOpen(true);
+            const sec = document.getElementById('school-branding-section');
+            if (sec) { sec.style.display = 'block'; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            activeAdminSection = 'school-branding';
+            setAdminPageTitle('School Branding');
+            highlightStatCard(null);
+            updateTopbarSearchPlaceholder();
+
+            brandStatus('');
+            _brandPendingLogo = null;
+            _brandLogoCleared = false;
+
+            // Prefill from the saved theme, falling back to the config file's
+            // values so the colour inputs never open on an arbitrary black.
+            const cfg = window.__appConfig || {};
+            const saved = (window.schoolTheme && await window.schoolTheme.load(window.dataService)) || {};
+            _brandDraft = {
+                schoolName: saved.schoolName || '',
+                logoUrl: saved.logoUrl || '',
+                primaryColor: saved.primaryColor || cfg.branding?.primaryColor || '#4a90e2',
+                secondaryColor: saved.secondaryColor || cfg.branding?.secondaryColor || '#2c3e50',
+                accentColor: saved.accentColor || cfg.branding?.accentColor || '#e74c3c'
+            };
+
+            document.getElementById('brand-school-name').value = _brandDraft.schoolName;
+            document.getElementById('brand-primary').value = _brandDraft.primaryColor;
+            document.getElementById('brand-secondary').value = _brandDraft.secondaryColor;
+            document.getElementById('brand-accent').value = _brandDraft.accentColor;
+            renderBrandLogoPreview();
+        };
+
+        window.closeSchoolBrandingPage = function () {
+            const sec = document.getElementById('school-branding-section');
+            if (sec) sec.style.display = 'none';
+            openSettings();
+        };
+
+        window.removeSchoolLogo = function () {
+            _brandPendingLogo = null;
+            _brandLogoCleared = true;
+            renderBrandLogoPreview();
+            brandStatus('Logo will be removed when you save.');
+        };
+
+        window.saveSchoolBranding = async function () {
+            const btn = document.getElementById('brand-save-btn');
+            const st = window.schoolTheme;
+            if (!st) { brandStatus('Branding is unavailable on this page.', true); return; }
+
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+            brandStatus('');
+
+            try {
+                // The file goes first: the URL it returns is part of the value
+                // we then write, so a failed upload never leaves a dangling link.
+                if (_brandPendingLogo) {
+                    brandStatus('Uploading logo...');
+                    _brandDraft.logoUrl = await dataService.saveAppSettingLogo(st.SETTING_KEY, _brandPendingLogo);
+                    _brandPendingLogo = null;
+                } else if (_brandLogoCleared) {
+                    await dataService.clearAppSettingLogo(st.SETTING_KEY);
+                    _brandDraft.logoUrl = '';
+                    _brandLogoCleared = false;
+                }
+
+                const theme = {
+                    schoolName: document.getElementById('brand-school-name').value.trim(),
+                    logoUrl: _brandDraft.logoUrl,
+                    primaryColor: document.getElementById('brand-primary').value,
+                    secondaryColor: document.getElementById('brand-secondary').value,
+                    accentColor: document.getElementById('brand-accent').value
+                };
+
+                await st.save(dataService, theme);
+                _brandDraft = st.normalize(theme);
+
+                // Repaint this session immediately; everyone else picks it up on
+                // their next page load.
+                const { refreshSchoolTheme } = await import('../config/index.js');
+                await refreshSchoolTheme(dataService);
+
+                renderBrandLogoPreview();
+                brandStatus('Branding saved. Students and teachers will see it on their next page load.');
+            } catch (err) {
+                console.error('saveSchoolBranding failed:', err);
+                brandStatus(err?.message || 'Could not save your branding. Please try again.', true);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Save branding'; }
+            }
+        };
+
+        window.resetSchoolBranding = async function () {
+            const ok = await showConfirm('Reset Branding',
+                'Remove your custom branding and go back to the default look? Your logo will be deleted.');
+            if (!ok) return;
+
+            const btn = document.getElementById('brand-reset-btn');
+            const st = window.schoolTheme;
+            if (btn) { btn.disabled = true; btn.textContent = 'Resetting...'; }
+
+            try {
+                if (st) {
+                    await dataService.clearAppSettingLogo(st.SETTING_KEY);
+                    // Writing an empty theme rather than deleting the row keeps
+                    // the term calendar and anything else on that record intact.
+                    await dataService.saveAppSetting(st.SETTING_KEY, {});
+                    st.clearCached();
+                }
+                const { resetSchoolTheme } = await import('../config/index.js');
+                resetSchoolTheme();
+
+                _brandPendingLogo = null;
+                _brandLogoCleared = false;
+                await window.openSchoolBrandingPage();
+                brandStatus('Branding reset to the default.');
+            } catch (err) {
+                console.error('resetSchoolBranding failed:', err);
+                brandStatus(err?.message || 'Could not reset your branding.', true);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Reset to default'; }
+            }
+        };
+
+        // Wire the inputs once the markup exists.
+        document.addEventListener('DOMContentLoaded', () => {
+            ['brand-primary', 'brand-secondary', 'brand-accent', 'brand-school-name'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateBrandPreview);
+            });
+
+            const fileInput = document.getElementById('brand-logo-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', async () => {
+                    const file = fileInput.files && fileInput.files[0];
+                    if (!file) return;
+                    // Logos are not photos. imageUpload.prepare() re-encodes to
+                    // JPEG over a filled background, which is right for a receipt
+                    // and wrong for a logo — it would replace transparency with a
+                    // white box that shows against the blue sidebar. So anything
+                    // already small enough is uploaded untouched, and only a
+                    // genuinely oversized raster gets downscaled (and told so).
+                    const SMALL_ENOUGH = 300 * 1024;
+                    try {
+                        if (file.type === 'image/svg+xml' || file.size <= SMALL_ENOUGH) {
+                            _brandPendingLogo = file;
+                            brandStatus('Logo ready — press Save branding to apply it.');
+                        } else if (window.imageUpload) {
+                            _brandPendingLogo = await window.imageUpload.prepare(file, {
+                                maxDimension: 512,
+                                targetBytes: 120 * 1024
+                            });
+                            brandStatus('Logo resized to fit. If it had a transparent background, upload a version under 300KB to keep it.');
+                        } else {
+                            _brandPendingLogo = file;
+                            brandStatus('Logo ready — press Save branding to apply it.');
+                        }
+                        _brandDraft.logoUrl = URL.createObjectURL(_brandPendingLogo);
+                        _brandLogoCleared = false;
+                        renderBrandLogoPreview();
+                    } catch (err) {
+                        console.error('logo prepare failed:', err);
+                        brandStatus(err?.message || 'That image could not be used.', true);
+                    } finally {
+                        fileInput.value = '';   // allow re-picking the same file
+                    }
+                });
+            }
+        });
 
         function readTermCalForm() {
             return {

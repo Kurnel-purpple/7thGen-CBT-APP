@@ -338,8 +338,14 @@
                 // rejects privileged roles, because anyone who could register as an admin
                 // could then issue codes for any school. Say so plainly instead of
                 // letting the request fail with a raw API error.
+                // Someone reaching this branch is usually a prospective client, so give
+                // them a way through instead of a dead end. Both links open the relevant
+                // app directly, with the enquiry already written.
                 await Utils.showAlert('Not Available Here',
-                    'Administrator accounts are created by the platform operator, not through this form. Please contact support to have your admin account set up.');
+                    'Administrator accounts are created by the platform operator, not through this form.' +
+                    '<br><br>Get in touch and we will set your school up:' +
+                    '<br><br><a href="https://wa.me/2348169650224?text=Hi%2C%20I%20need%20an%20admin%20account%20created%20for%20my%20school" target="_blank" rel="noopener"><strong>WhatsApp: 0816 965 0224</strong></a>' +
+                    '<br><a href="mailto:corneliusajayi123@gmail.com?subject=Admin%20account%20setup%20request"><strong>corneliusajayi123@gmail.com</strong></a>');
                 return;
             }
 

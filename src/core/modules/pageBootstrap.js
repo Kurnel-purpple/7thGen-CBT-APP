@@ -1,4 +1,4 @@
-import { initConfig } from '../../config/index.js';
+import { initConfig, refreshSchoolTheme } from '../../config/index.js';
 import { ensureModuleEnabled } from './moduleGuards.js';
 import { renderModuleNavItems } from '../ui/sidebarBuilder.js';
 import moduleLoader from './moduleLoader.js';
@@ -96,6 +96,17 @@ export async function bootstrapModulePage({
     // Tenant override: replace the static modules.enabled list with what
     // the tenant has actually paid for.
     await applyTenantOverride();
+
+    // The school's own branding, if its admin has saved any. Loaded here rather
+    // than in each page's globalScripts so every module page gets it for free.
+    // initConfig already applied the cached copy before first paint; this is the
+    // authoritative read that corrects it. Never allowed to fail a page load.
+    try {
+        await loadScript('../core/shared/schoolTheme.js');
+        await refreshSchoolTheme(window.dataService);
+    } catch (error) {
+        console.warn('[pageBootstrap] school theme unavailable:', error?.message || error);
+    }
 
     if (!ensureModuleEnabled(moduleId, {
         moduleName,

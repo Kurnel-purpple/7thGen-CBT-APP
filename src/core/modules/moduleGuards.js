@@ -5,7 +5,10 @@ function getSupportConfig() {
     const support = cfg.support || {};
     return {
         upgradeUrl: support.upgradeUrl || '',
-        contactEmail: support.contactEmail || ''
+        contactEmail: support.contactEmail || '',
+        // Digits only, international format without "+" (e.g. 2348169650224).
+        // wa.me rejects leading zeros and spaces, so normalise defensively.
+        whatsapp: String(support.whatsapp || '').replace(/[^0-9]/g, '')
     };
 }
 
@@ -143,6 +146,10 @@ function iconMail() {
     return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><polyline points="22 6 12 13 2 6"/></svg>';
 }
 
+function iconWhatsApp() {
+    return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>';
+}
+
 function isPlaceholderUrl(url) {
     if (!url) return true;
     return /example\.com|placeholder|your-website/i.test(url);
@@ -161,6 +168,7 @@ export function renderModuleUnavailable(moduleName = 'This module', options = {}
     const support = getSupportConfig();
     const hasUrl = !!support.upgradeUrl && !isPlaceholderUrl(support.upgradeUrl);
     const hasEmail = !!support.contactEmail;
+    const hasWhatsApp = support.whatsapp.length >= 10;
 
     document.body.textContent = '';
     document.head.appendChild(makeStyleBlock());
@@ -192,6 +200,12 @@ export function renderModuleUnavailable(moduleName = 'This module', options = {}
     if (hasEmail) {
         const subject = encodeURIComponent(`Enable ${safeModuleName} for my school`);
         actionsHtml.push(`<a class="mg-btn${hasUrl ? '' : ' primary'}" href="mailto:${safeText(support.contactEmail)}?subject=${subject}">${iconMail()}<span>Email developer</span></a>`);
+    }
+    if (hasWhatsApp) {
+        // Opens the WhatsApp app on mobile, WhatsApp Desktop/Web otherwise, with the
+        // module already named so the enquiry arrives with its context attached.
+        const waText = encodeURIComponent(`Hi, I'd like to enable ${safeModuleName} for my school.`);
+        actionsHtml.push(`<a class="mg-btn${hasUrl || hasEmail ? '' : ' primary'}" href="https://wa.me/${support.whatsapp}?text=${waText}" target="_blank" rel="noopener">${iconWhatsApp()}<span>WhatsApp</span></a>`);
     }
     actionsHtml.push(`<button class="mg-btn ghost" type="button" id="mg-back-btn">Go back</button>`);
 

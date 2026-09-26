@@ -914,6 +914,61 @@ class DataService {
     }
 
     /**
+     * Upload an image into the app_settings `logo` file field for `key`.
+     *
+     * A real file, not a base64 string in `value`: the school logo is read on
+     * every page load by every user, and a data: URI would ride along inside
+     * every response that touches the row. See src/core/shared/imageUpload.js.
+     *
+     * Returns the served URL of the stored file.
+     */
+    async saveAppSettingLogo(key, file) {
+        const { filter, schoolVersion } = this._appSettingsFilter(key);
+        const form = new FormData();
+        form.append('logo', file);
+
+        let record;
+        try {
+            const existing = await this.pb.collection('app_settings').getFirstListItem(filter);
+            record = await this.pb.collection('app_settings').update(existing.id, form);
+        } catch (error) {
+            if (error?.status !== 404) throw error;
+            // No row yet — create one carrying the file. `value` is seeded empty
+            // so a later saveAppSetting() updates rather than conflicts.
+            form.append('key', key);
+            form.append('school_version', schoolVersion);
+            form.append('value', JSON.stringify({}));
+            record = await this.pb.collection('app_settings').create(form);
+        }
+        return this.appSettingLogoUrl(record);
+    }
+
+    /** Remove the stored logo, leaving the rest of the setting intact. */
+    async clearAppSettingLogo(key) {
+        const { filter } = this._appSettingsFilter(key);
+        try {
+            const existing = await this.pb.collection('app_settings').getFirstListItem(filter);
+            await this.pb.collection('app_settings').update(existing.id, { logo: null });
+        } catch (error) {
+            if (error?.status !== 404) throw error;
+        }
+    }
+
+    /** Build the served URL for a record's logo, or '' when it has none. */
+    appSettingLogoUrl(record) {
+        if (!record || !record.logo) return '';
+        try {
+            return this.pb.files.getUrl(record, record.logo);
+        } catch (error) {
+            // pb.files landed in 0.18; getFileUrl is the older spelling.
+            if (typeof this.pb.getFileUrl === 'function') {
+                return this.pb.getFileUrl(record, record.logo);
+            }
+            return '';
+        }
+    }
+
+    /**
      * Load the admin-configured term calendar and install it into
      * Utils.setTermCalendar. Serves a localStorage copy first (no flash of
      * wrong term on slow networks), then refreshes from the server.

@@ -97,11 +97,13 @@ export const defaultConfig = {
     },
 
     // Shown on the "module isn't enabled" screen. Global fallback — a client
-    // config can override either field to show a school-specific link/email.
-    // TODO: replace upgradeUrl with the real add-modules page once it ships.
+    // config can override any field to show a school-specific link/email.
     support: {
-        upgradeUrl: 'https://gen7-sms.example.com/features',
-        contactEmail: 'gen7thtech@gmail.com'
+        upgradeUrl: 'https://seatoscbt.com',
+        contactEmail: 'corneliusajayi123@gmail.com',
+        // Digits only, international format, no "+" and no leading zero —
+        // that is the format wa.me requires. 0816 9650224 -> 2348169650224.
+        whatsapp: '2348169650224'
     },
 
     // Footer Information

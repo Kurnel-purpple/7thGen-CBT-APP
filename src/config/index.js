@@ -83,6 +83,29 @@ export function isModuleEnabled(moduleId) {
 }
 
 /**
+ * Pull the school's saved branding from app_settings and repaint.
+ *
+ * Separate from initConfig because it needs an authenticated caller with a
+ * school context — initConfig runs before anyone has logged in. Safe to call
+ * more than once; it no-ops when the school has no saved theme.
+ */
+export async function refreshSchoolTheme(dataService) {
+    const ds = dataService || window.dataService;
+    if (!ds) return false;
+    try {
+        return await themeApplier.refreshSchoolTheme(ds);
+    } catch (error) {
+        // Branding is cosmetic — never let it break a page load.
+        console.warn('refreshSchoolTheme failed:', error?.message || error);
+        return false;
+    }
+}
+
+export function resetSchoolTheme() {
+    themeApplier.resetSchoolTheme();
+}
+
+/**
  * Set client ID and reload theme
  */
 export async function setClient(clientId) {

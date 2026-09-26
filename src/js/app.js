@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
         banner.innerHTML = '<span style="opacity:0.85">Demo Mode</span> — expires in <strong>' + mins + 'm ' + secs + 's</strong>. '
-            + '<a href="mailto:corneliusajayi123@gmail.com" style="color:#fff;text-decoration:underline;margin-left:4px">Contact us</a> for the full experience.';
+            + '<a href="mailto:corneliusajayi123@gmail.com?subject=Full%20version%20enquiry" style="color:#fff;text-decoration:underline;margin-left:4px">Contact us</a> for the full experience.';
     }
 
     updateCountdown();

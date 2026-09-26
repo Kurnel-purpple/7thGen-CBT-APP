@@ -4,6 +4,10 @@
  */
 
 import configLoader from './configLoader.js';
+// Side-effect import: defines window.schoolTheme. Imported rather than relied on
+// from a page's script tags so the contrast helpers below are available even on
+// pages that don't load it themselves (login, register).
+import '../core/shared/schoolTheme.js';
 
 class ThemeApplier {
     constructor() {
@@ -21,6 +25,18 @@ class ThemeApplier {
         // Load configuration
         this.config = await configLoader.loadConfig(selectedClient);
 
+        // Keep an untouched copy of the file's branding. A school's saved theme
+        // is merged OVER this, never into the already-merged result, so clearing
+        // one colour in the form restores the config's value instead of leaving
+        // the previous override behind.
+        this._baseBranding = JSON.parse(JSON.stringify(this.config.branding || {}));
+        this._baseClient = JSON.parse(JSON.stringify(this.config.client || {}));
+
+        // Apply the last known school theme synchronously, before first paint.
+        // The authoritative copy comes from app_settings, but that read needs
+        // auth and a school context, neither of which exists yet.
+        this.applyCachedSchoolTheme();
+
         // Apply all theme elements
         this.applyColors();
         this.applyBranding();
@@ -29,6 +45,75 @@ class ThemeApplier {
         this.applyFavicon();
 
         console.log('🎨 Theme applied successfully');
+        window.__appConfig = this.config;
+    }
+
+    /**
+     * Merge a school's saved theme over the config file's branding.
+     * Always merges over `_baseBranding`, never over the live config — see init().
+     */
+    mergeSchoolTheme(theme) {
+        const st = (typeof window !== 'undefined') && window.schoolTheme;
+        if (!st || !theme || st.isEmpty(theme)) return false;
+
+        this.config.branding = st.deriveBranding(theme, this._baseBranding);
+
+        const client = Object.assign({}, this._baseClient);
+        if (theme.schoolName) {
+            client.name = theme.schoolName;
+            client.shortName = theme.schoolName;
+        }
+        if (theme.logoUrl) {
+            client.logo = theme.logoUrl;
+        }
+        this.config.client = client;
+        return true;
+    }
+
+    /**
+     * Pre-paint pass. Silently does nothing when schoolTheme.js isn't loaded on
+     * this page or nothing is cached yet — the config file's branding stands.
+     */
+    applyCachedSchoolTheme() {
+        const st = (typeof window !== 'undefined') && window.schoolTheme;
+        if (!st) return false;
+        return this.mergeSchoolTheme(st.getCached());
+    }
+
+    /**
+     * Authoritative pass, once the user is signed in and a school is known.
+     * Call after login and after the branding form saves. Repaints only when a
+     * theme actually came back, so a school with no saved theme costs one read.
+     */
+    async refreshSchoolTheme(dataService) {
+        const st = (typeof window !== 'undefined') && window.schoolTheme;
+        if (!st || !this.config) return false;
+
+        const theme = await st.load(dataService);
+        if (!theme) return false;
+        if (!this.mergeSchoolTheme(theme)) return false;
+
+        this.applyColors();
+        this.applyBranding();
+        this.applyFavicon();
+        window.__appConfig = this.config;
+        return true;
+    }
+
+    /**
+     * Drop a saved theme and repaint from the config file alone. Used by the
+     * "Reset to default" action in the branding form.
+     */
+    resetSchoolTheme() {
+        const st = (typeof window !== 'undefined') && window.schoolTheme;
+        if (st) st.clearCached();
+        if (!this.config || !this._baseBranding) return;
+
+        this.config.branding = JSON.parse(JSON.stringify(this._baseBranding));
+        this.config.client = JSON.parse(JSON.stringify(this._baseClient));
+        this.applyColors();
+        this.applyBranding();
+        this.applyFavicon();
         window.__appConfig = this.config;
     }
 
@@ -107,6 +192,89 @@ class ThemeApplier {
     }
 
     /**
+     * The sidebar's background for each mode.
+     *
+     * --sidebar-bg used to be hardcoded in main.css (#1A56C4 light, #111827 dark),
+     * so the sidebar never followed the theme — not for a school's saved branding
+     * and not for the client configs either. It now derives from the palette:
+     *
+     *   light -> primaryColor     (the brand colour, as a full-height panel)
+     *   dark  -> secondaryColor   (the BASE one, e.g. #2c3e50 / #001524)
+     *
+     * Dark mode deliberately does NOT use darkMode.secondaryColor: that value is
+     * near-white (#ecf0f1, #e8dcc8) because it colours text on dark surfaces, and
+     * using it here would paint a white sidebar under white nav labels.
+     *
+     * Both are passed through the same white-text contrast clamp the branding form
+     * uses, because the sidebar renders white labels and icons on this colour. A
+     * palette that already passes is returned untouched.
+     */
+    sidebarColors(branding) {
+        const st = (typeof window !== 'undefined') && window.schoolTheme;
+        const clamp = (hex, fallback) => {
+            if (!hex) return fallback;
+            if (!st || !st.colors) return hex;
+            // 4.6:1 rather than 4.5 — the sidebar also carries semi-transparent
+            // white labels (rgba(255,255,255,.75)) for inactive items, so a hair
+            // of extra headroom keeps those legible too.
+            return st.colors.clampForWhiteText(hex, 4.6);
+        };
+
+        return {
+            light: clamp(branding.primaryColor, '#1A56C4'),
+            dark: clamp(branding.secondaryColor, '#111827')
+        };
+    }
+
+    /**
+     * The CLAUDE.md token names, derived from the same palette.
+     *
+     * main.css carries two parallel systems: the legacy one (--primary-color,
+     * --text-color, --background-color, --border-color) and the newer one from
+     * the design guidelines (--primary, --text-primary, --bg, --border). Only the
+     * legacy names were ever injected here, so anything written against the newer
+     * names — the fees and feed modules, and every module written after them —
+     * stayed pinned to main.css's static values and never followed the theme.
+     *
+     * Emitting both keeps the old markup working and fixes the new modules.
+     *
+     * Note --accent is NOT branding.accentColor: in the guidelines it is the white
+     * card/content surface (#FFFFFF light, #1A1D27 dark). accentColor keeps its own
+     * legacy name, --accent-color.
+     */
+    modernTokens(branding) {
+        const st = (typeof window !== 'undefined') && window.schoolTheme;
+        const c = st && st.colors;
+        const primary = branding.primaryColor;
+        const dmPrimary = branding.darkMode?.primaryColor || primary;
+
+        const rgba = (hex, alpha) => {
+            const parsed = c && c.hexToRgb(hex);
+            if (!parsed) return `rgba(26,115,232,${alpha})`;
+            return `rgba(${parsed.r},${parsed.g},${parsed.b},${alpha})`;
+        };
+
+        return {
+            light: {
+                primary,
+                primaryDark: branding.primaryHover,
+                // Soft tint behind hovers and selected rows (#E8F0FE for #1A73E8).
+                primaryLight: c ? c.lighten(primary, 0.90) : '#E8F0FE',
+                shadowHover: `0 6px 20px ${rgba(primary, 0.18)}`
+            },
+            dark: {
+                primary: dmPrimary,
+                primaryDark: primary,
+                // Muted blue tint for dark hovers (#1E2D4A-ish), never the light one.
+                primaryLight: c ? c.darken(dmPrimary, 0.68) : '#1E2D4A',
+                // One step brighter than surface-2 — the hover/selected layer.
+                surface3: c ? c.lighten(branding.darkMode?.innerBackground || '#22263A', 0.045) : '#2C3150',
+                shadowHover: `0 6px 24px ${rgba(dmPrimary, 0.2)}`
+            }
+        };
+    }
+
+    /**
      * Inject both light and dark mode styles
      */
     injectThemeStyles(branding) {
@@ -118,9 +286,25 @@ class ThemeApplier {
             document.head.appendChild(styleEl);
         }
 
+        const sidebar = this.sidebarColors(branding);
+        const modern = this.modernTokens(branding);
+
         styleEl.textContent = `
       /* Light Mode Colors (Default) */
       :root {
+        --sidebar-bg: ${sidebar.light};
+
+        /* Design-guideline token names — see modernTokens() */
+        --primary: ${modern.light.primary};
+        --primary-dark: ${modern.light.primaryDark};
+        --primary-light: ${modern.light.primaryLight};
+        --text-primary: ${branding.textColor};
+        --text-secondary: ${branding.lightText};
+        --bg: ${branding.backgroundColor};
+        --border: ${branding.borderColor};
+        --accent: ${branding.cardBackground};
+        --shadow-hover: ${modern.light.shadowHover};
+
         --primary-color: ${branding.primaryColor};
         --primary-hover: ${branding.primaryHover};
         --secondary-color: ${branding.secondaryColor};
@@ -144,6 +328,22 @@ class ThemeApplier {
 
       /* Dark Mode Colors */
       [data-theme="dark"] {
+        --sidebar-bg: ${sidebar.dark};
+
+        /* Design-guideline token names — see modernTokens() */
+        --primary: ${modern.dark.primary};
+        --primary-dark: ${modern.dark.primaryDark};
+        --primary-light: ${modern.dark.primaryLight};
+        --text-primary: ${branding.darkMode.textColor};
+        --text-secondary: ${branding.darkMode.lightText};
+        --bg: ${branding.darkMode.backgroundColor};
+        --border: ${branding.darkMode.borderColor};
+        --accent: ${branding.darkMode.cardBackground};
+        --dm-surface: ${branding.darkMode.cardBackground};
+        --dm-surface-2: ${branding.darkMode.innerBackground};
+        --dm-surface-3: ${modern.dark.surface3};
+        --shadow-hover: ${modern.dark.shadowHover};
+
         --background-color: ${branding.darkMode.backgroundColor};
         --card-bg: ${branding.darkMode.cardBackground};
         --inner-bg: ${branding.darkMode.innerBackground};
@@ -308,6 +508,12 @@ class ThemeApplier {
         root.style.setProperty('--font-family', typography.fontFamily);
         root.style.setProperty('--font-size-base', typography.fontSize);
         root.style.setProperty('--border-radius', typography.borderRadius);
+
+        // --font-heading had the same problem --primary did: main.css pinned it to
+        // a literal and nothing ever overrode it, so the fees and feed modules —
+        // the only ones that use it — ignored the client's typography entirely.
+        // Falls back to fontFamily when a config doesn't name a heading face.
+        root.style.setProperty('--font-heading', typography.headingFontFamily || typography.fontFamily);
 
         // Load custom fonts if needed
         if (typography.fontFamily.includes('Inter') && !this.isFontLoaded('Inter')) {

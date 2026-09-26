@@ -413,10 +413,13 @@
     <script src="https://unpkg.com/pocketbase@0.21.0/dist/pocketbase.umd.js"></script>
     <!-- Configuration System -->
     <script type="module">
-        import { initConfig } from '../config/index.js';
+        import { initConfig, refreshSchoolTheme } from '../config/index.js';
         import { ensureModuleEnabled } from '../core/modules/moduleGuards.js';
         import { renderModuleNavItems } from '../core/ui/sidebarBuilder.js';
         await initConfig();
+        // The school's own branding, once we have an authenticated caller.
+        // initConfig already painted the cached copy; this corrects it.
+        refreshSchoolTheme(window.dataService);
         if (!ensureModuleEnabled('cbt', {
             moduleName: 'CBT',
             title: 'CBT module is not enabled',
@@ -438,6 +441,7 @@
     <script src="../js/androidUpdater.js"></script>
     <script src="../modules/cbt/js/idb.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../core/shared/schoolTheme.js"></script>
     <script src="../js/dataService.js"></script>
     <script src="../modules/cbt/js/cbtDataService.js"></script>
     <script src="../js/auth.js"></script>
