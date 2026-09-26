@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "Every client that gets its own installable build. This is the single list",
+    "the release workflows fan out over, so adding a school here is all it takes",
+    "for the next release to include them — no branch, no config file.",
+    "",
+    "'default' is the public build. It keeps the landing page and becomes",
+    "/releases/latest, which is what an unbranded download gets.",
+    "",
+    "'id' must be lowercase letters, digits and hyphens. It becomes:",
+    "  - the <meta name=\"client-id\"> baked into that build's HTML",
+    "  - the release tag suffix        v2.0.6-<id>",
+    "  - the releaseFilter its installed copy updates from",
+    "",
+    "Colours, logo and school name do NOT belong here — a school's admin sets",
+    "those from Settings > School Branding and they load from the database."
+  ],
+  "clients": [
+    { "id": "default", "name": "Gen7 CBT (public build)" },
+    { "id": "seatos", "name": "SEATOS Schools" }
+  ]
+}

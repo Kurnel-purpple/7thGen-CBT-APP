@@ -76,6 +76,7 @@
                 nameInput: document.getElementById('ma-tenant-name'),
                 schoolVersionInput: document.getElementById('ma-tenant-school-version'),
                 clientIdInput: document.getElementById('ma-tenant-client-id'),
+                domainInput: document.getElementById('ma-tenant-domain'),
                 contactInput: document.getElementById('ma-tenant-contact'),
                 planSelect: document.getElementById('ma-tenant-plan'),
                 statusSelect: document.getElementById('ma-tenant-status'),
@@ -166,7 +167,7 @@
         filterTenants(list) {
             if (!this.searchQuery) return list;
             return list.filter((t) => {
-                const haystack = `${t.name} ${t.schoolVersion} ${t.clientId} ${t.contactEmail} ${t.plan} ${t.status}`.toLowerCase();
+                const haystack = `${t.name} ${t.schoolVersion} ${t.clientId} ${t.domain} ${t.contactEmail} ${t.plan} ${t.status}`.toLowerCase();
                 return haystack.includes(this.searchQuery);
             });
         },
@@ -309,6 +310,7 @@
                 this.nodes.schoolVersionInput.readOnly = !!tenantId; // can't change once created
             }
             if (this.nodes.clientIdInput) this.nodes.clientIdInput.value = tenant?.clientId || '';
+            if (this.nodes.domainInput) this.nodes.domainInput.value = tenant?.domain || '';
             if (this.nodes.contactInput) this.nodes.contactInput.value = tenant?.contactEmail || '';
             if (this.nodes.planSelect) this.nodes.planSelect.value = tenant?.plan || 'trial';
             if (this.nodes.statusSelect) this.nodes.statusSelect.value = tenant?.status || 'trial';
@@ -340,6 +342,14 @@
                 name: this.nodes.nameInput.value,
                 schoolVersion: this.nodes.schoolVersionInput.value,
                 clientId: this.nodes.clientIdInput.value,
+                // Normalised here so a pasted "https://school.edu.ng/" still
+                // matches — the lookup compares bare hostnames.
+                domain: (this.nodes.domainInput?.value || '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/^[a-z]+:\/\//, '')
+                    .split('/')[0]
+                    .split(':')[0],
                 contactEmail: this.nodes.contactInput.value,
                 plan: this.nodes.planSelect.value,
                 status: this.nodes.statusSelect.value,

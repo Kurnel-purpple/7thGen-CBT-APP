@@ -38,6 +38,7 @@
             schoolVersion: record.school_version || '',
             name: record.name || '',
             clientId: record.client_id || '',
+            domain: record.domain || '',
             plan: record.plan || 'trial',
             status: record.status || 'trial',
             modulesEnabled: normaliseModulesArray(record.modules_enabled),
@@ -87,6 +88,7 @@
             school_version: String(payload.schoolVersion || '').trim(),
             name: String(payload.name || '').trim(),
             client_id: String(payload.clientId || '').trim(),
+            domain: String(payload.domain || '').trim().toLowerCase(),
             plan: payload.plan || 'trial',
             status: payload.status || 'trial',
             modules_enabled: normaliseModulesArray(payload.modulesEnabled),
@@ -107,6 +109,7 @@
         if (payload.schoolVersion !== undefined) data.school_version = String(payload.schoolVersion).trim();
         if (payload.name !== undefined) data.name = String(payload.name).trim();
         if (payload.clientId !== undefined) data.client_id = String(payload.clientId).trim();
+        if (payload.domain !== undefined) data.domain = String(payload.domain).trim().toLowerCase();
         if (payload.plan !== undefined) data.plan = payload.plan;
         if (payload.status !== undefined) data.status = payload.status;
         if (payload.modulesEnabled !== undefined) data.modules_enabled = normaliseModulesArray(payload.modulesEnabled);

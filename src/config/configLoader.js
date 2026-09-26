@@ -48,8 +48,20 @@ class ConfigLoader {
             console.error(`   Stack trace:`, error.stack);
             console.warn(`⚠️ Falling back to default configuration`);
 
-            this.config = defaultConfig;
-            this.currentClient = 'default';
+            // A client with no config file of its own is normal now: colours,
+            // name and logo come from app_settings once its admin has set them
+            // (see core/shared/schoolTheme.js), so most clients never need one.
+            //
+            // releaseFilter is the exception — it can't come from the database,
+            // because the installed app has to know which releases are *its*
+            // before anyone signs in. Defaulting it to the client id means a
+            // build stamped client-id="readingrainbow" updates from
+            // v*-readingrainbow releases, and /releases/latest stays the public
+            // build instead of handing them another school's APK.
+            this.config = clientId && clientId !== 'default'
+                ? this.mergeConfigs(defaultConfig, { client: { releaseFilter: clientId } })
+                : defaultConfig;
+            this.currentClient = clientId || 'default';
             return this.config;
         }
     }
