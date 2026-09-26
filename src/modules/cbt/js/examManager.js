@@ -570,6 +570,9 @@ const examManager = {
                 if (scrambleNo) scrambleNo.checked = true;
             }
 
+            const proctoringRadio = document.getElementById('exam-proctoring-' + (exam.proctoring || 'off'));
+            if (proctoringRadio) proctoringRadio.checked = true;
+
             // Theory section instructions
             const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
             if (theoryInstructionsInput && exam.theoryInstructions) {
@@ -692,7 +695,8 @@ const examManager = {
     ],
     _snapshotRadios: [
         'exam-scramble-yes', 'exam-scramble-no',
-        'exam-save-to-qb-yes', 'exam-save-to-qb-no'
+        'exam-save-to-qb-yes', 'exam-save-to-qb-no',
+        'exam-proctoring-off', 'exam-proctoring-warn', 'exam-proctoring-strict'
     ],
 
     /** The whole builder state, ready to park while we navigate away. */
@@ -952,6 +956,9 @@ const examManager = {
             scrambleYes.checked = !!draft.scrambleQuestions;
             scrambleNo.checked = !draft.scrambleQuestions;
         }
+
+        const draftProctoring = document.getElementById('exam-proctoring-' + (draft.proctoring || 'off'));
+        if (draftProctoring) draftProctoring.checked = true;
 
         // These questions came out of the Question Bank, so pushing them back
         // in would only re-save what is already there.
@@ -2201,6 +2208,11 @@ const examManager = {
         const scrambleYesRadio = document.getElementById('exam-scramble-yes');
         const scrambleQuestions = scrambleYesRadio ? scrambleYesRadio.checked : false;
 
+        // Light proctoring. Falls back to 'off' if the control is missing, so an
+        // exam can never end up proctored by accident.
+        const proctoringRadio = document.querySelector('input[name="exam-proctoring"]:checked');
+        const proctoring = proctoringRadio ? proctoringRadio.value : 'off';
+
         // Theory section instructions
         const theoryInstructionsInput = document.getElementById('exam-theory-instructions');
         const theoryInstructions = theoryInstructionsInput ? theoryInstructionsInput.value : '';
@@ -2371,7 +2383,8 @@ const examManager = {
             updatedAt: new Date().toISOString(),
             status: 'active',
             scheduledDate,
-            scrambleQuestions
+            scrambleQuestions,
+            proctoring
         };
 
         try {

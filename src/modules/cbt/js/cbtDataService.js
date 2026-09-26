@@ -375,6 +375,7 @@
                 created_by: examData.createdBy,
                 scheduled_date: examData.scheduledDate || null,
                 scramble_questions: examData.scrambleQuestions || false,
+                proctoring: examData.proctoring || 'off',
                 client_id: clientGeneratedId,
                 question_count: questions.length,
                 has_theory: theoryQs.length > 0,
@@ -435,6 +436,7 @@
             if (updates.globalExtension !== undefined) data.global_extension = updates.globalExtension;
             if (updates.scheduledDate !== undefined) data.scheduled_date = updates.scheduledDate;
             if (updates.scrambleQuestions !== undefined) data.scramble_questions = updates.scrambleQuestions;
+            if (updates.proctoring !== undefined) data.proctoring = updates.proctoring;
             if (updates.schoolLevel !== undefined) data.school_level = updates.schoolLevel;
             if (updates.theoryInstructions !== undefined) data.theory_instructions = updates.theoryInstructions;
 
@@ -748,7 +750,9 @@
             questionCount: dbExam.question_count ?? questions.length,
             hasTheory: dbExam.has_theory ?? questions.some(q => q.type === 'theory'),
             theoryCount: dbExam.theory_count ?? questions.filter(q => q.type === 'theory').length,
-            contentUpdated: dbExam.content_updated || null
+            contentUpdated: dbExam.content_updated || null,
+            // Blank means off, so every exam that predates the field stays unproctored.
+            proctoring: dbExam.proctoring || 'off'
         };
     };
 
@@ -775,7 +779,8 @@
             questionCount: dbExam.question_count || 0,
             hasTheory: dbExam.has_theory || false,
             theoryCount: dbExam.theory_count || 0,
-            contentUpdated: dbExam.content_updated || null
+            contentUpdated: dbExam.content_updated || null,
+            proctoring: dbExam.proctoring || 'off'
         };
     };
 
@@ -1059,6 +1064,9 @@
         delete flags._reopenedAt;
         delete flags._previousScore;
         delete flags._previousSubmittedAt;
+        // The reopened attempt's clock has been spent — leaving this behind would
+        // shorten the timer again on any later reopen of the same row.
+        delete flags._resumeSeconds;
         // pass_score and passed were never written here. pass_score therefore sat at 0
         // in the database, and because every consumer reads it as `passScore || 50`,
         // a 0 is falsy and silently becomes a hardcoded 50% pass mark — ignoring
@@ -1117,6 +1125,22 @@
         }
     };
 
+    /**
+     * Opens (or re-opens) the attempt row for this student.
+     *
+     * Returns the attempt's proctoring state so the exam page can refuse entry to
+     * an attempt that was auto-submitted for a proctoring breach. It is returned
+     * from here rather than fetched separately because this function already pays
+     * for the lookup — a breach check of its own would double the requests every
+     * student makes at the start of every paper.
+     *
+     * A null return means "could not tell" (offline, lookup failed). The caller
+     * must treat that as unlocked and fall back to the local marker: refusing a
+     * student entry to their exam because the network hiccuped is a far worse
+     * outcome than missing one breach.
+     *
+     * @returns {Promise<{existed:boolean, status:string, proctor:Object|null, reopened:boolean}|null>}
+     */
     ds.startExamSession = async function(examId, studentId, studentName) {
         try {
             // Only create the placeholder when the server confirms no row exists.
@@ -1126,6 +1150,7 @@
             const existing = await this._findExistingResult(examId, studentId);
 
             if (existing) {
+                const flags = existing.flags || {};
                 // V2E: Backfill _studentName if missing on existing in-progress record
                 if (studentName && existing.flags && !existing.flags._studentName) {
                     try {
@@ -1135,7 +1160,15 @@
                         console.log(`[ResultIdentity] Backfilled _studentName on existing session ${existing.id}`);
                     } catch (e) { /* best effort */ }
                 }
-                return; // Already exists
+                return {
+                    existed: true,
+                    status: flags._status || 'completed',
+                    proctor: flags._proctor || null,
+                    reopened: !!flags._reopenedForExtension,
+                    resumeSeconds: Number.isFinite(Number(flags._resumeSeconds))
+                        ? Number(flags._resumeSeconds)
+                        : null
+                };
             }
 
             // Create new session marker with student name snapshot
@@ -1152,8 +1185,10 @@
                 answers: {}
             });
             console.log(`[ResultIdentity] Session created with _studentName for exam ${examId}`);
+            return { existed: false, status: 'in-progress', proctor: null, reopened: false, resumeSeconds: null };
         } catch (error) {
             console.error('Failed to start session', error);
+            return null; // "could not tell" — see the note above
         }
     };
 
@@ -1754,6 +1789,16 @@
             status = dbResult.flags._status;
         }
 
+        // A proctoring breach ends the attempt whatever _status still says. A
+        // breach that arrived by beacon can leave the row in-progress — the page
+        // was destroyed before the client could grade it — and every "can I carry
+        // on with this exam?" check in the app keys off this one field. Reporting
+        // it as in-progress would offer the student a Continue button for an
+        // attempt the server will refuse to let them reopen.
+        if (dbResult.flags && dbResult.flags._proctor && dbResult.flags._proctor.breached) {
+            status = 'completed';
+        }
+
         // Get student name from expanded relation (check multiple possible fields)
         let studentName = 'Unknown';
         if (dbResult.expand && dbResult.expand.student_id) {
@@ -1791,6 +1836,11 @@
         let status = 'completed';
         if (dbResult.flags && dbResult.flags._status) {
             status = dbResult.flags._status;
+        }
+        // Same reasoning as _mapResult: a breach ends the attempt regardless of
+        // what _status still says.
+        if (dbResult.flags && dbResult.flags._proctor && dbResult.flags._proctor.breached) {
+            status = 'completed';
         }
 
         // V2E: Full fallback chain for student name — same as _mapResult
@@ -2096,6 +2146,32 @@
         return { backfilled, skipped };
     };
 
+    /**
+     * Lets a student back into an attempt they have already finished — the shared
+     * mechanism behind both "grant a time extension" and "grant a retake after a
+     * proctoring breach".
+     *
+     * Their answers are never touched, so a reopened attempt resumes exactly where
+     * it stopped rather than starting from a blank paper.
+     *
+     * Two things are true only of the breach case:
+     *
+     *   - A breached attempt can still be sitting at _status "in-progress". That
+     *     happens when the breach arrived by beacon as the page was destroyed and
+     *     the client never got to grade it. Selecting on "completed" alone would
+     *     skip exactly those rows and the retake would silently do nothing, so the
+     *     filter takes breached rows in whatever state they are in.
+     *
+     *   - The breach flag has to go, or the exam page would refuse entry again the
+     *     moment the student clicked in. It is kept as _previousProctor rather than
+     *     deleted outright: a teacher looking at the attempt later should still be
+     *     able to see that it was auto-submitted once, and why.
+     *
+     * _resumeSeconds carries the clock across. A breach records how much time was
+     * left at the moment it fired, and without it the timer logic in takeExam would
+     * hand back the FULL original duration on a retake with no extension attached —
+     * turning a proctoring penalty into a free second sitting.
+     */
     ds.reopenResultForExtension = async function(examId, studentId = null) {
         let reopened = 0;
         try {
@@ -2104,24 +2180,41 @@
                 filter += ` && student_id="${studentId}"`;
             }
             const results = await this.pb.collection('results').getFullList({ filter });
-            const completed = results.filter(r => r.flags && r.flags._status === 'completed');
+            const toReopen = results.filter(r => {
+                const flags = r.flags || {};
+                if (flags._status === 'completed') return true;
+                return !!(flags._proctor && flags._proctor.breached);
+            });
 
-            for (const r of completed) {
+            for (const r of toReopen) {
                 try {
+                    const flags = r.flags || {};
+                    const breach = flags._proctor || null;
+
                     const updatedFlags = {
-                        ...r.flags,
+                        ...flags,
                         _status: 'in-progress',
                         _reopenedForExtension: true,
                         _reopenedAt: new Date().toISOString(),
                         _previousScore: r.score,
                         _previousSubmittedAt: r.submitted_at
                     };
+
+                    if (breach) {
+                        delete updatedFlags._proctor;
+                        updatedFlags._previousProctor = breach;
+                        if (Number.isFinite(Number(breach.remainingSeconds))) {
+                            updatedFlags._resumeSeconds = Number(breach.remainingSeconds);
+                        }
+                    }
+
                     await this.pb.collection('results').update(r.id, {
                         flags: updatedFlags,
                         submitted_at: ''
                     });
                     reopened++;
-                    console.log(`[Extension] Reopened result ${r.id} for student ${r.student_id}`);
+                    console.log(`[Extension] Reopened result ${r.id} for student ${r.student_id}` +
+                        (breach ? ' (clearing a proctoring breach)' : ''));
                 } catch (e) {
                     console.warn(`[Extension] Failed to reopen result ${r.id}:`, e.message);
                 }

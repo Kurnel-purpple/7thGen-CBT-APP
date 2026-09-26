@@ -1,0 +1,1057 @@
+/* ========================================================
+   Fees module styling
+   - Uses the shared design tokens from main.css, so dark
+     mode comes for free via the [data-theme="dark"] swap.
+   - Same visual language as the homework module: whitespace,
+     type hierarchy and hairline dividers over boxy cards.
+   ======================================================== */
+
+.fee-main {
+    padding: 28px 40px 56px;
+    background: var(--bg);
+    overflow-y: auto;
+    max-width: 1080px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Mobile only — desktop keeps the page head below the topbar */
+.fee-topbar-title {
+    display: none;
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---------- Page header ---------- */
+
+.fee-page-head { margin-bottom: 28px; }
+
+.fee-page-eyebrow {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-family: var(--font-family);
+}
+
+.fee-page-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.15;
+}
+
+.fee-page-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    max-width: 640px;
+}
+
+/* ---------- Sections ---------- */
+
+.fee-section { margin-top: 32px; }
+
+.fee-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.fee-section-eyebrow {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    font-family: var(--font-family);
+}
+
+.fee-section-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.fee-section-meta {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ---------- Sidebar stats ---------- */
+
+.fee-sidebar-stats { padding: 4px 16px 12px; }
+
+.fee-sidebar-stats-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 8px;
+}
+
+.fee-sidebar-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+}
+
+.fee-sidebar-stat-name {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.fee-sidebar-stat-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+/* ---------- Status pills ---------- */
+
+.fee-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.fee-pill svg { width: 12px; height: 12px; stroke-width: 2.6; }
+
+.fee-pill.pending {
+    background: rgba(249, 171, 0, 0.12);
+    color: #B47700;
+    border-color: rgba(249, 171, 0, 0.35);
+}
+
+.fee-pill.confirmed {
+    background: rgba(52, 168, 83, 0.12);
+    color: #1E7E37;
+    border-color: rgba(52, 168, 83, 0.35);
+}
+
+.fee-pill.rejected {
+    background: rgba(234, 67, 53, 0.12);
+    color: #C5342A;
+    border-color: rgba(234, 67, 53, 0.35);
+}
+
+/* Dark mode needs lighter ink — the light-mode text colours fail contrast
+   against the dark surfaces. */
+[data-theme="dark"] .fee-pill.pending { color: #F9AB00; }
+[data-theme="dark"] .fee-pill.confirmed { color: #5CC97A; }
+[data-theme="dark"] .fee-pill.rejected { color: #F07B72; }
+
+/* Plain variant — used on the ADMIN queue only.
+   An admin scans a column of these and the pill chrome turns the list into a
+   wall of coloured lozenges; stripped back to coloured text the status still
+   reads instantly but the row stays quiet. The student view keeps the pill,
+   where a single status badge is the point of the screen rather than noise. */
+.fee-pill.plain {
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 0;
+    font-size: 0.76rem;
+}
+
+/* ---------- Submission rows ---------- */
+
+.fee-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.fee-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.fee-row:hover { background: var(--primary-light); }
+.fee-row.selected { background: var(--primary-light); }
+
+.fee-row-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: var(--inner-bg);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.fee-row-thumb-stack {
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* "+3" badge when a submission carries more than one receipt image */
+.fee-row-thumb-more {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--primary);
+    color: #FFFFFF;
+    font-size: 0.66rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--card-bg);
+}
+
+.fee-row-body { flex: 1; min-width: 0; }
+
+.fee-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fee-row-name {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fee-row-caption {
+    margin: 4px 0 0;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.fee-row-meta {
+    margin-top: 7px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+}
+
+.fee-row-meta-dot { opacity: 0.5; }
+
+.fee-row-amount {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+/* ---------- Filter tabs (admin queue) ---------- */
+
+/* Status filters read as plain text links with an underline on the active one —
+   not pills. Four filled lozenges in a row competed with the status pills in the
+   list below them for the same attention; a text tab strip recedes and lets the
+   queue be the thing you look at. */
+.fee-tabs {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.fee-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 8px 2px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: none;
+    color: var(--text-secondary);
+    font-family: var(--font-family);
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    /* Sits on top of the strip's own hairline rather than below it. */
+    margin-bottom: -1px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.fee-tab:hover { color: var(--text-primary); }
+
+.fee-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 700;
+    background: none;
+    box-shadow: none;
+}
+
+/* The count is the thing an admin actually scans for, so it gets a chip while
+   the tab itself stays a plain text link. */
+.fee-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 21px;
+    height: 21px;
+    padding: 0 7px;
+    border-radius: var(--radius-pill);
+    background: var(--inner-bg);
+    color: var(--text-primary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.fee-tab.active .fee-tab-count {
+    background: var(--primary);
+    color: #FFFFFF;
+}
+
+.fee-filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.fee-filter-select {
+    min-height: 38px;
+    padding: 8px 14px;
+    border-radius: var(--radius-btn);
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.fee-filter-select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ---------- Detail view ---------- */
+
+.fee-detail-view { display: none; }
+.fee-detail-view.active { display: block; }
+.fee-list-view.hidden { display: none; }
+
+.fee-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 4px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-family);
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: color 0.15s ease;
+}
+
+.fee-back-btn:hover { color: var(--primary); }
+.fee-back-btn svg { width: 16px; height: 16px; stroke-width: 2.5; }
+
+.fee-detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.fee-detail-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.fee-detail-sub {
+    margin: 6px 0 0;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+}
+
+.fee-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 2px 24px;
+    margin: 20px 0 8px;
+}
+
+.fee-detail-field {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.fee-detail-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.fee-detail-value {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.fee-detail-caption {
+    margin: 18px 0 0;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ---------- Receipt gallery ---------- */
+
+.fee-receipts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.fee-receipt {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--inner-bg);
+    cursor: zoom-in;
+    aspect-ratio: 3 / 4;
+    padding: 0;
+    display: block;
+    width: 100%;
+}
+
+.fee-receipt img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.fee-receipt:hover { border-color: var(--primary); }
+
+/* ---------- Review panel ---------- */
+
+.fee-review {
+    margin-top: 28px;
+    padding: 20px;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-card);
+}
+
+.fee-review-title {
+    margin: 0 0 4px;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.fee-review-hint {
+    margin: 0 0 14px;
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.fee-review-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+/* ---------- Forms ---------- */
+
+.fee-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.fee-field { display: flex; flex-direction: column; gap: 6px; }
+
+.fee-field-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.fee-field-row > .fee-field { flex: 1; min-width: 160px; }
+
+.fee-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+}
+
+.fee-label-hint {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+}
+
+.fee-input,
+.fee-select,
+.fee-textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 14px;
+    border-radius: var(--radius-btn);
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 0.92rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fee-textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.fee-input:focus,
+.fee-select:focus,
+.fee-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.fee-char-count {
+    align-self: flex-end;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.fee-char-count.over { color: #EA4335; }
+
+/* ---------- Attachment picker ---------- */
+
+.fee-dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-card);
+    padding: 24px 18px;
+    text-align: center;
+    background: var(--inner-bg);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.fee-dropzone:hover,
+.fee-dropzone.dragover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.fee-dropzone-icon {
+    color: var(--primary);
+    margin-bottom: 8px;
+    display: inline-flex;
+}
+
+.fee-dropzone-text {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.fee-dropzone-hint {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin: 4px 0 0;
+}
+
+.fee-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.fee-preview {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    aspect-ratio: 3 / 4;
+    background: var(--inner-bg);
+}
+
+.fee-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.fee-preview-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    color: #FFFFFF;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fee-preview-remove:hover { background: #EA4335; }
+
+.fee-preview-size {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 3px 6px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #FFFFFF;
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ---------- Buttons ---------- */
+
+.fee-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 44px;
+    padding: 11px 22px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid transparent;
+    font-family: var(--font-family);
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.fee-btn:active { transform: scale(0.97); }
+.fee-btn svg { width: 16px; height: 16px; stroke-width: 2.4; }
+
+.fee-btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.25);
+}
+
+.fee-btn.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+
+.fee-btn.secondary {
+    background: var(--card-bg);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+.fee-btn.secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+.fee-btn.confirm {
+    background: #1E7E37;
+    border-color: #1E7E37;
+    color: #FFFFFF;
+}
+
+.fee-btn.confirm:hover { background: #17692D; border-color: #17692D; }
+
+.fee-btn.danger {
+    background: var(--card-bg);
+    border-color: rgba(234, 67, 53, 0.5);
+    color: #EA4335;
+}
+
+.fee-btn.danger:hover { background: rgba(234, 67, 53, 0.08); border-color: #EA4335; }
+
+.fee-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Ghost CTA — icon + text, no button chrome (see CLAUDE.md) */
+.ghost-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    font-family: var(--font-family);
+    font-weight: 700;
+    font-size: 0.87rem;
+    color: var(--primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: opacity 0.15s ease;
+}
+
+.ghost-cta:hover { opacity: 0.75; }
+.ghost-cta svg { width: 16px; height: 16px; stroke-width: 2.5; }
+.ghost-cta.danger { color: #EA4335; }
+.ghost-cta.muted { color: var(--text-secondary); }
+
+/* ---------- Status / empty states ---------- */
+
+.fee-status-msg {
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.5;
+    min-height: 1.2em;
+}
+
+.fee-status-msg.error { color: #EA4335; }
+.fee-status-msg.success { color: #1E7E37; }
+.fee-status-msg.info { color: var(--text-secondary); }
+
+.fee-empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.fee-empty-icon {
+    color: var(--border);
+    margin-bottom: 12px;
+    display: inline-flex;
+}
+
+.fee-empty-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+}
+
+.fee-empty-text {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    max-width: 380px;
+    margin-inline: auto;
+}
+
+/* ---------- Notice banner (student view) ---------- */
+
+.fee-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    margin-bottom: 20px;
+}
+
+.fee-notice.confirmed { border-color: rgba(52, 168, 83, 0.45); background: rgba(52, 168, 83, 0.07); }
+.fee-notice.rejected { border-color: rgba(234, 67, 53, 0.45); background: rgba(234, 67, 53, 0.07); }
+
+.fee-notice-icon { flex-shrink: 0; margin-top: 1px; }
+.fee-notice.confirmed .fee-notice-icon { color: #1E7E37; }
+.fee-notice.rejected .fee-notice-icon { color: #EA4335; }
+
+.fee-notice-title {
+    margin: 0 0 2px;
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.fee-notice-text {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+/* ---------- Lightbox ---------- */
+
+.fee-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.fee-lightbox.open { display: flex; }
+
+.fee-lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.fee-lightbox-close,
+.fee-lightbox-nav {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fee-lightbox-close:hover,
+.fee-lightbox-nav:hover { background: rgba(255, 255, 255, 0.3); }
+
+.fee-lightbox-close { top: 20px; right: 20px; font-size: 1.4rem; line-height: 1; }
+.fee-lightbox-nav.prev { left: 20px; top: 50%; transform: translateY(-50%); }
+.fee-lightbox-nav.next { right: 20px; top: 50%; transform: translateY(-50%); }
+.fee-lightbox-nav svg { width: 22px; height: 22px; stroke-width: 2.5; }
+
+.fee-lightbox-counter {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+/* ---------- Modal ---------- */
+
+.fee-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(15, 23, 42, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.fee-modal.open { display: flex; }
+
+.fee-modal-card {
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--card-bg);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+    padding: 24px;
+}
+
+[data-theme="dark"] .fee-modal-card { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6); }
+
+.fee-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.fee-modal-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.fee-modal-sub {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.fee-modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--inner-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.fee-modal-close:hover { background: var(--primary-light); color: var(--primary); }
+
+.fee-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+}
+
+/* ---------- Pagination ---------- */
+
+.fee-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.fee-pager-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+/* ========================================================
+   Responsive
+   ======================================================== */
+
+@media (max-width: 1024px) {
+    .fee-main { padding: 24px 28px 48px; }
+}
+
+@media (max-width: 768px) {
+    .fee-main { padding: 16px 16px 80px; }
+    .fee-page-head { display: none; }
+    .fee-topbar-title { display: block; }
+
+    .fee-section { margin-top: 22px; }
+    .fee-section-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+    .fee-row { padding: 14px 4px; gap: 12px; }
+    .fee-row-thumb { width: 48px; height: 48px; }
+
+    .fee-detail-grid { grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    .fee-receipts { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+    .fee-previews { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); }
+
+    .fee-field-row { flex-direction: column; gap: 14px; }
+
+    .fee-filters { flex-direction: column; align-items: stretch; }
+    .fee-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+    .fee-tab { flex-shrink: 0; }
+
+    .fee-review-actions .fee-btn { flex: 1; }
+
+    .fee-modal { padding: 0; align-items: flex-end; }
+    .fee-modal-card {
+        max-width: 100%;
+        max-height: 92vh;
+        border-radius: 20px 20px 0 0;
+        padding: 20px 16px 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .fee-detail-grid { grid-template-columns: 1fr; }
+    .fee-detail-title { font-size: 1.15rem; }
+}

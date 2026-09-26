@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, dialog, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
@@ -7,6 +7,18 @@ const { autoUpdater } = require('electron-updater');
 let mainWindow;
 let tray;
 let updateDownloadInProgress = false;
+
+// Light proctoring, desktop half. Non-null only while a student is sitting a
+// strict-mode exam; see the EXAM LOCK section near the bottom of this file.
+let examLock = null;
+// Captured when they are first built, so the lock can swap them out and put the
+// real ones back afterwards.
+let normalMenu = null;
+let normalTrayMenu = null;
+
+function isExamLocked() {
+    return !!examLock;
+}
 
 // Two instances sharing one userData profile corrupt Chromium's disk cache /
 // quota database on Windows. Second launch focuses the existing window instead.
@@ -47,6 +59,15 @@ function setupAutoUpdater() {
     // Update available
     autoUpdater.on('update-available', (info) => {
         console.log('[AutoUpdater] Update available:', info.version);
+
+        // Never over a live exam. The dialog steals focus, and the exam page reads
+        // lost focus as the student switching away — an update prompt would hand
+        // them a proctoring strike for something they did not do. The update is
+        // not lost; it is found again on the next check or launch.
+        if (isExamLocked()) {
+            console.log('[AutoUpdater] Exam in progress — deferring the update prompt');
+            return;
+        }
 
         dialog.showMessageBox(mainWindow, {
             type: 'info',
@@ -98,6 +119,14 @@ function setupAutoUpdater() {
         // Clear taskbar progress
         if (mainWindow) {
             mainWindow.setProgressBar(-1);
+        }
+
+        // Same reasoning as update-available, plus this one offers to restart the
+        // app — which would destroy an attempt in progress. autoInstallOnAppQuit
+        // is on, so the update still lands the next time the app is closed.
+        if (isExamLocked()) {
+            console.log('[AutoUpdater] Exam in progress — deferring the restart prompt');
+            return;
         }
 
         dialog.showMessageBox(mainWindow, {
@@ -231,13 +260,77 @@ function createWindow() {
     mainWindow.loadFile('src/index.html');
 
     // Save state on close
-    mainWindow.on('close', () => {
+    mainWindow.on('close', (e) => {
+        // setClosable(false) already refuses the titlebar button, but Alt+F4 and
+        // an app.quit() from elsewhere take different routes. This is the one
+        // place all of them pass through.
+        if (examLock) {
+            if (examLock.mode === 'strict') {
+                e.preventDefault();
+                notifyBlockedAction('close');
+                console.log('[ExamLock] close refused — exam in progress');
+                return;
+            }
+            // Warn mode never traps anyone. The first attempt is intercepted so
+            // the student gets the warning at the moment they click, which is the
+            // whole point of warning them; a second attempt is theirs to make.
+            if (!examLock.warnedClose) {
+                examLock.warnedClose = true;
+                e.preventDefault();
+                notifyBlockedAction('close');
+                console.log('[ExamLock] close warned (warn mode) — next attempt allowed');
+                return;
+            }
+        }
         saveWindowState(mainWindow.getBounds());
+    });
+
+    // Minimising cannot be prevented, only undone: the event fires after the
+    // window is already down, so we restore it immediately. On a desktop that
+    // reads as the button simply not working, which is the closest thing to
+    // interception a window manager will give us.
+    mainWindow.on('minimize', () => {
+        if (!examLock) return;
+
+        if (examLock.mode === 'strict') {
+            mainWindow.restore();
+            notifyBlockedAction('minimize');
+            return;
+        }
+        if (!examLock.warnedMinimize) {
+            examLock.warnedMinimize = true;
+            mainWindow.restore();
+            notifyBlockedAction('minimize');
+        }
     });
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });
+
+    // --- Lock failsafes ---
+    //
+    // Built before the lock itself, because the failure this design cannot afford
+    // is a student trapped in a window that has no exit. Every way the exam page
+    // can stop existing has to end with the window unlocked.
+
+    // The renderer died. Nothing is going to send exam:unlock now.
+    mainWindow.webContents.on('render-process-gone', (event, details) => {
+        console.log('[ExamLock] renderer gone (' + details.reason + ') — releasing');
+        releaseExamLock('renderer-gone');
+    });
+
+    // Navigated away from the exam page — a submit that completed, or any other
+    // route out. Covers the case where the unlock IPC never arrives.
+    const releaseIfOffExamPage = (url) => {
+        if (!isExamLocked()) return;
+        if (String(url || '').indexOf('take-exam.html') === -1) {
+            console.log('[ExamLock] no longer on the exam page — releasing');
+            releaseExamLock('navigated-away');
+        }
+    };
+    mainWindow.webContents.on('did-navigate', (e, url) => releaseIfOffExamPage(url));
+    mainWindow.webContents.on('did-navigate-in-page', (e, url) => releaseIfOffExamPage(url));
 
     // Build Native Menu
     const menuTemplate = [
@@ -316,8 +409,8 @@ function createWindow() {
         }
     ];
 
-    const menu = Menu.buildFromTemplate(menuTemplate);
-    Menu.setApplicationMenu(menu);
+    normalMenu = Menu.buildFromTemplate(menuTemplate);
+    Menu.setApplicationMenu(normalMenu);
 }
 
 // ============================================
@@ -332,16 +425,231 @@ function createTray() {
     tray = new Tray(icon);
     tray.setToolTip('Gen7 CBT Exam App');
 
-    const contextMenu = Menu.buildFromTemplate([
+    normalTrayMenu = Menu.buildFromTemplate([
         { label: 'Show App', click: () => mainWindow.show() },
         { label: 'Check for Updates', click: () => autoUpdater.checkForUpdates() },
         { type: 'separator' },
         { label: 'Quit', role: 'quit' }
     ]);
 
-    tray.setContextMenu(contextMenu);
+    tray.setContextMenu(normalTrayMenu);
     tray.on('double-click', () => mainWindow.show());
 }
+
+// ============================================
+// EXAM LOCK (light proctoring — desktop)
+// ============================================
+//
+// The web half of light proctoring (src/modules/cbt/js/proctorWatcher.js) can
+// only DETECT a student leaving an exam, because no browser is allowed to stop
+// them. Here we own the window, so a strict-mode exam can genuinely refuse to be
+// minimised or closed.
+//
+// It is still not absolute — nothing in userland stops Win+D, Ctrl+Alt+Del or
+// pulling the plug — and it does not need to be. Escaping the kiosk does not
+// escape proctoring: the page's own watcher stays armed throughout, so a student
+// who gets out lands right back in the ordinary strike rules.
+//
+//
+// EVERY RELEASE PATH IS BUILT BEFORE THE LOCK IS APPLIED
+//
+// The failure this cannot afford is a student sealed inside a window with no way
+// out — a hung renderer would otherwise leave a teacher power-cycling a machine
+// mid-exam. So the lock is released by all of:
+//
+//   1. the exam page asking, on submit                 (exam:unlock)
+//   2. the exam page going quiet for 90 seconds        (heartbeat watchdog)
+//   3. the renderer crashing                           (render-process-gone)
+//   4. the page navigating off take-exam.html          (did-navigate)
+//   5. a hard timer, the exam's own duration plus 30m  (belt and braces)
+//   6. an invigilator pressing Ctrl+Shift+Alt+U        (manual override)
+//
+// 2 through 5 need nothing from the renderer at all.
+
+const LOCK_BUFFER_MS = 30 * 60 * 1000;      // grace on top of the exam duration
+const LOCK_MAX_MS = 8 * 60 * 60 * 1000;     // no lock outlives a school day
+const HEARTBEAT_TIMEOUT_MS = 90 * 1000;     // three missed 30s beats
+const OVERRIDE_ACCELERATOR = 'CommandOrControl+Shift+Alt+U';
+
+/**
+ * Tell the exam page that the student just tried something we stopped, so it can
+ * warn them then and there rather than after the fact.
+ *
+ * This is the part the web cannot do. In a browser nothing fires before a
+ * minimise — `visibilitychange` arrives once the window is already down, so the
+ * warning can only be shown when they come back. Here we own the window, so the
+ * warning lands on the click.
+ */
+function notifyBlockedAction(action) {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    try {
+        mainWindow.webContents.send('exam:blocked-action', action);
+    } catch (e) {
+        console.error('[ExamLock] could not notify the page:', e);
+    }
+}
+
+function releaseExamLock(reason) {
+    if (!examLock) return;
+
+    const lock = examLock;
+    // Cleared first: the close handler and the watchdog both consult it, and they
+    // must see an unlocked app while we put the window back.
+    examLock = null;
+
+    if (lock.hardTimer) clearTimeout(lock.hardTimer);
+    if (lock.watchdog) clearInterval(lock.watchdog);
+
+    try {
+        globalShortcut.unregister(OVERRIDE_ACCELERATOR);
+    } catch (e) { /* never block the release */ }
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        try {
+            mainWindow.setKiosk(false);
+            mainWindow.setAlwaysOnTop(false);
+            mainWindow.setClosable(true);
+            mainWindow.setMinimizable(true);
+        } catch (e) {
+            console.error('[ExamLock] could not restore the window:', e);
+        }
+    }
+
+    try {
+        if (normalMenu) Menu.setApplicationMenu(normalMenu);
+        if (tray && normalTrayMenu) tray.setContextMenu(normalTrayMenu);
+    } catch (e) { /* never block the release */ }
+
+    console.log('[ExamLock] released (' + reason + ') after ' +
+        Math.round((Date.now() - lock.startedAt) / 1000) + 's');
+}
+
+function lockForExam(opts) {
+    if (!mainWindow || mainWindow.isDestroyed()) return { locked: false, reason: 'no-window' };
+    // Already locked for this attempt — a reload of the exam page re-requests it.
+    if (examLock) {
+        examLock.lastBeat = Date.now();
+        return { locked: true, reason: 'already-locked' };
+    }
+
+    const durationSeconds = Number(opts && opts.durationSeconds) || 0;
+    const hardMs = Math.min(Math.max(durationSeconds * 1000, 0) + LOCK_BUFFER_MS, LOCK_MAX_MS);
+    const mode = (opts && opts.mode) === 'warn' ? 'warn' : 'strict';
+
+    examLock = {
+        examId: String((opts && opts.examId) || ''),
+        mode: mode,
+        startedAt: Date.now(),
+        lastBeat: Date.now(),
+        // Warn mode intercepts each of these exactly once, so the student is
+        // warned at the click without ever being trapped.
+        warnedClose: false,
+        warnedMinimize: false,
+        hardTimer: null,
+        watchdog: null
+    };
+
+    // 5. The hard stop. Runs even if every other signal fails.
+    examLock.hardTimer = setTimeout(() => releaseExamLock('hard-timeout'), hardMs);
+
+    // 2. The watchdog. A frozen or silently dead page stops beating, and the
+    //    window frees itself without anyone having to reboot the machine.
+    examLock.watchdog = setInterval(() => {
+        if (!examLock) return;
+        if (Date.now() - examLock.lastBeat > HEARTBEAT_TIMEOUT_MS) {
+            releaseExamLock('heartbeat-lost');
+        }
+    }, 15000);
+
+    // Warn mode stops here. It watches the window's minimise and close events —
+    // registered once in createWindow, and inert whenever examLock is null — but
+    // it deliberately does NOT go kiosk, take the menu away or make the window
+    // unclosable. Its whole job is to tell the student what they are doing at the
+    // moment they do it, then get out of the way.
+    if (mode === 'warn') {
+        console.log('[ExamLock] warn mode armed for exam ' + examLock.examId +
+            ' (no kiosk; one interception each for minimise and close)');
+        return { locked: true, reason: 'warn-armed' };
+    }
+
+    // 6. The invigilator's way out. Deliberately a plain confirmation rather than
+    //    a password: a student who finds the combination gains nothing worth
+    //    having, because leaving the kiosk drops them back under the page's own
+    //    strike rules, which are still running.
+    try {
+        globalShortcut.register(OVERRIDE_ACCELERATOR, () => {
+            if (!examLock) return;
+            dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                title: 'Supervisor Override',
+                message: 'Unlock this computer during an exam?',
+                detail: 'The exam stays open and continues to be monitored. Use this only if the machine needs attention.',
+                buttons: ['Unlock', 'Cancel'],
+                defaultId: 1,
+                cancelId: 1
+            }).then((r) => {
+                if (r.response === 0) releaseExamLock('supervisor-override');
+            });
+        });
+    } catch (e) {
+        console.error('[ExamLock] could not register the override shortcut:', e);
+    }
+
+    // --- and only now, the lock itself ---
+    try {
+        mainWindow.setClosable(false);
+        mainWindow.setMinimizable(false);
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+        mainWindow.setKiosk(true);
+        mainWindow.show();
+        mainWindow.focus();
+    } catch (e) {
+        console.error('[ExamLock] could not apply the lock:', e);
+        releaseExamLock('lock-failed');
+        return { locked: false, reason: 'lock-failed' };
+    }
+
+    // Strip the menu down. This is what removes the Ctrl+R / Ctrl+Shift+I /
+    // Ctrl+Q accelerators — they are attached to the menu roles, so taking the
+    // roles away takes the shortcuts with them.
+    try {
+        Menu.setApplicationMenu(Menu.buildFromTemplate([
+            { label: 'Exam in progress', submenu: [{ label: 'This computer is locked for an exam.', enabled: false }] }
+        ]));
+        if (tray) {
+            tray.setContextMenu(Menu.buildFromTemplate([
+                { label: 'Exam in progress', enabled: false }
+            ]));
+        }
+    } catch (e) { /* the window lock is what matters */ }
+
+    console.log('[ExamLock] locked for exam ' + examLock.examId +
+        ' (hard release in ' + Math.round(hardMs / 60000) + ' min)');
+    return { locked: true, reason: 'locked' };
+}
+
+// A hung renderer must not hold the window hostage.
+app.on('web-contents-created', (e, contents) => {
+    contents.on('unresponsive', () => {
+        if (isExamLocked()) {
+            console.log('[ExamLock] renderer unresponsive — releasing');
+            releaseExamLock('unresponsive');
+        }
+    });
+});
+
+ipcMain.handle('exam:lock', (event, opts) => lockForExam(opts || {}));
+
+ipcMain.on('exam:unlock', () => releaseExamLock('page-request'));
+
+ipcMain.on('exam:heartbeat', () => {
+    if (examLock) examLock.lastBeat = Date.now();
+});
+
+ipcMain.handle('exam:lock-status', () => ({
+    locked: isExamLocked(),
+    examId: examLock ? examLock.examId : null
+}));
 
 // ============================================
 // APP LIFECYCLE
@@ -363,6 +671,10 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
 });
 
 // Handle certificate errors for development

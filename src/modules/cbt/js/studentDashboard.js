@@ -1071,8 +1071,12 @@ const studentDashboard = {
         // Filter to only show completed results (exclude in-progress entries)
         const completedResults = studentDashboard.results.filter(r => {
             // Check if result has the _status flag set to 'completed'
-            // or if it doesn't have _status at all (legacy results)
-            if (r.flags && r.flags._status === 'in-progress') {
+            // or if it doesn't have _status at all (legacy results).
+            // A breached attempt is finished whatever _status says — it belongs in
+            // the student's history so they can see it was auto-submitted, rather
+            // than vanishing from both the available list and this one.
+            const breached = !!(r.flags && r.flags._proctor && r.flags._proctor.breached);
+            if (!breached && r.flags && r.flags._status === 'in-progress') {
                 return false; // Exclude in-progress results
             }
             return true; // Include completed results
